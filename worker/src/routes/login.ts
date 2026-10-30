@@ -1,6 +1,7 @@
 import type { Env } from '../env'
 import { now } from '../env'
 import { DUMMY_HASH, verifyPassword } from '../auth/password'
+import { isCodedUsername } from '../services/sign_in_name'
 import { issueSession } from '../auth/session'
 import { chooserHTML, loginHTML, type Brand, type LoginLang } from '../auth/login-page'
 import { isTelugu } from './admin/msg_templates'
@@ -47,22 +48,32 @@ export function loginLang(req: Request | undefined, school?: Institution | null)
   return { lang: 'en', asked: false }
 }
 
+/* The wrong-details message in the words of the tab the person used. */
+const TAB_NOMATCH: Record<string, string> = {
+  parent: 'Wrong phone or password.',
+  student: 'Wrong admission no. or password.',
+  staff: 'Wrong email/phone or password.',
+}
+
 /* The errors this file shows, in Telugu. Anything not here stays English. */
 const ERRORS_TE: Record<string, string> = {
-  'Malformed form submission.': 'ఫారం సరిగా రాలేదు. మళ్ళీ ప్రయత్నించండి.',
-  'Your sign-in form expired. Please try again.': 'సైన్ ఇన్ ఫారం గడువు ముగిసింది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
-  'That username, email or phone and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.':
-    'యూజర్‌నేమ్/ఈమెయిల్/ఫోన్, పాస్‌వర్డ్ సరిపోలలేదు. రెండూ చూసుకోండి, లేదా "పాస్‌వర్డ్ మర్చిపోయారా?" వాడండి. కొత్తవారా? లాగిన్ స్కూల్ ఆఫీసు ఇస్తుంది.',
-  "Your password is right, but this school's access is paused at the moment. Nothing has been lost. Ask the school office, or whoever runs XULO for the school, to switch it back on.":
-    'మీ పాస్‌వర్డ్ సరైనదే, కానీ ఈ స్కూల్ యాక్సెస్ ప్రస్తుతం ఆపివేయబడింది. ఏ సమాచారం పోలేదు. మళ్ళీ ఆన్ చేయమని స్కూల్ ఆఫీసును అడగండి.',
-  'That number or address, with that password, opens accounts at more than one school, so we cannot tell which you mean. Sign in with your email address or username instead.':
-    'ఈ నంబర్/ఈమెయిల్, పాస్‌వర్డ్‌తో ఒకటి కంటే ఎక్కువ స్కూళ్ల అకౌంట్లు ఉన్నాయి. మీ ఈమెయిల్ లేదా యూజర్‌నేమ్‌తో సైన్ ఇన్ చేయండి.',
+  [TAB_NOMATCH.parent]: 'ఫోన్ లేదా పాస్‌వర్డ్ తప్పు.',
+  [TAB_NOMATCH.student]: 'అడ్మిషన్ నం. లేదా పాస్‌వర్డ్ తప్పు.',
+  [TAB_NOMATCH.staff]: 'ఈమెయిల్/ఫోన్ లేదా పాస్‌వర్డ్ తప్పు.',
+  'Form error. Try again.': 'ఫారం లోపం. మళ్ళీ ప్రయత్నించండి.',
+  'Page expired. Try again.': 'పేజీ గడువు ముగిసింది. మళ్ళీ ప్రయత్నించండి.',
+  'Wrong username or password.':
+    'యూజర్‌నేమ్ లేదా పాస్‌వర్డ్ తప్పు.',
+  'School access paused. Ask the office.':
+    'స్కూల్ యాక్సెస్ ఆపబడింది. ఆఫీసును అడగండి.',
+  'Used at more than one school. Use email or username.':
+    'ఒకటి కంటే ఎక్కువ స్కూళ్లలో ఉంది. ఈమెయిల్ లేదా యూజర్‌నేమ్ వాడండి.',
 }
-const TOO_MANY = /^Too many attempts\. Wait (\d+) minute\(s\), then try again\.$/
+const TOO_MANY = /^Too many tries\. Wait (\d+) min\.$/
 function errorIn(lang: LoginLang, msg: string | undefined): string | undefined {
   if (!msg || lang !== 'te') return msg
   const m = msg.match(TOO_MANY)
-  if (m) return `చాలా సార్లు ప్రయత్నించారు. ${m[1]} నిమిషాలు ఆగి మళ్ళీ ప్రయత్నించండి.`
+  if (m) return `చాలా ప్రయత్నాలు. ${m[1]} నిమి. ఆగండి.`
   return ERRORS_TE[msg] ?? msg
 }
 
@@ -230,7 +241,7 @@ export async function schoolLogo(env: Env, country: string, slug: string): Promi
   } })
 }
 
-async function throttled(env: Env, key: string): Promise<number> {
+export async function throttled(env: Env, key: string): Promise<number> {
   const row = await env.CONTROL.prepare('SELECT failures, window_started_at, locked_until FROM login_throttle WHERE key = ?')
     .bind(key).first<{ failures: number; window_started_at: string; locked_until: string | null }>()
   if (!row?.locked_until) return 0
@@ -238,7 +249,7 @@ async function throttled(env: Env, key: string): Promise<number> {
   return left > 0 ? left : 0
 }
 
-async function failed(env: Env, key: string, weight = 1): Promise<void> {
+export async function failed(env: Env, key: string, weight = 1): Promise<void> {
   const t = now()
   const row = await env.CONTROL.prepare('SELECT failures, window_started_at FROM login_throttle WHERE key = ?')
     .bind(key).first<{ failures: number; window_started_at: string }>()
@@ -258,13 +269,61 @@ interface Candidate { institution_id: string | null; user_id: string; hash: stri
    internal/auth/handler.go: the password chooses between candidates, a
    paused school is reported only after the password matches, and a genuine
    tie is an error. */
+/* Staff usernames are "<phone>.<SCHOOLCODE>", four capitals (setup/staff.ts). The bare
+   number, or a username typed without its ".CODE", also finds that account:
+   on a school's page only within that school; on the shared page across
+   schools, where the password then chooses and a tie stays ambiguous.
+   A school email (an active Staff Inbox address, mail_addresses) finds its
+   holder too: the domain's school comes from CONTROL mail_domains. */
+async function extraRows(env: Env, identifier: string, onlySchool?: string): Promise<{ institution_id: string | null; user_id: string }[]> {
+  const out: { institution_id: string | null; user_id: string }[] = []
+  if (identifier.includes('@')) {
+    const domain = identifier.slice(identifier.lastIndexOf('@') + 1)
+    if (!domain) return out
+    const md = await env.CONTROL.prepare('SELECT institution_id FROM mail_domains WHERE domain = ?').bind(domain)
+      .first<{ institution_id: string }>().catch(() => null)
+    if (!md || (onlySchool && md.institution_id !== onlySchool)) return out
+    const inst = await institutionById(env, md.institution_id)
+    if (!inst) return out
+    const a = await tenantDb(env, inst).prepare(`SELECT user_id FROM mail_addresses WHERE address = ? AND status = 'active'`)
+      .bind(identifier).first<{ user_id: string }>().catch(() => null)
+    if (a) out.push({ institution_id: inst.id, user_id: a.user_id })
+    return out
+  }
+  if (identifier === '' || identifier.includes('.')) return out
+  const lo = identifier + '.', hi = identifier + '/'
+  const res = await env.CONTROL.prepare(
+    `SELECT DISTINCT institution_id, user_id, value FROM login_index WHERE kind = 'username' AND value >= ? AND value < ? AND institution_id IS NOT NULL ${onlySchool ? 'AND institution_id = ?' : ''} LIMIT ?`)
+    .bind(...(onlySchool ? [lo, hi, onlySchool, MAX_CANDIDATES] : [lo, hi, MAX_CANDIDATES]))
+    .all<{ institution_id: string; user_id: string; value: string }>()
+  for (const r of res.results) {
+    const suffix = r.value.slice(lo.length)
+    if (r.value.slice(0, lo.length).toLowerCase() === lo.toLowerCase() && /^[A-Z]{4}$/.test(suffix)) {
+      out.push({ institution_id: r.institution_id, user_id: r.user_id })
+    }
+  }
+  return out
+}
+
 async function authenticate(env: Env, identifier: string, password: string, onlySchool?: string | null):
   Promise<{ ok: true; c: Candidate } | { ok: false; outcome: 'no_account' | 'wrong_password' | 'school_paused' | 'ambiguous' }> {
+  /* "<number>.<CODE>" no longer signs anyone in (owner, 2026-10-26: "Block it
+     fully"); the bare number does. Same answer and cost as an unknown name. */
+  if (isCodedUsername(identifier)) {
+    await verifyPassword(env.PASSWORD_PEPPER, DUMMY_HASH, password)
+    return { ok: false, outcome: 'no_account' }
+  }
   const idx = await env.CONTROL.prepare(
     `SELECT DISTINCT institution_id, user_id FROM login_index WHERE value = ? ${onlySchool ? 'AND institution_id = ?' : onlySchool === null ? 'AND institution_id IS NULL' : ''} LIMIT ?`)
     .bind(...(onlySchool ? [identifier, onlySchool, MAX_CANDIDATES] : [identifier, MAX_CANDIDATES])).all<{ institution_id: string | null; user_id: string }>()
+  const rows = [...idx.results]
+  if (onlySchool !== null) rows.push(...await extraRows(env, identifier, onlySchool))
+  const seen = new Set<string>()
   const candidates: Candidate[] = []
-  for (const r of idx.results) {
+  for (const r of rows) {
+    const k = `${r.institution_id ?? ''}|${r.user_id}`
+    if (seen.has(k)) continue
+    seen.add(k)
     if (r.institution_id === null) {
       const u = await env.CONTROL.prepare(`SELECT password_hash FROM platform_users WHERE id = ? AND status = 'active'`)
         .bind(r.user_id).first<{ password_hash: string | null }>()
@@ -297,10 +356,10 @@ export async function login(env: Env, req: Request, school?: Institution | null,
   if (school === undefined) school = await institutionByHost(env, hostOf(req))
   const page = (_: Env, o: Parameters<typeof pageFor>[1]) => pageFor(env, { ...o, school, action, req })
   const form = await req.formData().catch(() => null)
-  if (!form) return page(env, { error: 'Malformed form submission.', status: 400 })
+  if (!form) return page(env, { error: 'Form error. Try again.', status: 400 })
   const cookieTok = (req.headers.get('cookie') ?? '').match(new RegExp(`(?:^|;\\s*)${CSRF}=([^;]+)`))?.[1]
   if (!cookieTok || cookieTok !== form.get('csrf_token')) {
-    return page(env, { error: 'Your sign-in form expired. Please try again.', status: 403 })
+    return page(env, { error: 'Page expired. Try again.', status: 403 })
   }
   const identifier = String(form.get('identifier') ?? '').trim()
   const password = String(form.get('password') ?? '')
@@ -313,7 +372,7 @@ export async function login(env: Env, req: Request, school?: Institution | null,
   const wait = Math.max(await throttled(env, idKey), await throttled(env, 'ip:' + ip))
   if (wait > 0) {
     await record(env, req, identifier, 'locked', null, null)
-    return page(env, { error: `Too many attempts. Wait ${Math.ceil(wait / 60000)} minute(s), then try again.`, next, identifier, status: 429 })
+    return page(env, { error: `Too many tries. Wait ${Math.ceil(wait / 60000)} min.`, next, identifier, status: 429 })
   }
 
   const r = await authenticate(env, identifier, password, vendorOnly ? null : school?.id)
@@ -321,15 +380,17 @@ export async function login(env: Env, req: Request, school?: Institution | null,
      is right is told where its own page is, not that the password is wrong. */
   if (!r.ok && vendorOnly && r.outcome !== 'wrong_password' && (await authenticate(env, identifier, password)).ok) {
     await record(env, req, identifier, 'wrong_site', null, null)
-    return page(env, { error: `This page is for XULO staff. Sign in at your school's own address, such as yourschool.${env.SCHOOL_DOMAIN}, or find it at school.${env.SCHOOL_DOMAIN}.`, next, identifier, status: 403 })
+    return page(env, { error: `XULO staff only. Schools: school.${env.SCHOOL_DOMAIN}.`, next, identifier, status: 403 })
   }
   if (!r.ok) {
     await failed(env, idKey)
     await failed(env, 'ip:' + ip, 1 / 5)
     await record(env, req, identifier, r.outcome, null, null)
-    let msg = 'That username, email or phone and password do not match. Check both, or use Forgotten your password. New here? The school office issues logins.'
-    if (r.outcome === 'school_paused') msg = "Your password is right, but this school's access is paused at the moment. Nothing has been lost. Ask the school office, or whoever runs XULO for the school, to switch it back on."
-    if (r.outcome === 'ambiguous') msg = 'That number or address, with that password, opens accounts at more than one school, so we cannot tell which you mean. Sign in with your email address or username instead.'
+    let msg = 'Wrong username or password.'
+    const tab = String(form.get('tab') ?? '')
+    if (TAB_NOMATCH[tab]) msg = TAB_NOMATCH[tab]
+    if (r.outcome === 'school_paused') msg = 'School access paused. Ask the office.'
+    if (r.outcome === 'ambiguous') msg = 'Used at more than one school. Use email or username.'
     return page(env, { error: msg, next, identifier, status: 401 })
   }
 

@@ -202,6 +202,7 @@ interface Detail {
   full_name: string
   phone?: string
   email?: string
+  school_email?: string
   qualification?: string
   department?: string
   designation?: string
@@ -497,7 +498,8 @@ export default function StaffRecord({ employeeID, onClose }: {
                     ['first_name', 'First name'],
                     ['last_name', 'Last name'],
                     ['phone', 'Phone'],
-                    ['email', 'Email'],
+                    ['email', 'Personal email'],
+                    ['school_email', 'School email'],
                     ['qualification', 'Qualification'],
                     ['experience_years', 'Years of experience'],
                     ['emergency_contact_name', 'Emergency contact'],
@@ -514,7 +516,8 @@ export default function StaffRecord({ employeeID, onClose }: {
                     <FormField key={k} label={label}>
                       <Input
                         type={k.endsWith('_on') ? 'date'
-                          : k === 'experience_years' ? 'number' : undefined}
+                          : k === 'experience_years' ? 'number'
+                          : k.endsWith('email') ? 'email' : undefined}
                         value={draft[k] ?? ((d[k as keyof Detail] as string | undefined) ?? '')}
                         onChange={(v) => setDraft({ ...draft, [k]: v })}
                       />
@@ -583,7 +586,8 @@ export default function StaffRecord({ employeeID, onClose }: {
                 <div className="space-y-3">
                   {([
                     ['Phone', d.phone],
-                    ['Email', d.email],
+                    ['Personal email', d.email],
+                    ['School email', d.school_email],
                     ['Emergency contact', d.emergency_contact_name],
                     ['Their phone', d.emergency_contact_phone],
                   ] as [string, string | undefined][]).map(([k, v]) => (

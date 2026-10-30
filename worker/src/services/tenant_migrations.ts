@@ -112,4 +112,12 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 112, name: 'approvals_indexes', checksum: '99f7d6bb8209598f2dc04c0718213a1aab96fa8e8f506d0225ace0a16a1db6dd' },
   { version: 113, name: 'inventory_in_store', checksum: '25a2d4f31e7749858fd075641ad8d1c347103d699025498b722854a687a0da82' },
   { version: 114, name: 'digest_keep_latest', checksum: 'af16d338d9839c73531435ba6959b316f5dd51da4d95d72c86a48d4660e11e56' },
+  { version: 115, name: 'on_duty_requests', checksum: 'fd4fa5a98c5964e2429294e578789c1c9e9dceaae101fd64d8a03fde354beb05' },
+  { version: 116, name: 'substitution_proposed_by', checksum: 'a3ab9a5f1d762b63405a2a47f76121a99dc65686d6fa30389125ffa77c24078e' },
+  { version: 117, name: 'payroll_approval', checksum: '05d2421a48288d3df7a6fa6b1390fbcc418029babf8641121c32cea9ad0829dd' },
+  { version: 118, name: 'orphan_screens_menu', checksum: 'b069e7faf187e724637ad44fa6e3cd2e8ac61664d604806a5259f78577ccc371' },
+  { version: 119, name: 'employee_school_email', checksum: '036a8c5bdb04a193d80bc6221f715829b66260c0fe9535d0592d9e7368716202' },
+  { version: 120, name: 'live_changes', checksum: '7ec19c2238939c20ea37c4b7628456c00b9be6d9cac19ec03a98b5f9b808c9b1' },
+  { version: 121, name: 'teacher_slot_same_subject', checksum: 'a731065eca4bae639b6b1967fdbda3262c042562c94062e827a8e85cbc83596e' },
+  { version: 122, name: 'staff_feature_blocks', checksum: '28414fc94c43d88eff42fe708aa89a77e69382cb252a0ab24ee476692ae36aca' },
 ]

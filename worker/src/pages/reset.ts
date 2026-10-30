@@ -3,7 +3,9 @@ import { now } from '../env'
 import { hashPassword } from '../auth/password'
 import { institutionById, tenantDb } from '../tenant'
 import { forgotPage, resetPage } from './render'
+import { tabWords } from '../auth/login-page'
 import { kickDispatch, platformProviders } from '../services/messaging'
+import { rateLimited } from '../routes/comms/public_common'
 import { NO_STORE, badForm, field, formOf, html, sha256hex } from './http'
 
 /* /forgot and /reset: internal/api/password_reset.go.
@@ -13,11 +15,20 @@ import { NO_STORE, badForm, field, formOf, html, sha256hex } from './http'
    row has to say which school's users table to update. */
 
 const RESET_WINDOW_MS = 15 * 60_000
-const SAME_ANSWER = 'If that account exists, a reset link has been issued. It is good for fifteen minutes.'
-const EXPIRED = 'That link has expired or has already been used. Ask for another.'
+const SAME_ANSWER = 'If the account exists, a link was sent. Valid 15 min.'
+const FORGOT_WINDOW_S = 15 * 60
+const FORGOT_IP_BURST = 10
+const FORGOT_ID_BURST = 3
+const EXPIRED = 'Link expired or used.'
 
-export function showForgot(): Response {
-  return html(forgotPage({}), 200, NO_STORE)
+export function showForgot(url?: URL): Response {
+  return html(forgotPage({ tab: forgotTab(url?.searchParams.get('tab') ?? '') }), 200, NO_STORE)
+}
+
+/** The sign-in tab the person came from, so the field uses its words. */
+function forgotTab(id: string): { id: string; label: string; mode: string } | null {
+  const w = tabWords('en', id)
+  return w ? { id, ...w } : null
 }
 
 interface Owner { institution_id: string | null; user_id: string; email: string | null; phone: string | null }
@@ -49,8 +60,15 @@ export async function forgot(env: Env, req: Request): Promise<Response> {
   if (!form) return badForm()
   const who = field(form, 'identifier').trim()
   if (!who) {
-    return html(forgotPage({ error: 'Enter the email address, username or phone number you sign in with.' }), 400, NO_STORE)
+    const tab = forgotTab(field(form, 'tab').trim())
+    return html(forgotPage({ error: tab ? `Enter ${tab.label.replace(/\s*\(.*\)$/, '').toLowerCase()}.` : 'Enter username, email or phone.', tab }), 400, NO_STORE)
   }
+  /* Throttled per address and per identifier, as /login is, so the form cannot be used
+     to flood an inbox or to probe accounts. */
+  const ip = req.headers.get('cf-connecting-ip') ?? 'unknown'
+  const limited = (await rateLimited(env, 'forgot_ip', FORGOT_WINDOW_S, FORGOT_IP_BURST, ip, 'x'))
+    ?? (await rateLimited(env, 'forgot_id', FORGOT_WINDOW_S, FORGOT_ID_BURST, who.toLowerCase(), 'x'))
+  if (limited) return html(forgotPage({ error: 'Too many requests. Wait 15 min.' }), 429, NO_STORE)
   const channel = ['phone', 'sms', 'whatsapp'].includes(field(form, 'channel').trim()) ? 'phone' : 'email'
 
   let queued = false, ready = false
@@ -102,14 +120,11 @@ export async function forgot(env: Env, req: Request): Promise<Response> {
     }
   } catch (err) {
     console.error('password reset: forgot failed', err)
-    return html(forgotPage({ error: 'Something went wrong at our end. Please try again.' }), 500, NO_STORE)
+    return html(forgotPage({ error: 'Error on our side. Try again.' }), 500, NO_STORE)
   }
-  // Said the same way whether or not the account exists, unless nothing could be sent (Go's second notice).
-  if (!queued || !ready) {
-    return html(forgotPage({ notice: 'We could not send a reset link, either this school has ' +
-      'no email or WhatsApp set up, or there is no address or mobile on ' +
-      'the account. Please ask your school office to reset your password.' }), 200, NO_STORE)
-  }
+  /* Said the same way whether or not the account exists, and whether or not a
+     link could be sent: a different notice told a stranger which accounts exist. */
+  if (!queued || !ready) console.warn('password reset: no link could be sent', { queued, ready })
   return html(forgotPage({ notice: SAME_ANSWER }), 200, NO_STORE)
 }
 
@@ -135,8 +150,8 @@ export async function reset(env: Env, req: Request): Promise<Response> {
   const pw = field(form, 'password')
   const bad = (error: string) => html(resetPage({ token, error }), 400, NO_STORE)
   // Go's len() counts bytes, not characters.
-  if (new TextEncoder().encode(pw).length < 10) return bad("Use at least ten characters. A short password on a school system is everybody's problem, not just yours.")
-  if (pw !== field(form, 'password2')) return bad('Those two do not match.')
+  if (new TextEncoder().encode(pw).length < 10) return bad('Use 10+ characters.')
+  if (pw !== field(form, 'password2')) return bad('Passwords differ.')
 
   const row = await userForToken(env, token)
   if (!row) return bad(EXPIRED)
@@ -152,14 +167,15 @@ export async function reset(env: Env, req: Request): Promise<Response> {
     // The password lives in the school's database (or CONTROL for a platform
     // account); tokens and sessions live in CONTROL. D1 cannot batch across
     // databases, so the password goes first and the spend + revoke follow in
-    // one CONTROL batch.
+    // one CONTROL batch. The status is left alone: a reset never reopens a
+    // suspended account.
     if (row.institution_id === null) {
-      await env.CONTROL.prepare(`UPDATE platform_users SET password_hash = ?, status = 'active', updated_at = ? WHERE id = ?`)
+      await env.CONTROL.prepare(`UPDATE platform_users SET password_hash = ?, updated_at = ? WHERE id = ?`)
         .bind(hash, t, row.user_id).run()
     } else {
       const inst = await institutionById(env, row.institution_id)
       if (!inst) return bad(EXPIRED)
-      await tenantDb(env, inst).prepare(`UPDATE users SET password_hash = ?, status = 'active', updated_at = ? WHERE id = ?`)
+      await tenantDb(env, inst).prepare(`UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`)
         .bind(hash, t, row.user_id).run()
     }
     await env.CONTROL.batch([
@@ -169,7 +185,7 @@ export async function reset(env: Env, req: Request): Promise<Response> {
     ])
   } catch (err) {
     console.error('password reset: reset failed', err)
-    return bad('Something went wrong at our end. Please try again.')
+    return bad('Error on our side. Try again.')
   }
   return html(resetPage({ done: true }), 200, NO_STORE)
 }

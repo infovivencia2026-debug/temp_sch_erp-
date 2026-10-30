@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarX2, CheckCircle2, ShieldAlert, UserMinus } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -50,6 +51,8 @@ interface Slot {
   cover_absent?: boolean
   /** A pick waiting for the principal. */
   waiting_for?: string
+  /** The last pick the principal rejected; the period can be picked again. */
+  rejected_for?: string
   candidates: Candidate[]
 }
 
@@ -104,7 +107,13 @@ const spellDate = (iso: string) => {
 export default function SubstitutionBoard() {
   const nav = useRouteFeature()
   const qc = useQueryClient()
-  const [onDate, setOnDate] = useState(today())
+  // A notification opens the board on its date (?date=YYYY-MM-DD, scheduling/cover.ts).
+  const [params] = useSearchParams()
+  const asked = params.get('date') ?? ''
+  const askedDate = /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : ''
+  const [onDate, setOnDate] = useState(() => askedDate || today())
+  /* Another notice clicked while the board is open changes only the address. */
+  useEffect(() => { if (askedDate) setOnDate(askedDate) }, [askedDate])
   const [who, setWho] = useState('')
 
   const board = useQuery({
@@ -213,6 +222,10 @@ function PeriodCard({ slot, onDate, canApprove, onDone }: { slot: Slot; onDate: 
     mutationFn: () => api.post('/api/v1/timetable-cover/approve', { timetable_entry_id: slot.timetable_entry_id, on_date: onDate }),
     onSuccess: onDone,
   })
+  const reject = useMutation({
+    mutationFn: () => api.post('/api/v1/timetable-cover/reject', { timetable_entry_id: slot.timetable_entry_id, on_date: onDate }),
+    onSuccess: onDone,
+  })
   const free = new Set(slot.candidates.map((c) => c.user_id))
   const others = (teachers.data?.items ?? []).filter((t) => !free.has(t.user_id) && t.user_id !== slot.absent_user_id)
   const approved = !!slot.covered_by && !slot.cover_absent
@@ -234,9 +247,12 @@ function PeriodCard({ slot, onDate, canApprove, onDone }: { slot: Slot; onDate: 
         ) : slot.waiting_for ? (
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="warning">Pending · {slot.waiting_for}</Badge>
-            {canApprove && <Button size="sm" disabled={approve.isPending} onClick={() => approve.mutate()}>Approve</Button>}
+            {canApprove && <Button size="sm" disabled={approve.isPending || reject.isPending} onClick={() => approve.mutate()}>Approve</Button>}
+            {canApprove && <Button size="sm" variant="secondary" disabled={approve.isPending || reject.isPending} onClick={() => reject.mutate()}>Reject</Button>}
           </div>
         ) : (
+          <div className="flex flex-col gap-3">
+          {slot.rejected_for && <Badge tone="danger" className="self-start">Rejected · {slot.rejected_for}. Pick another teacher</Badge>}
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center">
             <Select value={pick} onChange={setPick}
               placeholder={slot.candidates.length ? 'Choose a free teacher' : 'Nobody free, choose anyway'}
@@ -249,11 +265,12 @@ function PeriodCard({ slot, onDate, canApprove, onDone }: { slot: Slot; onDate: 
               Send for approval
             </Button>
           </div>
+          </div>
         )}
         {slot.cover_absent && slot.covered_by && (
           <p className="text-[13.5px] text-destructive">{slot.covered_by} was covering this and is now absent too; choose somebody else.</p>
         )}
-        <FormNotice error={send.error ?? approve.error} />
+        <FormNotice error={send.error ?? approve.error ?? reject.error} />
       </div>
     </Card>
   )

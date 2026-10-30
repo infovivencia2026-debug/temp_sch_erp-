@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 455 of the catalog's features are implemented.
+// 464 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                     true,
 	"activity_coord.activities.circulars":                                 true,
@@ -32,6 +32,7 @@ var implementedFeatures = map[string]bool{
 	"admissions.enquiries.assign_leads":                                   true,
 	"admissions.enquiries.campus_visits":                                  true,
 	"admissions.enquiries.enquiries":                                      true,
+	"admissions.front_desk.alumni":                                        true,
 	"admissions.front_desk.front_desk":                                    true,
 	"admissions.home.dashboard":                                           true,
 	"admissions.my_profile.leave_self_service":                            true,
@@ -70,8 +71,14 @@ var implementedFeatures = map[string]bool{
 	"driver.my_profile.profile":                                           true,
 	"driver.school_gallery.school_gallery":                                true,
 	"driver.transport.my_bus_route":                                       true,
+	"exam_controller.board_exams.baseline_analysis":                       true,
+	"exam_controller.board_exams.board_loc_filing":                        true,
+	"exam_controller.board_exams.board_results":                           true,
+	"exam_controller.board_exams.intermediate_registration":               true,
+	"exam_controller.board_exams.ssc_registration":                        true,
 	"exam_controller.communication.inbox":                                 true,
 	"exam_controller.communication.messages":                              true,
+	"exam_controller.examinations.exams_monitoring":                       true,
 	"exam_controller.examinations.exams_papers":                           true,
 	"exam_controller.examinations.hall_tickets_seating":                   true,
 	"exam_controller.examinations.performance_overview":                   true,
@@ -139,6 +146,7 @@ var implementedFeatures = map[string]bool{
 	"finance.communication.messages":                                      true,
 	"finance.fees.class_transport_fee_setup":                              true,
 	"finance.fees.fee_corrections":                                        true,
+	"finance.fees.fee_regulatory_filing":                                  true,
 	"finance.fees.online_fee_portal":                                      true,
 	"finance.fees.student_wallets":                                        true,
 	"finance.fees.take_fee_payment":                                       true,
@@ -155,6 +163,7 @@ var implementedFeatures = map[string]bool{
 	"front_office.my_profile.leave_self_service":                          true,
 	"front_office.my_profile.my_pay":                                      true,
 	"front_office.school_gallery.school_gallery":                          true,
+	"hod.academics.course_outcomes":                                       true,
 	"hod.academics.faculty_allocation":                                    true,
 	"hod.academics.language_subject_allocation":                           true,
 	"hod.academics.subject_meetings":                                      true,

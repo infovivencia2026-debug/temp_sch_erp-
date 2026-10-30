@@ -1,3 +1,4 @@
+import { useAiFeature } from './useAiStatus'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, GraduationCap, IndianRupee, Loader2, Sparkles } from 'lucide-react'
@@ -10,7 +11,7 @@ import { useAiStatus } from './useAiStatus'
 /* When the assistant is off or its key is refused, the card still answers:
    `fallback` is a plain summary written from the child's own records, so a
    school never sees a server error where a summary should be. */
-export default function Student360Card({ studentId, fallback }: { studentId: string; fallback?: string }) {
+function Student360CardInner({ studentId, fallback }: { studentId: string; fallback?: string }) {
   const qc = useQueryClient()
   /* Nothing until asked: the owner wanted the card empty until Summarise is pressed. */
   const [asked, setAsked] = useState(false)
@@ -87,4 +88,9 @@ function Sections({ text }: { text?: string }) {
       })}
     </div>
   )
+}
+
+/** Hidden entirely when the school switched this AI feature off. */
+export default function Student360Card(props: Parameters<typeof Student360CardInner>[0]) {
+  return useAiFeature('student_summary') ? <Student360CardInner {...props} /> : null
 }

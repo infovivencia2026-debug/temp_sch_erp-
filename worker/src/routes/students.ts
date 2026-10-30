@@ -1,6 +1,7 @@
 import type { Ctx, Router } from '../router'
 import { autoIssueFamilyLogins, autoIssueGuardianLogin } from './setup/staff'
 import { indexLogin } from './setup/common'
+import { auditStmt } from './admin/common'
 import { reply } from '../router'
 import { alreadyUsed, describeReplacements, guardOverwrite, replacements, stripOverwriteFlags, type CodeChange } from '../services/overwrite'
 import { portalChild } from './teaching/common'
@@ -57,6 +58,7 @@ export function registerStudents(r: Router) {
   r.put('/students/{id}/guardians/{gid}/photo', 'students.write', setGuardianPhoto)
   r.post('/students/{id}/guardians', 'students.write', saveStudentGuardian)
   r.del('/students/{id}/guardians/{gid}', 'students.write', unlinkStudentGuardian)
+  r.post('/students/{id}/guardians/{gid}/primary', 'students.write', makeGuardianPrimary)
   r.post('/students/{id}/exit', 'students.write', recordStudentExit)
   r.post('/students/{id}/readmit', 'students.write', readmitStudent)
   r.post('/students/{id}/suspend', 'students.write', suspendStudent)
@@ -470,7 +472,7 @@ async function saveStudentGuardian(c: Ctx) {
   let relation = str(req.relation).trim().toLowerCase()
   if (relation === '') relation = 'guardian'
   if (!guardianRelations.has(relation)) throw badRequest('relation must be father, mother, guardian or other')
-  const phone = str(req.phone).trim(), email = str(req.email).trim()
+  const phone = normPhone(str(req.phone)), email = str(req.email).trim()
   if (phone === '' && email === '') throw badRequest('give a phone number or an email, a parent with neither is one the school cannot contact')
 
   const allowed = await c.db.prepare(`SELECT 1 AS ok FROM students st WHERE st.id = ? AND ${pred.sql}`).bind(id, ...pred.args).first()
@@ -484,6 +486,13 @@ async function saveStudentGuardian(c: Ctx) {
       WHERE g.id = ? AND EXISTS (SELECT 1 FROM student_guardians sg WHERE sg.guardian_id = g.id AND sg.student_id = ?)`).bind(req.id, id)
       .first<{ old_phone: string; old_email: string; user_id: string | null }>()
     if (!prev) throw forbiddenMsg('missing permission: this family is not one you can edit')
+    if (phone !== prev.old_phone && phone !== '') {
+      /* A changed number is a sign-in number (Yajur, 2026-10-28): it must be a
+         10-digit Indian mobile, and not one another family already signs in with. */
+      if (!/^[6-9][0-9]{9}$/.test(phone)) throw badRequest('enter a 10-digit mobile number, starting 6, 7, 8 or 9')
+      const clash = await phoneOwner(c, phone, req.id, prev.user_id)
+      if (clash) throw new HttpError(409, `${phone} is already the sign-in number of ${clash}. Correct that family first.`, { code: 'phone_in_use', family: clash })
+    }
     try {
       await c.db.prepare(`UPDATE guardians SET full_name = ?, relation = ?, phone = ?, email = ?, occupation = ?, annual_income = COALESCE(?, annual_income) WHERE id = ?`)
         .bind(name, relation, nullStr(phone), nullStr(email), nullStr(str(req.occupation)), income, req.id).run()
@@ -515,8 +524,14 @@ async function saveStudentGuardian(c: Ctx) {
         if (isUniqueViolation(lastErr)) throw badRequest('that phone number or email is already the sign-in of another account at this school, the parent it belongs to has to be corrected first')
         throw lastErr
       }
-      // Sign-in finds accounts through the login index: point it at the new number.
+      // Sign-in finds accounts through the login index: point it at the new number, and the old one stops signing in.
+      const u = await c.db.prepare(`SELECT email, phone FROM users WHERE id = ?`).bind(prev.user_id).first<{ email: string | null; phone: string | null }>()
+      if (u) await c.env.CONTROL.prepare(`DELETE FROM login_index WHERE user_id = ? AND ((kind = 'phone' AND value IS NOT ?) OR (kind = 'email' AND value IS NOT ?))`)
+        .bind(prev.user_id, u.phone, u.email).run()
       await indexLogin(c, prev.user_id)
+    }
+    if (phone !== prev.old_phone) {
+      await auditStmt(c, 'guardian.phone_changed', 'guardian', req.id, { phone: prev.old_phone || null }, { phone: phone || null, student_id: id }).run()
     }
   } else {
     const existing = await c.db.prepare(`
@@ -559,6 +574,35 @@ async function saveStudentGuardian(c: Ctx) {
   // A number added or changed on a parent with no login gets one now.
   try { await autoIssueGuardianLogin(c, guardianId) } catch (e) { console.error('parent login', e) }
   return ok({ id: guardianId, full_name: name })
+}
+
+/** Who already signs in with this number, as a family name ("Asha Rao, parent of Ravi"), or null. */
+async function phoneOwner(c: Ctx, phone: string, guardianId: string, userId: string | null): Promise<string | null> {
+  const g = await c.db.prepare(`SELECT g.full_name,
+        (SELECT group_concat(n, ', ') FROM (SELECT ${fullNameSQL('s')} AS n FROM student_guardians sg JOIN students s ON s.id = sg.student_id WHERE sg.guardian_id = g.id)) AS kids
+      FROM guardians g WHERE g.institution_id = ? AND g.phone = ? AND g.id <> ? AND g.user_id IS NOT NULL AND g.user_id IS NOT ? LIMIT 1`)
+    .bind(inst(c), phone, guardianId, userId).first<{ full_name: string; kids: string | null }>()
+  if (g) return g.kids ? `${g.full_name}, parent of ${g.kids}` : g.full_name
+  const u = await c.db.prepare(`SELECT full_name FROM users WHERE phone = ? AND id IS NOT ? LIMIT 1`).bind(phone, userId).first<{ full_name: string }>()
+  return u ? u.full_name : null
+}
+
+/* Which parent is rung first (Yajur, 2026-10-28). Only the contact order moves:
+   every parent keeps their own login and number. */
+async function makeGuardianPrimary(c: Ctx) {
+  const id = sid(c)
+  const gid = c.params.gid
+  if (!isUUID(gid)) throw badRequest('invalid guardian id')
+  const pred = studentPredicate(await resolveScope(c), 'st')
+  const allowed = await c.db.prepare(`SELECT 1 AS ok FROM student_guardians sg JOIN students st ON st.id = sg.student_id
+      WHERE sg.student_id = ? AND sg.guardian_id = ? AND ${pred.sql}`).bind(id, gid, ...pred.args).first()
+  if (!allowed) throw forbiddenMsg('missing permission: this family is not one you can edit')
+  const before = await c.db.prepare(`SELECT guardian_id FROM student_guardians WHERE student_id = ? AND is_primary LIMIT 1`).bind(id).first<{ guardian_id: string }>()
+  await batch(c, [
+    c.db.prepare(`UPDATE student_guardians SET is_primary = (guardian_id = ?) WHERE student_id = ?`).bind(gid, id),
+    auditStmt(c, 'guardian.primary_changed', 'student', id, { guardian_id: before?.guardian_id ?? null }, { guardian_id: gid }),
+  ])
+  return ok({ primary: gid })
 }
 
 async function unlinkStudentGuardian(c: Ctx) {
@@ -740,7 +784,9 @@ async function getStudentProfile(c: Ctx): Promise<StudentProfile> {
     c.db.prepare(`SELECT g.id, g.full_name, g.relation, COALESCE(g.phone,'') AS phone, COALESCE(g.email,'') AS email, sg.is_primary,
                          COALESCE(g.occupation,'') AS occupation, g.photo_file_id, g.annual_income,
                          CASE WHEN u.id IS NULL THEN 'none' WHEN u.status = 'active' AND u.last_login_at IS NOT NULL THEN 'active'
-                              WHEN u.status = 'active' THEN 'issued' ELSE u.status END AS login, u.last_login_at
+                              WHEN u.status = 'active' THEN 'issued' ELSE u.status END AS login, u.last_login_at,
+                         (SELECT json_group_array(${fullNameSQL('s2')}) FROM student_guardians sg2 JOIN students s2 ON s2.id = sg2.student_id
+                           WHERE sg2.guardian_id = g.id AND sg2.student_id <> sg.student_id AND s2.status IN ('active','suspended')) AS siblings
                     FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id LEFT JOIN users u ON u.id = g.user_id
                    WHERE sg.student_id = ? ORDER BY sg.is_primary DESC`).bind(id),
     c.db.prepare(`SELECT on_date AS date, status FROM student_attendance WHERE student_id = ? ORDER BY on_date DESC LIMIT 800`).bind(id),
@@ -784,6 +830,7 @@ async function getStudentProfile(c: Ctx): Promise<StudentProfile> {
     fees: { outstanding_paise: s.dues, paid_paise: s.paid },
     guardians: (guardians.results as Record<string, unknown>[]).map((g) => ({
       ...(g as unknown as P['guardians'][number]), is_primary: bool(g.is_primary), photo_file_id: o(g.photo_file_id),
+      siblings: parseJSON<string[]>(g.siblings, []),
     })),
     recent_attendance: attendance.results as P['recent_attendance'],
     results: results.results as P['results'],
@@ -1577,3 +1624,11 @@ async function importStudents(c: Ctx) {
   return ok(out)
 }
 
+
+/** "+91 98765-43210" and "098765 43210" are the same mobile: kept as its ten digits. Anything else is kept as typed. */
+function normPhone(raw: string): string {
+  const t = raw.trim()
+  const d = t.replace(/[\s-]/g, '')
+  const m = /^(?:\+?91|0)?([6-9][0-9]{9})$/.exec(d)
+  return m ? m[1] : t
+}

@@ -9,6 +9,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { ImportWithAIButton } from '@/components/ai/SmartImport'
 import { markTaken, packFor } from '@/features/setup/setup-pack'
 import { SETUP_KEYS, ROSTER_KEYS, invalidateKeys } from '@/lib/invalidate'
+import { formatDateTime } from '@/lib/utils'
 
 /* Adding a list you already have, instead of retyping it.
  *
@@ -112,6 +113,7 @@ interface Result {
   problems: Problem[]
   /** Rows that would replace a code already on file; held back unless overwrite=true. */
   replacements?: { row: number; problem: string }[]
+  notes?: string[]
 }
 
 
@@ -298,7 +300,13 @@ export default function BulkImport({
         onDone?.()
       }
     } catch {
-      setError('Could not reach the server. Nothing has been imported.')
+      // On a commit the server may have saved some or all rows before the
+      // answer was lost, so this must not say that nothing was imported.
+      setError(
+        commit
+          ? 'The answer from the server was lost. Some rows may have been saved: check the import history below before uploading again.'
+          : 'Could not reach the server. Nothing has been imported.',
+      )
     } finally {
       setBusy(false)
     }
@@ -810,6 +818,12 @@ export default function BulkImport({
               )}
             </div>
 
+            {(result.notes?.length ?? 0) > 0 && (
+              <ul className="mt-4 space-y-1 text-[13px] text-[hsl(var(--sys-warning-ink))]">
+                {result.notes!.map((n) => <li key={n}>{n}</li>)}
+              </ul>
+            )}
+
             {(result.replacements?.length ?? 0) > 0 && (
               <div className="mt-4">
                 <p className="mb-2 text-[12.5px] text-muted-foreground">
@@ -1120,7 +1134,8 @@ function History({
                   </button>
                 </td>
                 <td className="py-1 pr-3 tabular-nums text-muted-foreground">
-                  {r.created_at.replace('T', ' ').slice(0, 16)}
+                  {/* The server sends UTC without its Z; read it as UTC, show it local. */}
+                  {formatDateTime(/(Z|[+-]\d\d:?\d\d)$/i.test(r.created_at) ? r.created_at : r.created_at + 'Z')}
                 </td>
                 <td className="py-1 pr-3 text-muted-foreground">{r.imported_by ?? '-'}</td>
                 <td className="py-1 pr-3 tabular-nums">

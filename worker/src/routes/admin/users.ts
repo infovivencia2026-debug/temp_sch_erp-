@@ -1,9 +1,10 @@
 import type { Router, Ctx } from '../../router'
+import { shownSignIn } from '../../services/sign_in_name'
 import { HttpError, badRequest, clampInt, created, forbidden, isUUID, like, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
 import { tenantDb, type Institution } from '../../tenant'
 import { hashPassword } from '../../auth/password'
-import { inList, institutionId } from './common'
+import { auditStmt, inList, institutionId } from './common'
 import { CATALOG_ROLES, GROUPS, IMPLEMENTED_FEATURES, PERMISSIONS, PERMISSION_KEYS, SYSTEM_ROLES, allCatalogFeatureKeys, catalogRoleByKey, isDefaultRole, isPlatformRole, systemRoleByKey } from './static_data'
 import { applyGrid, groupByKey, groupLevels, levelName, parseLevel, readGrid, type GroupState } from './rbac_grid'
 import { resolveRange } from '../misc/shell'
@@ -108,7 +109,8 @@ async function installOptionalRole(c: Ctx, key: string): Promise<{ roleId: strin
 }
 
 /** setUserRoles: replaces (or adds) a user's role rows; returns the keys applied. */
-async function setUserRoles(c: Ctx, userId: string, keys: string[], campusIds: string[], replace: boolean): Promise<string[]> {
+async function setUserRoles(c: Ctx, userId: string, keys: string[], campusIds: string[], replace: boolean,
+  audit?: (applied: string[]) => D1PreparedStatement): Promise<string[]> {
   const inst = institutionId(c)
   const stmts: D1PreparedStatement[] = []
   if (replace) stmts.push(c.db.prepare(`DELETE FROM user_roles WHERE user_id = ?`).bind(userId))
@@ -139,6 +141,7 @@ async function setUserRoles(c: Ctx, userId: string, keys: string[], campusIds: s
     }
     applied.push(key)
   }
+  if (audit) stmts.push(audit([...applied].sort()))
   if (stmts.length) await c.db.batch(stmts)
   return applied.sort()
 }
@@ -294,6 +297,36 @@ const FEATURE_UNLOCKS: Record<string, string[]> = {
   homework_assignments: ['academics.homework.write'],
 }
 const featureSlug = (key: string) => key.slice(key.lastIndexOf('.') + 1)
+
+/* Who may act on whom. A school administrator (or the vendor) is above every
+   check; anyone else may only hand out or take away what they hold, and may
+   not reset, suspend or re-grant an account that holds more than they do. */
+export const isSchoolAdmin = (c: Ctx): boolean => (c.id.platformAdmin && !c.id.restricted) || c.id.roles.includes('institution_admin')
+
+export async function targetAccess(c: Ctx, userId: string): Promise<{ admin: boolean; perms: string[] }> {
+  const [roles, perms] = await c.db.batch<{ k: string }>([
+    c.db.prepare(`SELECT r.key AS k FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?`).bind(userId),
+    c.db.prepare(`SELECT rp.permission_key AS k FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = ?
+      UNION SELECT permission_key AS k FROM user_permissions WHERE user_id = ?`).bind(userId, userId),
+  ])
+  return { admin: roles.results.some((x) => x.k === 'institution_admin'), perms: perms.results.map((x) => x.k) }
+}
+
+/** 403 unless the caller may reset or suspend this account. */
+async function assertMayManage(c: Ctx, userId: string, what: string): Promise<void> {
+  if (userId === c.id.userId) throw forbidden('you cannot ' + what + ' your own account here; use your profile, or ask another administrator')
+  if (isSchoolAdmin(c)) return
+  const t = await targetAccess(c, userId)
+  if (t.admin) throw forbidden('only a school administrator can ' + what + ' a school administrator')
+  if (t.perms.some((k) => !can(c.id, k))) throw forbidden('this account holds permissions you do not; only a school administrator can ' + what + ' it')
+}
+
+/** Does the caller hold this key (a feature key counts as held when every permission it unlocks is)? */
+function holds(c: Ctx, k: string): boolean {
+  if (isSchoolAdmin(c) || can(c.id, k)) return true
+  const caps = FEATURE_UNLOCKS[featureSlug(k)]
+  return allCatalogFeatureKeys().has(k) && !!caps && caps.length > 0 && caps.every((x) => can(c.id, x))
+}
 const SCOPE_LABELS: Record<string, string> = { platform: 'Every school', institution: 'Whole school', campus: 'Their campus', department: 'Their department', assigned_classes: 'Their classes', own: 'Only their own', linked_children: 'Their children' }
 const APPROVE_NOTES: Record<string, string> = { students: 'Archive and withdraw a student record.', marks: 'Issue report cards.', fees: 'Issue refunds against a paid invoice.', staff: 'Approve or reject leave requests.' }
 
@@ -393,7 +426,7 @@ export function registerAdminUsers(r: Router): void {
         last_login_at: u.last_login_at ?? undefined, roles: [...(roles.get(u.id)?.names ?? [])].sort(), role_keys: [...(roles.get(u.id)?.keys ?? [])].sort(),
         institution: instName, active_sessions: sessions.get(u.id) ?? 0, record: u.record,
         about: aboutBy.get(u.id) ?? '',
-        sign_in_as: u.sign_in_as ?? '', login_code: u.login_code ?? '',
+        sign_in_as: shownSignIn(u.sign_in_as), login_code: u.login_code ?? '',
       })),
       total: total?.n ?? offset + rows.results.length,
     })
@@ -582,7 +615,12 @@ export function registerAdminUsers(r: Router): void {
       throw badRequest('you cannot remove your own administrator role, ask another administrator')
     }
     await userExists(c, target)
-    const applied = await setUserRoles(c, target, keys, campusIds, true)
+    const before = current.results.map((r) => r.key).sort()
+    if (!isSchoolAdmin(c) && (before.includes('institution_admin') || keys.includes('institution_admin'))) {
+      throw forbidden('only a school administrator can grant, keep or remove the school administrator role')
+    }
+    const applied = await setUserRoles(c, target, keys, campusIds, true,
+      (a) => auditStmt(c, 'user.roles.set', 'user', target, { role_keys: before }, { role_keys: a, campus_ids: campusIds }))
     const missing = keys.filter((k) => !applied.includes(k))
     return ok({ user_id: target, roles: applied, unknown_roles: missing, note: 'The user will see the new roles the next time they sign in.' })
   })
@@ -612,6 +650,14 @@ export function registerAdminUsers(r: Router): void {
       if (features.has(k)) for (const cap of FEATURE_UNLOCKS[featureSlug(k)] ?? []) add(cap)
     }
     await userExists(c, target)
+    if (target === c.id.userId && !c.id.platformAdmin) throw forbidden('you cannot change your own permissions; ask another administrator')
+    const before = (await c.db.prepare(`SELECT permission_key AS k FROM user_permissions WHERE user_id = ? ORDER BY permission_key`).bind(target).all<{ k: string }>()).results.map((x) => x.k)
+    if (!isSchoolAdmin(c)) {
+      if ((await targetAccess(c, target)).admin) throw forbidden("only a school administrator can change a school administrator's permissions")
+      const changed = [...desired.filter((k) => !before.includes(k)), ...before.filter((k) => !desired.includes(k))]
+      const notHeld = changed.filter((k) => !holds(c, k))
+      if (notHeld.length) throw forbidden('you can only grant or remove permissions you hold yourself: ' + notHeld.join(', '))
+    }
     const q = inList(desired)
     /* An empty list means "take them all away": NOT IN over an empty list
        matched nothing, so clearing every grant used to leave them all. */
@@ -620,6 +666,7 @@ export function registerAdminUsers(r: Router): void {
       : c.db.prepare(`DELETE FROM user_permissions WHERE user_id = ? AND permission_key NOT IN ${q.sql}`).bind(target, ...q.args)]
     for (const k of desired) stmts.push(c.db.prepare(`INSERT OR IGNORE INTO user_permissions (user_id, institution_id, permission_key, granted_by, granted_at) VALUES (?, ?, ?, ?, ?)`)
       .bind(target, institutionId(c), k, c.id.userId, now()))
+    stmts.push(auditStmt(c, 'user.permissions.set', 'user', target, { direct_keys: before }, { direct_keys: desired }))
     await c.db.batch(stmts)
     return ok({ user_id: target, direct_keys: desired, note: 'The account gains these the next time it signs in.' })
   })
@@ -630,7 +677,13 @@ export function registerAdminUsers(r: Router): void {
     const req = await readJSON<{ status?: string }>(c.req)
     if (!['active', 'suspended', 'archived', 'invited'].includes(req.status ?? '')) throw badRequest('status must be active, invited, suspended or archived')
     if (target === c.id.userId && req.status !== 'active') throw badRequest('you cannot suspend your own account')
-    const res = await c.db.prepare(`UPDATE users SET status = ?, updated_at = ? WHERE id = ?`).bind(req.status, now(), target).run()
+    const prev = await c.db.prepare(`SELECT status FROM users WHERE id = ?`).bind(target).first<{ status: string }>()
+    if (!prev) throw notFound('resource not found')
+    if (target !== c.id.userId) await assertMayManage(c, target, 'change the status of')
+    const [res] = await c.db.batch([
+      c.db.prepare(`UPDATE users SET status = ?, updated_at = ? WHERE id = ?`).bind(req.status, now(), target),
+      auditStmt(c, 'user.status.set', 'user', target, { status: prev.status }, { status: req.status }),
+    ])
     if ((res.meta.changes ?? 0) === 0) throw notFound('resource not found')
     if (req.status !== 'active') await revokeUserSessions(c, target).run()
     return ok({ id: target, status: req.status })
@@ -646,10 +699,13 @@ export function registerAdminUsers(r: Router): void {
     if (chosen !== '') { const n = [...chosen].length; if (n < 12 || n > 200) throw badRequest('new_password must be 12-200 characters') }
     const u = await c.db.prepare(`SELECT email, phone FROM users WHERE id = ?`).bind(target).first<{ email: string | null; phone: string | null }>()
     if (!u) throw notFound('resource not found')
+    await assertMayManage(c, target, 'reset the password of')
     let temp = chosen, known = false
     if (temp === '') ({ temp, known } = issuedPassword(u.phone ?? '', u.email ?? ''))
     const hash = await hashPassword(c.env.PASSWORD_PEPPER, temp)
-    const stmts = [c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', must_change_password = ?, updated_at = ? WHERE id = ?`).bind(hash, chosen === '' ? 1 : 0, now(), target)]
+    /* The status is left as it is: a reset never reopens a suspended account. */
+    const stmts = [c.db.prepare(`UPDATE users SET password_hash = ?, must_change_password = ?, updated_at = ? WHERE id = ?`).bind(hash, chosen === '' ? 1 : 0, now(), target),
+      auditStmt(c, 'user.password.reset', 'user', target, null, { chosen_by_admin: chosen !== '' })]
     let sentBy = '', sentTo = ''
     if (chosen === '' && !known) {
       const q = queueIssuedPassword(c, target, u.email, u.phone, u.email || u.phone || '', temp, await platformChannels(c))

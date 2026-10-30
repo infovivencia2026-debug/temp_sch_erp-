@@ -5118,7 +5118,7 @@ input[type="number"]::-webkit-inner-spin-button {
   .staff-foot-settings button { width: 40px; height: 40px; }
 }
 @media (hover: hover) {
-  .staff-foot-settings button:hover { background: hsl(var(--surface-hover)); color: hsl(var(--foreground)); }
+
 }
 
 /* PHONE SCALE FOR EVERY ROLE (owner, 2026-10-24): parent, student and staff
@@ -5389,3 +5389,76 @@ button.glass-btn:active:not(:disabled) {
   }
   html:root .text-\[15px\] { font-size: max(14px, calc(15px * var(--font-scale, 1))) !important; }
 }
+
+/* Profile card Help, Settings and Sign out hover like the side-menu pills
+   (owner, 2026-10-27: "like how other things hover"): a 2px lift, the
+   primary's wash, a hairline border and a soft shadow; the icon grows a
+   touch. Pointer devices only, so a finger never leaves it stuck. */
+.foot-icon, .staff-foot-settings button { border: 1px solid transparent; }
+@media (hover: hover) {
+  .foot-icon, .staff-foot-settings button {
+    transition: transform .25s ease, background-color .25s ease, border-color .25s ease, box-shadow .25s ease, color .25s ease;
+  }
+  .foot-icon:hover, .staff-foot-settings button:hover {
+    transform: translateY(-2px);
+    background: hsl(var(--primary) / .08); border-color: hsl(var(--primary) / .45); color: hsl(var(--primary));
+    box-shadow: 0 10px 15px -3px hsl(var(--primary) / .12), 0 4px 6px -4px hsl(var(--primary) / .12);
+  }
+  .foot-icon:hover svg, .staff-foot-settings button:hover svg { transform: scale(1.1); transition: transform .25s ease; }
+}
+@media (prefers-reduced-motion: reduce) { .foot-icon:hover, .staff-foot-settings button:hover { transform: none; } }
+
+/* PHONE SEARCH (owner, 2026-10-27): the palette opens from the top bar's icon;
+   the page behind is blurred and lightly dimmed, and a tap on it closes.
+   Round (owner, 2026-10-27, "make it round, not cut off, smooth like
+   Telegram"): one floating card, 20px on all four corners, 12px from the
+   sides, its height held inside the VISIBLE viewport (the scrim is the visual
+   viewport via vv-screen-phone) so the bottom corners stay above the
+   keyboard; the results fade out at the card's bottom edge instead of a hard
+   cut. It grows out of the icon (--search-ox/--search-oy, set on tap) and the
+   rows follow 40ms apart. Transform and opacity only; instant under reduced
+   motion. Desktop is unchanged. */
+@media (max-width: 639px) {
+  .scrim.search-sheet {
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 0;
+    background: hsl(var(--background) / 0.35);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    animation: scrim-in 260ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+  .scrim.search-sheet > [role='dialog'] {
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 12px 32px -8px rgb(0 0 0 / .22), 0 2px 8px rgb(0 0 0 / .08);
+    max-height: calc(var(--vvh, 100dvh) - 20px - env(safe-area-inset-top, 0px));
+    transform-origin: calc(var(--search-ox, 50vw) - 12px) calc(var(--search-oy, 0px) - var(--vv-top, 0px) - 8px - env(safe-area-inset-top, 0px));
+    animation: search-card-in 260ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+  /* The results take what the card has left (field 48px, footer ~34px). */
+  .scrim.search-sheet .search-results {
+    max-height: calc(var(--vvh, 100dvh) - 20px - env(safe-area-inset-top, 0px) - 84px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    overscroll-behavior: contain;
+  }
+  .scrim.search-sheet .search-results > ul > li { animation: search-row-in 220ms cubic-bezier(.2, .8, .2, 1) 240ms both; }
+  .scrim.search-sheet .search-results > ul > li:nth-child(1) { animation-delay: 80ms; }
+  .scrim.search-sheet .search-results > ul > li:nth-child(2) { animation-delay: 120ms; }
+  .scrim.search-sheet .search-results > ul > li:nth-child(3) { animation-delay: 160ms; }
+  .scrim.search-sheet .search-results > ul > li:nth-child(4) { animation-delay: 200ms; }
+  .scrim.search-sheet[data-closing],
+  .scrim.search-sheet[data-ghost] { animation: scrim-out 200ms cubic-bezier(.2, .8, .2, 1) both !important; }
+  .scrim.search-sheet[data-closing] > [role='dialog'],
+  .scrim.search-sheet[data-ghost] > [role='dialog'] { animation: search-card-out 200ms cubic-bezier(.4, 0, .2, 1) both !important; }
+  .scrim.search-sheet input { font-size: 16px; }
+}
+@keyframes search-card-in { from { opacity: 0; transform: scale(.12, .08); } 40% { opacity: 1; } }
+@keyframes search-card-out { to { opacity: 0; transform: scale(.12, .08); } }
+@keyframes search-row-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .scrim.search-sheet, .scrim.search-sheet > [role='dialog'],
+  .scrim.search-sheet .search-results > ul > li { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+}
+html[data-reduce-motion] .scrim.search-sheet,
+html[data-reduce-motion] .scrim.search-sheet > [role='dialog'],
+html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animation-duration: 1ms !important; animation-delay: 0ms !important; }

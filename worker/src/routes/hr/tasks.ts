@@ -117,7 +117,13 @@ export function registerStaffTasks(r: Router): void {
     const title = str(req.title).trim()
     if (title === '') throw badRequest('say what the task is')
     if (title.length > 200) throw badRequest('keep the title under 200 characters; the detail box takes the rest')
-    const to = str(req.assigned_to)
+    /* No assignee: a personal to-do for the signed-in member of staff. */
+    let to = str(req.assigned_to)
+    if (to === '') {
+      const self = await myEmployee(c)
+      if (!self) throw forbidden('only somebody on the staff roll can keep tasks')
+      to = self.id
+    }
     if (!isUUID(to)) throw badRequest('assigned_to must name a member of staff')
     const due = nz(str(req.due_on))
     if (due !== null && !isDate(due)) throw badRequest('due_on must be YYYY-MM-DD')
@@ -182,6 +188,20 @@ export function registerStaffTasks(r: Router): void {
       ...(newUser !== null ? tellStmt(c, newUser, 'staff_task_given', 'New task: ' + (str(req.title).trim() || t.title), 'Handed over to you.', id) : []),
     ])
     return ok({ id })
+  })
+
+  /* Delete a task: one's own to-do (set by oneself, for oneself), or HR. */
+  r.del('/hr/tasks/{id}', 'auth', async (c) => {
+    const id = uuidParam(c.params.id)
+    const { t, mine } = await loadTask(c, id)
+    const own = mine && t.assigned_by === c.id.userId
+    if (!own && !can(c.id, WRITE)) throw forbidden('you can delete only the tasks you set yourself')
+    await c.db.batch([
+      c.db.prepare(`DELETE FROM notifications WHERE source_kind = 'staff_task' AND source_id = ?`).bind(id),
+      c.db.prepare(`DELETE FROM staff_task_updates WHERE task_id = ?`).bind(id),
+      c.db.prepare(`DELETE FROM staff_tasks WHERE id = ?`).bind(id),
+    ])
+    return ok({ id, deleted: true })
   })
 
   /* A word on the task from anyone it concerns. */

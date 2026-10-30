@@ -24,6 +24,7 @@ import { recordServerError } from './services/background/health'
 import { consumeDeadLetters } from './services/dead_letters'
 import { normalizeRequest, originRefused } from './origin'
 import { PLATFORM_SCOPE, bumpVersion, watchAuthWrites } from './idcache'
+import { recordLiveChange } from './live_changes'
 
 export { LiveHub } from './services/live'
 
@@ -113,6 +114,10 @@ export default {
           const w = watch as ReturnType<typeof watchAuthWrites> | null
           if (w?.dirty() && id.institution) await bumpVersion(env, id.institution.id)
           if (id.platformAdmin) await bumpVersion(env, PLATFORM_SCOPE)
+          /* Every other open screen of this school refetches what this write
+             touched on its next live poll (live_changes.ts, Yajur 2026-10-27). */
+          const t = tx as TenantSession | null
+          if (w && t) await recordLiveChange(t.db, w.tables())
         }
         return (tx as TenantSession | null)?.finish(res) ?? res
       }

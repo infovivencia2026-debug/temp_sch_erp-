@@ -1,10 +1,14 @@
 import type { Router } from '../../router'
+import { shownSignIn } from '../../services/sign_in_name'
 import { Messenger, scopeOf } from '../../services/messaging'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID, clampInt } from '../../http'
 import { can } from '../../identity'
+import { auditStmt } from '../admin/common'
+import { isSchoolAdmin } from '../admin/users'
+import { requireFresh } from '../fees/common'
 import { studentLoginPolicy, studentLoginRefusal } from '../../services/student_logins'
-import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointEmployee, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
+import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointEmployee, checkStaffEmail, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
@@ -31,7 +35,7 @@ async function queueFamilyLogin(c: Ctx, cr: FamilyCredential, ms?: Messenger): P
     .first<{ name: string; credentials_by_email_only: number | null }>().catch(() => null)
   const emailOnly = inst ? !!Number(inst.credentials_by_email_only) : true
   const code = cr.password === '' ? 'admissions.portal_existing' : 'admissions.portal_login'
-  const vars = { school_name: inst?.name ?? '', parent_name: cr.fullName !== '' ? cr.fullName : 'Sir/Madam', sign_in_as: cr.signInAs,
+  const vars = { school_name: inst?.name ?? '', parent_name: cr.fullName !== '' ? cr.fullName : 'Sir/Madam', sign_in_as: shownSignIn(cr.signInAs),
     password: cr.password, portal_url: new URL(c.req.url).origin + '/login' }
   const tag = cr.hash.length > 12 ? cr.hash.slice(-12) : cr.hash
   const sent: string[] = []
@@ -202,13 +206,15 @@ export function registerStaff(r: Router): void {
   r.post('/setup/employees', 'hr.employees.write', async (c) => {
     const req = await readJSON<Record<string, unknown>>(c.req)
     const body = {
-      employee_code: str(req.employee_code), first_name: str(req.first_name), last_name: str(req.last_name), email: str(req.email),
+      employee_code: str(req.employee_code), first_name: str(req.first_name), last_name: str(req.last_name), email: str(req.email), school_email: str(req.school_email),
       phone: str(req.phone), department_id: str(req.department_id), designation_id: str(req.designation_id), joined_on: str(req.joined_on),
       employment_type: str(req.employment_type), qualification: str(req.qualification),
       create_login: req.create_login === true, role_key: str(req.role_key),
       role_keys: Array.isArray(req.role_keys) ? (req.role_keys as unknown[]).map(str) : [],
     }
     if (body.first_name === '') throw badRequest('first_name is required')
+    checkStaffEmail(body.email, 'the personal email')
+    checkStaffEmail(body.school_email, 'the school email')
     if (body.create_login && body.email === '' && body.phone === '') throw badRequest('an email or a phone number is required to create a login')
     for (const k of employeeRoles(body)) {
       if (PLATFORM_ONLY_ROLES.has(k) && !c.id.platformAdmin) {
@@ -279,6 +285,8 @@ export function registerStaff(r: Router): void {
     // Staff code is editable (owner, 2026-10-14). Upper-cased like the codes an import writes.
     const code = has(req, 'employee_code') ? str(req.employee_code).trim().toUpperCase() : null
     if (code === '') throw badRequest('a staff record needs a staff code')
+    if (has(req, 'email')) checkStaffEmail(str(req.email), 'the personal email')
+    if (has(req, 'school_email')) checkStaffEmail(str(req.school_email), 'the school email')
     const t = now()
     /* Codes are not typed over without being asked (owner, 2026-10-14): see
        services/overwrite.ts. A value someone else holds is refused outright. */
@@ -325,11 +333,13 @@ export function registerStaff(r: Router): void {
           esi_number = CASE WHEN ?19 IS NULL THEN esi_number ELSE NULLIF(?19, '') END,
           emergency_contact_name = CASE WHEN ?20 IS NULL THEN emergency_contact_name ELSE NULLIF(?20, '') END,
           emergency_contact_phone = CASE WHEN ?21 IS NULL THEN emergency_contact_phone ELSE NULLIF(?21, '') END,
+          school_email = CASE WHEN ?26 IS NULL THEN school_email ELSE NULLIF(?26, '') END,
           updated_at = ?22
         WHERE id = ?23`)
         .bind(s('last_name'), s('phone'), s('email'), s('department_id'), s('designation_id'), s('employment_type'), status, s('joined_on'),
           s('confirmed_on'), relieved, has(req, 'device_user_id') ? (str(req.device_user_id).trim().toUpperCase() || null) : null, s('qualification'), exp, s('address'),
-          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, code)
+          s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, code,
+          has(req, 'school_email') ? str(req.school_email).trim() : null)
         .run()
     } catch (e) {
       if (e instanceof Error && e.message.includes('employees.institution_id, employees.employee_code')) throw badRequest('another staff record already uses that employee code')
@@ -354,6 +364,16 @@ export function registerStaff(r: Router): void {
                             WHEN NULLIF(?1, '') IS NOT NULL AND username = (SELECT email FROM employees WHERE id = ?3) THEN NULLIF(?1, '')
                             ELSE username END,
             updated_at = ?4 WHERE id = (SELECT user_id FROM employees WHERE id = ?3)`).bind(email, phone, empId, t).run()
+        /* The sign-in index follows (Yajur, 2026-10-27): the new number signs in,
+           the old one no longer does. */
+        const u = await c.db.prepare(`SELECT email, phone FROM users WHERE id = ?`).bind(row.user_id).first<{ email: string | null; phone: string | null }>()
+        if (u) {
+          await c.env.CONTROL.batch([
+            c.env.CONTROL.prepare(`DELETE FROM login_index WHERE user_id = ? AND ((kind = 'phone' AND value IS NOT ?) OR (kind = 'email' AND value IS NOT ?))`)
+              .bind(row.user_id, u.phone, u.email),
+          ])
+          await indexLogin(c, row.user_id)
+        }
       } catch (e) {
         if (!isUniqueViolation(e)) throw e
       }
@@ -652,7 +672,7 @@ export function registerStaff(r: Router): void {
       return ok(out)
     }
     out.password = password
-    out.note = 'Shown once and not stored. Hand it over in person or send it to them, and they are asked to change it when they first sign in. If it is lost, reset it rather than looking this one up.'
+    out.note = 'Shown once and not stored. On the school sign-in page (Staff tab) they sign in with their phone number, or their school email. Hand it over in person or send it to them, and they are asked to change it when they first sign in. If it is lost, reset it rather than looking this one up.'
     return ok(out)
   })
 
@@ -1025,7 +1045,7 @@ export function registerStaff(r: Router): void {
       throw forbidden('missing permission: sending logins for ' + kind)
     }
     if (!isUUID(trim(req.id))) throw badRequest('id must be a uuid')
-    const signIn = trim(req.sign_in_as)
+    const signIn = shownSignIn(trim(req.sign_in_as))
     const password = trim(req.password)
     if (signIn === '' || password === '') throw badRequest('nothing to send: the sign-in name and password are both needed')
 
@@ -1110,7 +1130,7 @@ export function registerStaff(r: Router): void {
       return ok({ items: staff.results.map((r) => ({
         id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
         class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
-        has_login: bool(r.usable), sign_in_as: String(r.sign_in ?? ''),
+        has_login: bool(r.usable), sign_in_as: shownSignIn(String(r.sign_in ?? '')),
         login_code: String(r.login_code ?? ''),
         email: String(r.email ?? ''), phone: String(r.phone ?? ''), guardians: [],
       })) })
@@ -1181,14 +1201,14 @@ export function registerStaff(r: Router): void {
     return ok({ items: rows.results.map((r) => ({
       id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
       roll_no: r.roll_no ?? undefined, class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
-      has_login: bool(r.student_usable), sign_in_as: String(r.student_sign_in ?? ''),
+      has_login: bool(r.student_usable), sign_in_as: shownSignIn(String(r.student_sign_in ?? '')),
       /* The account's own ten characters. Every other identifier is
          borrowed from something that can change; this one cannot, and
          unlike the password it can always be read back. */
       login_code: String(r.student_code ?? ''),
       guardians: (byStudent.get(String(r.id)) ?? []).map((g) => ({
         id: String(g.id), full_name: String(g.full_name), relation: String(g.relation ?? ''),
-        phone: String(g.phone ?? ''), has_login: bool(g.usable), sign_in_as: String(g.sign_in ?? ''),
+        phone: String(g.phone ?? ''), has_login: bool(g.usable), sign_in_as: shownSignIn(String(g.sign_in ?? '')),
         login_code: String(g.login_code ?? ''),
       })),
     })) })
@@ -1200,6 +1220,9 @@ export function registerStaff(r: Router): void {
     const kind = str(req.kind)
     const need = kind === 'staff' ? 'hr.employees.write' : 'students.write'
     if (!can(c.id, need)) throw forbidden('missing permission: issuing logins for ' + kind)
+    /* Resetting a whole list of passwords is a takeover if it goes wrong: a password typed in the last fifteen minutes. */
+    if (req.reset === true) await requireFresh(c)
+    const callerIsAdmin = isSchoolAdmin(c)
     let section: string | null = null
     if (trim(req.section_id) !== '') {
       if (!isUUID(trim(req.section_id))) throw badRequest('section_id must be a uuid')
@@ -1285,10 +1308,23 @@ export function registerStaff(r: Router): void {
     }
     for (const p of people.results) {
       if (p.user_id && (!bool(p.usable) || req.reset === true)) {
+        /* A school administrator's login is reset only by a school administrator; and the
+           caller's own account is never reset from a list. */
+        if (p.user_id === c.id.userId || (!callerIsAdmin && (await c.db.prepare(`SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+            WHERE ur.user_id = ? AND r.key = 'institution_admin' LIMIT 1`).bind(p.user_id).first()))) {
+          out.skipped++
+          out.rows.push({ ...studentCols(p), name: p.name, existing: true, detail: p.user_id === c.id.userId ? 'your own login: change it from your profile' : 'a school administrator: only a school administrator can reset this login' })
+          continue
+        }
         const { password, known } = kind === 'students' ? studentFirstPassword(p.admission_no) : issuedPassword(p.phone, p.email)
         const h = await hash(c, password)
-        await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', must_change_password = ?, updated_at = ? WHERE id = ?`).bind(h, known || kind === 'students' ? 1 : 0, t, p.user_id).run()
-        if (kind === 'students') await revokeSessions(c, p.user_id)
+        /* An invited account becomes active; a suspended or archived one keeps its status. */
+        await c.db.batch([
+          c.db.prepare(`UPDATE users SET password_hash = ?, status = CASE WHEN status = 'invited' THEN 'active' ELSE status END, must_change_password = ?, updated_at = ? WHERE id = ?`)
+            .bind(h, known || kind === 'students' ? 1 : 0, t, p.user_id),
+          auditStmt(c, 'user.password.reset', 'user', p.user_id, null, { bulk: true, kind, reset: req.reset === true }),
+        ])
+        await revokeSessions(c, p.user_id)
         out.created++
         const signIn = await signInAs(c, p.user_id, 'username')
         out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: signIn, password, existing: false })

@@ -310,8 +310,9 @@ export default function Notifications() {
   const statuses = useQuery({
     queryKey: ['notif-statuses'],
     queryFn: () => api.get<{ items: { id: string; title: string; kind: string; uploaded_by?: string; posted_on: string; posted_at?: string; seen?: boolean }[] }>('/api/v1/portal/learning/resources'),
-    /* Fetched while the drawer is open, so the Activity toggle can carry its count. */
-    enabled: open,
+    /* Fetched while the drawer is open, so the Activity toggle can carry its count.
+       Only roles with the hub (student, parent) may call it; others got a 404. */
+    enabled: open && !!toHub,
     retry: false,
   })
   
@@ -509,11 +510,11 @@ export default function Notifications() {
         // eleven that were not.
         data-tip="Notifications"
         title="Notifications"
-        className="relative grid h-9 w-9 place-items-center rounded-sm text-muted-foreground
+        className="relative grid h-9 w-9 md:h-10 md:w-10 place-items-center rounded-sm text-muted-foreground
                    hover:bg-surface-hover hover:text-foreground"
       >
         {/* Bigger on a phone: the owner asked for larger top-bar buttons there. */}
-        <Bell className="h-[22px] w-[22px] md:h-4 md:w-4" />
+        <Bell className="h-[22px] w-[22px]" />
         {unread > 0 && (
           <span
             /* 12px, the smallest size text is drawn at anywhere else: at 10 the

@@ -7,7 +7,7 @@ import { loginMFA } from './mfa'
 export async function handlePages(env: Env, req: Request, url: URL): Promise<Response | null> {
   const m = req.method
   switch (url.pathname) {
-    case '/forgot': return m === 'GET' ? showForgot() : m === 'POST' ? forgot(env, req) : null
+    case '/forgot': return m === 'GET' ? showForgot(url) : m === 'POST' ? forgot(env, req) : null
     case '/reset': return m === 'GET' ? showReset(env, url) : m === 'POST' ? reset(env, req) : null
     case '/buy': return m === 'GET' ? showBuy(env, url) : m === 'POST' ? submitBuy(env, req) : null
     case '/signup': return m === 'GET' ? showSignup(env, url) : m === 'POST' ? startSignup(env, req) : null

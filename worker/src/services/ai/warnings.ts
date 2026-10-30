@@ -3,6 +3,7 @@ import type { Institution } from '../../tenant'
 import { registerJob } from '../jobs'
 import { jobSchool, localDate } from '../background/schools'
 import { llmFromEnv, parseJsonReply, type Llm } from './gemini_seam'
+import { aiSettings } from './llm'
 import {
   attendanceFlags, feeFlags, marksFlags, registerFlags, staffFlags, evidenceKey, THRESHOLDS,
   type AttendanceMark, type FeeFacts, type Flag, type MarkRow, type StaffDay, type StudentRef,
@@ -261,7 +262,7 @@ async function sendDigest(db: D1Database, inst: Institution): Promise<number> {
 
 registerJob('ai:warnings_nightly', async (env: Env, job) => {
   const { inst, db } = await jobSchool(env, job)
-  const r = await runWarnings(db, inst.id, localDate(inst.timezone), await llmFromEnv(env))
+  const r = await runWarnings(db, inst.id, localDate(inst.timezone), (await aiSettings(db)).features.early_warnings ? await llmFromEnv(env) : null)
   console.log('early warnings', inst.slug, r)
 })
 

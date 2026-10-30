@@ -9,7 +9,7 @@ import { api, type List, type Student, type Klass, type Section } from '@/lib/ap
 import { usePagedList } from '@/lib/paged'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select, Textarea, FormNotice, Checkbox,
-  Table, Td, Badge, Button, Input, Loading, SkeletonTable, ErrorState, EmptyState,
+  Table, Td, Badge, Button, Input, Loading, SkeletonTable, ErrorState, EmptyState, Dialog,
 } from '@/components/ui'
 import {
   RecordShell, Field, type RecordTab, type RecordAction,
@@ -2061,6 +2061,12 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
     mutationFn: (gid: string) => api.del(`/api/v1/students/${p.id}/guardians/${gid}`),
     onSuccess: () => onChanged?.(),
   })
+  /* Which parent is rung first (Yajur, 2026-10-28). Contact order only: each
+     parent keeps their own login and number, so no confirmation. */
+  const makePrimary = useMutation({
+    mutationFn: (gid: string) => api.post(`/api/v1/students/${p.id}/guardians/${gid}/primary`, {}),
+    onSuccess: () => onChanged?.(),
+  })
   return (
     <Card>
       {/* The block a teacher opens this page for. Father and mother first,
@@ -2199,6 +2205,13 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                   )}
                   {mayEdit && g.id && (
                     <>
+                      {!g.is_primary && (
+                        <Button size="sm" variant="ghost"
+                          disabled={makePrimary.isPending}
+                          onClick={() => makePrimary.mutate(g.id!)}>
+                          Make primary
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost"
                         onClick={() => setEditing(editing === g.id ? null : g.id!)}>
                         {editing === g.id ? 'Close' : 'Edit'}
@@ -2679,6 +2692,24 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
   const [until, setUntil] = useState(guardian?.access_until ?? '')
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
   const reachable = f.phone.trim() !== '' || f.email.trim() !== ''
+  /* A changed number (Yajur, 2026-10-28): a 10-digit Indian mobile, and when
+     this parent has a login it is their sign-in, so Save asks first. */
+  const digits = f.phone.replace(/[\s-]/g, '').replace(/^(?:\+?91|0)(?=[6-9][0-9]{9}$)/, '')
+  const phoneChanged = guardian != null && digits !== (guardian.phone ?? '')
+  const phoneBad = (guardian == null || phoneChanged) && digits !== '' && !/^[6-9][0-9]{9}$/.test(digits)
+  const hasLogin = !!guardian?.login && guardian.login !== 'none'
+  const siblings = guardian?.siblings ?? []
+  const [confirming, setConfirming] = useState(false)
+  const payload = () => ({
+    ...f,
+    phone: digits,
+    annual_income: f.annual_income.replace(/[^0-9]/g, '')
+      ? Number(f.annual_income.replace(/[^0-9]/g, ''))
+      : undefined,
+    is_primary: primary,
+    portal_blocked: blocked,
+    access_until: until.trim(),
+  })
   return (
     <>
       <FormNotice error={error} />
@@ -2702,8 +2733,10 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
             said both were needed while the form accepted either. The line
             under Save names the rule when it is what is holding Save back. */}
         <FormField label="Phone"
-          hint="A phone number or an email, every alert the school sends goes to one of them">
-          <Input value={f.phone} onChange={set('phone')} />
+          hint={phoneBad ? 'Enter a 10-digit mobile number, starting 6, 7, 8 or 9'
+            : phoneChanged && siblings.length ? `Also changes for ${siblings.join(', ')}`
+            : 'A phone number or an email, every alert the school sends goes to one of them'}>
+          <Input type="tel" value={f.phone} onChange={set('phone')} ariaInvalid={phoneBad} />
         </FormField>
         <FormField label="Email" hint="Or a phone number above">
           <Input value={f.email} onChange={set('email')} />
@@ -2732,18 +2765,8 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
       </div>
       <div className="mt-4 flex items-center gap-2">
         <Button
-          disabled={saving || !f.full_name.trim() || !reachable}
-          onClick={() =>
-            onSave({
-              ...f,
-              annual_income: f.annual_income.replace(/[^0-9]/g, '')
-                ? Number(f.annual_income.replace(/[^0-9]/g, ''))
-                : undefined,
-              is_primary: primary,
-              portal_blocked: blocked,
-              access_until: until.trim(),
-            })
-          }
+          disabled={saving || !f.full_name.trim() || !reachable || phoneBad}
+          onClick={() => (phoneChanged && hasLogin && digits !== '' ? setConfirming(true) : onSave(payload()))}
         >
           {saving ? 'Saving…' : guardian ? 'Save changes' : 'Add them'}
         </Button>
@@ -2754,6 +2777,23 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
           </span>
         )}
       </div>
+      {confirming && guardian && (
+        <Dialog
+          onClose={() => setConfirming(false)}
+          title="Change this sign-in number?"
+          description={`${guardian.full_name} signs in with ${guardian.phone || 'no number'}. After saving they sign in with ${digits}, and the old number stops working.`}
+          footer={(
+            <>
+              <Button variant="secondary" onClick={() => setConfirming(false)}>Cancel</Button>
+              <Button disabled={saving} onClick={() => { setConfirming(false); onSave(payload()) }}>Change number</Button>
+            </>
+          )}
+        >
+          {siblings.length > 0 && (
+            <p className="text-[14px]">Also changes for {siblings.join(', ')}.</p>
+          )}
+        </Dialog>
+      )}
     </>
   )
 }

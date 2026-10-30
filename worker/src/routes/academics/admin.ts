@@ -462,16 +462,23 @@ async function getExamMonitor(c: Ctx) {
       JOIN classes c ON c.id = cs.class_id JOIN subjects sub ON sub.id = cs.subject_id LEFT JOIN marks m ON m.exam_subject_id = es.id
      WHERE (? IS NULL OR e.id = ?) AND (? IS NULL OR cs.class_id = ?) AND (? IS NULL OR e.academic_year_id = ?)
      GROUP BY es.id ORDER BY e.name, c.level, sub.name LIMIT 500`).bind(exam, exam, cls, cls, year, year).all<Record<string, unknown>>()
-  let papers = 0, complete = 0, signed = 0, pending = 0, backlogs = 0
+  let papers = 0, complete = 0, signed = 0, pending = 0, backlogs = 0, unmarked = 0
+  /* Only a paper on the date sheet whose date has passed is owed marks; a
+     subject with no exam scheduled never counts (owner, 2026-10-27). The
+     list still shows every paper, flagged with due. */
+  const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10)
   const items = rows.results.map((v) => {
     const eligible = Number(v.eligible), entered = Number(v.entered), approved = Number(v.approved)
     const pend = Math.max(eligible - entered, 0)
     const o = omitNull({ ...v, published: bool(v.published), pending: pend, complete: entered > 0 && pend === 0, signed_off: entered > 0 && approved >= entered,
       entry_percent: eligible > 0 ? Math.floor((entered * 100) / eligible) : 0 }, ['exam_date', 'teachers'])
-    papers++; if (o.complete) complete++; if (o.signed_off) signed++; pending += pend; backlogs += Number(v.failed)
-    return o
+    const date = typeof v.exam_date === 'string' ? v.exam_date.slice(0, 10) : ''
+    const due = date !== '' && date < today
+    if (due) { papers++; if (o.complete) complete++; if (o.signed_off) signed++; pending += pend; if (entered === 0) unmarked++ }
+    backlogs += Number(v.failed)
+    return { ...o, due }
   })
-  return ok({ items, summary: { papers, complete, signed_off: signed, marks_pending: pending, backlogs, complete_percent: papers === 0 ? 0 : Math.floor((complete * 100) / papers) } })
+  return ok({ items, summary: { papers, complete, signed_off: signed, marks_pending: pending, unmarked_papers: unmarked, backlogs, complete_percent: papers === 0 ? 0 : Math.floor((complete * 100) / papers) } })
 }
 
 const TARGETS_SQL = `
@@ -593,6 +600,10 @@ async function getSubstitutionBoard(c: Ctx) {
            /* A pick waiting for the principal (scheduling/cover.ts proposeCover). */
            (SELECT wu.full_name FROM substitution_request_periods srp JOIN users wu ON wu.id = srp.assigned_user_id
              WHERE srp.timetable_entry_id = te.id AND srp.on_date = sb_on.d AND srp.status = 'pending') AS waiting_for,
+           /* The last pick the principal rejected (cover.ts rejectCover); the period is free to pick again. */
+           (SELECT ru.full_name FROM substitution_request_periods srp JOIN users ru ON ru.id = srp.assigned_user_id
+             WHERE srp.timetable_entry_id = te.id AND srp.on_date = sb_on.d AND srp.status = 'rejected'
+             ORDER BY srp.rowid DESC LIMIT 1) AS rejected_for,
            (SELECT json_group_array(json_object('user_id', x.user_id, 'full_name', x.full_name, 'teaches_subject', x.teaches_subject, 'periods_today', x.periods_today))
               FROM (SELECT u2.id AS user_id, u2.full_name,
                            EXISTS (SELECT 1 FROM section_subject_teachers t2 JOIN class_subjects cs2 ON cs2.id = t2.class_subject_id WHERE t2.teacher_user_id = u2.id AND cs2.subject_id = cs.subject_id) AS teaches_subject,
@@ -618,7 +629,7 @@ async function getSubstitutionBoard(c: Ctx) {
     const coverAbsent = bool(v.cover_absent)
     if (v.covered_by_user_id !== null && !coverAbsent) covered++
     else if (candidates.length === 0) uncoverable++
-    return omitNull({ ...v, cover_absent: coverAbsent, candidates }, ['covered_by', 'covered_by_user_id', 'waiting_for'])
+    return omitNull({ ...v, cover_absent: coverAbsent, candidates }, ['covered_by', 'covered_by_user_id', 'waiting_for', 'rejected_for'])
   })
   const awayRows = await c.db.prepare(`
     SELECT u.id, u.full_name, CASE WHEN sa.id IS NOT NULL THEN sa.status ELSE 'on approved leave' END AS why

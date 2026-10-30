@@ -6,7 +6,7 @@ import { useOptimisticMutation } from '@/lib/optimistic'
 import type { MailConnection, MailFolder, MailMessage, MailPage, MailPerson, MailSummary } from '@shared/api/feature_inbox'
 import {
   PageHead, PageBody, Card, Badge, Button, ConfirmButton, Dialog, EmptyState, ErrorState, Field, FormNotice,
-  Input, Loading, Textarea, TAB_BAR_FILL, tabClass, SEG_BAR, segClass,
+  Input, Loading, Textarea, TAB_BAR_FILL, tabClass,
 } from '@/components/ui'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -238,7 +238,6 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
   m: MailMessage; canSend: boolean; onReply: (all: boolean) => void; onStar: () => void
   onUnread: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void; deleteError: unknown
 }) {
-  const [view, setView] = useState<'formatted' | 'text'>(m.html ? 'formatted' : 'text')
   const doc = useMemo(() => (m.html ? inertHtml(m.html) : ''), [m.html])
   const many = m.to.length + m.cc.length > 1
   return (
@@ -257,7 +256,7 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
               </ConfirmButton>
             </>
           ) : (
-            <Button variant="ghost" size="sm" onClick={onTrash}>Move to Trash</Button>
+            <Button variant="ghost" size="sm" onClick={onTrash}>Delete</Button>
           )}
         </div>
         <FormNotice error={deleteError} />
@@ -268,14 +267,8 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
           {m.cc.length > 0 && <><dt className="text-muted-foreground">Cc</dt><dd className="break-words">{list(m.cc)}</dd></>}
           <dt className="text-muted-foreground">Date</dt><dd>{formatDateTime(m.received_at)}</dd>
         </dl>
-        {m.html && (
-          <div className={SEG_BAR} role="tablist" aria-label="How to show this message">
-            <button type="button" role="tab" aria-selected={view === 'formatted'} className={segClass(view === 'formatted')} onClick={() => setView('formatted')}>Formatted</button>
-            <button type="button" role="tab" aria-selected={view === 'text'} className={segClass(view === 'text')} onClick={() => setView('text')}>Plain text</button>
-          </div>
-        )}
       </div>
-      {view === 'formatted' && m.html ? (
+      {m.html ? (
         <iframe title="Message" srcDoc={doc} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
           className="block h-[60dvh] w-full border-0 bg-card" />
       ) : (
@@ -349,6 +342,16 @@ function useConnection() {
     if (was.current && was.current !== 'done' && state === 'done') qc.invalidateQueries({ queryKey: ['mail', 'list'] })
     was.current = state
   }, [state, qc])
+  /* New mail on the school's server comes in by itself (owner, 2026-10-28:
+     no Import button): once each time Mail opens, when connected and no copy
+     is already running. It carries on from where the last copy stopped. */
+  const fetched = useRef(false)
+  useEffect(() => {
+    const d = conn.data
+    if (fetched.current || !d?.connected || d.import.state === 'queued' || d.import.state === 'running') return
+    fetched.current = true
+    api.call('POST /comms/mail/connection/import').then((v) => qc.setQueryData(['mail', 'connection'], v)).catch(() => {})
+  }, [conn.data, qc])
   const c = conn.data
   return c && (c.server_ready || c.connected) ? c : null
 }
@@ -377,14 +380,6 @@ function ConnectPrompt() {
   )
 }
 
-function ImportLine({ c }: { c: MailConnection }) {
-  const im = c.import
-  const of = im.total ? ` ${im.done} of ${im.total}` : ''
-  if (im.state === 'queued') return <p className="text-[13px] text-muted-foreground">Old mail: waiting to start.</p>
-  if (im.state === 'running') return <p className="text-[13px] text-muted-foreground">Old mail: copying{of}. You can close this; it carries on.</p>
-  if (im.state === 'done') return <p className="text-[13px] text-muted-foreground">Old mail: copied{of}{im.updated_at ? `, ${formatDateTime(im.updated_at)}` : ''}. Import again to bring in mail that arrived on the server since.</p>
-  return <p className="text-[13px] text-destructive">Old mail: stopped{im.total ? ` after ${im.done} of ${im.total}` : ''}: {im.error} Press Import again to carry on.</p>
-}
 function ConnectDialog({ c, onClose }: { c: MailConnection; onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
@@ -397,22 +392,17 @@ function ConnectDialog({ c, onClose }: { c: MailConnection; onClose: () => void 
   })
   const save = useMutation({
     mutationFn: () => api.call('PUT /comms/mail/connection', { body: { password } }),
-    onSuccess: (v) => { qc.setQueryData(['mail', 'connection'], v); buzz('tap'); toast.ok('Mailbox connected'); onClose() },
+    onSuccess: (v) => {
+      qc.setQueryData(['mail', 'connection'], v); buzz('tap'); toast.ok('Mailbox connected'); onClose()
+      // Mail already on the server comes in straight away.
+      api.call('POST /comms/mail/connection/import').then((n) => qc.setQueryData(['mail', 'connection'], n)).catch(() => {})
+    },
   })
-  const disconnect = useMutation({
-    mutationFn: () => api.call('DELETE /comms/mail/connection'),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mail', 'connection'] }); onClose() },
-  })
-  const importing = useMutation({
-    mutationFn: () => api.call('POST /comms/mail/connection/import'),
-    onSuccess: (v) => qc.setQueryData(['mail', 'connection'], v),
-  })
-  const busy = c.import.state === 'queued' || c.import.state === 'running'
   return (
     <Dialog
       onClose={onClose}
       title={c.connected ? 'Your mailbox' : 'Connect your mailbox'}
-      description="Sign in once with your own mailbox password. Your mail is then sent through the school mail server as you, and you can copy your old mail in. Only you can use this; the office cannot see the password."
+      description="Sign in once with your own mailbox password. Your mail is then sent through the school mail server as you, and your mail comes in by itself. Only you can use this; the office cannot see the password."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -426,24 +416,10 @@ function ConnectDialog({ c, onClose }: { c: MailConnection; onClose: () => void 
         <Field label={c.connected ? 'New password' : 'Mailbox password'} hint={c.connected ? 'Leave empty and press Test to check the saved one.' : undefined}>
           <Input value={password} onChange={(v) => { setPassword(v); setTested(false) }} type="password" autoComplete="current-password" />
         </Field>
-        <FormNotice error={test.error ?? save.error ?? disconnect.error} ok={tested ? 'Signed in to the mail server.' : undefined} />
-        {c.connected && (
-          <div className="space-y-2 border-t pt-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge tone="success">Connected</Badge>
-              <Button size="sm" variant="secondary" pending={importing.isPending} disabled={busy} needsNetwork onClick={() => importing.mutate()}>
-                {c.import.state === 'none' ? 'Import old mail' : 'Import again'}
-              </Button>
-            </div>
-            {c.import.state !== 'none' && <ImportLine c={c} />}
-            <FormNotice error={importing.error} />
-          </div>
-        )}
+        <FormNotice error={test.error ?? save.error} ok={tested ? 'Signed in to the mail server.' : undefined} />
         {c.connected && (
           <div className="border-t pt-3">
-            <ConfirmButton tone="danger" confirmLabel="Disconnect" question="The saved password is deleted. Mail already copied stays in your Inbox." onConfirm={() => disconnect.mutate()}>
-              Disconnect
-            </ConfirmButton>
+            <Badge tone="success">Connected</Badge>
           </div>
         )}
       </div>

@@ -24,10 +24,9 @@ import { useOpenState } from '@/lib/motion'
  * says so rather than reimplementing them:
  *
  *   Who may approve comes from the value ladder. This page shows the band a
- *   requisition landed in and lets anyone press Approve — the server answers
- *   403 with the permission needed if they may not. A button hidden by the
- *   browser is not a spending control, and pretending otherwise teaches
- *   people the UI is the rule.
+ *   requisition landed in and shows Approve/Reject only when the server says
+ *   this user may decide it (can_decide). The server still answers 403 on the
+ *   press if they may not; hiding the button is not the spending control.
  *
  *   Receiving moves stock. Nothing here writes an inventory balance; a
  *   database trigger writes the movement and the stores screen picks it up.
@@ -244,7 +243,7 @@ function RequisitionDetail({ id, mayWrite, onDone }: {
       <CardHeader
         title={`${r.requisition_no} · ${r.department ?? 'no department'}`}
         description={r.approval_permission
-          ? `Approval sits in the "${r.approval_band}" band, which needs ${r.approval_permission}. The server checks that; this screen does not.`
+          ? `Approval sits in the "${r.approval_band}" band, which needs ${r.approval_permission}.`
           : 'Not yet submitted, so no approval band has been fixed.'}
       />
       <div className="border-b px-5 py-4 text-[13px]">
@@ -265,7 +264,7 @@ function RequisitionDetail({ id, mayWrite, onDone }: {
         ))}
       </Table>
 
-      {mayWrite && (r.status === 'draft' || r.status === 'submitted') && (
+      {((mayWrite && r.status === 'draft') || (r.status === 'submitted' && r.can_decide)) && (
         <div className="space-y-3 border-t px-5 py-4">
           <FormNotice error={submit.error ?? decide.error} />
           {r.status === 'draft' && (

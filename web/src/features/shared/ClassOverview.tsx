@@ -43,6 +43,8 @@ interface Contact {
   name: string
   phone: string
   relation: string
+  /** The family's main contact, chosen in Student 360. */
+  primary?: number | boolean
 }
 
 interface Overview {
@@ -114,7 +116,7 @@ function weekdayLabel(w: number | string): string {
 /* A guardian's number, as a button that dials it. Only drawn for a contact
    that has a number, so there is never a dead control. Modelled on the call
    buttons in the absentee follow-up. */
-function CallButton({ label, name, phone }: { label: string; name: string; phone: string }) {
+function CallButton({ label, name, phone, primary }: { label: string; name: string; phone: string; primary?: boolean }) {
   return (
     <a
       href={`tel:${phone}`}
@@ -128,7 +130,10 @@ function CallButton({ label, name, phone }: { label: string; name: string; phone
             <span className="font-normal text-muted-foreground"> · {name}</span>
           ) : null}
         </span>
-        <span className="block font-mono text-[12px] text-muted-foreground">{phone}</span>
+        <span className="flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground">
+          {phone}
+          {primary ? <Badge tone="primary">Primary</Badge> : null}
+        </span>
       </span>
     </a>
   )
@@ -351,6 +356,7 @@ function OverviewBody({
                           label={relationLabel(c.relation, c.name)}
                           name={c.name}
                           phone={c.phone}
+                          primary={Boolean(c.primary)}
                         />
                       ))}
                     </div>

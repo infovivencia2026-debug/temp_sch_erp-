@@ -304,7 +304,7 @@ export function registerStaff(r: Router) {
     const mine = !can(c.id, READ) || q.get('for') === 'mine'
     const rows = await c.db.prepare(`
       SELECT lr.id, COALESCE(NULLIF(${fullName('e.first_name', 'e.last_name')}, ''), NULLIF(${fullName('st.first_name', 'st.last_name')}, ''), '-') AS who,
-             lr.subject_kind, lt.name AS leave_type, lr.from_date, lr.to_date, CAST(lr.days AS TEXT) AS days, lr.reason, lr.status, lr.kind, lr.hours
+             lr.subject_kind, lt.name AS leave_type, lr.from_date, lr.to_date, CAST(lr.days AS TEXT) AS days, lr.reason, lr.status, lr.kind, lr.hours, lr.place, lr.from_time, lr.to_time
         FROM leave_requests lr LEFT JOIN employees e ON e.id = lr.employee_id LEFT JOIN students st ON st.id = lr.student_id LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
        WHERE (? IS NULL OR lr.status = ?) AND (? IS NULL OR lr.subject_kind = ?) AND ${mine ? 'e.user_id = ?' : '1'}
        ORDER BY lr.created_at DESC LIMIT 300`)
@@ -504,7 +504,7 @@ export function registerStaff(r: Router) {
     const rows = (await c.db.prepare(`
       SELECT e.id, e.user_id, e.employee_code, ${fullName('e.first_name', 'e.last_name')} AS full_name,
              COALESCE(dg.name, '') AS designation, COALESCE(d.name, '') AS department,
-             COALESCE(e.phone, '') AS phone, COALESCE(e.email, '') AS email,
+             COALESCE(e.phone, '') AS phone, COALESCE(e.email, '') AS email, COALESCE(NULLIF(e.school_email, ''), (SELECT ma.address FROM mail_addresses ma WHERE ma.user_id = e.user_id AND ma.status = 'active' LIMIT 1), '') AS school_email,
              COALESCE(e.employment_type, '') AS employment_type, e.status,
              COALESCE(e.joined_on, '') AS joined_on, COALESCE(e.qualification, '') AS qualification,
              COALESCE(e.experience_years, '') AS experience_years
@@ -583,6 +583,7 @@ export function registerStaff(r: Router) {
         employment_type: str(e.employment_type),
         phone: str(e.phone),
         email: str(e.email),
+        school_email: str(e.school_email),
         joined_on: str(e.joined_on),
         qualification: str(e.qualification),
         experience_years: e.experience_years === '' ? '' : String(e.experience_years),
@@ -654,14 +655,14 @@ export function registerStaff(r: Router) {
     const eid = c.params.id
     if (!isUUIDish(eid)) throw badRequest('invalid employee id')
     const e = await c.db.prepare(`
-      SELECT e.employee_code, e.first_name, e.last_name, e.phone, e.email, e.qualification, d.name AS department, dg.name AS designation, e.department_id, e.designation_id,
+      SELECT e.employee_code, e.first_name, e.last_name, e.phone, e.email, COALESCE(NULLIF(e.school_email, ''), (SELECT ma.address FROM mail_addresses ma WHERE ma.user_id = e.user_id AND ma.status = 'active' LIMIT 1)) AS school_email, e.qualification, d.name AS department, dg.name AS designation, e.department_id, e.designation_id,
              e.employment_type, e.status, e.joined_on, e.confirmed_on, e.relieved_on, e.address, e.photo_file_id, e.experience_years, e.user_id,
              e.emergency_contact_name, e.emergency_contact_phone, e.pan, e.bank_account, e.bank_ifsc, e.uan, e.esi_number, e.custom_fields, CAST(e.device_user_id AS TEXT) AS device_user_id
         FROM employees e LEFT JOIN departments d ON d.id = e.department_id LEFT JOIN designations dg ON dg.id = e.designation_id WHERE e.id = ?`).bind(eid).first<Record<string, unknown>>()
     if (!e) throw notFound()
     const out: Record<string, unknown> = {
       id: eid, employee_code: e.employee_code, full_name: (str(e.first_name) + ' ' + str(e.last_name)).trim(), first_name: e.first_name, last_name: e.last_name,
-      phone: e.phone, email: e.email, qualification: e.qualification, department: e.department, designation: e.designation, department_id: e.department_id,
+      phone: e.phone, email: e.email, school_email: e.school_email, qualification: e.qualification, department: e.department, designation: e.designation, department_id: e.department_id,
       designation_id: e.designation_id, employment_type: e.employment_type, status: e.status, joined_on: e.joined_on, confirmed_on: e.confirmed_on, relieved_on: e.relieved_on,
       address: e.address, photo_file_id: e.photo_file_id, experience_years: e.experience_years === null ? null : Math.trunc(Number(e.experience_years)), user_id: e.user_id,
       emergency_contact_name: e.emergency_contact_name, emergency_contact_phone: e.emergency_contact_phone, pan: e.pan, bank_account: e.bank_account, bank_ifsc: e.bank_ifsc,

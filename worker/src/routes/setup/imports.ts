@@ -1,10 +1,12 @@
 import { addSubjectsToOpenExams } from './academics'
+import { sectionScheduleSQL } from '../scheduling/bell'
 import type { Router } from '../../router'
 import { collect } from '../fees/counter'
 import { isBatchGuardFailure } from '../fees/common'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, forbidden, notFound, ok, uuid, uuidParam, now } from '../../http'
 import { can } from '../../identity'
+import { auditStmt } from '../admin/common'
 import { requireInstitution, instId, nullStr, ensureCampus, workingYearId, classLevelFromName, CLASS_LEVEL_FLOOR, CLASS_LEVEL_CEILING,
   appointEmployee, PhoneInUse, endFamilyAccess, todayIndia, istToUTC, isClock, str } from './common'
 import { registerImportSpecsExtra } from './imports_extra'
@@ -28,6 +30,19 @@ export class ImportCtx {
   classes = new Map<string, string>()
   sections = new Map<string, string>()
   teachers = new Map<string, string>()
+  /* Teacher names a timetable sheet uses that match nobody: each was three
+     lookups on every one of its rows, which made a 600-row sheet slow
+     enough for the browser to give up while the server was still saving. */
+  teacherMisses = new Set<string>()
+  /* Timetable cells already on file, read once (section/period/weekday ->
+     id), and the writes held back to go in batches at the end: one round
+     trip per row made a full-school sheet outlast the browser's wait. */
+  timetableCells: Map<string, string> | null = null
+  deferred: D1PreparedStatement[] = []
+  /* Cells this sheet rewrites. Their teachers are cleared before anything
+     is written, so a teacher moving from one class to another in the new
+     timetable does not meet their own old period on the way. */
+  clearFirst: string[] = []
   periods: Map<string, string> | null = null
   devices = new Map<string, string>()
   punchSeen = new Set<string>()
@@ -116,6 +131,48 @@ export class ImportCtx {
     const id = this.periods.get(want.toLowerCase())
     if (!id) throw new Error(`no period called "${want}" -- set the school day up first, or use the period number`)
     return id
+  }
+
+  /* A period on one day. A school with a bell schedule per weekday has a
+     "1" in each, and periodID took whichever came first, so Monday's row
+     landed on Thursday's timings. The day's own schedule wins, then the
+     section's, then the default: the order the timetable cell editor uses. */
+  dayPeriods = new Map<string, string>()
+  async periodOnDay(want: string, day: string, sectionId: string): Promise<string> {
+    want = want.trim()
+    if (want === '') throw new Error('period is required')
+    const key = `${sectionId}/${day}/${want.toLowerCase()}`
+    const hit = this.dayPeriods.get(key)
+    if (hit) return hit
+    /* The schedule for that day, then the period in it: by its name, else a
+       number counts class periods only, so "1" is the first lesson and not
+       the assembly or a break that the schedule numbers among its slots. */
+    const all = await this.daySchedule(day, sectionId)
+    const norm = (v: string) => v.toLowerCase().replace(/[\s_-]+/g, '')
+    const n = /^(?:p|period)?\s*(\d+)$/i.exec(want)?.[1]
+    const row = all.find((p) => norm(p.name) === norm(want))
+      ?? (n ? all.filter((p) => !p.is_break)[Number(n) - 1] : undefined)
+    if (!row) throw new Error(`no period "${want}" on ${day} -- set the school day up first, or use the period number`)
+    this.dayPeriods.set(key, row.id)
+    return row.id
+  }
+
+  /** Every slot of the bell schedule a section follows on a day, in order. */
+  daySlots = new Map<string, Array<{ id: string; name: string; is_break: number }>>()
+  async daySchedule(day: string, sectionId: string): Promise<Array<{ id: string; name: string; is_break: number }>> {
+    const key = `${sectionId}/${day}`
+    const hit = this.daySlots.get(key)
+    if (hit) return hit
+    const sched = await this.db.prepare(`
+      SELECT bs.id FROM bell_schedules bs
+       WHERE (bs.name = ? OR bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?) OR bs.is_default)
+         AND EXISTS (SELECT 1 FROM periods p WHERE p.bell_schedule_id = bs.id AND p.institution_id = ?)
+       ORDER BY (bs.name = ?) DESC, (bs.id = (SELECT ${sectionScheduleSQL('s')} FROM sections s WHERE s.id = ?)) DESC, bs.is_default DESC
+       LIMIT 1`).bind(day, sectionId, this.inst, day, sectionId).first<{ id: string }>()
+    const all = sched ? (await this.db.prepare(`SELECT id, name, is_break FROM periods WHERE bell_schedule_id = ? ORDER BY sequence`).bind(sched.id)
+      .all<{ id: string; name: string; is_break: number }>()).results : []
+    this.daySlots.set(key, all)
+    return all
   }
 
   workingYearID(): string {
@@ -256,6 +313,9 @@ export interface ImportSpec {
   check?: (row: Row) => void
   skip?: (row: Row) => boolean
   verify?: (ctx: ImportCtx, row: Row) => Promise<void>
+  /** Looks at the good rows together and returns what the person should know
+      before uploading, e.g. lessons in the school day that no row fills. */
+  review?: (ctx: ImportCtx, rows: Row[]) => Promise<string[]>
   /** The identifying codes this row would change on a record already on file
       (owner, 2026-10-14): such a row is reported and held back unless the
       upload says overwrite=true. Return every candidate; blanks-to-fill are dropped. */
@@ -328,6 +388,8 @@ export function parsePunchTime(v: string): string {
   if (!m || Number.isNaN(Date.parse(m[1] + 'T00:00:00Z'))) throw new Error(`unrecognised punch time "${v}"`)
   return istToUTC(m[1], m[2] + ':' + (m[3] ?? '00'))
 }
+
+const weekdayName = (n: number): string => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][n - 1]
 
 export function weekdayOf(s: string): number {
   const v = s.trim().toLowerCase()
@@ -528,7 +590,7 @@ export function staffRoleKey(role: string, designation: string): string {
   return ''
 }
 
-const staffKnownColumns = new Set(['employee_code', 'first_name', 'last_name', 'email', 'phone', 'designation', 'role', 'joined_on', 'subjects', 'qualification'])
+const staffKnownColumns = new Set(['employee_code', 'first_name', 'last_name', 'email', 'school_email', 'phone', 'designation', 'role', 'joined_on', 'subjects', 'qualification'])
 function leftoverColumns(row: Row, known: Set<string>): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(row)) if (!known.has(k) && v.trim() !== '') out[k] = v.trim()
@@ -713,28 +775,76 @@ export const importSpecs: Record<string, ImportSpec> = {
     check: (row) => { weekdayOf(str(row.day)); if (str(row.period).trim() === '') throw new Error('period is required: its number or its name') },
     verify: async (ctx, row) => {
       const classId = await ctx.classID(str(row.class).trim())
+      if (str(row.section).trim() !== '') await ctx.sectionIDFor(str(row.class).trim(), str(row.section).trim())
       await ctx.periodID(str(row.period).trim())
       const n = await ctx.db.prepare(`SELECT COUNT(*) AS n FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.class_id = ? AND (lower(sub.name) = lower(?) OR upper(sub.code) = upper(?))`)
         .bind(classId, str(row.subject).trim(), str(row.subject).trim()).first<{ n: number }>()
       if (!n?.n) throw new Error(`${str(row.class).trim()} does not study "${str(row.subject).trim()}". Add it under what each class studies, or check the spelling`)
     },
+    /* Owner, 2026-10-28: a file with periods 1 to 8 loaded into a ten-period
+       day left 9 and 10 empty for every class, and nothing said so. Every
+       lesson of the day's schedule that no row fills is listed by name. */
+    review: async (ctx, rows) => {
+      const filled = new Set<string>()
+      const days = new Map<string, { label: string; sectionId: string; day: string }>()
+      for (const row of rows) {
+        let sectionId = '', day = ''
+        try {
+          sectionId = await ctx.sectionIDFor(str(row.class).trim(), str(row.section).trim())
+          day = weekdayName(weekdayOf(str(row.day)))
+          filled.add(`${sectionId}/${day}/${await ctx.periodOnDay(str(row.period).trim(), day, sectionId)}`)
+        } catch { continue } // the upload itself reports this row
+        days.set(`${sectionId}/${day}`, { label: `${str(row.class).trim()} ${str(row.section).trim()}`.trim(), sectionId, day })
+      }
+      const empty = new Map<string, string[]>()
+      for (const d of days.values()) {
+        for (const p of (await ctx.daySchedule(d.day, d.sectionId)).filter((x) => !x.is_break)) {
+          if (filled.has(`${d.sectionId}/${d.day}/${p.id}`)) continue
+          const list = empty.get(p.name) ?? []
+          list.push(`${d.label} ${d.day}`)
+          empty.set(p.name, list)
+        }
+      }
+      return [...empty].map(([name, where]) => `${name} is a lesson in the school day but no row fills it for ${where.length === days.size ? 'any class on any day' : where.slice(0, 6).join(', ') + (where.length > 6 ? ` and ${where.length - 6} more` : '')}. Whatever is on file there now stays; add rows for ${name} to set it.`)
+    },
     write: async (ctx, row) => {
       const yearId = ctx.workingYearID()
       const classId = await ctx.classID(str(row.class).trim())
       const sectionId = await ctx.sectionIDFor(str(row.class).trim(), str(row.section).trim())
-      const periodId = await ctx.periodID(str(row.period).trim())
       const weekday = weekdayOf(str(row.day))
+      const periodId = await ctx.periodOnDay(str(row.period).trim(), weekdayName(weekday), sectionId)
       const csId = await classSubjectIdFor(ctx, classId, str(row.subject).trim())
       let teacher: string | null = null
-      if (str(row.teacher).trim() !== '') { try { teacher = await ctx.teacherByEmail(str(row.teacher).trim()) } catch { teacher = null } }
-      const existing = await exists(ctx, `SELECT id FROM timetable_entries WHERE section_id = ? AND period_id = ? AND weekday = ?`, sectionId, periodId, weekday)
+      const who = str(row.teacher).trim()
+      if (who !== '' && !ctx.teacherMisses.has(who.toLowerCase())) {
+        try { teacher = await ctx.teacherByEmail(who) } catch {
+          /* Timetables name teachers the way the staff room does, "NAVYA" for
+             Navya Eeda. Taken only when exactly one member of staff has every
+             word of it in their name; anything less certain stays blank. */
+          const words = who.toLowerCase().replace(/[.]/g, ' ').split(/\s+/).filter((w) => w.length > 1)
+          const found = words.length === 0 ? null : await ctx.db.prepare(`SELECT e.user_id AS id FROM employees e WHERE e.institution_id = ? AND e.user_id IS NOT NULL
+              AND ${words.map(() => `(' ' || lower(TRIM(COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, ''))) || ' ') LIKE ?`).join(' AND ')} LIMIT 2`)
+            .bind(ctx.inst, ...words.map((w) => `% ${w} %`)).all<{ id: string }>()
+          if (found && found.results.length === 1) { teacher = found.results[0].id; ctx.teachers.set(who.toLowerCase(), teacher) }
+          else ctx.teacherMisses.add(who.toLowerCase())
+        }
+      }
+      if (!ctx.timetableCells) {
+        const all = await ctx.db.prepare(`SELECT id, section_id, period_id, weekday FROM timetable_entries WHERE institution_id = ?`).bind(ctx.inst)
+          .all<{ id: string; section_id: string; period_id: string; weekday: number }>()
+        ctx.timetableCells = new Map(all.results.map((e) => [`${e.section_id}/${e.period_id}/${e.weekday}`, e.id]))
+      }
+      const cell = `${sectionId}/${periodId}/${weekday}`
+      const existing = ctx.timetableCells.get(cell)
       if (existing) {
-        await ctx.db.prepare(`UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = NULLIF(?, '') WHERE id = ?`).bind(csId, teacher, str(row.room).trim(), existing).run()
+        ctx.clearFirst.push(existing)
+        ctx.deferred.push(ctx.db.prepare(`UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = NULLIF(?, '') WHERE id = ?`).bind(csId, teacher, str(row.room).trim(), existing))
         return
       }
       const id = uuid()
-      await ctx.db.prepare(`INSERT INTO timetable_entries (id, institution_id, academic_year_id, section_id, period_id, weekday, class_subject_id, teacher_user_id, room, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?)`)
-        .bind(id, ctx.inst, yearId, sectionId, periodId, weekday, csId, teacher, str(row.room).trim(), now()).run()
+      ctx.timetableCells.set(cell, id)
+      ctx.deferred.push(ctx.db.prepare(`INSERT INTO timetable_entries (id, institution_id, academic_year_id, section_id, period_id, weekday, class_subject_id, teacher_user_id, room, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?)`)
+        .bind(id, ctx.inst, yearId, sectionId, periodId, weekday, csId, teacher, str(row.room).trim(), now()))
       ctx.noteCreated('timetable', id, true)
     },
   },
@@ -825,10 +935,14 @@ export const importSpecs: Record<string, ImportSpec> = {
     /* Qualification is a real column on the employee, not a custom field. A
        school that put one in its file had it filed away as an unrecognised
        extra and it never reached the record the staff list prints from. */
-    columns: ['employee_code', 'first_name', 'last_name', 'email', 'phone', 'designation', 'department', 'employment_type', 'status', 'role', 'joined_on', 'relieved_on', 'qualification', 'subjects'],
+    columns: ['employee_code', 'first_name', 'last_name', 'email', 'school_email', 'phone', 'designation', 'department', 'employment_type', 'status', 'role', 'joined_on', 'relieved_on', 'qualification', 'subjects'],
     required: ['employee_code', 'first_name'],
-    sample: ['YPS001', 'Priya Rao', '', 'priya@school.in', '9876543210', 'Teacher', 'Teaching staff', 'Permanent', 'Active', 'faculty', '01 Jan 2024', '', 'M.A. English, B.Ed', 'MATH; SCI'],
+    sample: ['YPS001', 'Priya Rao', '', 'priya.rao@gmail.com', 'priya@school.in', '9876543210', 'Teacher', 'Teaching staff', 'Permanent', 'Active', 'faculty', '01 Jan 2024', '', 'M.A. English, B.Ed', 'MATH; SCI'],
     check: (row) => {
+      for (const [k, label] of [['email', 'email'], ['school_email', 'school_email']]) {
+        const e = str(row[k]).trim()
+        if (e !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error(`${label} "${e}" does not look like an email address`)
+      }
       const v = str(row.joined_on).trim()
       if (v !== '' && normaliseDate(v) === v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('joined_on is not a date this can read. Write it as 2026-06-01, 01/06/2026 or 01 Jun 2026')
     },
@@ -859,7 +973,7 @@ export const importSpecs: Record<string, ImportSpec> = {
         out = await appointEmployee(ctx.c, ctx.campus, {
           employee_code: code, first_name: first, last_name: last, email, phone, designation_id: designationId, department_id: departmentId,
           employment_type: normaliseEmployment(str(row.employment_type)), joined_on: normaliseDate(str(row.joined_on)), role_key: roleKey,
-          qualification: str(row.qualification).trim(),
+          qualification: str(row.qualification).trim(), school_email: str(row.school_email).trim(),
           create_login: (email !== '' || phone !== '') && roleKey !== '',
         })
       } catch (e) {
@@ -1349,7 +1463,7 @@ export function parseCSV(text: string): { rows: string[][]; errors: Map<number, 
 
 interface ImportRow { row: number; data?: Row; problem?: string }
 interface ImportReplace { row: number; changes: Array<{ field: string; label: string; from: string; to: string | null }>; problem: string }
-interface ImportResult { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string; replacements?: ImportReplace[] }
+interface ImportResult { total: number; valid: number; rejected: number; imported: number; dry_run: boolean; problems: ImportRow[]; run_id?: string; replacements?: ImportReplace[]; notes?: string[] }
 
 
 
@@ -1458,6 +1572,10 @@ async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: s
     }
     if (bad.size > 0) rows = rows.filter((p) => !bad.has(p.row))
   }
+  if (spec.review && rows.length > 0) {
+    const notes = await spec.review(new ImportCtx(c, inst, await ensureCampus(c), sheetFactsFrom(c), subjectColumnsFrom(c)), rows.map((p) => p.data))
+    if (notes.length > 0) out.notes = notes
+  }
   /* A row that would replace a code already on file is listed in the check
      and, unless the person ticked "replace" (overwrite=true), left out of
      the import rather than applied silently (owner, 2026-10-14). */
@@ -1499,6 +1617,15 @@ async function runBulkImportCSV(c: Ctx, entity: string, spec: ImportSpec, raw: s
       out.problems.push({ row: p.row, data: p.data, problem: (e as Error).message })
     }
   }
+  const writes = [
+    ...Array.from({ length: Math.ceil(ctx.clearFirst.length / 90) }, (_, k) => {
+      const ids = ctx.clearFirst.slice(k * 90, k * 90 + 90)
+      return c.db.prepare(`UPDATE timetable_entries SET teacher_user_id = NULL WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids)
+    }),
+    ...ctx.deferred,
+  ]
+  // One batch is one transaction in D1, so a refusal part-way leaves nothing half-written.
+  if (writes.length > 0) await c.db.batch(writes)
   const runId = uuid()
   const omitted = raw.length > MAX_KEPT_IMPORT_BYTES
   const stmts = [c.db.prepare(`INSERT INTO import_runs (id, institution_id, entity, filename, rows_read, rows_imported, rows_rejected, imported_by, created_at, content, content_omitted)
@@ -1608,7 +1735,10 @@ export function registerImports(r: Router): void {
       }
     }
     try { await tidyPayrollRuns(c) } catch { /* as Go: best effort */ }
-    if (out.removed > 0) await c.db.prepare(`UPDATE import_runs SET undone_at = ?, undone_by = ? WHERE id = ?`).bind(now(), c.id.userId, runId).run()
+    await c.db.batch([
+      ...(out.removed > 0 ? [c.db.prepare(`UPDATE import_runs SET undone_at = ?, undone_by = ? WHERE id = ?`).bind(now(), c.id.userId, runId)] : []),
+      auditStmt(c, 'import.undo', 'import_run', runId, null, { entity: run.entity, removed: out.removed, kept: out.kept }),
+    ])
     return ok(out)
   })
 

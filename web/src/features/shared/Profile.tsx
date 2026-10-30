@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Info, KeyRound, Lock, Pencil, ShieldCheck, UserCheck } from 'lucide-react'
+import { KeyRound, Lock, Pencil, ShieldCheck, UserCheck } from 'lucide-react'
 import { formatDateTime, cn } from '@/lib/utils'
 import {
   Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice, PageBody,
@@ -454,13 +454,6 @@ export default function ProfileView() {
       <ConcernsCard />
       <MyGrowthPanels quiet />
 
-      <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-[12.5px]">
-        <Info className="h-4 w-4 shrink-0 text-primary" />
-        <span>
-          Need a role changed, a name corrected on the school&rsquo;s records, or access you do
-          not have? The office can do all three; this screen cannot.
-        </span>
-      </div>
     </PageBody>
   )
 }

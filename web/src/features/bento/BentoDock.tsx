@@ -52,6 +52,20 @@ const pickDockTab = (list: HTMLElement) =>
     ":scope > button[aria-current='page'], :scope > .dock-tab > button[aria-current='page'], :scope > .dock-tab > div > button[aria-current='page']",
   )
 
+/* 40px per mark plus the 2px gap, and the "+N" fold mark. */
+const MARK_W = 42
+const FOLD_W = 40
+/* Room for marks: the viewport less the dock's 3rem margins each side and
+   everything else in the dock at its natural width. */
+export function dockRoom(viewport: number, fixed: number, shave = 0): number {
+  return Math.floor(viewport - 96 - fixed - shave)
+}
+/* How many of n marks to draw in room px; null = not measured yet (all). */
+export function marksShown(n: number, room: number | null): number {
+  if (room == null || Math.floor(room / MARK_W) >= n) return n
+  return Math.max(0, Math.floor((room - FOLD_W) / MARK_W))
+}
+
 export function BentoDock() {
   const { layout } = useLayout()
   const t = useT()
@@ -181,9 +195,13 @@ export function BentoDock() {
         fixed += Math.max(k.getBoundingClientRect().width, k.scrollWidth) + px(s.marginLeft) + px(s.marginRight)
       }
       if (shave.current.w !== window.innerWidth) shave.current = { w: window.innerWidth, px: 0 }
-      const over = Math.max(el.scrollWidth - el.clientWidth, dock.scrollWidth - dock.clientWidth)
-      if (over > 1) shave.current.px += Math.ceil(over)
-      setRoom(Math.floor(window.innerWidth - 96 - fixed - shave.current.px))
+      /* Only the strip's OWN spill counts. The dock's scrollWidth also grew
+         from things folding cannot fix, so adding it re-folded on every render
+         until every mark sat in "+N" on a wide desktop (owner, 2026-10-27).
+         The strip's spill goes once enough marks fold; it is capped too. */
+      const over = el.scrollWidth - el.clientWidth
+      if (over > 1) shave.current.px = Math.min(shave.current.px + Math.ceil(over), MARK_W * 2)
+      setRoom(dockRoom(window.innerWidth, fixed, shave.current.px))
     }
     measure()
     measureRef.current = measure
@@ -455,13 +473,7 @@ export function BentoDock() {
   /* 40px per mark plus the 2px gap; the strip's width is null until measured,
      and until then everything shows, which is the pre-existing behaviour and
      a single frame long. */
-  const MARK_W = 42
-  const FOLD_W = 40
-  const fit = room == null ? visibleCategories.length : Math.max(0, Math.floor(room / MARK_W))
-  const shownCategories =
-    fit >= visibleCategories.length
-      ? visibleCategories
-      : visibleCategories.slice(0, Math.max(0, Math.floor((room! - FOLD_W) / MARK_W)))
+  const shownCategories = visibleCategories.slice(0, marksShown(visibleCategories.length, room))
   const foldedCount = visibleCategories.length - shownCategories.length
 
   return (

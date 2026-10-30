@@ -5,11 +5,29 @@ import { istMinuteT, todayIST } from '../admissions/util'
 import { PhoneInUse, appointEmployee, ensureCampus } from '../setup/common'
 import { changes, need, nullString, num0, numOrNull, omitNull, pgArray, run, s, strList } from './common'
 import { school } from '../school'
+import { notifyHoldersStmts } from '../../notify_holders'
 
 /* Port of the recruitment half of hr_growth.go (mountHRGrowth):
    hr.hiring_growth.recruitment. */
 
 export const READ = 'hr.employees.read', WRITE = 'hr.employees.write', SELF = 'self.profile.read'
+
+/* Where each decision may be taken from. A draft can still be approved
+   straight away, as before; a rejected, closed or filled vacancy is final. */
+const VACANCY_FROM: Record<string, string[]> = {
+  approve: ['draft', 'pending_approval', 'on_hold'],
+  reject: ['draft', 'pending_approval', 'on_hold'],
+  hold: ['pending_approval', 'approved'],
+  close: ['pending_approval', 'approved', 'on_hold', 'filled'],
+  withdraw: ['pending_approval', 'on_hold'],
+}
+const VACANCY_LINK = '/go/hiring_training/staff_hiring'
+
+/** A vacancy sent for approval: everyone who may approve it hears, except whoever raised it. */
+async function askApprovers(c: Ctx, id: string, title: string): Promise<void> {
+  const stmts = await notifyHoldersStmts(c.db, school(c).id, WRITE, c.id.userId, 'vacancy_pending', `Vacancy to approve: ${title}`, '', VACANCY_LINK, 'job_vacancy', id)
+  if (stmts.length) await c.db.batch(stmts)
+}
 
 /** A write route: the group's hr.employees.read plus the route's hr.employees.write. */
 export const w = (h: (c: Ctx) => Promise<Response>) => async (c: Ctx) => { need(c, READ); return h(c) }
@@ -118,6 +136,7 @@ export function registerRecruitment(r: Router) {
                min_experience_years = ?, justification = ?, closes_on = ?, status = ?, updated_at = ?
          WHERE id = ? AND status IN ('draft','pending_approval')`).bind(s(req.title), ...vals, t, id)])
       if (changes(res) === 0) throw new Internal('an approved vacancy cannot be edited; withdraw it and raise another')
+      if (status === 'pending_approval') await askApprovers(c, id, s(req.title))
       return created({ id, status })
     }
     await requireUnique(c.db, `SELECT 1 FROM job_vacancies WHERE institution_id = ? AND lower(code) = lower(?)`, school(c).id, code)
@@ -127,6 +146,7 @@ export function registerRecruitment(r: Router) {
              employment_type, positions, salary_min_paise, salary_max_paise, min_qualification, min_experience_years,
              justification, closes_on, status, raised_by, raised_on, created_at, updated_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(out, school(c).id, code, title, ...vals, c.id.userId, todayIST(), t, t)])
+    if (status === 'pending_approval') await askApprovers(c, out, title)
     return created({ id: out, status })
   }))
 
@@ -136,6 +156,13 @@ export function registerRecruitment(r: Router) {
     const next = ({ approve: 'approved', reject: 'rejected', hold: 'on_hold', close: 'closed', withdraw: 'draft' } as Record<string, string>)[s(req.action)]
     if (!next) throw badRequest('action must be approve, reject, hold, close or withdraw')
     const approving = req.action === 'approve' ? 1 : 0
+    /* State guard and four eyes (security audit, 2026-10-27): a decided
+       vacancy is not decided again, and whoever raised it does not approve it. */
+    const cur = await c.db.prepare(`SELECT status, raised_by, title FROM job_vacancies WHERE id = ?`).bind(vac).first<{ status: string; raised_by: string | null; title: string }>()
+    if (!cur) throw notFound('resource not found')
+    const from = VACANCY_FROM[next === 'draft' ? 'withdraw' : s(req.action)]
+    if (!from.includes(cur.status)) throw new HttpError(409, `this vacancy is ${cur.status.replace('_', ' ')}; it cannot be moved to ${next.replace('_', ' ')} from there`)
+    if (approving && cur.raised_by === c.id.userId) throw new HttpError(403, 'you raised this vacancy; somebody else has to approve it')
     const t = now()
     const [res] = await run(c.db, [c.db.prepare(`
       UPDATE job_vacancies
@@ -144,8 +171,12 @@ export function registerRecruitment(r: Router) {
              approved_at = CASE WHEN ?4 THEN ?6 ELSE approved_at END,
              closed_at   = CASE WHEN ?2 IN ('closed','rejected') THEN ?6 ELSE closed_at END,
              updated_at = ?6
-       WHERE id = ?1`).bind(vac, next, nullString(req.note), approving, c.id.userId, t)])
-    if (changes(res) === 0) throw notFound('resource not found')
+       WHERE id = ?1 AND status = ?7`).bind(vac, next, nullString(req.note), approving, c.id.userId, t, cur.status)])
+    if (changes(res) === 0) throw new HttpError(409, 'this vacancy was changed by somebody else just now; reload it')
+    if (cur.raised_by && cur.raised_by !== c.id.userId) {
+      await c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+        .bind(uuid(), school(c).id, cur.raised_by, 'vacancy_decided', `Vacancy ${next.replace('_', ' ')}: ${cur.title}`, s(req.note), VACANCY_LINK, 'job_vacancy', vac, t).run()
+    }
     return ok({ id: vac, status: next })
   }))
 

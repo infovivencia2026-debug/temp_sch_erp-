@@ -56,6 +56,14 @@ export function setAllRoles(on: boolean) {
   window.location.reload()
 }
 
+/* Names the school reads that differ from the catalogue's (owner, 2026-10-27:
+   "replace Inbox with Mail"). The slug stays, so links and grants are untouched. */
+const SHOWN_AS: Record<string, string> = { inbox: 'Mail' }
+function renamed(c: CatalogResponse): CatalogResponse {
+  for (const r of c.roles) for (const s of r.sections ?? []) for (const f of s.features) if (SHOWN_AS[f.slug]) f.name = SHOWN_AS[f.slug]
+  return c
+}
+
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const session = useSessionIfAny()
   const snapKey = catalogSnapshotKey(session?.user?.id, session?.institution?.id, allRolesOn())
@@ -66,7 +74,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
        lib/catalog-snapshot.ts. */
     initialData: () => readCatalogSnapshot(snapKey),
     initialDataUpdatedAt: 0,
-    queryFn: () => api.call('GET /catalog', { query: { all_roles: allRolesOn() ? '1' : undefined } }),
+    queryFn: () => api.call('GET /catalog', { query: { all_roles: allRolesOn() ? '1' : undefined } }).then(renamed),
     /* The menu is authority, not convenience: a feature just granted must show
        on the next load. That freshness comes from being EXCLUDED from the
        offline cache (App.tsx) — a full reload has no persisted copy, so it

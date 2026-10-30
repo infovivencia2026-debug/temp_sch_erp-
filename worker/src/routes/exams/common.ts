@@ -4,6 +4,7 @@ import type { Identity } from '../../identity'
 import { can } from '../../identity'
 import { HttpError, conflict, isUUID, now, uuid } from '../../http'
 import { school } from '../school'
+import { notifyHoldersStmts } from '../../notify_holders'
 
 /* Helpers shared by the exams, hpc, lifecycle, communication, compliance and
    payroll ports. Mirrors internal/scope (the caller's data boundary),
@@ -284,4 +285,14 @@ function base32(bytes: Uint8Array): string {
   }
   if (bits > 0) out += A[(value << (5 - bits)) & 31]
   return out
+}
+
+/** A question paper was sent for approval: tell the exam branch (EXAMS_APPROVE holders). */
+export async function paperSubmittedStmts(c: Ctx, examSubjectId: string): Promise<D1PreparedStatement[]> {
+  const p = await c.db.prepare(`SELECT sub.name AS subject, cl.name AS class FROM exam_subjects es JOIN class_subjects cs ON cs.id = es.class_subject_id
+      JOIN classes cl ON cl.id = cs.class_id JOIN subjects sub ON sub.id = cs.subject_id WHERE es.id = ?`).bind(examSubjectId)
+    .first<{ subject: string; class: string }>()
+  const what = p ? `${p.subject} paper for ${p.class}` : 'A question paper'
+  return notifyHoldersStmts(c.db, school(c).id, 'academics.exams.approve', c.id.userId, 'question_paper',
+    'Question paper to approve', `${what} was sent for approval.`, '/go/exams/question_papers', 'question_paper_submitted', examSubjectId)
 }

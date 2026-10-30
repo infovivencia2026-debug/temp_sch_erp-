@@ -4,7 +4,7 @@ import type { ExamSummary, GradebookRow, List, PendingReportCards, ReportCard, R
 import { can } from '../identity'
 import { HttpError, badRequest, bool, forbidden, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
 import { coded, dateOf, escapeHtml, inList, items, js, minuteOf, nameOf, nextNumber, notifyStmt, num, numOr0,
-  numberInWords, requireOpenYear, resolveScope, sign, str, todayIST, trimFloat, uuidsOf } from './exams/common'
+  numberInWords, paperSubmittedStmts, requireOpenYear, resolveScope, sign, str, todayIST, trimFloat, uuidsOf } from './exams/common'
 import { defaultReportCardHTML } from './exams/template'
 import { registerQuestionMaker } from './exams/qmaker'
 import { ddmmyyyy, examinedPaper, fillReportCard, gatherReportCard, loadReportCardTemplate, reportCardDesigns, reportCardFonts, reportCardPlaceholders } from './exams/card'
@@ -527,17 +527,19 @@ async function requireMarksAccess(c: Ctx, esId: string, studentIds: string[]): P
 
   const res = await resolveScope(c)
   if (res.anySection || res.platformAdmin) return
-  const may = await c.db.prepare(`
-    SELECT EXISTS (
-      SELECT 1 FROM exam_subjects es
-        JOIN section_subject_teachers t ON t.class_subject_id = es.class_subject_id AND t.teacher_user_id = ?2
-        JOIN enrollments en ON en.section_id = t.section_id AND en.status = 'active' AND en.student_id IN ${inList(studentIds)}
-       WHERE es.id = ?1
-    ) OR EXISTS (
-      SELECT 1 FROM enrollments en JOIN sections sec ON sec.id = en.section_id
-       WHERE en.status = 'active' AND en.student_id IN ${inList(studentIds)} AND sec.class_teacher_id = ?2
-    ) AS ok`).bind(esId, c.id.userId, js(studentIds), js(studentIds)).first<{ ok: number }>()
-  if (!may?.ok) {
+  /* Every child on its own (security audit, 2026-10-27): one child the caller
+     teaches used to open the whole batch. A child counts only if the caller
+     teaches this paper's subject in that child's section, or is that
+     section's class teacher. */
+  const allowed = await c.db.prepare(`
+    SELECT DISTINCT en.student_id FROM enrollments en JOIN sections sec ON sec.id = en.section_id
+     WHERE en.status = 'active' AND en.student_id IN (SELECT value FROM json_each(?3))
+       AND (sec.class_teacher_id = ?2 OR EXISTS (
+         SELECT 1 FROM exam_subjects es
+           JOIN section_subject_teachers t ON t.class_subject_id = es.class_subject_id AND t.section_id = en.section_id AND t.teacher_user_id = ?2
+          WHERE es.id = ?1))`).bind(esId, c.id.userId, js(studentIds)).all<{ student_id: string }>()
+  const mine = new Set(allowed.results.map((r) => r.student_id))
+  if (studentIds.some((id) => !mine.has(id))) {
     throw forbidden('missing permission: academics.marks.write for this paper. You are neither its subject teacher nor the class teacher of these students')
   }
 }
@@ -1286,13 +1288,22 @@ async function submitQuestionPaper(c: Ctx) {
     .bind(esId, js(sc.sectionIds)).first<{ ok: number }>()
   if (!okRow?.ok && !c.id.platformAdmin) throw forbidden('missing permission: ' + EXAMS_READ)
   const notes = (body.notes ?? '').trim()
-  await c.db.prepare(`
+  // Same rule as the question maker's send: an approved paper is not replaced from here.
+  const existing = await c.db.prepare(`SELECT status FROM question_papers WHERE exam_subject_id = ?`).bind(esId).first<{ status: string }>()
+  if (existing?.status === 'approved') throw new HttpError(409, 'The paper for this exam is already approved. Ask your head of department to send it back before sending a new one.')
+  const res = await c.db.prepare(`
     INSERT INTO question_papers (id, institution_id, exam_subject_id, file_id, notes, submitted_by, submitted_at, status, created_at)
     VALUES (?1, ?2, ?3, ?4, NULLIF(?5,''), ?6, ?7, ?8, ?7)
     ON CONFLICT (exam_subject_id) DO UPDATE SET file_id = excluded.file_id, doc = NULL, draft_id = NULL, notes = excluded.notes, submitted_by = excluded.submitted_by,
-      submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL`)
+      submitted_at = excluded.submitted_at, status = excluded.status, reviewed_by = NULL, reviewed_at = NULL, review_note = NULL
+      WHERE question_papers.status <> 'approved'`)
     .bind(uuid(), c.id.institution!.id, esId, fileId, notes, c.id.userId, now(), status).run()
-  if (status === 'submitted') await clearDoneWork(c, 'question_paper_deadline', esId)
+  if (res.meta.changes === 0) throw new HttpError(409, 'The paper for this exam is already approved. Ask your head of department to send it back before sending a new one.')
+  if (status === 'submitted') {
+    await clearDoneWork(c, 'question_paper_deadline', esId)
+    const tell = await paperSubmittedStmts(c, esId)
+    if (tell.length) await c.db.batch(tell)
+  }
   return ok({ status })
 }
 

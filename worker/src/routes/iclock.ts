@@ -2,6 +2,7 @@ import type { Env } from '../env'
 import { tenantDb, type Institution } from '../tenant'
 import { now, uuid } from '../http'
 import { parsePunchTime, rollUpImportedDay } from './setup/imports'
+import { callerAddress, rateLimited } from './comms/public_common'
 
 /* AN eSSL / ZKTeco READER PUSHING ITS PUNCHES (owner, 2026-10-13: "I don't
    have a static IP, how can I use biometric?").
@@ -185,9 +186,15 @@ export const USERS_KEY = (deviceId: string) => `biometric_users:${deviceId}`
 /* Which school a serial belongs to, kept for the life of this isolate. */
 const known = new Map<string, { inst: Institution; deviceId: string; active: boolean; at: number }>()
 
+/* A serial no school has registered, remembered for a minute so a stranger
+   repeating it does not make every school's database be searched each time. */
+const unknownSerials = new Map<string, number>()
+
 async function findDevice(env: Env, serial: string) {
   const hit = known.get(serial)
   if (hit && Date.now() - hit.at < 5 * 60_000) return hit
+  const miss = unknownSerials.get(serial)
+  if (miss && Date.now() - miss < 60_000) return null
   const schools = await env.CONTROL.prepare(`SELECT * FROM institutions`).all<Institution>()
   for (const inst of schools.results) {
     let db: D1Database
@@ -201,8 +208,34 @@ async function findDevice(env: Env, serial: string) {
       }
     } catch { /* a school without the table yet */ }
   }
+  if (unknownSerials.size > 1000) unknownSerials.clear()
+  unknownSerials.set(serial, Date.now())
   return null
 }
+
+/* A refused push, written down (security audit, 2026-10-27): the endpoint
+   cannot ask a reader for a password, so a push from a serial no school
+   registered, or from a reader the school switched off, is kept in
+   CONTROL.login_events (outcome iclock_refused_*) with the address it came
+   from. At most one row per serial and reason every ten minutes, so a flood
+   does not flood the log too. */
+const refusedLogged = new Map<string, number>()
+async function logRefused(env: Env, req: Request, serial: string, reason: string, institutionId: string | null): Promise<void> {
+  const k = `${reason}:${serial}`
+  const last = refusedLogged.get(k)
+  if (last && Date.now() - last < 10 * 60_000) return
+  if (refusedLogged.size > 1000) refusedLogged.clear()
+  refusedLogged.set(k, Date.now())
+  console.warn(JSON.stringify({ iclock: 'refused', reason, serial: serial.slice(0, 64), ip: callerAddress(req) }))
+  try {
+    await env.CONTROL.prepare(`INSERT INTO login_events (at, identifier, outcome, institution_id, user_id, ip, user_agent) VALUES (?, ?, ?, ?, NULL, ?, ?)`)
+      .bind(now(), `iclock:${serial.slice(0, 64)}`, `iclock_refused_${reason}`, institutionId, callerAddress(req), (req.headers.get('user-agent') ?? '').slice(0, 200)).run()
+  } catch (e) { console.error('iclock refusal log failed', e) }
+}
+
+/* Pushes allowed per reader per minute. A busy morning at a staff-room reader
+   is a few dozen; Fetch history is one push holding the whole log. */
+const PUSH_BURST = 300
 
 const CLOCK_KEY = (deviceId: string) => `iclock_clock:${deviceId}`
 const CLOCK_EVERY_MS = 3600_000
@@ -233,14 +266,13 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
   if (path === '/iclock/cdata' && req.method === 'GET') {
     /* The reader's settings: send every punch at once (Realtime), from the
        start of its log, and check in every 30 seconds.
-       No TimeZone. A reader given one sets its own clock from it and the
-       server's time, and eSSL firmware reads the zone in whole hours: India's
-       5.5 became 5 or 6, the clock half an hour behind or ahead (Yajur,
-       2026-10-22). The clock is set to India time directly instead, by
-       SET OPTION DateTime below (the command name the X2008 and other ZMM220
-       readers read), which carries no zone to misread. */
+       TimeZone in minutes (330 = UTC+5:30). The reader sets its own clock
+       from the server's time and its zone; given hours it read 5.5 as 5 and
+       ran 30 minutes slow, and it ignores SET OPTION DateTime (Yajur,
+       2026-10-30: sent up to 120 minutes ahead, the clock never moved).
+       Push firmware reads a zone outside -12..12 as minutes. */
     return text([
-      `GET OPTION FROM: ${serial}`, 'ATTLOGStamp=0', 'OPERLOGStamp=9999', 'ATTPHOTOStamp=None', 'ErrorDelay=60', 'Delay=30',
+      `GET OPTION FROM: ${serial}`, 'ATTLOGStamp=0', 'OPERLOGStamp=9999', 'ATTPHOTOStamp=None', 'ErrorDelay=60', 'Delay=30', 'TimeZone=330',
       'TransTimes=00:00;14:05', 'TransInterval=1', 'TransFlag=TransData AttLog', 'Realtime=1', 'Encrypt=None',
     ].join('\n') + '\n')
   }
@@ -249,6 +281,20 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
      history request (querydata, tablename=ATTLOG / transaction). */
   const table = (url.searchParams.get('table') ?? url.searchParams.get('tablename') ?? '').toUpperCase()
   if ((path === '/iclock/cdata' || path === '/iclock/querydata') && req.method === 'POST') {
+    /* Only a reader registered to a school, and switched on there, is heard.
+       A serial nobody registered is refused and written down; being heard
+       never registers it. A switched-off reader is answered as before (its
+       push is dropped) and written down. */
+    if (!dev) {
+      await logRefused(env, req, serial, 'unknown', null)
+      return new Response('unknown device\n', { status: 403, headers: { 'content-type': 'text/plain' } })
+    }
+    if (!dev.active) await logRefused(env, req, serial, 'disabled', dev.inst.id)
+    const limited = await rateLimited(env, 'iclock_push', 60, PUSH_BURST, serial.slice(0, 64), 'too many pushes from this reader')
+    if (limited) {
+      await logRefused(env, req, serial, 'rate_limited', dev.inst.id)
+      return limited
+    }
     const body = await req.text()
     /* The user list, in either shape, from whichever table the firmware files
        it under. Kept, then linked by name, then the punches already stored

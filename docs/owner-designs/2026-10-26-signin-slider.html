@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in - Yajur Public School</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0b0b0b;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        /* Split Screen Container */
+        .split-wrapper {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* LEFT SIDE: Containing the Inner Sliding Box */
+        .left-panel {
+            flex: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #0b0b0b;
+            padding: 40px;
+        }
+
+        /* Inner Box holding the sliding images */
+        .inner-image-box {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-height: 85vh;
+            border-radius: 24px;
+            overflow: hidden;
+            background-color: #111;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .carousel-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 1.2s ease-in-out;
+        }
+
+        .slide.active {
+            opacity: 1;
+        }
+
+        /* Gradient Overlay inside the Inner Box */
+        .inner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, rgba(11, 19, 43, 0.9) 0%, rgba(11, 19, 43, 0.2) 60%, rgba(0,0,0,0.1) 100%);
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 36px;
+        }
+
+        .top-brand-box {
+            background: rgba(255, 255, 255, 0.95);
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .top-brand-box img {
+            width: 34px;
+            height: 34px;
+            object-fit: contain;
+        }
+
+        .bottom-content h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
+        }
+
+        .bottom-content p {
+            font-size: 13px;
+            color: #d1d5db;
+        }
+
+        /* RIGHT SIDE: Sign In Form */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 60px;
+            background-color: #121212;
+        }
+
+        .signin-box {
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .signin-box h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .signin-subtitle {
+            font-size: 14px;
+            color: #9ca3af;
+            margin-bottom: 24px;
+        }
+
+        /* Role Selector Tabs */
+        .role-selector {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 24px;
+        }
+
+        .role-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .role-btn.active {
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+        }
+
+        /* Form Inputs */
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 6px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: #2563eb;
+        }
+
+        .input-hint {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 4px;
+            display: block;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+
+        .submit-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .form-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            font-size: 12px;
+        }
+
+        .form-footer a {
+            color: #9ca3af;
+            text-decoration: none;
+        }
+
+        .form-footer a:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="split-wrapper">
+        <!-- LEFT SIDE: Inner Box with Sliding Images -->
+        <div class="left-panel">
+            <div class="inner-image-box">
+                <div class="carousel-container">
+                    <img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=1200&auto=format&fit=crop" class="slide active" alt="Modern School Campus">
+                    <img src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?q=80&w=1200&auto=format&fit=crop" class="slide" alt="Classroom Learning">
+                    <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1200&auto=format&fit=crop" class="slide" alt="Students Studying">
+                    <img src="https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=1200&auto=format&fit=crop" class="slide" alt="School Activities">
+                </div>
+
+                <div class="inner-overlay">
+                    <div class="top-brand-box">
+                        <img src="https://api.iconify.design/lucide:graduation-cap.svg?color=%231d3557" alt="School Logo">
+                    </div>
+                    <div class="bottom-content">
+                        <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #93c5fd; margin-bottom: 4px;">Yajur Public School</p>
+                        <h2>One stop for the whole school.</h2>
+                        <p>Admissions, fees, attendance, exams: office, staff room and parents.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDE: Sign In Form -->
+        <div class="right-panel">
+            <div class="signin-box">
+                <h1>Sign in</h1>
+                <div class="signin-subtitle">Yajur Public School</div>
+
+                <div class="role-selector">
+                    <button class="role-btn">Parent</button>
+                    <button class="role-btn">Student</button>
+                    <button class="role-btn active">Staff</button>
+                </div>
+
+                <div class="input-group">
+                    <label>Username or email</label>
+                    <input type="text" value="vignan">
+                    <span class="input-hint">Given to you by the school office.</span>
+                </div>
+
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" value="••••••••">
+                </div>
+
+                <button class="submit-btn">Sign in</button>
+
+                <div class="form-footer">
+                    <a href="#">Forgotten your password?</a>
+                    <a href="#">Privacy</a>
+                    <a href="#">తెలుగు</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript for Sliding Images -->
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        let currentSlide = 0;
+
+        function nextSlide() {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (currentSlide + 1) % slides.length;
+            slides[currentSlide].classList.add('active');
+        }
+
+        setInterval(nextSlide, 4000);
+    </script>
+
+</body>
+</html>

@@ -994,9 +994,7 @@ export function Shell({
                       <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', switcherOpen && 'rotate-180')} />
                     )}
                   </span>
-                  {signIns.data?.campus && (
-                    <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">{signIns.data.campus}</span>
-                  )}
+                  {/* The campus line is gone (owner, 2026-10-27): it repeated the school name above it. */}
                 </span>
               </>
             ) : session.institution?.logo_key ? (
@@ -1142,7 +1140,7 @@ export function Shell({
                   to={featurePath(role.key, ws.sections[0].slug, onlyItem.slug)}
                   onClick={() => setNavOpen(false)}
                   data-row
-                  className={({ isActive }) => navItem(isActive, 0, !onlyItem.live)}
+                  className={({ isActive }) => cn(navItem(isActive, 0, !onlyItem.live), 'nav-tap')}
                 >
                   <span className="truncate">{ws.name}</span>
                 </NavLink>
@@ -1162,7 +1160,7 @@ export function Shell({
                     const first = items[0]
                     return (
                       <NavLink key={section.slug} to={featurePath(role!.key, section.slug, first.slug)}
-                        onClick={() => setNavOpen(false)} data-row className={({ isActive }) => navItem(isActive, 0, !first.live)}>
+                        onClick={() => setNavOpen(false)} data-row className={({ isActive }) => cn(navItem(isActive, 0, !first.live), 'nav-tap')}>
                         <span className="truncate">{shortLabel('Home')}</span>
                       </NavLink>
                     )
@@ -1338,11 +1336,8 @@ export function Shell({
               "whose". Plain text, not a bordered dropdown: three chips up here
               would be three more rectangles. */}
           <p className="scope-glass min-w-0 truncate rounded-full border px-3.5 py-1.5 text-[calc(14px*var(--font-scale,1))]">
-            {/* Who is signed in, first: on a shared office machine the
-                name is what stops one clerk working as another. */}
-            {session.user?.full_name && (
-              <span className="font-semibold">{session.user.full_name}<span className="font-normal text-muted-foreground"> · </span></span>
-            )}
+            {/* No name here (owner, 2026-10-27): the dashboard greets by name,
+                and the account button beside Sign out carries who is signed in. */}
             <span className="font-medium">{session.institution?.display_name || session.institution?.name || ''}</span>
             {/* Which desk you are sitting at, said up here as well: the role
                 is what decides what every screen below shows. */}
@@ -1365,8 +1360,15 @@ export function Shell({
               search alone and every other control sits at the foot of the
               rail (see there). A phone has no rail, so it keeps them here. */}
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            {/* No search on a phone, for every role (owner, 2026-10-24). */}
-            <div className="max-sm:hidden"><CommandSearch wide /></div>
+            {/* On a phone, an icon beside the bell that opens the palette across
+                the top (owner, 2026-10-27); the wide box from sm up. */}
+            <CommandSearch wide />
+            {/* The institution admin on the staff sidebar has no rail (and so no
+                rail bell) from md up: the bell sits beside the search instead
+                (owner, 2026-10-26). Phones keep the one below. */}
+            {staffNav && role?.key === 'institution_admin' && (
+              <div className="hidden md:block"><Notifications /></div>
+            )}
             <div className="flex items-center gap-1 md:hidden">
             <Notifications />
             {/* Cycles compact → comfortable → spacious. One control rather
@@ -1402,7 +1404,7 @@ export function Shell({
               to="/account"
               aria-label="Your account"
               data-help-anchor="account"
-              title="Your account and password"
+              title={session.user?.full_name ? `Signed in as ${session.user.full_name}: account and password` : "Your account and password"}
               className="grid h-9 w-9 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
             >
               <UserRound className="h-[22px] w-[22px] md:h-4 md:w-4" />

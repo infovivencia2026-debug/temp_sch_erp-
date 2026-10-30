@@ -238,7 +238,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
           return (
             <NavLink key={`${ws.slug}.${section.slug}`} to={featurePath(roleKey, first.section, first.f.slug)} onClick={onNavigate}
               title={home ? undefined : first.f.summary} style={{ '--h': hue } as React.CSSProperties}
-              className={({ isActive }) => cn('nav-pill nav-pill__head shrink-0', (isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here))) && 'nav-pill--on')}>
+              className={({ isActive }) => cn('nav-pill nav-pill__head nav-tap shrink-0', (isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here))) && 'nav-pill--on')}>
               <PillBadge icon={uniqueIcon(home ? 'home' : `${section.slug} ${first.f.slug} ${name}`, usedIcons)} />
               <span className="min-w-0 flex-1 truncate">{label(name)}</span>
               {first.f.slug === 'concerns_from_parents' && <Count n={concerns} />}
@@ -302,7 +302,8 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
       <div className="flex min-w-0 flex-1 flex-col gap-3.5">
         <div className="flex items-center justify-between gap-2">
           <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={40} />
-          <Notifications />
+          {/* Search as an icon beside the bell (owner, 2026-10-27): it opens the palette across the top. */}
+          <div className="flex shrink-0 items-center gap-1"><CommandSearch /><Notifications /></div>
         </div>
         {dashboard && <div className="min-w-0">
           <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{greet}</p>
@@ -342,7 +343,7 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
 /* The panel's foot (owner's side-panel design, 2026-10-24): Focus | Work as
    one full-width pill, then a card with who is signed in and Help, Settings
    and Sign out. The avatar and name open the account page. */
-const FOOT_ICON = 'grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+const FOOT_ICON = 'foot-icon grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: string | null; onNavigate: () => void }) {
   const session = useSession()
@@ -362,16 +363,20 @@ export function StaffProfileCard({ name, sub, photoId, onNavigate }: {
   return (
     <div className="flex min-w-0 items-center justify-between gap-2 rounded-[14px] border bg-surface-subtle py-2.5 pl-3 pr-2">
       <Link to="/account" data-help-anchor="account" onClick={onNavigate}
-        className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        title="My profile"
+        /* Reads as a button (owner, 2026-10-28: "idk that is clickable"): it
+           lifts on hover and tints on press, with a chevron saying it opens. */
+        className="group -my-1 -ml-1.5 flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-[10px] px-1.5 transition-colors duration-150 hover:bg-primary/10 active:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <PersonAvatar name={name || '?'} photoId={photoId} size={42} />
         <span className="min-w-0">
           <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-bold text-foreground">{name}</span>
           {sub && <span className="block truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground tabular-nums">{sub}</span>}
         </span>
+        <ChevronRight aria-hidden className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5" />
       </Link>
       <div className="flex shrink-0 items-center gap-0.5">
         <HelpButton className={FOOT_ICON} iconClassName="h-5 w-5 max-sm:h-6 max-sm:w-6" />
-        <div className="staff-foot-settings"><BentoSettings placement="rail" /></div>
+        <div className="staff-foot-settings foot-icon-wrap"><BentoSettings placement="rail" /></div>
         <a href="/logout" onClick={() => buzz('warn')} aria-label="Sign out" title="Sign out"
           className={FOOT_ICON}>
           <LogOut aria-hidden className="h-5 w-5 max-sm:h-6 max-sm:w-6" />

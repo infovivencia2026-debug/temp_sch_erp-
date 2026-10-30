@@ -3,6 +3,7 @@ import { badRequest, HttpError, notFound, ok, readJSON, uuidParam } from '../../
 import { localDate } from '../../services/background/schools'
 import { can, resolveScope, studentInScope } from '../students/common'
 import { digestCounts, digestText, runWarnings, RULE_LABEL } from '../../services/ai/warnings'
+import { aiSettings } from '../../services/ai/llm'
 import { geminiKeySet, llmFromEnv } from '../../services/ai/gemini_seam'
 
 /* Early warnings, the HTTP side. Who sees what:
@@ -140,6 +141,6 @@ export function registerAIWarnings(r: Router): void {
   r.post('/ai/warnings/run', 'students.read.all', async (c) => {
     const inst = c.id.institution
     if (!inst) throw new HttpError(400, 'this needs a school in scope', { code: 'no_institution' })
-    return ok(await runWarnings(c.db, inst.id, localDate(inst.timezone || 'Asia/Kolkata'), await llmFromEnv(c.env)))
+    return ok(await runWarnings(c.db, inst.id, localDate(inst.timezone || 'Asia/Kolkata'), (await aiSettings(c.db)).features.early_warnings ? await llmFromEnv(c.env) : null))
   })
 }

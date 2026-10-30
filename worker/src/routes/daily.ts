@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../router'
+import { shownSignIn } from '../services/sign_in_name'
 import { clearDoneWork } from '../services/notification_done'
 import type { AttendanceRow, MarkAttendanceResult, Period, Teacher, TimetableEntry } from '@shared/api'
 import { Messenger, enqueueMessageSends, scopeOf, type SendRequest } from '../services/messaging'
@@ -7,6 +8,9 @@ import {
   HttpError, badRequest, bool, forbidden, notFound, ok, created, readJSON, uuid, uuidParam, uuidQuery, isUUID, now,
 } from '../http'
 import { json } from '../env'
+import { buildXLSX, XLSX_CONTENT_TYPE } from '../services/xlsx'
+import { publishTopic } from '../services/live'
+import { auditStmt } from './admin/common'
 import { schoolDay } from '../auth/session'
 import { school } from './school'
 import { enqueue, queueOf, QUEUES } from '../services/jobs'
@@ -346,7 +350,7 @@ function registerTimetable(r: Router) {
     return { items: rows.results.map((v): Teacher => ({
       user_id: v.user_id, full_name: v.full_name, employee_code: v.employee_code, status: v.status,
       weekly_periods: mayPlan ? num(v.periods) : undefined,
-      employee_id: v.employee_id, sign_in_as: v.sign_in_as, can_sign_in: bool(v.can_sign_in),
+      employee_id: v.employee_id, sign_in_as: shownSignIn(v.sign_in_as), can_sign_in: bool(v.can_sign_in),
       roles: v.roles, subjects: v.subjects, class_teacher_of: v.class_teacher_of || undefined,
     })) }
   })
@@ -384,34 +388,68 @@ function registerTimetable(r: Router) {
        WHERE sec.id = ? AND cs.institution_id = ? AND (upper(sub.code) = upper(?) OR lower(sub.name) = lower(?))`)
       .bind(sec, inst, subjectCode, subjectCode).first<{ id: string }>()
     if (!cs) throw rejected(`this class does not study "${subjectCode}"`)
-    // The teacher-slot unique index (timetable_teacher_slot) is not in the
-    // SQLite schema, so the clash it raised is checked here.
+    const p = await c.db.prepare('SELECT is_break FROM periods WHERE id = ?').bind(period.id).first<{ is_break: number }>()
+    if (p?.is_break) throw rejected(`${periodName} is a break, not a teaching period`)
+    const wd = Number(req.weekday)
+    const existing = await c.db.prepare('SELECT id, class_subject_id, teacher_user_id, room FROM timetable_entries WHERE section_id = ? AND weekday = ? AND period_id = ?')
+      .bind(sec, wd, period.id).first<{ id: string; class_subject_id: string; teacher_user_id: string | null; room: string | null }>()
+    /* A teacher in two places at once, at the same time on any bell. The
+       same subject in two sections is a combined class and allowed (0121);
+       the refusal names the class and subject in the way. */
     if (teacher) {
-      const clash = await c.db.prepare(`SELECT 1 AS x FROM timetable_entries
-        WHERE teacher_user_id = ? AND weekday = ? AND period_id = ? AND academic_year_id = ? AND section_id <> ?`)
-        .bind(teacher, Number(req.weekday), period.id, year.id, sec).first()
-      if (clash) throw rejected('that teacher is already taking another class this period')
+      const clash = await c.db.prepare(`SELECT u.full_name AS teacher, sub.name AS subject, cl.name || ' ' || s2.name AS klass
+          FROM timetable_entries te
+          JOIN class_subjects a ON a.id = te.class_subject_id JOIN subjects sub ON sub.id = a.subject_id
+          JOIN sections s2 ON s2.id = te.section_id JOIN classes cl ON cl.id = s2.class_id
+          LEFT JOIN users u ON u.id = te.teacher_user_id
+         WHERE te.teacher_user_id = ? AND te.weekday = ? AND te.academic_year_id = ? AND te.section_id <> ?
+           AND te.period_id IN (SELECT q.id FROM periods q, periods me WHERE me.id = ?
+                 AND (q.id = me.id OR (q.bell_schedule_id <> me.bell_schedule_id AND q.starts_at < me.ends_at AND me.starts_at < q.ends_at)))
+           AND a.subject_id <> (SELECT subject_id FROM class_subjects WHERE id = ?) LIMIT 1`)
+        .bind(teacher, wd, year.id, sec, period.id, cs.id).first<{ teacher: string | null; subject: string; klass: string }>()
+      if (clash) throw rejected(`${clash.teacher ?? 'That teacher'} is already teaching ${clash.subject} to ${clash.klass} in that period`)
     }
-    const existing = await c.db.prepare('SELECT id FROM timetable_entries WHERE section_id = ? AND weekday = ? AND period_id = ?')
-      .bind(sec, Number(req.weekday), period.id).first<{ id: string }>()
-    if (existing) {
-      await c.db.prepare('UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = ? WHERE id = ?')
-        .bind(cs.id, teacher, room, existing.id).run()
-    } else {
-      await c.db.prepare(`INSERT INTO timetable_entries (id, institution_id, academic_year_id, section_id, period_id, weekday, class_subject_id, teacher_user_id, room, created_at)
-                          VALUES (?,?,?,?,?,?,?,?,?,?)`)
-        .bind(uuid(), inst, year.id, sec, period.id, Number(req.weekday), cs.id, teacher, room, now()).run()
+    const id = existing?.id ?? uuid()
+    const stmts: D1PreparedStatement[] = [existing
+      ? c.db.prepare('UPDATE timetable_entries SET class_subject_id = ?, teacher_user_id = ?, room = ? WHERE id = ?').bind(cs.id, teacher, room, id)
+      : c.db.prepare(`INSERT INTO timetable_entries (id, institution_id, academic_year_id, section_id, period_id, weekday, class_subject_id, teacher_user_id, room, created_at)
+                          VALUES (?,?,?,?,?,?,?,?,?,?)`).bind(id, inst, year.id, sec, period.id, wd, cs.id, teacher, room, now())]
+    // Cover arranged for the teacher who no longer takes this period goes, from today on.
+    if (existing && existing.teacher_user_id !== teacher) stmts.push(...dropCover(c, id, new Date().toISOString().slice(0, 10)))
+    stmts.push(auditStmt(c, existing ? 'timetable.entry.update' : 'timetable.entry.create', 'timetable_entry', id,
+      existing, { section_id: sec, period_id: period.id, weekday: wd, class_subject_id: cs.id, teacher_user_id: teacher, room }))
+    try {
+      await c.db.batch(stmts)
+    } catch (e) {
+      if (e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) throw rejected('that teacher is already taking another subject this period')
+      throw e
     }
-    return ok({ ok: true })
+    await timetableHint(c, id)
+    return ok({ ok: true, id })
   })
 
   r.del('/timetable/entries/{id}', 'academics.timetable.write', async (c) => {
     if (!isUUID(c.params.id)) throw badRequest('invalid entry id')
-    const res = await c.db.prepare('DELETE FROM timetable_entries WHERE id = ?').bind(c.params.id).run()
-    if (!res.meta.changes) throw notFound('resource not found')
+    const before = await c.db.prepare('SELECT * FROM timetable_entries WHERE id = ?').bind(c.params.id).first()
+    if (!before) throw notFound('resource not found')
+    // Its cover goes with it, so the cover board never points at a removed period.
+    await c.db.batch([
+      ...dropCover(c, c.params.id, '0000-00-00'),
+      c.db.prepare('DELETE FROM timetable_entries WHERE id = ?').bind(c.params.id),
+      auditStmt(c, 'timetable.entry.delete', 'timetable_entry', c.params.id, before, null),
+    ])
+    await timetableHint(c, c.params.id)
     return ok({ ok: true })
   })
 }
+
+const dropCover = (c: Ctx, entry: string, from: string): D1PreparedStatement[] => [
+  c.db.prepare('DELETE FROM substitution_request_periods WHERE timetable_entry_id = ? AND on_date >= ?').bind(entry, from),
+  c.db.prepare('DELETE FROM substitutions WHERE timetable_entry_id = ? AND on_date >= ?').bind(entry, from),
+]
+/* Open timetables refetch (live topic 'timetable'). */
+const timetableHint = (c: Ctx, entry: string) =>
+  publishTopic(c.env, c.id.institution?.id, { topic: 'timetable', type: 'timetable', keys: { entry } })
 
 // =============================================================== attendance
 const attendanceStatuses = new Set(['present', 'absent', 'late', 'half_day', 'leave', 'holiday'])
@@ -650,6 +688,7 @@ function registerAttendance(r: Router) {
   // RequireAnyPermission(AttendanceRead, AttendanceReadAll): either grant
   // opens these, so they are registered as 'auth' and anyAttendanceRead gates.
   r.get('/attendance/absentees', 'auth', listAbsentees)
+  r.get('/attendance/absentees/sheet', 'auth', absenteeSheet)
   r.post('/attendance/absentees/followup', 'auth', recordAbsenceFollowup)
   r.post('/attendance/absentees/section-done', 'auth', finishAbsenceSection)
 }
@@ -675,11 +714,47 @@ function anyAttendanceRead(c: Ctx) {
   if (!can(c.id, 'academics.attendance.read') && !can(c.id, 'academics.attendance.read.all')) throw forbidden()
 }
 
-const contactsAgg = `COALESCE((SELECT json_group_array(json_object('name', name, 'phone', phone, 'relation', relation))
-    FROM (SELECT g.full_name AS name, g.phone, g.relation
+const contactsAgg = `COALESCE((SELECT json_group_array(json_object('name', name, 'phone', phone, 'relation', relation, 'primary', is_primary))
+    FROM (SELECT g.full_name AS name, g.phone, g.relation, sg.is_primary
             FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
            WHERE sg.student_id = st.id AND g.phone IS NOT NULL AND trim(g.phone) <> ''
            ORDER BY (g.relation = 'father') DESC, (g.relation = 'mother') DESC, sg.is_primary DESC, g.full_name)), '[]')`
+
+/* THE DAY'S ABSENTEES AS A SHEET (owner, 2026-10-30): per child, one row of
+   name, class, admission no, date, parent name and number, and under it the
+   remark merged across all six columns. remarks=0 leaves the remark blank, for
+   a list taken out before anyone has rung. Same scope as the list on screen:
+   it is that list, read through listAbsentees. */
+async function absenteeSheet(c: Ctx): Promise<Response> {
+  const withRemarks = c.url.searchParams.get('remarks') !== '0'
+  const day = await (await listAbsentees(c)).json() as {
+    date: string
+    sections: { class_name: string; section_name: string; students: {
+      name: string; admission_no: string; contacts?: { name: string; phone: string; relation: string }[]
+      parent_response?: string; informed?: string | null }[] }[]
+  }
+  const [y, m, d] = day.date.split('-')
+  const date = `${d}-${m}-${y}`
+  const rel = (r: string, n: string) => (r?.trim() ? r.trim().charAt(0).toUpperCase() + r.trim().slice(1) : n || 'Guardian')
+  const rows: string[][] = [['Name', 'Class', 'Adm No', 'Date', 'Parent name', 'Number']]
+  const merges: string[] = []
+  for (const s of day.sections) for (const st of s.students) {
+    const cs = st.contacts ?? []
+    rows.push([st.name, `${s.class_name} ${s.section_name}`.trim(), st.admission_no, date,
+      cs.map((x) => `${rel(x.relation, x.name)}${x.name ? `: ${x.name}` : ''}`).join(' / '),
+      cs.map((x) => x.phone).join(' / ')])
+    const remark = withRemarks
+      ? [st.parent_response ?? '', st.informed ? `Informed by parent: ${st.informed.split('|')[0]}` : ''].filter(Boolean).join(' · ')
+      : ''
+    rows.push([`Remark: ${remark}`])
+    merges.push(`A${rows.length}:F${rows.length}`)
+  }
+  const bytes = buildXLSX([{ name: 'Absentees', rows, merges, boldRows: [0], freezeHeader: true, colWidths: [26, 10, 12, 12, 34, 24] }])
+  return new Response(bytes, { status: 200, headers: {
+    'Content-Type': XLSX_CONTENT_TYPE,
+    'Content-Disposition': `attachment; filename="absentees-${day.date}${withRemarks ? '-remarks' : ''}.xlsx"`,
+  } })
+}
 
 async function listAbsentees(c: Ctx): Promise<Response> {
   anyAttendanceRead(c)
@@ -1290,20 +1365,44 @@ function registerWorkflow(r: Router) {
 /** Each day from..to covered by a holiday on the school calendar, every day
  *  of a ranged holiday included. Staff-facing by default (holidays for all,
  *  staff or teaching); `anyone` includes student-only ones too, for calendars. */
+/* SUNDAY IS A HOLIDAY WITHOUT ANYONE ADDING IT (owner, 2026-10-29: "sunday is
+   holiday as default ... some people may come let them have in and out
+   remaining will be holiday"). A calendar entry said so only for the days
+   somebody typed in; every other Sunday was simply unmarked, which the
+   register showed as if the whole staff had gone missing. Added here, once,
+   synthetic and not stored, so it never needs maintaining -- and only where
+   the explicit calendar does not already decide the day: a named holiday
+   that happens to fall on a Sunday keeps its name, and a 'working_day' entry
+   (the same override every other holiday here already honours) cancels it
+   for whoever it names, exactly as a Sunday the school is actually open for
+   exams or an event already works. The caller already shows the real punch
+   instead of "holiday" for anyone who came in (daily.ts, workflow/staff-month). */
 export async function staffHolidays(db: D1Database, from: string, to: string, anyone = false): Promise<Map<string, { name: string; from: string; to: string }>> {
   const out = new Map<string, { name: string; from: string; to: string }>()
   let rows: { name: string; on_date: string; to_date: string | null }[] = []
+  let working = new Set<string>()
   try {
     rows = (await db.prepare(`SELECT name, on_date, to_date FROM holidays
         WHERE kind IN ('holiday', 'vacation') AND on_date <= ?2 AND COALESCE(to_date, on_date) >= ?1
           AND (?3 = 1 OR applies_to IN ('all', 'staff', 'teaching')) ORDER BY on_date`).bind(from, to, anyone ? 1 : 0)
       .all<{ name: string; on_date: string; to_date: string | null }>()).results
-  } catch { return out }
+    const wd = (await db.prepare(`SELECT on_date, to_date FROM holidays
+        WHERE kind = 'working_day' AND on_date <= ?2 AND COALESCE(to_date, on_date) >= ?1
+          AND (?3 = 1 OR applies_to IN ('all', 'staff', 'teaching'))`).bind(from, to, anyone ? 1 : 0)
+      .all<{ on_date: string; to_date: string | null }>()).results
+    for (const w of wd) {
+      const end = w.to_date && w.to_date > w.on_date ? w.to_date : w.on_date
+      for (let d = w.on_date > from ? w.on_date : from; d <= end && d <= to; d = new Date(Date.parse(d + 'T00:00:00Z') + 86400_000).toISOString().slice(0, 10)) working.add(d)
+    }
+  } catch { working = new Set() }
   for (const h of rows) {
     const end = h.to_date && h.to_date > h.on_date ? h.to_date : h.on_date
     for (let d = h.on_date > from ? h.on_date : from; d <= end && d <= to; d = new Date(Date.parse(d + 'T00:00:00Z') + 86400_000).toISOString().slice(0, 10)) {
       if (!out.has(d)) out.set(d, { name: h.name, from: h.on_date, to: end })
     }
+  }
+  for (let d = from; d <= to; d = new Date(Date.parse(d + 'T00:00:00Z') + 86400_000).toISOString().slice(0, 10)) {
+    if (!out.has(d) && !working.has(d) && new Date(d + 'T00:00:00Z').getUTCDay() === 0) out.set(d, { name: 'Sunday', from: d, to: d })
   }
   return out
 }
@@ -1341,8 +1440,20 @@ async function askAttendanceFix(c: Ctx): Promise<Response> {
   const dup = await c.db.prepare(`SELECT 1 FROM staff_attendance_requests WHERE employee_id = ? AND on_date = ? AND status = 'pending'`).bind(emp.id, on).first()
   if (dup) throw new HttpError(409, 'a request for that day is already waiting', { code: 'pending' })
   const id = uuid()
-  await c.db.prepare(`INSERT INTO staff_attendance_requests (id, institution_id, employee_id, on_date, status_wanted, check_in, check_out, reason, status, created_at)
-      VALUES (?,?,?,?,?,?,?,?,'pending',?)`).bind(id, c.id.institution!.id, emp.id, on, wanted, inAt, outAt, reason, now()).run()
+  const stmts: D1PreparedStatement[] = [c.db.prepare(`INSERT INTO staff_attendance_requests (id, institution_id, employee_id, on_date, status_wanted, check_in, check_out, reason, status, created_at)
+      VALUES (?,?,?,?,?,?,?,?,'pending',?)`).bind(id, c.id.institution!.id, emp.id, on, wanted, inAt, outAt, reason, now())]
+  /* Tell whoever decides it (hr.attendance.write), the same way staff leave finds its approvers. */
+  const approvers = await c.db.prepare(`
+    SELECT DISTINCT u.id FROM users u
+      JOIN user_roles ur ON ur.user_id = u.id
+      JOIN role_permissions rp ON rp.role_id = ur.role_id
+     WHERE u.institution_id = ? AND u.status = 'active' AND u.id <> ? AND rp.permission_key = 'hr.attendance.write'`)
+    .bind(c.id.institution!.id, c.id.userId).all<{ id: string }>()
+  for (const a of approvers.results) {
+    stmts.push(notifyStmt(c, a.id, null, 'attendance_fix_request', `${c.id.fullName} has asked to fix ${ddMon(on)}`,
+      `${reason}. Approve or reject it on the Staff register or in Approvals.`, '/go/attendance/staff_register', 'attendance_fix', id))
+  }
+  await c.db.batch(stmts)
   return created({ id, status: 'pending' })
 }
 
@@ -1377,6 +1488,11 @@ async function decideAttendanceFix(c: Ctx): Promise<Response> {
         ar.check_in ? localToUtc(tz, ar.on_date, ar.check_in) : null, ar.check_out ? localToUtc(tz, ar.on_date, ar.check_out) : null,
         'Fixed on request' + (note ? ': ' + note : ''), c.id.userId, t))
   }
+  if (ar.user_id && ar.user_id !== c.id.userId) {
+    const title = decision === 'approved' ? `Your fix for ${ddMon(ar.on_date)} was approved` : `Your fix for ${ddMon(ar.on_date)} was not approved`
+    const body = (decision === 'approved' ? `Approved by ${c.id.fullName}.` : `Rejected by ${c.id.fullName}.`) + (note ? ' ' + note : '')
+    stmts.push(notifyStmt(c, ar.user_id, null, 'attendance_fix_decided', title, body, '/go/my_profile/leave_self_service', 'attendance_fix', id))
+  }
   await c.db.batch(stmts)
   return ok({ id, status: decision })
 }
@@ -1399,17 +1515,19 @@ async function getApprovals(c: Ctx): Promise<Response> {
       const schoolWide = can(c.id, 'hr.employees.write') || can(c.id, 'access.users.write')
       const rows = await c.db.prepare(`
         SELECT lr.id, COALESCE(NULLIF(${fullName2('e')}, ''), NULLIF(${fullName2('st')}, ''), 'Someone') AS who,
-               COALESCE(lt.name, 'Leave') AS kind, lr.from_date, lr.to_date, lr.days, lr.reason, u.full_name AS by, lr.created_at
+               CASE WHEN lr.kind = 'on_duty' THEN 'On duty' || COALESCE(' at ' || lr.place, '') ELSE COALESCE(lt.name, 'Leave') END AS kind, lr.from_date, lr.to_date, lr.days, lr.reason, u.full_name AS by, lr.created_at
           FROM leave_requests lr
           LEFT JOIN employees e ON e.id = lr.employee_id
           LEFT JOIN students st ON st.id = lr.student_id
           LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
           LEFT JOIN users u ON u.id = lr.applied_by
          WHERE lr.status = 'pending'
+           /* Nobody decides their own leave; another approver sees it. */
+           AND (e.user_id IS NULL OR e.user_id <> ?)
            AND (? OR lr.subject_kind <> 'staff' OR e.department_id IS NULL
                 OR EXISTS (SELECT 1 FROM departments d WHERE d.id = e.department_id AND d.head_user_id = ?)
                 OR EXISTS (SELECT 1 FROM employees m WHERE m.id = e.reports_to AND m.user_id = ?))
-         ORDER BY CAST(lr.days AS REAL) DESC, lr.created_at LIMIT ${APPROVALS_PER_KIND}`).bind(schoolWide ? 1 : 0, c.id.userId, c.id.userId).all()
+         ORDER BY CAST(lr.days AS REAL) DESC, lr.created_at LIMIT ${APPROVALS_PER_KIND}`).bind(c.id.userId, schoolWide ? 1 : 0, c.id.userId, c.id.userId).all()
       for (const v of rows.results) {
         out.push({ id: v.id, kind: 'leave', title: `${v.who} - ${v.kind}`, detail: `${leaveSpan(v.from_date as string, v.to_date as string, v.days)}. ${v.reason}`,
           requested_by: v.by ?? undefined, raised_at: isoSec(v.created_at as string), decide_url: `/api/v1/workflow/leave/${v.id}/decide` })
@@ -1434,7 +1552,8 @@ async function getApprovals(c: Ctx): Promise<Response> {
       }
     return out
   })())
-  if (can(c.id, 'academics.attendance.read.all') || canLeave) tasks.push((async () => {
+  /* Only to those the decide route lets through, so nobody presses Approve and gets a 403. */
+  if (can(c.id, 'academics.attendance.write.any')) tasks.push((async () => {
     const out: Item[] = []
       const rows = await c.db.prepare(`
         SELECT ac.id, ${fullName2('st')} AS who, sa.on_date, ac.from_status, ac.to_status, ac.reason, u.full_name AS by, ac.created_at
@@ -1450,6 +1569,21 @@ async function getApprovals(c: Ctx): Promise<Response> {
       }
     return out
   })())
+  /* A member of staff asking to fix a day's punch: decided by hr.attendance.write. */
+  if (can(c.id, 'hr.attendance.write')) tasks.push((async () => {
+    const out: Item[] = []
+      const rows = await c.db.prepare(`
+        SELECT ar.id, ${fullName2('e')} AS who, ar.on_date, ar.status_wanted, ar.check_in, ar.check_out, ar.reason, ar.created_at
+          FROM staff_attendance_requests ar JOIN employees e ON e.id = ar.employee_id
+         WHERE ar.status = 'pending' ORDER BY ar.created_at LIMIT ${APPROVALS_PER_KIND}`).all()
+      for (const v of rows.results) {
+        const times = [v.check_in ? `in ${v.check_in}` : '', v.check_out ? `out ${v.check_out}` : ''].filter(Boolean).join(', ')
+        out.push({ id: v.id, kind: 'attendance_fix', title: `${v.who}, punch fix for ${ddMon(v.on_date as string)}`,
+          detail: `${String(v.status_wanted).replace(/_/g, ' ')}${times ? ' (' + times + ')' : ''}. ${v.reason}`, raised_at: isoSec(v.created_at as string),
+          decide_url: `/api/v1/hr/attendance-requests/${v.id}/decide` })
+      }
+    return out
+  })())
   if (can(c.id, 'admissions.approve')) tasks.push((async () => {
     const out: Item[] = []
       /* The fee structure is picked per application first, the class's own
@@ -1460,7 +1594,7 @@ async function getApprovals(c: Ctx): Promise<Response> {
           SELECT a.id AS app_id,
                  (SELECT fs.id FROM fee_structures fs WHERE fs.is_active AND (fs.class_id = a.class_sought OR fs.class_id IS NULL)
                    ORDER BY fs.class_id IS NULL, fs.created_at DESC LIMIT 1) AS fs_id
-            FROM applications a WHERE a.status = 'offered' AND a.student_id IS NULL AND a.enrolment_approved_at IS NULL)
+            FROM applications a WHERE a.status = 'offered' AND a.student_id IS NULL AND a.enrolment_approved_at IS NULL AND a.enrolment_note IS NULL)
         SELECT a.id, ${fullName2('a')} AS who, COALESCE(c.name, '') AS class, COALESCE(a.parent_name, '') AS parent,
                COALESCE((SELECT sum(i.amount_paise) FROM fee_structure_items i WHERE i.fee_structure_id = p.fs_id), 0) AS fee,
                COALESCE((SELECT fc.kind FROM fee_concessions fc WHERE fc.application_id = a.id AND fc.status = 'approved'
@@ -1516,6 +1650,23 @@ async function getApprovals(c: Ctx): Promise<Response> {
       }
     return out
   })())
+  /* A month's payroll sent up for the principal's approval (payroll.ts). Not the maker's own. */
+  if (c.id.platformAdmin || c.id.roles.includes('institution_admin')) tasks.push((async () => {
+    const out: Item[] = []
+      const rows = await c.db.prepare(`
+        SELECT pr.id, pr.period_month, pr.period_year, pr.employees, pr.net_paise, u.full_name AS by, pr.submitted_at
+          FROM payroll_runs pr LEFT JOIN users u ON u.id = pr.submitted_by
+         WHERE pr.approval_state = 'pending' AND COALESCE(pr.submitted_by, '') <> ?1 AND COALESCE(pr.run_by, '') <> ?1
+         ORDER BY pr.submitted_at LIMIT ${APPROVALS_PER_KIND}`).bind(c.id.userId).all()
+      const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      for (const v of rows.results) {
+        out.push({ id: v.id, kind: 'payroll', title: `Payroll for ${MON[num(v.period_month) - 1]} ${v.period_year}`,
+          detail: `${num(v.employees)} staff. Approving lets the payslips be published; sending back returns it to draft with your note.`,
+          requested_by: v.by ?? undefined, raised_at: isoSec((v.submitted_at ?? '') as string), amount_paise: v.net_paise ?? undefined,
+          decide_url: `/api/v1/payroll/runs/${v.id}/decide` })
+      }
+    return out
+  })())
   const out = (await Promise.all(tasks)).flat()
   const byKind: Record<string, number> = {}
   for (const a of out) byKind[a.kind as string] = (byKind[a.kind as string] ?? 0) + 1
@@ -1549,9 +1700,19 @@ async function checkLeavePolicy(c: Ctx, leaveType: string, employeeId: string | 
   }
 }
 
+/** Where an on-duty request is, and the optional hours away ("HH:MM"). */
+function onDutyFields(req: { place?: string; from_time?: string; to_time?: string }): { place: string | null; from_time: string | null; to_time: string | null } {
+  const place = trim(req.place), ft = trim(req.from_time), tt = trim(req.to_time)
+  if (!place) throw badRequest('say where you will be')
+  if (ft && !HHMM.test(ft)) throw badRequest('from_time must be HH:MM')
+  if (tt && !HHMM.test(tt)) throw badRequest('to_time must be HH:MM')
+  if (ft && tt && tt <= ft) throw badRequest('the time away ends before it starts')
+  return { place: place.slice(0, 200), from_time: nul(ft), to_time: nul(tt) }
+}
+
 async function applyForLeave(c: Ctx): Promise<Response> {
   const inst = c.id.institution!.id
-  const req = await readJSON<{ leave_type_id?: string; from_date?: string; to_date?: string; is_half_day?: boolean; reason?: string; student_id?: string; employee_id?: string; kind?: string; hours?: number }>(c.req)
+  const req = await readJSON<{ leave_type_id?: string; from_date?: string; to_date?: string; is_half_day?: boolean; reason?: string; student_id?: string; employee_id?: string; kind?: string; hours?: number; place?: string; from_time?: string; to_time?: string }>(c.req)
   const from = req.from_date ?? '', to = req.to_date ?? ''
   if (!isDate(from)) throw badRequest('from_date must be YYYY-MM-DD')
   if (!isDate(to)) throw badRequest('to_date must be YYYY-MM-DD')
@@ -1562,7 +1723,17 @@ async function applyForLeave(c: Ctx): Promise<Response> {
      A compensatory off is a day earned by working a holiday, so no type.
      A permission is a few hours out on one day, and counts in hours. */
   const requestKind = req.kind ?? 'leave'
-  if (!['leave', 'comp_off', 'permission'].includes(requestKind)) throw badRequest('kind is leave, comp_off or permission')
+  if (!['leave', 'comp_off', 'permission', 'on_duty'].includes(requestKind)) throw badRequest('kind is leave, comp_off, permission or on_duty')
+  /* ON DUTY (owner, 2026-10-26): working, but away from school (exam duty,
+     the board office). Not a leave: no type, no balance. Pending or approved,
+     the 6 PM auto-absent skips the day; approved, the day reads on_duty. */
+  if (requestKind === 'on_duty' && req.student_id) throw badRequest('on duty is for staff')
+  // A permission keeps its from and to time too (owner, 2026-10-27), with no place.
+  const duty = requestKind === 'on_duty' ? onDutyFields(req)
+    : requestKind === 'permission' && (trim(req.from_time) || trim(req.to_time)) ? { ...onDutyFields({ ...req, place: '-' }), place: null }
+    // A half-day leave keeps the time the person will be at school (owner, 2026-10-28).
+    : requestKind === 'leave' && req.is_half_day && trim(req.from_time) ? { ...onDutyFields({ from_time: req.from_time, place: '-' }), place: null }
+    : { place: null, from_time: null, to_time: null }
   let hours: number | null = null
   if (requestKind === 'permission') {
     if (from !== to) throw badRequest('a permission is for one day; give the same from and to date')
@@ -1570,7 +1741,7 @@ async function applyForLeave(c: Ctx): Promise<Response> {
     if (!(hours > 0 && hours <= 8)) throw badRequest('hours must be between 0 and 8 for a permission')
   }
   let days = (Date.UTC(+to.slice(0, 4), +to.slice(5, 7) - 1, +to.slice(8, 10)) - Date.UTC(+from.slice(0, 4), +from.slice(5, 7) - 1, +from.slice(8, 10))) / 86_400_000 + 1
-  if (req.is_half_day) days = 0.5
+  if (req.is_half_day && requestKind !== 'on_duty') days = 0.5
   if (requestKind === 'permission' && hours !== null) days = Math.round((hours / 8) * 100) / 100
   const res = await resolveScope(c)
 
@@ -1613,8 +1784,8 @@ async function applyForLeave(c: Ctx): Promise<Response> {
   const newId = uuid()
   const stmts: D1PreparedStatement[] = [
     c.db.prepare(`INSERT INTO leave_requests (id, institution_id, leave_type_id, subject_kind, employee_id, student_id, from_date, to_date,
-                    is_half_day, days, reason, status, applied_by, created_at, kind, hours) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)`)
-      .bind(newId, inst, leaveType, kind, employeeId, studentId, from, to, req.is_half_day ? 1 : 0, String(days), reason, c.id.userId, now(), requestKind, hours),
+                    is_half_day, days, reason, status, applied_by, created_at, kind, hours, place, from_time, to_time) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?,?,?,?)`)
+      .bind(newId, inst, requestKind === 'on_duty' ? null : leaveType, kind, employeeId, studentId, from, to, req.is_half_day && requestKind !== 'on_duty' ? 1 : 0, String(days), reason, c.id.userId, now(), requestKind, hours, duty.place, duty.from_time, duty.to_time),
   ]
   /* A CHILD'S LEAVE HAD NOBODY TO GO TO.
 
@@ -1663,8 +1834,8 @@ async function applyForLeave(c: Ctx): Promise<Response> {
        WHERE u.institution_id = ? AND u.status = 'active' AND u.id <> ? AND rp.permission_key = 'hr.leave.approve'`).bind(inst, c.id.userId).all<{ id: string }>()
     const span = to !== from ? `${from} to ${to}` : from
     for (const a of approvers.results) {
-      stmts.push(notifyStmt(c, a.id, null, 'leave_request', `${who?.full_name ?? c.id.fullName} has applied for leave`,
-        `${span} - ${reason}. Approve or reject it from Approvals.`, '/go/approvals/approvals', 'leave_request', newId))
+      stmts.push(notifyStmt(c, a.id, null, 'leave_request', `${who?.full_name ?? c.id.fullName} has ${requestKind === 'on_duty' ? 'asked to be marked on duty' : 'applied for leave'}`,
+        `${span}${duty.place ? ' at ' + duty.place : ''} - ${reason}. Approve or reject it from Approvals.`, '/go/approvals/approvals', 'leave_request', newId))
     }
   }
   await c.db.batch(stmts)
@@ -1678,12 +1849,12 @@ async function applyForLeave(c: Ctx): Promise<Response> {
 async function editLeave(c: Ctx): Promise<Response> {
   const lid = c.params.id
   if (!isUUID(lid)) throw badRequest('invalid leave request id')
-  const cur = await c.db.prepare(`SELECT id, status, applied_by, employee_id, student_id, subject_kind, kind, leave_type_id, from_date, to_date, is_half_day, reason, hours
+  const cur = await c.db.prepare(`SELECT id, status, applied_by, employee_id, student_id, subject_kind, kind, leave_type_id, from_date, to_date, is_half_day, reason, hours, place, from_time, to_time
                                     FROM leave_requests WHERE id = ?`).bind(lid)
-    .first<{ id: string; status: string; applied_by: string | null; employee_id: string | null; student_id: string | null; subject_kind: string; kind: string | null; leave_type_id: string | null; from_date: string; to_date: string; is_half_day: number; reason: string; hours: number | null }>()
+    .first<{ place: string | null; from_time: string | null; to_time: string | null; id: string; status: string; applied_by: string | null; employee_id: string | null; student_id: string | null; subject_kind: string; kind: string | null; leave_type_id: string | null; from_date: string; to_date: string; is_half_day: number; reason: string; hours: number | null }>()
   if (!cur || cur.applied_by !== c.id.userId) throw new HttpError(404, 'no leave request of yours with that id', { code: 'not_found' })
   if (cur.status !== 'pending') throw new HttpError(409, `this request was already ${cur.status}, so it can no longer be changed.`, { code: 'already_decided' })
-  const req = await readJSON<{ leave_type_id?: string; from_date?: string; to_date?: string; is_half_day?: boolean; reason?: string; hours?: number }>(c.req)
+  const req = await readJSON<{ leave_type_id?: string; from_date?: string; to_date?: string; is_half_day?: boolean; reason?: string; hours?: number; place?: string; from_time?: string; to_time?: string }>(c.req)
   const from = req.from_date ?? cur.from_date, to = req.to_date ?? cur.to_date
   if (!isDate(from)) throw badRequest('from_date must be YYYY-MM-DD')
   if (!isDate(to)) throw badRequest('to_date must be YYYY-MM-DD')
@@ -1691,7 +1862,10 @@ async function editLeave(c: Ctx): Promise<Response> {
   const reason = req.reason ?? cur.reason
   if (!reason.trim()) throw badRequest('a reason is required')
   const requestKind = cur.kind ?? 'leave'
-  const isHalf = req.is_half_day ?? bool(cur.is_half_day)
+  const isHalf = requestKind === 'on_duty' ? false : req.is_half_day ?? bool(cur.is_half_day)
+  const duty = requestKind === 'on_duty'
+    ? onDutyFields({ place: req.place ?? cur.place ?? '', from_time: req.from_time ?? cur.from_time ?? '', to_time: req.to_time ?? cur.to_time ?? '' })
+    : { place: cur.place, from_time: cur.from_time, to_time: cur.to_time }
   let hours: number | null = cur.hours
   if (requestKind === 'permission') {
     if (from !== to) throw badRequest('a permission is for one day; give the same from and to date')
@@ -1708,9 +1882,9 @@ async function editLeave(c: Ctx): Promise<Response> {
     .bind(lid, cur.student_id ?? cur.employee_id, to, from).first<{ id: string; status: string }>()
   if (clash) throw new HttpError(409, `leave covering these days is already ${clash.status}.`, { code: 'leave_overlap', id: clash.id })
   if (cur.subject_kind === 'staff' && leaveType && requestKind === 'leave') await checkLeavePolicy(c, leaveType, cur.employee_id, from, days, isHalf)
-  const r = await c.db.prepare(`UPDATE leave_requests SET from_date = ?, to_date = ?, is_half_day = ?, days = ?, reason = ?, leave_type_id = ?, hours = ?
+  const r = await c.db.prepare(`UPDATE leave_requests SET from_date = ?, to_date = ?, is_half_day = ?, days = ?, reason = ?, leave_type_id = ?, hours = ?, place = ?, from_time = ?, to_time = ?
                                  WHERE id = ? AND status = 'pending'`)
-    .bind(from, to, isHalf ? 1 : 0, String(days), reason, leaveType, hours, lid).run()
+    .bind(from, to, isHalf ? 1 : 0, String(days), reason, leaveType, hours, duty.place, duty.from_time, duty.to_time, lid).run()
   if (!r.meta.changes) throw new HttpError(409, 'this request was answered a moment ago, so it can no longer be changed.', { code: 'already_decided' })
   return json({ id: lid, days, status: 'pending' })
 }
@@ -1725,13 +1899,15 @@ async function decideLeave(c: Ctx): Promise<Response> {
   // The guard is part of the read: HR answers anything, a class teacher only
   // their own students' requests.
   const row = await c.db.prepare(`
-    SELECT lr.employee_id, lr.leave_type_id, lr.days, lr.applied_by FROM leave_requests lr
+    SELECT lr.employee_id, lr.leave_type_id, lr.days, lr.applied_by, lr.kind, lr.from_date, lr.to_date, lr.reason, lr.place,
+           (SELECT e.user_id FROM employees e WHERE e.id = lr.employee_id) AS subject_user FROM leave_requests lr
      WHERE lr.id = ? AND lr.status = 'pending'
        AND (? OR EXISTS (SELECT 1 FROM students st
                           JOIN sections sec ON sec.id = (SELECT e.section_id FROM enrollments e WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1)
                          WHERE st.id = lr.student_id AND sec.class_teacher_id = ?))`)
     .bind(lid, can(c.id, 'hr.leave.approve') ? 1 : 0, c.id.userId)
-    .first<{ employee_id: string | null; leave_type_id: string | null; days: string; applied_by: string | null }>()
+    .first<{ employee_id: string | null; leave_type_id: string | null; days: string; applied_by: string | null; kind: string | null; from_date: string; to_date: string; reason: string; place: string | null; subject_user: string | null }>()
+  if (row && row.subject_user === c.id.userId) throw new HttpError(403, 'you cannot decide your own leave. Another approver will answer it.', { code: 'own_request' })
   if (!row) {
     const cur = await c.db.prepare(`SELECT lr.status, COALESCE(u.full_name, '') AS decider, lr.decided_at
                                      FROM leave_requests lr LEFT JOIN users u ON u.id = lr.decided_by WHERE lr.id = ?`).bind(lid)
@@ -1750,13 +1926,15 @@ async function decideLeave(c: Ctx): Promise<Response> {
     }
     throw new HttpError(403, "this request is not yours to answer. It belongs to that student's class teacher.", { code: 'not_your_request' })
   }
+  const decidedAt = now()
   const stmts: D1PreparedStatement[] = [
     c.db.prepare(`UPDATE leave_requests SET status = ?, decided_by = ?, decided_at = ?, decision_note = COALESCE(?, decision_note) WHERE id = ? AND status = 'pending'`)
-      .bind(req.decision, c.id.userId, now(), nul(note), lid),
+      .bind(req.decision, c.id.userId, decidedAt, nul(note), lid),
   ]
   if (row.applied_by) {
-    let title = 'Your leave was approved', body = `Approved by ${c.id.fullName}.`
-    if (req.decision !== 'approved') { title = 'Your leave was not approved'; body = `Rejected by ${c.id.fullName}.` }
+    const what = row.kind === 'on_duty' ? 'on-duty request' : 'leave'
+    let title = `Your ${what} was approved`, body = `Approved by ${c.id.fullName}.`
+    if (req.decision !== 'approved') { title = `Your ${what} was not approved`; body = `Rejected by ${c.id.fullName}.` }
     if (note.trim()) body += ' ' + note.trim()
     stmts.push(notifyStmt(c, row.applied_by, null, 'leave_decided', title, body, '/go/my_profile/leave_self_service', 'leave_request', lid))
   }
@@ -1785,9 +1963,28 @@ async function decideLeave(c: Ctx): Promise<Response> {
       }
     }
   }
+  /* Approved on duty marks each day on_duty, only where the day has no mark
+     and no punch yet: a punch or a manual mark is never overwritten. */
+  if (req.decision === 'approved' && row.employee_id && row.kind === 'on_duty') {
+    const tz = c.id.institution!.timezone
+    const note = `On duty${row.place ? ' at ' + row.place : ''}, approved by ${c.id.fullName}: ${row.reason}`.slice(0, 500)
+    const ts = now()
+    for (let d = row.from_date.slice(0, 10), n = 0; d <= row.to_date.slice(0, 10) && n < 62; n++) {
+      const start = localToUtc(tz, d, '00:00'), end = new Date(Date.parse(start) + 86_400_000).toISOString()
+      stmts.push(c.db.prepare(`INSERT OR IGNORE INTO staff_attendance (id, institution_id, user_id, on_date, status, source, remarks, marked_by, created_at)
+          SELECT ?, ?, e.user_id, ?, 'on_duty', 'on_duty', ?, ?, ? FROM employees e
+           WHERE e.id = ? AND e.user_id IS NOT NULL
+             AND NOT EXISTS (SELECT 1 FROM biometric_punches p WHERE p.employee_id = e.id AND p.punched_at >= ? AND p.punched_at < ?)`)
+        .bind(uuid(), c.id.institution!.id, d, note, c.id.userId, ts, row.employee_id, start, end))
+      const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); d = t.toISOString().slice(0, 10)
+    }
+  }
   if (req.decision === 'approved' && row.employee_id && row.leave_type_id) {
-    stmts.push(c.db.prepare(`UPDATE leave_balances SET taken = CAST(CAST(taken AS REAL) + ? AS TEXT) WHERE employee_id = ? AND leave_type_id = ?`)
-      .bind(Number(row.days), row.employee_id, row.leave_type_id))
+    /* Counted only if this decision is the one that approved it: a second
+       approver racing this one finds the status already changed and adds nothing. */
+    stmts.push(c.db.prepare(`UPDATE leave_balances SET taken = CAST(CAST(taken AS REAL) + ? AS TEXT) WHERE employee_id = ? AND leave_type_id = ?
+        AND EXISTS (SELECT 1 FROM leave_requests WHERE id = ? AND status = 'approved' AND decided_by = ? AND decided_at = ?)`)
+      .bind(Number(row.days), row.employee_id, row.leave_type_id, lid, c.id.userId, decidedAt))
   }
   await c.db.batch(stmts)
   await clearDoneWork(c, 'leave_request', lid)
@@ -1799,11 +1996,15 @@ async function decideConcession(c: Ctx): Promise<Response> {
   if (!isUUID(cid)) throw badRequest('invalid concession id')
   const req = await readJSON<{ decision?: string; note?: string }>(c.req)
   const note = trim(req.note)
+  if (req.decision !== 'approved' && req.decision !== 'rejected') throw badRequest('decision must be approved or rejected')
   if (req.decision === 'rejected' && !note) throw badRequest('say why it was refused, it goes on the record and the family is told')
-  const status = req.decision === 'rejected' ? 'rejected' : 'approved'
+  const status = req.decision
   const row = await c.db.prepare(`SELECT student_id, application_id, kind, requested_by FROM fee_concessions WHERE id = ? AND status = 'pending'`).bind(cid)
     .first<{ student_id: string | null; application_id: string | null; kind: string; requested_by: string | null }>()
   if (!row) throw new HttpError(404, 'no pending concession with that id', { code: 'not_found' })
+  if (status === 'approved' && row.requested_by === c.id.userId) {
+    throw new HttpError(403, 'you raised this concession, so someone else must approve it', { code: 'own_request' })
+  }
   let studentName = 'This request'
   if (row.student_id) {
     const s = await c.db.prepare(`SELECT ${fullName2('students')} AS n FROM students WHERE id = ?`).bind(row.student_id).first<{ n: string }>()

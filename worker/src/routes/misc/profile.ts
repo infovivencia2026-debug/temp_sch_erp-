@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import { shownSignIn } from '../../services/sign_in_name'
 import { HttpError, badRequest, forbidden, noContent, notFound, ok, readJSON } from '../../http'
 import { now } from '../../http'
 import { activitySettings, recordSignOutMany, recordViews, type ViewIn } from '../../services/session_activity'
@@ -214,6 +215,16 @@ export function registerProfile(r: Router): void {
     }
     // Two databases: the school row first, then the index. Not atomic across the two; the index is a cache of this row.
     await stmts[0].run()
+    /* One number for one person (Yajur, 2026-10-27): a member of staff editing
+       their own phone or email changes the staff record too, so the staff
+       register, every other admin and every role read the new one, and the
+       staff part of /portal/live moves so open screens refetch. */
+    if (req.phone !== undefined || newEmail) {
+      await c.db.prepare(`UPDATE employees SET
+          phone = CASE WHEN ?1 THEN NULLIF(?2, '') ELSE phone END,
+          email = COALESCE(?3, email), updated_at = ?4 WHERE user_id = ?5`)
+        .bind(req.phone !== undefined ? 1 : 0, req.phone ?? null, newEmail, now(), c.id.userId).run()
+    }
     for (const s of stmts.slice(1)) await s.run()
     return readProfile(c)
   })
@@ -257,7 +268,7 @@ export function registerProfile(r: Router): void {
     const secret = base32Encode(raw)
     const u = await c.db.prepare(`SELECT COALESCE(email, phone, username, full_name) AS account FROM users WHERE id = ?`).bind(c.id.userId)
       .first<{ account: string }>()
-    const account = u?.account ?? c.id.fullName
+    const account = shownSignIn(u?.account) || c.id.fullName
     const issuer = c.id.institution?.short_name || c.id.institution?.name || 'XULO'
     const q = new URLSearchParams({ secret, issuer, algorithm: 'SHA1', digits: '6', period: '30' })
     const uri = 'otpauth://totp/' + encodeURIComponent(issuer + ':' + account) + '?' + q.toString()

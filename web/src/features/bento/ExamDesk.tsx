@@ -29,6 +29,7 @@ interface Paper {
   subject: string
   class_name: string
   label: string
+  exam_date?: string | null
   marks_entered: number
   students: number
 }
@@ -55,7 +56,11 @@ function ExamDesk() {
   if (papers.error) return <BentoError message={String(papers.error)} />
 
   const list = exams.data?.items ?? []
-  const all = papers.data?.items ?? []
+  /* Only a paper that has been sat is owed marks: one on the date sheet with
+     its date passed. A subject with no exam scheduled is never counted
+     (owner, 2026-10-27). */
+  const now = today()
+  const all = (papers.data?.items ?? []).filter((p) => !!p.exam_date && p.exam_date < now)
 
   return (
     <PersonaPage eyebrow="Home" title="Exam desk" dashboard="exam_desk">
