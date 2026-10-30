@@ -6,7 +6,7 @@ import { useOptimisticMutation } from '@/lib/optimistic'
 import type { MailConnection, MailFolder, MailMessage, MailPage, MailPerson, MailSummary } from '@shared/api/feature_inbox'
 import {
   PageHead, PageBody, Card, Badge, Button, ConfirmButton, Dialog, EmptyState, ErrorState, Field, FormNotice,
-  Input, Loading, Textarea, TAB_BAR_FILL, tabClass,
+  Input, Loading, Textarea, tabClass,
 } from '@/components/ui'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -129,29 +129,27 @@ export default function Inbox() {
 
   return (
     <>
-      <PageHead
-        eyebrow="Communication"
-        title="Inbox"
-        actions={b.address ? (
-          <div className="flex items-center gap-2">
-            <MailboxSettings />
-            <Button onClick={() => setDraft({ to: '', cc: '', subject: '', text: '' })} disabled={!canSend}>Write</Button>
-          </div>
-        ) : undefined}
-      />
+      <PageHead eyebrow="Communication" title="Inbox" />
       <PageBody>
         {!b.address ? (
           <EmptyState title="You have no school email address yet." body="The office gives one on Communication > Mail addresses." />
         ) : (
           <div className="space-y-3">
-            <div className={TAB_BAR_FILL} role="tablist" aria-label="Folders">
-              {TABS.map((t) => (
-                <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key, 'lg')}
-                  onClick={() => { setTab(t.key); setOpenId(null) }}>
-                  {t.label}
-                  {t.key === 'inbox' && b.unread > 0 && <Badge tone="primary">{b.unread}</Badge>}
-                </button>
-              ))}
+            {/* Folders as small tabs with Settings and Write on the same row (owner, 2026-10-30). */}
+            <div className="flex items-center gap-2 border-b">
+              <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]" role="tablist" aria-label="Folders">
+                {TABS.map((t) => (
+                  <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key)}
+                    onClick={() => { setTab(t.key); setOpenId(null) }}>
+                    {t.label}
+                    {t.key === 'inbox' && b.unread > 0 && <Badge tone="primary">{b.unread}</Badge>}
+                  </button>
+                ))}
+              </div>
+              <div className="flex shrink-0 items-center gap-2 pb-1">
+                <MailboxSettings />
+                <Button onClick={() => setDraft({ to: '', cc: '', subject: '', text: '' })} disabled={!canSend}>Write</Button>
+              </div>
             </div>
             {!canSend && <p className="text-[13px] text-muted-foreground">{b.address} <Badge tone="warning" className="ms-2">Switched off by the office</Badge></p>}
             <ConnectPrompt />
