@@ -17,6 +17,7 @@ import { featurePath, type ApiSection } from '@/lib/catalog'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { Button } from './ui'
 import { PersonAvatar } from './ChatScreen'
 import { CommandSearch } from './CommandSearch'
 import Notifications from './Notifications'
@@ -344,6 +345,19 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
    and Sign out. The avatar and name open the account page. */
 const FOOT_ICON = 'foot-icon grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
+/** Up above the menu and down below it (owner, 2026-10-30): real buttons
+    that scroll the menu when its groups run past the panel's height. */
+export function NavScrollButton({ dir }: { dir: 1 | -1 }) {
+  const label = dir < 0 ? 'Scroll menu up' : 'Scroll menu down'
+  return (
+    <div className={cn('shrink-0 px-[18px] max-sm:px-4', dir < 0 ? 'pt-3' : 'pb-1 pt-2')}>
+      <Button variant="secondary" size="sm" className="w-full" aria-label={label} title={label} onClick={() => scrollNav(dir)}>
+        {dir < 0 ? <ChevronUp aria-hidden className="h-4 w-4" /> : <ChevronDown aria-hidden className="h-4 w-4" />}
+      </Button>
+    </div>
+  )
+}
+
 function scrollNav(dir: 1 | -1) {
   const nav = document.querySelector<HTMLElement>('nav[aria-label="Sections"]')
   nav?.scrollBy({ top: dir * nav.clientHeight * 0.7, behavior: 'smooth' })
@@ -354,16 +368,7 @@ export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: st
   const fullName = session.user?.full_name ?? ''
   return (
     <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4">
-      {/* Up and down through the menu (owner, 2026-10-30): the groups run past the panel's height. */}
-      <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1"><LayoutSwitch pill /></div>
-        <button type="button" aria-label="Scroll menu up" title="Scroll menu up" className={FOOT_ICON} onClick={() => scrollNav(-1)}>
-          <ChevronUp aria-hidden className="h-5 w-5" />
-        </button>
-        <button type="button" aria-label="Scroll menu down" title="Scroll menu down" className={FOOT_ICON} onClick={() => scrollNav(1)}>
-          <ChevronDown aria-hidden className="h-5 w-5" />
-        </button>
-      </div>
+      <LayoutSwitch pill />
       <StaffProfileCard name={fullName} sub={employeeCode} photoId={session.user?.avatar_key} onNavigate={onNavigate} />
     </div>
   )
