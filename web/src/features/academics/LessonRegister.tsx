@@ -206,11 +206,20 @@ export default function LessonRegister() {
   )
 }
 
-/** The topic, saved when the teacher leaves the box. */
+/** The topic: a Save button shows once it is changed (Enter or leaving the box saves too), then "Saved". */
 function TopicCell({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [v, setV] = useState(value)
+  const [asked, setAsked] = useState(false)
   useEffect(() => setV(value), [value])
-  return <Input value={v} onChange={setV} onBlur={() => onSave(v.trim())} placeholder="Write the topic" srLabel="Topic" />
+  const dirty = v.trim() !== value
+  const commit = () => { if (dirty) { setAsked(true); onSave(v.trim()) } }
+  return (
+    <div className="flex items-center gap-2" onKeyDown={(e) => { if (e.key === 'Enter') commit() }}>
+      <div className="min-w-0 flex-1"><Input value={v} onChange={(x) => { setV(x); setAsked(false) }} onBlur={commit} placeholder="Write the topic" srLabel="Topic" /></div>
+      {dirty ? <Button size="sm" onClick={commit}>Save</Button>
+        : asked && <span role="status" className="shrink-0 text-[13px] font-medium text-success">Saved</span>}
+    </div>
+  )
 }
 
 function StatusBadge({ status }: { status: Status }) {
