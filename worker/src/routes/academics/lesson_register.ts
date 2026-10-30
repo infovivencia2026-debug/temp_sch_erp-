@@ -15,6 +15,10 @@ import { addDays, can, forbiddenMsg, indiaToday, inst, isDate, isodow, workingYe
 export const STATUSES = ['not_completed', 'ongoing', 'completed'] as const
 export type Status = typeof STATUSES[number]
 export type DayType = 'working' | 'holiday' | 'exam'
+/** The school's day codes, as on its own sheet: teaching, holiday, non-teaching, teaching + event, non-teaching event. */
+export const DAY_CODES = ['TD', 'HD', 'ND', 'TED', 'NED'] as const
+export type DayCode = typeof DAY_CODES[number]
+const CODE_OF: Record<DayType, DayCode> = { working: 'TD', holiday: 'HD', exam: 'ND' }
 
 export function registerLessonRegister(r: Router) {
   r.get('/academics/lesson-register/options', 'auth', getOptions)
@@ -68,23 +72,30 @@ async function getOptions(c: Ctx) {
 
 /** Working, Holiday or Exam for each date in [from, to]; Sundays are holidays unless the calendar makes them working days. */
 async function dayTypes(c: Ctx, from: string, to: string): Promise<Map<string, DayType>> {
+  return new Map([...(await dayInfo(c, from, to))].map(([d, v]) => [d, v.type]))
+}
+
+/** Each date's type and, for a holiday, its name ("Sunday" for a plain Sunday). */
+async function dayInfo(c: Ctx, from: string, to: string): Promise<Map<string, { type: DayType; name: string }>> {
   const [hol, exams] = await c.db.batch([
-    c.db.prepare(`SELECT on_date, COALESCE(to_date, on_date) AS to_date, kind, applies_to FROM holidays WHERE on_date <= ? AND COALESCE(to_date, on_date) >= ?`).bind(to, from),
+    c.db.prepare(`SELECT on_date, COALESCE(to_date, on_date) AS to_date, kind, applies_to, name FROM holidays WHERE on_date <= ? AND COALESCE(to_date, on_date) >= ?`).bind(to, from),
     c.db.prepare(`SELECT starts_on, COALESCE(ends_on, starts_on) AS ends_on FROM exams WHERE starts_on IS NOT NULL AND starts_on <= ? AND COALESCE(ends_on, starts_on) >= ?`).bind(to, from),
   ])
-  const hs = hol.results as { on_date: string; to_date: string; kind: string; applies_to: string }[]
+  const hs = hol.results as { on_date: string; to_date: string; kind: string; applies_to: string; name: string }[]
   const es = exams.results as { starts_on: string; ends_on: string }[]
-  const out = new Map<string, DayType>()
+  const out = new Map<string, { type: DayType; name: string }>()
   for (let d = from; d <= to; d = addDays(d, 1)) {
     let shut = isodow(d) === 7, working = false, exam = false
+    let name = shut ? 'Sunday' : ''
     for (const h of hs) {
       if (d < h.on_date.slice(0, 10) || d > h.to_date.slice(0, 10)) continue
-      if ((h.kind === 'holiday' || h.kind === 'vacation') && (h.applies_to === 'all' || h.applies_to === 'students')) shut = true
+      if ((h.kind === 'holiday' || h.kind === 'vacation') && (h.applies_to === 'all' || h.applies_to === 'students')) { shut = true; name = h.name }
       if (h.kind === 'working_day') working = true
       if (h.kind === 'exam') exam = true
     }
     for (const e of es) if (d >= e.starts_on.slice(0, 10) && d <= e.ends_on.slice(0, 10)) exam = true
-    out.set(d, working ? (exam ? 'exam' : 'working') : shut ? 'holiday' : exam ? 'exam' : 'working')
+    const type: DayType = working ? (exam ? 'exam' : 'working') : shut ? 'holiday' : exam ? 'exam' : 'working'
+    out.set(d, { type, name: type === 'holiday' ? name : '' })
   }
   return out
 }
@@ -115,29 +126,55 @@ async function getRegister(c: Ctx) {
   if (!slots.length) return ok({ items: [] })
 
   const sectionIds = [...new Set(slots.map((s) => s.section_id))]
-  const saved = await c.db.prepare(`
-    SELECT section_id, class_subject_id, on_date, period_id, topic, status FROM lesson_register
-     WHERE on_date BETWEEN ? AND ? AND section_id IN (SELECT value FROM json_each(?))`)
-    .bind(from, to, JSON.stringify(sectionIds)).all<{ section_id: string; class_subject_id: string; on_date: string; period_id: string; topic: string | null; status: Status }>()
-  const kept = new Map(saved.results.map((v) => [`${v.section_id}|${v.class_subject_id}|${v.on_date}|${v.period_id}`, v]))
+  const [saved, dayRows] = await c.db.batch([
+    c.db.prepare(`SELECT section_id, class_subject_id, on_date, period_id, topic, status FROM lesson_register
+       WHERE on_date BETWEEN ? AND ? AND section_id IN (SELECT value FROM json_each(?))`).bind(from, to, JSON.stringify(sectionIds)),
+    c.db.prepare(`SELECT section_id, class_subject_id, on_date, day_type, topic FROM lesson_register_days
+       WHERE on_date BETWEEN ? AND ? AND section_id IN (SELECT value FROM json_each(?))`).bind(from, to, JSON.stringify(sectionIds)),
+  ])
+  const kept = new Map((saved.results as { section_id: string; class_subject_id: string; on_date: string; period_id: string; topic: string | null; status: Status }[])
+    .map((v) => [`${v.section_id}|${v.class_subject_id}|${v.on_date}|${v.period_id}`, v]))
+  /* The school's own word for a day (its code and, on a day nothing is
+     taught, what the day was). Read for one class's subject; a teacher's
+     view across classes uses the calendar alone. */
+  const one = section && subject ? `${section}|${subject}` : ''
+  const dayOf = new Map((dayRows.results as { section_id: string; class_subject_id: string; on_date: string; day_type: DayCode; topic: string | null }[])
+    .filter((v) => `${v.section_id}|${v.class_subject_id}` === one).map((v) => [v.on_date, v]))
 
-  const days = await dayTypes(c, from, to)
+  const days = await dayInfo(c, from, to)
   const byWeekday = new Map<number, Slot[]>()
   for (const s of slots) byWeekday.set(s.weekday, [...(byWeekday.get(s.weekday) ?? []), s])
   for (const list of byWeekday.values()) list.sort((a, b) => a.sequence - b.sequence || a.class_name.localeCompare(b.class_name, undefined, { numeric: true }))
+  const head = slots[0]
 
+  /* EVERY DATE, LIKE THE SCHOOL'S SHEET: a date with periods of this subject
+     is one row per period; a date without (a Sunday, a holiday, a day the
+     subject is not on the timetable) is one row naming the day. */
   const items: Record<string, unknown>[] = []
-  for (const [d, type] of days) {
-    const dow = isodow(d)
-    if (dow === 7 && type === 'holiday') continue
-    for (const s of byWeekday.get(dow) ?? []) {
+  for (const [d, info] of days) {
+    const own = dayOf.get(d)
+    const code: DayCode = own?.day_type ?? CODE_OF[info.type]
+    /* One row per date for one class's subject, like the school's sheet: a
+       subject taught twice that day is planned on its first period. */
+    const all = code === 'HD' ? [] : byWeekday.get(isodow(d)) ?? []
+    const periods = one ? all.slice(0, 1) : all
+    if (!periods.length) {
+      items.push({
+        sno: items.length + 1, date: d, day_type: code, period_id: '', period: '',
+        section_id: one ? head.section_id : '', class_subject_id: one ? head.class_subject_id : '',
+        class_name: one ? head.class_name : '', section: one ? head.section : '', subject: one ? head.subject : '', teacher: '',
+        topic: own?.topic ?? info.name, status: null, mine: false,
+      })
+      continue
+    }
+    for (const s of periods) {
       const k = kept.get(`${s.section_id}|${s.class_subject_id}|${d}|${s.period_id}`)
       items.push({
-        sno: items.length + 1, date: d, day_type: type,
+        sno: items.length + 1, date: d, day_type: code,
         section_id: s.section_id, class_subject_id: s.class_subject_id, period_id: s.period_id, period: s.period,
         class_name: s.class_name, section: s.section, subject: s.subject, teacher: s.teacher ?? '',
         topic: k?.topic ?? '', status: k?.status ?? 'not_completed',
-        mine: s.teacher_user_id === c.id.userId && type !== 'holiday',
+        mine: s.teacher_user_id === c.id.userId,
       })
     }
   }
