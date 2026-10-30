@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { LayoutSwitch } from './LayoutSwitch'
 import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
@@ -333,10 +332,7 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
       </div>
       <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 md:col-start-3">
         {/* No avatar or staff ID here (owner, 2026-10-30): the profile in the panel's foot is enough. */}
-        {/* Focus | Work on a computer, short, before the sign-in times (owner, 2026-10-30); phones keep it in the panel. */}
-        <div className="shrink-0 max-sm:hidden"><LayoutSwitch /></div>
-        {/* From lg up only: on a tablet the bar has no room and the times ran under the bell. */}
-        {dashboard && times && <p className="truncate max-lg:hidden text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
+        {dashboard && times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
         {!dashboard && <div id="staff-actions" className="flex items-center gap-2" />}
         {extra}
         <Notifications />
@@ -374,7 +370,6 @@ export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: st
   const fullName = session.user?.full_name ?? ''
   return (
     <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4">
-      <div className="sm:hidden"><LayoutSwitch pill /></div>
       <StaffProfileCard name={fullName} sub={employeeCode} photoId={session.user?.avatar_key} onNavigate={onNavigate} />
     </div>
   )

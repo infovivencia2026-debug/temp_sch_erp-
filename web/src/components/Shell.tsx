@@ -928,12 +928,11 @@ export function Shell({
             onClick={() => toggleRail(true)}
             aria-label="Hide navigation"
             title="Hide navigation"
-            /* In the staff layout the toggle lives in the top bar (owner, 2026-10-30). */
             className={cn(`absolute right-2.5 top-2.5 z-10 hidden h-10 w-10 place-items-center
                        rounded-full text-muted-foreground transition-colors duration-100
                        hover:bg-surface-hover hover:text-foreground
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
-                       lg:grid`, (staffLayout || staffNav) && 'lg:hidden')}
+                       lg:grid`)}
           >
             <PanelLeftClose className="h-5 w-5" />
           </button>
@@ -1282,16 +1281,20 @@ export function Shell({
             >
               <Menu className="h-6 w-6 md:h-5 md:w-5" />
             </button>
-            {/* The sidebar toggle in the top bar, both ways (owner, 2026-10-30). */}
-            <button
-              type="button"
-              aria-label={railHidden ? 'Show navigation' : 'Hide navigation'}
-              title={railHidden ? 'Show navigation' : 'Hide navigation'}
-              className="hidden h-10 w-10 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground lg:grid"
-              onClick={() => toggleRail(!railHidden)}
-            >
-              {railHidden ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-            </button>
+            {/* The top bar matches the teacher's (owner, 2026-10-30: "remove focus and
+                sidebar button from there"): no toggle here; hiding lives in the
+                sidebar, and only the way back shows here while it is hidden. */}
+            {railHidden && (
+              <button
+                type="button"
+                aria-label="Show navigation"
+                title="Show navigation"
+                className="hidden h-10 w-10 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground lg:grid"
+                onClick={() => toggleRail(false)}
+              >
+                <PanelLeftOpen className="h-5 w-5" />
+              </button>
+            )}
             {/* Settings shows settings only (Yajur, 2026-10-24): no name, sign-in times or search over it. */}
             {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} dashboard={['home', 'dashboard'].includes(location.pathname.split('/')[2] ?? '')}
               /* Every staff role gets this bar (owner, 2026-10-30, "all should have like" the teacher's);
