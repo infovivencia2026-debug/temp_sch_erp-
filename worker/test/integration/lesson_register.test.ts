@@ -60,3 +60,10 @@ it('refuses the principal writing, a holiday, and a period not in the timetable'
   expect((await api('teacher', 'PUT', '/academics/lesson-register', { ...at, on_date: d.toISOString().slice(0, 10), topic: 'x' })).status).toBe(404)
   expect((await api('parent', 'GET', '/academics/lesson-register/options')).body.sections ?? []).toEqual([])
 })
+
+it('exports the register as an Excel sheet', async () => {
+  const { call, as } = await import('./fixture')
+  const r = await call(`/api/v1${q}&format=xlsx`, { cookie: await as('admin') })
+  expect(r.status).toBe(200)
+  expect(r.headers.get('content-type')).toContain('spreadsheetml')
+})

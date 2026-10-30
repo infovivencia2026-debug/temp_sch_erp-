@@ -123,4 +123,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 123, name: 'lesson_register', checksum: 'c75537ee3a134c22fd10a7c812ecfa1b6e0c481063807e861eed342129d4219f' },
   { version: 124, name: 'absence_called_phone', checksum: 'a39c9240719ab4f6e6f4563e8f2a6ea5db6b0defa2a96bf8572988515e5bc3e6' },
   { version: 125, name: 'lesson_register_days', checksum: '8d4111a51e36e534a599c216dbb5828023ad49bee87a1f1365575b0ae0149dcf' },
+  { version: 126, name: 'lesson_register_day_status', checksum: '0a408585e4702e740353392fe8205ee492084477c8b5a20ceb7cfed5909a0ca9' },
 ]
