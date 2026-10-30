@@ -386,9 +386,13 @@ export function StaffProfileCard({ name, sub, photoId, onNavigate }: {
         /* Reads as a button (owner, 2026-10-28: "idk that is clickable"): it
            lifts on hover and tints on press, with a chevron saying it opens. */
         className="group -my-1 -ml-1.5 flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-[10px] px-1.5 transition-colors duration-150 hover:bg-primary/10 active:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        {/* The photo alone (owner, 2026-10-30): the cut-off name and staff ID said nothing. */}
+        {/* The photo alone on a computer, where the name was cut off; the name
+            beside it on a phone, where the panel is wide (owner, 2026-10-30). */}
         <PersonAvatar name={name || '?'} photoId={photoId} size={42} />
-        <span className="sr-only">{name}{sub ? ` ${sub}` : ''}</span>
+        <span className="min-w-0 max-sm:block sm:sr-only">
+          <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-bold text-foreground">{name}</span>
+          {sub && <span className="block truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground tabular-nums">{sub}</span>}
+        </span>
         <ChevronRight aria-hidden className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5" />
       </Link>
       <div className="flex shrink-0 items-center gap-0.5">
