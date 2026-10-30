@@ -176,7 +176,7 @@ async function getRegister(c: Ctx) {
         section_id: one ? head.section_id : '', class_subject_id: one ? head.class_subject_id : '',
         class_name: one ? head.class_name : '', section: one ? head.section : '', subject: one ? head.subject : '', teacher: '',
         topic: own?.topic ?? info.name,
-        status: one && code !== 'HD' && own ? own.status ?? (own.topic ? 'not_completed' : null) : null,
+        status: one && code !== 'HD' && (own || teachesIt) ? own?.status ?? (own?.topic || teachesIt ? 'not_completed' : null) : null,
         mine: teachesIt && code !== 'HD',
       })
       continue
@@ -265,16 +265,19 @@ async function saveDay(c: Ctx, yearId: string, section: string, subject: string,
   if (!teaches) throw forbiddenMsg('only the teacher of this subject can change its lesson plan')
   const prev = await c.db.prepare(`SELECT day_type, topic, status FROM lesson_register_days WHERE section_id = ? AND class_subject_id = ? AND on_date = ?`)
     .bind(section, subject, day).first<{ day_type: DayCode; topic: string | null; status: Status | null }>()
-  if (!prev) throw new HttpError(404, 'that date is not in the schedule')
-  if (prev.day_type === 'HD') throw badRequest('that day is a holiday')
-  const before = prev.status ?? 'not_completed'
+  // A date no schedule was loaded for takes its type from the calendar.
+  const code: DayCode = prev?.day_type ?? CODE_OF[(await dayTypes(c, day, day)).get(day) ?? 'working']
+  if (code === 'HD') throw badRequest('that day is a holiday')
+  const before = prev?.status ?? 'not_completed'
   const after = status ?? before
   if (STATUSES.indexOf(after) < STATUSES.indexOf(before)) {
     throw new HttpError(409, 'a status only moves forward: not completed, then ongoing, then completed', { code: 'status_backwards' })
   }
-  const nextTopic = topic === undefined ? prev.topic : topic || null
-  await c.db.prepare(`UPDATE lesson_register_days SET topic = ?, status = ?, updated_at = ? WHERE section_id = ? AND class_subject_id = ? AND on_date = ?`)
-    .bind(nextTopic, after, now(), section, subject, day).run()
+  const nextTopic = topic === undefined ? prev?.topic ?? null : topic || null
+  await c.db.prepare(`INSERT INTO lesson_register_days (institution_id, section_id, class_subject_id, on_date, day_type, topic, status, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (section_id, class_subject_id, on_date) DO UPDATE SET topic = excluded.topic, status = excluded.status, updated_at = excluded.updated_at`)
+    .bind(inst(c), section, subject, day, code, nextTopic, after, now()).run()
   return ok({ topic: nextTopic ?? '', status: after })
 }
 
