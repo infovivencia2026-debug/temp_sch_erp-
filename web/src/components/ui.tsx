@@ -116,6 +116,14 @@ export function PageHead({
     setSlot(document.getElementById('staff-crumb'))
     setActionSlot(document.getElementById('staff-actions'))
   }, [embedded])
+  /* Buttons fit beside the bell; filters with labels (date, section, search)
+     do not -- the slot squeezed a date box into one letter a line (owner,
+     2026-10-30). Once drawn there, a screen whose actions hold a field moves
+     them to their own row under the bar instead. */
+  const [actionsInRow, setActionsInRow] = useState(false)
+  useEffect(() => {
+    if (actionSlot?.querySelector('input, select, textarea, label, .field')) setActionsInRow(true)
+  })
   if (embedded) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -135,9 +143,9 @@ export function PageHead({
           </nav>, slot)}
         <h1 className="sr-only">{title}</h1>
         {/* The page's actions beside the bell when the header has room for them. */}
-        {actions && actionSlot && createPortal(<InPageActions.Provider value={true}>{actions}</InPageActions.Provider>, actionSlot)}
-        {actions && !actionSlot && (
-          <div data-page-head="" className={cn('flex flex-wrap items-center justify-end gap-2 px-[var(--page-gutter)] pt-3', WIDTH[width])}>
+        {actions && actionSlot && !actionsInRow && createPortal(<InPageActions.Provider value={true}>{actions}</InPageActions.Provider>, actionSlot)}
+        {actions && (!actionSlot || actionsInRow) && (
+          <div data-page-head="" className={cn('flex flex-wrap items-end justify-end gap-3 px-[var(--page-gutter)] pt-3', WIDTH[width])}>
             <InPageActions.Provider value={true}>{actions}</InPageActions.Provider>
           </div>
         )}

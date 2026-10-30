@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
@@ -11,7 +12,6 @@ import { api } from '@/lib/api'
 import { buzz } from '@/lib/haptics'
 import { BentoSettings } from '@/features/bento/BentoSettings'
 import { HelpButton } from '@/features/help/HelpEntry'
-import { LayoutSwitch } from './LayoutSwitch'
 import { usePhone } from '@/lib/viewport'
 import { featurePath, type ApiSection } from '@/lib/catalog'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
@@ -281,7 +281,7 @@ function clock(iso: string | null | undefined, timeZone: string | undefined): st
 /** The one bar across the workspace: greeting and date, search, who is signed in. */
 /* `dashboard`: the greeting, name and sign-in times show on the dashboard
    only; other screens keep just the bar's controls (owner, 2026-10-24). */
-export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean }) {
+export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean; extra?: ReactNode }) {
   const session = useSession()
   const phone = usePhone()
   const now = new Date()
@@ -334,14 +334,15 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
         {/* No avatar or staff ID here (owner, 2026-10-30): the profile in the panel's foot is enough. */}
         {dashboard && times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
         {!dashboard && <div id="staff-actions" className="flex items-center gap-2" />}
+        {extra}
         <Notifications />
       </div>
     </div>
   )
 }
 
-/* The panel's foot (owner's side-panel design, 2026-10-24): Focus | Work as
-   one full-width pill, then a card with who is signed in and Help, Settings
+/* No Focus | Work pill here (owner, 2026-10-30): the layout is chosen in Settings. */
+/* The panel's foot (owner's side-panel design, 2026-10-24): a card with who is signed in and Help, Settings
    and Sign out. The avatar and name open the account page. */
 const FOOT_ICON = 'foot-icon grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
@@ -368,7 +369,6 @@ export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: st
   const fullName = session.user?.full_name ?? ''
   return (
     <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4">
-      <LayoutSwitch pill />
       <StaffProfileCard name={fullName} sub={employeeCode} photoId={session.user?.avatar_key} onNavigate={onNavigate} />
     </div>
   )

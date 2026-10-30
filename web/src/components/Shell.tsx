@@ -1268,7 +1268,7 @@ export function Shell({
         {/* A quiet contextual bar, not a toolbar bolted to a box. No bottom
             border: the page beneath it is the same ground colour, and the
             sticky blur already says "this stays". */}
-        {staffLayout && (
+        {(staffLayout || staffNav) && (
           <header data-paint="topbar" className="chrome sticky top-0 z-30 flex shrink-0 items-start gap-2 px-4 py-2.5 sm:px-7 md:min-h-[64px] md:items-center">
             <button
               ref={openerRef}
@@ -1293,10 +1293,13 @@ export function Shell({
               </button>
             )}
             {/* Settings shows settings only (Yajur, 2026-10-24): no name, sign-in times or search over it. */}
-            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} dashboard={['home', 'dashboard'].includes(location.pathname.split('/')[2] ?? '')} />}
+            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} dashboard={['home', 'dashboard'].includes(location.pathname.split('/')[2] ?? '')}
+              /* Every staff role gets this bar (owner, 2026-10-30, "all should have like" the teacher's);
+                 the school and year switchers from the old bar come along, and draw nothing for one school, one year. */
+              extra={<><InstitutionSwitch /><GroupReportLink /><YearSwitch /></>} />}
           </header>
         )}
-        {!chromeless && !staffLayout && (
+        {!chromeless && !staffLayout && !staffNav && (
         <header data-paint="topbar" className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
           {/* Gone only at lg, because from lg up the full sidebar is on the
               screen. On a tablet the 58px rail is visible but the panel behind
