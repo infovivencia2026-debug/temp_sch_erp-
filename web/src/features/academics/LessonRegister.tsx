@@ -16,6 +16,7 @@ type DayType = 'working' | 'holiday' | 'exam'
 
 interface Options {
   sees_all: boolean
+  year: { from: string; to: string }
   teachers: { id: string; name: string }[]
   sections: { id: string; class_name: string; section: string }[]
   subjects: { section_id: string; class_subject_id: string; subject: string }[]
@@ -45,6 +46,8 @@ export default function LessonRegister() {
   const [teacher, setTeacher] = useState('')
   const [section, setSection] = useState('')
   const [subject, setSubject] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
   const o = opts.data
   const all = o?.sees_all ?? false
 
@@ -56,10 +59,14 @@ export default function LessonRegister() {
   if (all && by === 'teacher') { if (teacher) params.set('teacher_user_id', teacher) }
   else if (section && subject) { params.set('section_id', section); params.set('class_subject_id', subject) }
   const ready = params.toString() !== ''
+  // Blank dates mean the whole academic year.
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+  const badRange = !!from && !!to && from > to
   const reg = useQuery({
     queryKey: ['lesson-register', params.toString()],
     queryFn: () => api.get<{ items: Row[] }>(`/api/v1/academics/lesson-register?${params}`),
-    enabled: ready,
+    enabled: ready && !badRange,
   })
 
   // Edits made here, shown at once over what the server sent.
@@ -88,7 +95,7 @@ export default function LessonRegister() {
 
   return (
     <>
-      <PageHead eyebrow="Academics" title="Lesson plan" actions={rows.length ? <PrintButton title="Lesson plan" /> : undefined} />
+      <PageHead eyebrow="Academics" title="Lesson plan" actions={rows.length ? <PrintButton title="Lesson plan" subtitle={`${ddmmyyyy(from || o!.year.from)} to ${ddmmyyyy(to || o!.year.to)}`} /> : undefined} />
       <PageBody>
         <Card className="p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -115,7 +122,14 @@ export default function LessonRegister() {
                 </Field>
               </>
             )}
+            <Field label="From date">
+              <Input type="date" value={from} onChange={setFrom} min={o?.year.from} max={o?.year.to} />
+            </Field>
+            <Field label="To date">
+              <Input type="date" value={to} onChange={setTo} min={from || o?.year.from} max={o?.year.to} />
+            </Field>
           </div>
+          {badRange && <p role="alert" className="mt-3 text-[14px] text-destructive">The from date is after the to date.</p>}
         </Card>
 
         {save.isError && <FormNotice error={save.error} />}
