@@ -326,8 +326,11 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
         </>
       ) : (
         <>
-          <PageHead eyebrow="Attendance" title="Absentee follow-up" actions={<div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}{sheetRow}</div>} />
+          {/* Filters and buttons in the body, full width: the header's slot beside
+              search is too narrow and squeezed the date into a column. */}
+          <PageHead eyebrow="Attendance" title="Absentee follow-up" />
           <PageBody>
+            <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}{sheetRow}</div>
             {content}
           </PageBody>
         </>
