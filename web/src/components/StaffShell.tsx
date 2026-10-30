@@ -4,7 +4,7 @@ import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
   BookOpen, Bus, Images, CalendarClock, CalendarDays, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
-  Award, Bookmark, Briefcase, ChevronRight, Compass, Flag, GraduationCap, Megaphone, Puzzle, Shapes, Star,
+  Award, Bookmark, Briefcase, ChevronDown, ChevronRight, ChevronUp, Compass, Flag, GraduationCap, Megaphone, Puzzle, Shapes, Star,
   LogOut, Mail, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -324,17 +324,15 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
         {dashboard && <>{/* The account's name first, then the greeting and the date (Yajur, 2026-10-21). */}
         <p className="truncate text-[calc(16px*var(--font-scale,1))] font-bold leading-tight">{fullName || first}</p>
         <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}</p></>}
+        {!dashboard && <div id="staff-crumb" className="min-w-0" />}
       </div>
       <div className="col-span-2 row-start-2 min-w-0 md:col-span-1 md:col-start-2 md:row-start-1">
         <CommandSearch wide fill />
       </div>
       <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 md:col-start-3">
+        {/* No avatar or staff ID here (owner, 2026-10-30): the profile in the panel's foot is enough. */}
+        {dashboard && times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
         <Notifications />
-        <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={36} />
-        <div className="min-w-0 max-w-[9.5rem] sm:max-w-none">
-          {d?.employee_code && <p className="truncate text-[calc(13px*var(--font-scale,1))] font-semibold tabular-nums">{d.employee_code}</p>}
-          {dashboard && times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
-        </div>
       </div>
     </div>
   )
@@ -345,12 +343,26 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
    and Sign out. The avatar and name open the account page. */
 const FOOT_ICON = 'foot-icon grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
+function scrollNav(dir: 1 | -1) {
+  const nav = document.querySelector<HTMLElement>('nav[aria-label="Sections"]')
+  nav?.scrollBy({ top: dir * nav.clientHeight * 0.7, behavior: 'smooth' })
+}
+
 export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: string | null; onNavigate: () => void }) {
   const session = useSession()
   const fullName = session.user?.full_name ?? ''
   return (
     <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4">
-      <LayoutSwitch pill />
+      {/* Up and down through the menu (owner, 2026-10-30): the groups run past the panel's height. */}
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1"><LayoutSwitch pill /></div>
+        <button type="button" aria-label="Scroll menu up" title="Scroll menu up" className={FOOT_ICON} onClick={() => scrollNav(-1)}>
+          <ChevronUp aria-hidden className="h-5 w-5" />
+        </button>
+        <button type="button" aria-label="Scroll menu down" title="Scroll menu down" className={FOOT_ICON} onClick={() => scrollNav(1)}>
+          <ChevronDown aria-hidden className="h-5 w-5" />
+        </button>
+      </div>
       <StaffProfileCard name={fullName} sub={employeeCode} photoId={session.user?.avatar_key} onNavigate={onNavigate} />
     </div>
   )
@@ -367,11 +379,9 @@ export function StaffProfileCard({ name, sub, photoId, onNavigate }: {
         /* Reads as a button (owner, 2026-10-28: "idk that is clickable"): it
            lifts on hover and tints on press, with a chevron saying it opens. */
         className="group -my-1 -ml-1.5 flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-[10px] px-1.5 transition-colors duration-150 hover:bg-primary/10 active:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {/* The photo alone (owner, 2026-10-30): the cut-off name and staff ID said nothing. */}
         <PersonAvatar name={name || '?'} photoId={photoId} size={42} />
-        <span className="min-w-0">
-          <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-bold text-foreground">{name}</span>
-          {sub && <span className="block truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground tabular-nums">{sub}</span>}
-        </span>
+        <span className="sr-only">{name}{sub ? ` ${sub}` : ''}</span>
         <ChevronRight aria-hidden className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5" />
       </Link>
       <div className="flex shrink-0 items-center gap-0.5">

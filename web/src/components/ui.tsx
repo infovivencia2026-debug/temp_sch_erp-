@@ -106,12 +106,35 @@ export function PageHead({
   const bundled = useBundleTitle()
   if (bundled) title = bundled
   const embedded = useContext(EmbeddedPage)
+  /* The staff header's slot beside search (owner, 2026-10-30: "let all this be
+     beside the search bar"): when it is there, the breadcrumb goes into it and
+     the page keeps only its actions. */
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => { if (!embedded) setSlot(document.getElementById('staff-crumb')) }, [embedded])
   if (embedded) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="eyebrow">{title}</p>
         {actions}
       </div>
+    )
+  }
+  if (slot && eyebrow) {
+    return (
+      <>
+        {createPortal(
+          <nav className="flex min-w-0 items-center gap-1 text-[12.5px] text-muted-foreground">
+            <span className="truncate">{eyebrow}</span>
+            <span aria-hidden className="text-muted-foreground/50">/</span>
+            <span className="truncate text-[15px] font-semibold text-foreground">{title}</span>
+          </nav>, slot)}
+        <h1 className="sr-only">{title}</h1>
+        {actions && (
+          <div data-page-head="" className={cn('flex flex-wrap items-center justify-end gap-2 px-[var(--page-gutter)] pt-3', WIDTH[width])}>
+            <InPageActions.Provider value={true}>{actions}</InPageActions.Provider>
+          </div>
+        )}
+      </>
     )
   }
   return (
