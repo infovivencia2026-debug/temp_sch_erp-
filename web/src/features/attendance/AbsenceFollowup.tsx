@@ -112,7 +112,10 @@ function sheetRows(sections: AbsenteeSection[], onDate: string, withRemarks: boo
   const [y, m, d] = onDate.split('-')
   const date = `${d}-${m}-${y}`
   return sections.flatMap((s) => s.students.map((st) => {
-    const cs = st.contacts ?? []
+    /* With remarks, the parent who was rung replaces the full list. */
+    const all = st.contacts ?? []
+    const rung = withRemarks && st.called_phone ? all.find((c) => c.phone === st.called_phone) : undefined
+    const cs: Contact[] = rung ? [rung] : withRemarks && st.called_phone ? [{ name: '', phone: st.called_phone, relation: '' }] : all
     const informed = st.informed ? `Informed by parent: ${st.informed.split('|')[0]}` : ''
     return {
       name: st.name,
@@ -121,18 +124,9 @@ function sheetRows(sections: AbsenteeSection[], onDate: string, withRemarks: boo
       date,
       parent: cs.map((c) => `${relationLabel(c.relation, c.name)}${c.name ? `: ${c.name}` : ''}${c.primary ? ' (Primary)' : ''}`).join(' / '),
       phone: cs.map((c) => c.phone).join(' / '),
-      remark: withRemarks ? [st.parent_response ?? '', informed, calledWho(st)].filter(Boolean).join(' · ') : '',
+      remark: withRemarks ? [st.parent_response ?? '', informed].filter(Boolean).join(' · ') : '',
     }
   }))
-}
-
-/* Who was rung: that guardian's relation, name and number, and Primary when
-   they are. Same wording as the Excel file (daily.ts absenteeSheet). */
-function calledWho(st: Absentee): string {
-  if (!st.called_phone) return ''
-  const c = st.contacts?.find((x) => x.phone === st.called_phone)
-  const who = c ? `${relationLabel(c.relation, c.name)}${c.name ? ` ${c.name}` : ''}${c.primary ? ' (Primary)' : ''} ` : ''
-  return `Called: ${who}${st.called_phone}`
 }
 
 const SHEET_HEAD = ['Name', 'Class', 'Adm No', 'Date', 'Parent name', 'Number']

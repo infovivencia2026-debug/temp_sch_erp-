@@ -739,18 +739,16 @@ async function absenteeSheet(c: Ctx): Promise<Response> {
   const rows: string[][] = [['Name', 'Class', 'Adm No', 'Date', 'Parent name', 'Number']]
   const merges: string[] = []
   for (const s of day.sections) for (const st of s.students) {
-    const cs = st.contacts ?? []
+    /* With remarks, the parent who was rung replaces the full list: their
+       name (Primary when they are) and the number dialled. */
+    const all = st.contacts ?? []
+    const rung = withRemarks && st.called_phone ? all.find((x) => x.phone === st.called_phone) : undefined
+    const cs = rung ? [rung] : withRemarks && st.called_phone ? [{ name: '', phone: st.called_phone, relation: '' }] : all
     rows.push([st.name, `${s.class_name} ${s.section_name}`.trim(), st.admission_no, date,
-      cs.map((x) => `${rel(x.relation, x.name)}${x.name ? `: ${x.name}` : ''}${x.primary ? ' (Primary)' : ''}`).join(' / '),
+      cs.map((x) => `${x.relation || x.name ? rel(x.relation, x.name) : ''}${x.name ? `: ${x.name}` : ''}${x.primary ? ' (Primary)' : ''}`).join(' / '),
       cs.map((x) => x.phone).join(' / ')])
-    /* Who was rung: the guardian whose number was picked, by name and
-       number, marked Primary when they are. */
-    const rung = st.called_phone ? cs.find((x) => x.phone === st.called_phone) : undefined
-    const calledWho = st.called_phone
-      ? `Called: ${rung ? `${rel(rung.relation, rung.name)}${rung.name ? ` ${rung.name}` : ''}${rung.primary ? ' (Primary)' : ''} ` : ''}${st.called_phone}`
-      : ''
     const remark = withRemarks
-      ? [st.parent_response ?? '', st.informed ? `Informed by parent: ${st.informed.split('|')[0]}` : '', calledWho].filter(Boolean).join(' · ')
+      ? [st.parent_response ?? '', st.informed ? `Informed by parent: ${st.informed.split('|')[0]}` : ''].filter(Boolean).join(' · ')
       : ''
     rows.push([`Reason for absence: ${remark}`])
     merges.push(`A${rows.length}:F${rows.length}`)
