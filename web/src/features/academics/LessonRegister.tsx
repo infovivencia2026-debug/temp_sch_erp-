@@ -101,7 +101,7 @@ export default function LessonRegister() {
   }
 
   const head = [
-    'S.No', 'Date', 'Day', 'Day type',
+    '#', 'Date & day', 'Day type',
     ...(showClass ? ['Class', 'Subject'] : []),
     'Period', 'Topic', 'Status',
   ]
@@ -177,16 +177,18 @@ export default function LessonRegister() {
               const edit = r.mine
               return (
                 <tr key={rowKey(r)} className={cn(r.day_type === 'HD' && 'bg-muted/40 text-muted-foreground')}>
-                  <Td className="num text-muted-foreground">{r.sno}</Td>
-                  <Td className="whitespace-nowrap font-medium tabular-nums">{ddmmyyyy(r.date)}{r.date_to && <span className="block text-[12.5px] font-normal text-muted-foreground">to {ddmmyyyy(r.date_to)}</span>}</Td>
-                  <Td className="whitespace-nowrap text-muted-foreground">{weekday(r.date).slice(0, 3)}{r.date_to && <span className="block text-[12.5px]">to {weekday(r.date_to).slice(0, 3)}</span>}</Td>
-                  <Td><span title={DAY_TYPE[r.day_type]}><Badge tone={r.day_type === 'HD' ? 'danger' : r.day_type === 'ND' || r.day_type === 'NED' ? 'warning' : 'neutral'}>{r.day_type}</Badge></span></Td>
-                  {showClass && <Td className="whitespace-nowrap">{sectionLabel(r)}</Td>}
-                  {showClass && <Td>{r.subject}</Td>}
-                  <Td className="whitespace-nowrap text-[13px] text-muted-foreground">{r.period}</Td>
+                  <Td className="num w-[56px] font-semibold text-muted-foreground">{r.sno}</Td>
+                  <Td className="whitespace-nowrap">
+                    <span className="font-semibold tabular-nums text-foreground">{ddmmyyyy(r.date)}{r.date_to && <> to {ddmmyyyy(r.date_to)}</>}</span>
+                    <span className="mt-0.5 block text-[12px] text-muted-foreground">{weekday(r.date)}{r.date_to && <> to {weekday(r.date_to)}</>}</span>
+                  </Td>
+                  <Td><span title={DAY_TYPE[r.day_type]}><Badge tone={r.day_type === 'HD' ? 'danger' : r.day_type === 'ND' || r.day_type === 'NED' ? 'warning' : r.day_type === 'TED' ? 'info' : 'neutral'} className="rounded-md px-2.5 py-1 font-semibold">{r.day_type}</Badge></span></Td>
+                  {showClass && <Td><Badge tone="primary" className="rounded-lg px-3 py-1 font-semibold">{sectionLabel(r)}</Badge></Td>}
+                  {showClass && <Td className="font-semibold">{r.subject}</Td>}
+                  <Td>{r.period && <Badge className="rounded-md border border-border px-2.5 py-1">{r.period}</Badge>}</Td>
                   <Td className="min-w-[240px] max-w-[560px] whitespace-normal leading-relaxed">
                     {edit ? <TopicCell value={r.topic} onSave={(topic) => topic !== r.topic && save.mutate({ row: r, topic })} />
-                      : r.topic || (r.period_id ? <span className="text-muted-foreground">Not written</span> : null)}
+                      : r.topic || (r.period_id ? <span className="text-[13px] italic text-muted-foreground">Not written</span> : null)}
                   </Td>
                   <Td className="min-w-[160px]">
                     {r.status && <StatusBadge status={r.status} />}
@@ -211,7 +213,7 @@ function TopicCell({ value, onSave }: { value: string; onSave: (v: string) => vo
 }
 
 function StatusBadge({ status }: { status: Status }) {
-  return <Badge tone={status === 'completed' ? 'success' : status === 'ongoing' ? 'warning' : 'neutral'}>{statusLabel(status)}</Badge>
+  return <Badge tone={status === 'completed' ? 'success' : status === 'ongoing' ? 'warning' : 'danger'} className="rounded-full px-3 py-1 font-semibold">{statusLabel(status)}</Badge>
 }
 
 const indiaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date())
@@ -244,8 +246,11 @@ function TodayClasses({ edits, save, saving }: {
             return (
               <li key={rowKey(r)} className="grid gap-3 py-3 sm:grid-cols-[minmax(150px,200px)_1fr_180px] sm:items-center">
                 <div>
-                  <div className="font-medium">{r.class_name} - {r.section}</div>
-                  <div className="text-[13px] text-muted-foreground">{r.subject} · {r.period}</div>
+                  <Badge tone="primary" className="rounded-lg px-3 py-1 font-semibold">{r.class_name} - {r.section}</Badge>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px]">
+                    <span className="font-semibold">{r.subject}</span>
+                    <Badge className="rounded-md border border-border px-2 py-0.5">{r.period}</Badge>
+                  </div>
                 </div>
                 <TopicCell value={r.topic} onSave={(topic) => topic !== r.topic && save({ row: r, topic })} />
                 {r.status === 'completed' || !r.status ? <StatusBadge status={r.status ?? 'not_completed'} />
