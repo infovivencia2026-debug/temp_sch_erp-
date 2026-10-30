@@ -60,7 +60,7 @@ import { usePanes } from '@/lib/panes'
 import { multitaskingAllowed } from '@/lib/tabs'
 import { staffLayoutOn, staffSidebarOn } from '@/lib/staff-layout'
 import { ComboTabs } from '@/components/StaffCombos'
-import { StaffHeaderContent, StaffNavList, StaffPanelFoot, isHomeSection, useTodaySignIns } from '@/components/StaffShell'
+import { NavScrollButton, StaffHeaderContent, StaffNavList, StaffPanelFoot, isHomeSection, useTodaySignIns } from '@/components/StaffShell'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
@@ -1102,6 +1102,7 @@ export function Shell({
         </div>
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
+        {staffNav && <NavScrollButton dir={-1} />}
         <nav aria-label="Sections" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', staffNav ? 'flex flex-col gap-4 px-[18px] py-5 max-sm:px-4' : 'px-3 pb-3')}>
           {/* Recent was here, above the workspace.
 
@@ -1229,6 +1230,7 @@ export function Shell({
               controls for one thing on one screen reads as two different
               things until somebody presses both. */}
         </nav>
+        {staffNav && <NavScrollButton dir={1} />}
         {/* Focus | Work, beside the rail's cog at the foot of the sidebar. */}
         {staffNav ? (
           <StaffPanelFoot employeeCode={signIns.data?.employee_code} onNavigate={() => setNavOpen(false)} />

@@ -292,17 +292,17 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
         <div className="flex flex-wrap items-center gap-2">
           {m.folder !== 'trash' && canSend && <Button variant="secondary" size="sm" onClick={() => onReply(false)}><Reply className="h-4 w-4" /> Reply</Button>}
           {m.folder !== 'trash' && canSend && many && <Button variant="secondary" size="sm" onClick={() => onReply(true)}><ReplyAll className="h-4 w-4" /> Reply all</Button>}
-          <Button variant="ghost" size="sm" onClick={onStar}>{m.starred ? 'Unstar' : 'Star'}</Button>
-          {m.folder === 'inbox' && <Button variant="ghost" size="sm" onClick={onUnread}>Mark unread</Button>}
+          <Button variant="secondary" size="sm" onClick={onStar}>{m.starred ? 'Unstar' : 'Star'}</Button>
+          {m.folder === 'inbox' && <Button variant="secondary" size="sm" onClick={onUnread}>Mark unread</Button>}
           {m.folder === 'trash' ? (
             <>
-              <Button variant="ghost" size="sm" onClick={onRestore}>Move back</Button>
+              <Button variant="secondary" size="sm" onClick={onRestore}>Move back</Button>
               <ConfirmButton tone="danger" confirmLabel="Delete for good" question="This message and its attachments are deleted and cannot be brought back." onConfirm={onDelete}>
                 Delete for good
               </ConfirmButton>
             </>
           ) : (
-            <Button variant="ghost" size="sm" onClick={onTrash}>Delete</Button>
+            <Button variant="secondary" size="sm" onClick={onTrash}>Delete</Button>
           )}
         </div>
         <FormNotice error={deleteError} />
