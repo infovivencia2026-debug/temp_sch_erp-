@@ -730,7 +730,7 @@ async function absenteeSheet(c: Ctx): Promise<Response> {
   const day = await (await listAbsentees(c)).json() as {
     date: string
     sections: { class_name: string; section_name: string; students: {
-      name: string; admission_no: string; contacts?: { name: string; phone: string; relation: string }[]
+      name: string; admission_no: string; contacts?: { name: string; phone: string; relation: string; primary?: number | boolean }[]
       parent_response?: string; informed?: string | null }[] }[]
   }
   const [y, m, d] = day.date.split('-')
@@ -741,12 +741,12 @@ async function absenteeSheet(c: Ctx): Promise<Response> {
   for (const s of day.sections) for (const st of s.students) {
     const cs = st.contacts ?? []
     rows.push([st.name, `${s.class_name} ${s.section_name}`.trim(), st.admission_no, date,
-      cs.map((x) => `${rel(x.relation, x.name)}${x.name ? `: ${x.name}` : ''}`).join(' / '),
+      cs.map((x) => `${rel(x.relation, x.name)}${x.name ? `: ${x.name}` : ''}${x.primary ? ' (Primary)' : ''}`).join(' / '),
       cs.map((x) => x.phone).join(' / ')])
     const remark = withRemarks
       ? [st.parent_response ?? '', st.informed ? `Informed by parent: ${st.informed.split('|')[0]}` : ''].filter(Boolean).join(' · ')
       : ''
-    rows.push([`Remark: ${remark}`])
+    rows.push([`Reason for absence: ${remark}`])
     merges.push(`A${rows.length}:F${rows.length}`)
   }
   const bytes = buildXLSX([{ name: 'Absentees', rows, merges, boldRows: [0], freezeHeader: true, colWidths: [26, 10, 12, 12, 34, 24] }])
