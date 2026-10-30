@@ -154,7 +154,10 @@ async function getRegister(c: Ctx) {
   for (const [d, info] of days) {
     const own = dayOf.get(d)
     const code: DayCode = own?.day_type ?? CODE_OF[info.type]
-    const periods = code === 'HD' ? [] : byWeekday.get(isodow(d)) ?? []
+    /* One row per date for one class's subject, like the school's sheet: a
+       subject taught twice that day is planned on its first period. */
+    const all = code === 'HD' ? [] : byWeekday.get(isodow(d)) ?? []
+    const periods = one ? all.slice(0, 1) : all
     if (!periods.length) {
       items.push({
         sno: items.length + 1, date: d, day_type: code, period_id: '', period: '',
