@@ -22,7 +22,7 @@ interface Options {
   subjects: { section_id: string; class_subject_id: string; subject: string }[]
 }
 interface Row {
-  sno: number; date: string; day_type: DayType
+  sno: number; date: string; date_to?: string; day_type: DayType
   section_id: string; class_subject_id: string; period_id: string; period: string
   class_name: string; section: string; subject: string; teacher: string
   topic: string; status: Status | null; mine: boolean
@@ -96,7 +96,7 @@ export default function LessonRegister() {
 
   return (
     <>
-      <PageHead eyebrow="Academics" title="Lesson plan" actions={rows.length ? <PrintButton title="Lesson plan" subtitle={`${ddmmyyyy(from || o!.year.from)} to ${ddmmyyyy(to || o!.year.to)}`} /> : undefined} />
+      <PageHead eyebrow="Academics" title="Lesson plan" actions={rows.length ? <PrintButton title="Lesson plan" subtitle={`${ddmmyyyy(rows[0].date)} to ${ddmmyyyy(rows[rows.length - 1].date_to ?? rows[rows.length - 1].date)}`} /> : undefined} />
       <PageBody>
         <Card className="p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -124,10 +124,10 @@ export default function LessonRegister() {
               </>
             )}
             <Field label="From date">
-              <Input type="date" value={from} onChange={setFrom} min={o?.year.from} max={o?.year.to} />
+              <Input type="date" value={from} onChange={setFrom} />
             </Field>
             <Field label="To date">
-              <Input type="date" value={to} onChange={setTo} min={from || o?.year.from} max={o?.year.to} />
+              <Input type="date" value={to} onChange={setTo} min={from || undefined} />
             </Field>
           </div>
           {badRange && <p role="alert" className="mt-3 text-[14px] text-destructive">The from date is after the to date.</p>}
@@ -146,8 +146,8 @@ export default function LessonRegister() {
               return (
                 <tr key={rowKey(r)}>
                   <Td className="num">{r.sno}</Td>
-                  <Td className="whitespace-nowrap">{ddmmyyyy(r.date)}</Td>
-                  <Td>{weekday(r.date)}</Td>
+                  <Td className="whitespace-nowrap">{ddmmyyyy(r.date)}{r.date_to && <> to {ddmmyyyy(r.date_to)}</>}</Td>
+                  <Td>{weekday(r.date)}{r.date_to && <> to {weekday(r.date_to)}</>}</Td>
                   <Td><span title={DAY_TYPE[r.day_type]}><Badge tone={r.day_type === 'HD' ? 'danger' : r.day_type === 'ND' || r.day_type === 'NED' ? 'warning' : 'neutral'}>{r.day_type}</Badge></span></Td>
                   {showClass && <Td className="whitespace-nowrap">{sectionLabel(r)}</Td>}
                   {showClass && <Td>{r.subject}</Td>}

@@ -109,10 +109,6 @@ async function getRegister(c: Ctx) {
   for (const v of [section, subject, teacher]) if (v && !isUUID(v)) throw badRequest('ids must be uuids')
   if (!all) teacher = c.id.userId
   if (!section && !teacher) throw badRequest('choose a teacher or a class')
-  const from = isDate(p.get('from') ?? '') ? p.get('from')! : year.from
-  const to = isDate(p.get('to') ?? '') ? p.get('to')! : year.to
-  if (from > to) throw badRequest('from must be on or before to')
-  if (Date.parse(to) - Date.parse(from) > 400 * 86_400_000) throw badRequest('choose a range of a year or less')
 
   const slots = (await c.db.prepare(`
     SELECT te.section_id, te.class_subject_id, te.period_id, te.weekday, p.sequence, p.name AS period,
@@ -126,10 +122,21 @@ async function getRegister(c: Ctx) {
   if (!slots.length) return ok({ items: [] })
 
   const sectionIds = [...new Set(slots.map((s) => s.section_id))]
+  /* THE SCHOOL'S OWN START AND END (owner, 2026-10-30: the micro schedule
+     runs 16 March to 15 March, not the ERP's April-to-March year). Where the
+     school's schedule is loaded its first and last dates are the range;
+     otherwise the academic year. */
+  const span = await c.db.prepare(`SELECT min(on_date) AS a, max(on_date) AS b FROM lesson_register_days
+     WHERE section_id IN (SELECT value FROM json_each(?)) AND (? = '' OR class_subject_id = ?)`)
+    .bind(JSON.stringify(sectionIds), subject, subject).first<{ a: string | null; b: string | null }>()
+  const from = isDate(p.get('from') ?? '') ? p.get('from')! : span?.a ?? year.from
+  const to = isDate(p.get('to') ?? '') ? p.get('to')! : span?.b ?? year.to
+  if (from > to) throw badRequest('from must be on or before to')
+  if (Date.parse(to) - Date.parse(from) > 400 * 86_400_000) throw badRequest('choose a range of a year or less')
   const [saved, dayRows] = await c.db.batch([
     c.db.prepare(`SELECT section_id, class_subject_id, on_date, period_id, topic, status FROM lesson_register
        WHERE on_date BETWEEN ? AND ? AND section_id IN (SELECT value FROM json_each(?))`).bind(from, to, JSON.stringify(sectionIds)),
-    c.db.prepare(`SELECT section_id, class_subject_id, on_date, day_type, topic FROM lesson_register_days
+    c.db.prepare(`SELECT section_id, class_subject_id, on_date, day_type, topic, status FROM lesson_register_days
        WHERE on_date BETWEEN ? AND ? AND section_id IN (SELECT value FROM json_each(?))`).bind(from, to, JSON.stringify(sectionIds)),
   ])
   const kept = new Map((saved.results as { section_id: string; class_subject_id: string; on_date: string; period_id: string; topic: string | null; status: Status }[])
@@ -138,7 +145,7 @@ async function getRegister(c: Ctx) {
      taught, what the day was). Read for one class's subject; a teacher's
      view across classes uses the calendar alone. */
   const one = section && subject ? `${section}|${subject}` : ''
-  const dayOf = new Map((dayRows.results as { section_id: string; class_subject_id: string; on_date: string; day_type: DayCode; topic: string | null }[])
+  const dayOf = new Map((dayRows.results as { section_id: string; class_subject_id: string; on_date: string; day_type: DayCode; topic: string | null; status: Status | null }[])
     .filter((v) => `${v.section_id}|${v.class_subject_id}` === one).map((v) => [v.on_date, v]))
 
   const days = await dayInfo(c, from, to)
@@ -146,6 +153,8 @@ async function getRegister(c: Ctx) {
   for (const s of slots) byWeekday.set(s.weekday, [...(byWeekday.get(s.weekday) ?? []), s])
   for (const list of byWeekday.values()) list.sort((a, b) => a.sequence - b.sequence || a.class_name.localeCompare(b.class_name, undefined, { numeric: true }))
   const head = slots[0]
+  // The subject's teacher writes even on a date it has no period (a Saturday on the sheet).
+  const teachesIt = one !== '' && slots.some((s) => s.teacher_user_id === c.id.userId)
 
   /* EVERY DATE, LIKE THE SCHOOL'S SHEET: a date with periods of this subject
      is one row per period; a date without (a Sunday, a holiday, a day the
@@ -163,7 +172,9 @@ async function getRegister(c: Ctx) {
         sno: items.length + 1, date: d, day_type: code, period_id: '', period: '',
         section_id: one ? head.section_id : '', class_subject_id: one ? head.class_subject_id : '',
         class_name: one ? head.class_name : '', section: one ? head.section : '', subject: one ? head.subject : '', teacher: '',
-        topic: own?.topic ?? info.name, status: null, mine: false,
+        topic: own?.topic ?? info.name,
+        status: one && code !== 'HD' && own ? own.status ?? (own.topic ? 'not_completed' : null) : null,
+        mine: teachesIt && code !== 'HD',
       })
       continue
     }
@@ -173,17 +184,32 @@ async function getRegister(c: Ctx) {
         sno: items.length + 1, date: d, day_type: code,
         section_id: s.section_id, class_subject_id: s.class_subject_id, period_id: s.period_id, period: s.period,
         class_name: s.class_name, section: s.section, subject: s.subject, teacher: s.teacher ?? '',
-        topic: k?.topic ?? '', status: k?.status ?? 'not_completed',
+        topic: k?.topic ?? own?.topic ?? '', status: k?.status ?? own?.status ?? 'not_completed',
         mine: s.teacher_user_id === c.id.userId,
       })
     }
   }
-  return ok({ items, today: indiaToday() })
+  /* A RUN OF HOLIDAYS IS ONE ROW (owner, 2026-10-30: "mark holiday for all
+     at once like summer"): two or more holidays in a row, Sundays included,
+     read as one line from the first date to the last. */
+  const rows: Record<string, unknown>[] = []
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]
+    if (it.day_type !== 'HD' || it.period_id !== '') { rows.push({ ...it, sno: rows.length + 1 }); continue }
+    let j = i
+    while (j + 1 < items.length && items[j + 1].day_type === 'HD' && items[j + 1].period_id === '') j++
+    if (j === i) { rows.push({ ...it, sno: rows.length + 1 }); continue }
+    const names = items.slice(i, j + 1).map((x) => String(x.topic ?? '')).filter((t) => t && t !== 'Sunday')
+    rows.push({ ...it, sno: rows.length + 1, date_to: items[j].date, topic: [...new Set(names)].join(' / ') || 'Holiday' })
+    i = j
+  }
+  return ok({ items: rows, today: indiaToday() })
 }
 
 async function saveEntry(c: Ctx) {
   const req = await readJSON<{ section_id?: string; class_subject_id?: string; period_id?: string; on_date?: string; topic?: string; status?: string }>(c.req)
-  if (!isUUID(req.section_id) || !isUUID(req.class_subject_id) || !isUUID(req.period_id)) throw badRequest('section_id, class_subject_id and period_id must be uuids')
+  if (!isUUID(req.section_id) || !isUUID(req.class_subject_id)) throw badRequest('section_id and class_subject_id must be uuids')
+  if (req.period_id && !isUUID(req.period_id)) throw badRequest('period_id must be a uuid')
   const day = req.on_date ?? ''
   if (!isDate(day)) throw badRequest('on_date must be YYYY-MM-DD')
   if (req.status !== undefined && !STATUSES.includes(req.status as Status)) throw badRequest('status must be not_completed, ongoing or completed')
@@ -191,7 +217,10 @@ async function saveEntry(c: Ctx) {
   const topic = req.topic === undefined ? undefined : req.topic.trim().slice(0, 500)
 
   const year = await yearRange(c)
-  if (day < year.from || day > year.to) throw badRequest('that date is outside the academic year')
+  const inSchedule = await c.db.prepare(`SELECT 1 FROM lesson_register_days WHERE section_id = ? AND class_subject_id = ? AND on_date = ?`)
+    .bind(req.section_id, req.class_subject_id, day).first()
+  if (!inSchedule && (day < year.from || day > year.to)) throw badRequest('that date is outside the academic year')
+  if (!req.period_id) return saveDay(c, year.id, req.section_id!, req.class_subject_id!, day, topic, req.status as Status | undefined)
   const slot = await c.db.prepare(`SELECT teacher_user_id FROM timetable_entries WHERE academic_year_id = ? AND section_id = ? AND class_subject_id = ? AND period_id = ? AND weekday = ?`)
     .bind(year.id, req.section_id, req.class_subject_id, req.period_id, isodow(day)).first<{ teacher_user_id: string | null }>()
   if (!slot) throw new HttpError(404, 'that class has no such period on that day in the timetable')
@@ -214,5 +243,27 @@ async function saveEntry(c: Ctx) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(uuid(), inst(c), req.section_id, req.class_subject_id, day, req.period_id, nextTopic, after, c.id.userId, now()).run()
   }
+  return ok({ topic: nextTopic ?? '', status: after })
+}
+
+/* A date the subject has no period on (a Saturday on the school's sheet):
+   the topic and status live on the day itself. Only a teacher of the
+   subject in that class writes it, and only on a date the schedule holds. */
+async function saveDay(c: Ctx, yearId: string, section: string, subject: string, day: string, topic: string | undefined, status: Status | undefined) {
+  const teaches = await c.db.prepare(`SELECT 1 FROM timetable_entries WHERE academic_year_id = ? AND section_id = ? AND class_subject_id = ? AND teacher_user_id = ?`)
+    .bind(yearId, section, subject, c.id.userId).first()
+  if (!teaches) throw forbiddenMsg('only the teacher of this subject can change its lesson plan')
+  const prev = await c.db.prepare(`SELECT day_type, topic, status FROM lesson_register_days WHERE section_id = ? AND class_subject_id = ? AND on_date = ?`)
+    .bind(section, subject, day).first<{ day_type: DayCode; topic: string | null; status: Status | null }>()
+  if (!prev) throw new HttpError(404, 'that date is not in the schedule')
+  if (prev.day_type === 'HD') throw badRequest('that day is a holiday')
+  const before = prev.status ?? 'not_completed'
+  const after = status ?? before
+  if (STATUSES.indexOf(after) < STATUSES.indexOf(before)) {
+    throw new HttpError(409, 'a status only moves forward: not completed, then ongoing, then completed', { code: 'status_backwards' })
+  }
+  const nextTopic = topic === undefined ? prev.topic : topic || null
+  await c.db.prepare(`UPDATE lesson_register_days SET topic = ?, status = ?, updated_at = ? WHERE section_id = ? AND class_subject_id = ? AND on_date = ?`)
+    .bind(nextTopic, after, now(), section, subject, day).run()
   return ok({ topic: nextTopic ?? '', status: after })
 }
