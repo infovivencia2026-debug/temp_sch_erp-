@@ -65,7 +65,7 @@ export const LIVE_AREAS: Record<string, LiveArea> = {
     words: ['salary', 'payroll', 'payslip', 'pay', 'tax', 'loan', 'gratuity', 'staff', 'hr', 'employee', 'finance', 'year-end'],
   },
   academics: {
-    tables: /^(classes|sections|subjects|class_subjects|class_language_options|academic_years|terms|periods|bell_schedules|timetable_[a-z_]+|campuses|syllabus_units|lesson_plan[a-z_]*|instructional_norms|academic_calendar_models|working_days_[a-z_]+|period_closes|accounting_years|student_language_elections|study_groups|study_group_members)$/,
+    tables: /^(classes|sections|subjects|class_subjects|class_language_options|academic_years|terms|periods|bell_schedules|timetable_[a-z_]+|campuses|syllabus_units|lesson_plan[a-z_]*|lesson_register|instructional_norms|academic_calendar_models|working_days_[a-z_]+|period_closes|accounting_years|student_language_elections|study_groups|study_group_members)$/,
     words: [...PEOPLE, 'subject', 'timetable', 'tt-', 'period', 'bell', 'year', 'term', 'academic', 'teacher',
       'teaching', 'syllabus', 'lesson', 'planner', 'plan', 'campus', 'cover', 'substitution', 'faculty',
       'workload', 'working-days', 'calendar', 'setup', 'option', 'department', 'language', 'group', 'staff', 'exam', 'mark', 'date-range'],
