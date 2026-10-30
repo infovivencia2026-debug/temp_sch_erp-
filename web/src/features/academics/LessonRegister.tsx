@@ -51,6 +51,8 @@ export default function LessonRegister() {
   const [subject, setSubject] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  // A teacher's full plan stays closed until they open it; today's classes come first.
+  const [open, setOpen] = useState(false)
   const o = opts.data
   const all = o?.sees_all ?? false
 
@@ -113,6 +115,13 @@ export default function LessonRegister() {
         </>
       ) : undefined} />
       <PageBody>
+        {o && !all && <TodayClasses edits={edits} save={(v) => save.mutate(v)} saving={save.isPending} />}
+        {o && !all && (
+          <Button variant="secondary" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+            {open ? 'Hide full lesson plan' : 'Show full lesson plan'}
+          </Button>
+        )}
+        {(all || open) && <>
         <Card className="p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {all && (
@@ -166,7 +175,6 @@ export default function LessonRegister() {
           <Table head={head} loading={reg.isPending} empty={!rows.length} emptyLabel="No periods for this choice in the timetable." noExport unpaged>
             {rows.map((r) => {
               const edit = r.mine
-              const at = STATUS.findIndex((s) => s.value === r.status)
               return (
                 <tr key={rowKey(r)} className={cn(r.day_type === 'HD' && 'bg-muted/40 text-muted-foreground')}>
                   <Td className="num text-muted-foreground">{r.sno}</Td>
@@ -181,9 +189,7 @@ export default function LessonRegister() {
                       : r.topic || (r.period_id ? <span className="text-muted-foreground">Not written</span> : null)}
                   </Td>
                   <Td className="min-w-[160px]">
-                    {!r.status ? null : edit && r.status !== 'completed'
-                      ? <Select value={r.status} onChange={(v) => v !== r.status && save.mutate({ row: r, status: v as Status })} options={STATUS.slice(at)} />
-                      : <Badge tone={r.status === 'completed' ? 'success' : r.status === 'ongoing' ? 'warning' : 'neutral'}>{statusLabel(r.status)}</Badge>}
+                    {r.status && <StatusBadge status={r.status} />}
                   </Td>
                 </tr>
               )
@@ -191,6 +197,7 @@ export default function LessonRegister() {
           </Table>
           </>
         )}
+        </>}
       </PageBody>
     </>
   )
@@ -201,4 +208,54 @@ function TopicCell({ value, onSave }: { value: string; onSave: (v: string) => vo
   const [v, setV] = useState(value)
   useEffect(() => setV(value), [value])
   return <Input value={v} onChange={setV} onBlur={() => onSave(v.trim())} placeholder="Write the topic" srLabel="Topic" />
+}
+
+function StatusBadge({ status }: { status: Status }) {
+  return <Badge tone={status === 'completed' ? 'success' : status === 'ongoing' ? 'warning' : 'neutral'}>{statusLabel(status)}</Badge>
+}
+
+const indiaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date())
+
+/* TODAY'S CLASSES (owner, 2026-10-30): what a teacher opens the screen for.
+   Each period they teach today, its topic and its status; a change here is
+   saved at once. The status only moves forward. */
+function TodayClasses({ edits, save, saving }: {
+  edits: Record<string, { topic?: string; status?: Status }>
+  save: (v: { row: Row; topic?: string; status?: Status }) => void
+  saving: boolean
+}) {
+  const today = indiaToday()
+  const q = useQuery({
+    queryKey: ['lesson-register', 'today', today],
+    queryFn: () => api.get<{ items: Row[] }>(`/api/v1/academics/lesson-register?from=${today}&to=${today}`),
+  })
+  const rows = (q.data?.items ?? []).filter((r) => r.period_id).map((r) => ({ ...r, ...edits[rowKey(r)] }))
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-[17px] font-semibold">Today's classes</h2>
+        <span className="text-[14px] text-muted-foreground">{weekday(today)}, {ddmmyyyy(today)}</span>
+      </div>
+      {q.isError ? <FormNotice error={q.error} /> : q.isPending ? <p className="text-[14px] text-muted-foreground">Loading today's classes.</p>
+        : !rows.length ? <p className="text-[14px] text-muted-foreground">You have no classes today.</p> : (
+        <ul className="divide-y divide-border">
+          {rows.map((r) => {
+            const at = STATUS.findIndex((s) => s.value === r.status)
+            return (
+              <li key={rowKey(r)} className="grid gap-3 py-3 sm:grid-cols-[minmax(150px,200px)_1fr_180px] sm:items-center">
+                <div>
+                  <div className="font-medium">{r.class_name} - {r.section}</div>
+                  <div className="text-[13px] text-muted-foreground">{r.subject} · {r.period}</div>
+                </div>
+                <TopicCell value={r.topic} onSave={(topic) => topic !== r.topic && save({ row: r, topic })} />
+                {r.status === 'completed' || !r.status ? <StatusBadge status={r.status ?? 'not_completed'} />
+                  : <Select value={r.status} onChange={(v) => v !== r.status && save({ row: r, status: v as Status })} options={STATUS.slice(at)} />}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {saving && <span className="sr-only" role="status">Saving</span>}
+    </Card>
+  )
 }

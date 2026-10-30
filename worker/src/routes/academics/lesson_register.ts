@@ -147,8 +147,9 @@ async function getRegister(c: Ctx) {
      taught, what the day was). Read for one class's subject; a teacher's
      view across classes uses the calendar alone. */
   const one = section && subject ? `${section}|${subject}` : ''
-  const dayOf = new Map((dayRows.results as { section_id: string; class_subject_id: string; on_date: string; day_type: DayCode; topic: string | null; status: Status | null }[])
-    .filter((v) => `${v.section_id}|${v.class_subject_id}` === one).map((v) => [v.on_date, v]))
+  type DayRow = { section_id: string; class_subject_id: string; on_date: string; day_type: DayCode; topic: string | null; status: Status | null }
+  const dayAll = new Map((dayRows.results as DayRow[]).map((v) => [`${v.section_id}|${v.class_subject_id}|${v.on_date}`, v]))
+  const dayOf = new Map((dayRows.results as DayRow[]).filter((v) => `${v.section_id}|${v.class_subject_id}` === one).map((v) => [v.on_date, v]))
 
   const days = await dayInfo(c, from, to)
   const byWeekday = new Map<number, Slot[]>()
@@ -182,11 +183,14 @@ async function getRegister(c: Ctx) {
     }
     for (const s of periods) {
       const k = kept.get(`${s.section_id}|${s.class_subject_id}|${d}|${s.period_id}`)
+      const sched = dayAll.get(`${s.section_id}|${s.class_subject_id}|${d}`)
+      // A class's own schedule says a holiday that the calendar does not: no period that day.
+      if (!one && sched?.day_type === 'HD') continue
       items.push({
         sno: items.length + 1, date: d, day_type: code,
         section_id: s.section_id, class_subject_id: s.class_subject_id, period_id: s.period_id, period: s.period,
         class_name: s.class_name, section: s.section, subject: s.subject, teacher: s.teacher ?? '',
-        topic: k?.topic ?? own?.topic ?? '', status: k?.status ?? own?.status ?? 'not_completed',
+        topic: k?.topic ?? sched?.topic ?? '', status: k?.status ?? sched?.status ?? 'not_completed',
         mine: s.teacher_user_id === c.id.userId,
       })
     }
@@ -232,12 +236,15 @@ async function saveEntry(c: Ctx) {
 
   const prev = await c.db.prepare(`SELECT id, topic, status FROM lesson_register WHERE section_id = ? AND class_subject_id = ? AND on_date = ? AND period_id = ?`)
     .bind(req.section_id, req.class_subject_id, day, req.period_id).first<{ id: string; topic: string | null; status: Status }>()
-  const before = prev?.status ?? 'not_completed'
+  // A period nobody wrote to yet starts from the class's schedule for that date.
+  const sched = prev ? null : await c.db.prepare(`SELECT topic, status FROM lesson_register_days WHERE section_id = ? AND class_subject_id = ? AND on_date = ?`)
+    .bind(req.section_id, req.class_subject_id, day).first<{ topic: string | null; status: Status | null }>()
+  const before = prev?.status ?? sched?.status ?? 'not_completed'
   const after = (req.status as Status | undefined) ?? before
   if (STATUSES.indexOf(after) < STATUSES.indexOf(before)) {
     throw new HttpError(409, 'a status only moves forward: not completed, then ongoing, then completed', { code: 'status_backwards' })
   }
-  const nextTopic = topic === undefined ? prev?.topic ?? null : topic || null
+  const nextTopic = topic === undefined ? prev?.topic ?? sched?.topic ?? null : topic || null
   if (prev) {
     await c.db.prepare(`UPDATE lesson_register SET topic = ?, status = ?, updated_by = ?, updated_at = ? WHERE id = ?`)
       .bind(nextTopic, after, c.id.userId, now(), prev.id).run()
