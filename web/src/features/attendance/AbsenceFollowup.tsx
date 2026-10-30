@@ -49,6 +49,8 @@ interface Absentee {
   mark?: string
   call_status: CallStatus
   parent_response?: string
+  /** The guardian number rung, picked on the row. */
+  called_phone?: string
   /** "reason|status" when the parent applied for leave or reported the absence. */
   informed?: string | null
 }
@@ -119,9 +121,18 @@ function sheetRows(sections: AbsenteeSection[], onDate: string, withRemarks: boo
       date,
       parent: cs.map((c) => `${relationLabel(c.relation, c.name)}${c.name ? `: ${c.name}` : ''}${c.primary ? ' (Primary)' : ''}`).join(' / '),
       phone: cs.map((c) => c.phone).join(' / '),
-      remark: withRemarks ? [st.parent_response ?? '', informed].filter(Boolean).join(' · ') : '',
+      remark: withRemarks ? [st.parent_response ?? '', informed, calledWho(st)].filter(Boolean).join(' · ') : '',
     }
   }))
+}
+
+/* Who was rung: that guardian's relation, name and number, and Primary when
+   they are. Same wording as the Excel file (daily.ts absenteeSheet). */
+function calledWho(st: Absentee): string {
+  if (!st.called_phone) return ''
+  const c = st.contacts?.find((x) => x.phone === st.called_phone)
+  const who = c ? `${relationLabel(c.relation, c.name)}${c.name ? ` ${c.name}` : ''}${c.primary ? ' (Primary)' : ''} ` : ''
+  return `Called: ${who}${st.called_phone}`
 }
 
 const SHEET_HEAD = ['Name', 'Class', 'Adm No', 'Date', 'Parent name', 'Number']
@@ -346,7 +357,7 @@ function SectionCard({
 }) {
   const qc = useQueryClient()
 
-  type Edit = { call_status: CallStatus; parent_response: string }
+  type Edit = { call_status: CallStatus; parent_response: string; called_phone: string }
 
   /* `edits` holds ONLY the rows this person has changed and not yet had
      confirmed by the server — a thin overlay, never a full snapshot. Every
@@ -361,6 +372,7 @@ function SectionCard({
   const serverValue = (st: Absentee): Edit => ({
     call_status: st.call_status ?? 'not_called',
     parent_response: st.parent_response ?? '',
+    called_phone: st.called_phone ?? '',
   })
   const effective = (st: Absentee): Edit => edits[st.student_id] ?? serverValue(st)
 
@@ -374,7 +386,7 @@ function SectionCard({
         const e = prev[st.student_id]
         if (!e) continue
         const srv = serverValue(st)
-        if (e.call_status !== srv.call_status || e.parent_response !== srv.parent_response) {
+        if (e.call_status !== srv.call_status || e.parent_response !== srv.parent_response || e.called_phone !== srv.called_phone) {
           next[st.student_id] = e
         }
       }
@@ -493,8 +505,8 @@ function AbsenteeRow({
   onChange,
 }: {
   student: Absentee
-  edit: { call_status: CallStatus; parent_response: string }
-  onChange: (patch: Partial<{ call_status: CallStatus; parent_response: string }>) => void
+  edit: { call_status: CallStatus; parent_response: string; called_phone: string }
+  onChange: (patch: Partial<{ call_status: CallStatus; parent_response: string; called_phone: string }>) => void
 }) {
   return (
     <div className="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-start">
@@ -541,7 +553,13 @@ function AbsenteeRow({
       <div className="grid gap-2 sm:w-[420px] sm:grid-cols-[130px_1fr]">
         <Select
           value={edit.call_status}
-          onChange={(v) => onChange({ call_status: v as CallStatus })}
+          onChange={(v) => {
+            const cs = student.contacts ?? []
+            const first = (cs.find((c) => c.primary) ?? cs[0])?.phone ?? ''
+            onChange(v === 'not_called'
+              ? { call_status: v as CallStatus, called_phone: '' }
+              : { call_status: v as CallStatus, called_phone: edit.called_phone || first })
+          }}
           options={statusOptions(edit.call_status)}
         />
         <Input
@@ -550,6 +568,20 @@ function AbsenteeRow({
           placeholder="Why absent, the parent's reason"
           srLabel="Parent's reason for the absence"
         />
+        {/* Which parent was rung, once the row says Called. */}
+        {edit.call_status !== 'not_called' && (student.contacts?.length ?? 0) > 0 && (
+          <div className="sm:col-span-2">
+            <Select
+              value={edit.called_phone}
+              onChange={(v) => onChange({ called_phone: v })}
+              placeholder="Who was called"
+              options={(student.contacts ?? []).map((c) => ({
+                value: c.phone,
+                label: `${relationLabel(c.relation, c.name)}${c.name ? ` ${c.name}` : ''}${c.primary ? ' (Primary)' : ''} · ${c.phone}`,
+              }))}
+            />
+          </div>
+        )}
       </div>
     </div>
   )
