@@ -334,6 +334,8 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
         {/* No avatar or staff ID here (owner, 2026-10-30): the profile in the panel's foot is enough. */}
         {dashboard && times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
         {!dashboard && <div id="staff-actions" className="flex items-center gap-2" />}
+        {/* Focus | Work in the top bar on a computer (owner, 2026-10-30); phones keep it in the panel. */}
+        <div className="shrink-0 max-sm:hidden"><LayoutSwitch /></div>
         <Notifications />
       </div>
     </div>
@@ -369,7 +371,7 @@ export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: st
   const fullName = session.user?.full_name ?? ''
   return (
     <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4">
-      <LayoutSwitch pill />
+      <div className="sm:hidden"><LayoutSwitch pill /></div>
       <StaffProfileCard name={fullName} sub={employeeCode} photoId={session.user?.avatar_key} onNavigate={onNavigate} />
     </div>
   )
