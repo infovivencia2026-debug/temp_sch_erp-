@@ -237,7 +237,7 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
   /* The day on screen as a sheet: before the calls (no remarks) or after. */
   const dayRows = (withRemarks: boolean) => sheetRows(sections, onDate, withRemarks)
   const sheetRow = total > 0 && (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-end gap-3">
       <Button variant="secondary" onClick={() => void downloadSheet(onDate, sectionId, false)}>
         <Download className="h-4 w-4" />
         Export list
@@ -321,15 +321,13 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
       {embedded ? (
         <>
           {/* Full-width stacked on a phone; the desktop row (sm+) is unchanged. */}
-          <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}</div>
-          {sheetRow && <div className="mb-3">{sheetRow}</div>}
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}{sheetRow}</div>
           {content}
         </>
       ) : (
         <>
-          <PageHead eyebrow="Attendance" title="Absentee follow-up" actions={controls} />
+          <PageHead eyebrow="Attendance" title="Absentee follow-up" actions={<div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}{sheetRow}</div>} />
           <PageBody>
-            {sheetRow && <div className="mb-1">{sheetRow}</div>}
             {content}
           </PageBody>
         </>
