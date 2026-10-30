@@ -1,6 +1,8 @@
 import type { Ctx, Router } from '../../router'
 import { HttpError, badRequest, isUUID, ok, readJSON, uuid, now } from '../../http'
 import { addDays, can, forbiddenMsg, indiaToday, inst, isDate, isodow, workingYear } from '../students/common'
+import { school } from '../school'
+import { buildXLSX, XLSX_CONTENT_TYPE } from '../../services/xlsx'
 
 /* THE LESSON PLAN REGISTER (owner, 2026-10-30): one row per timetabled period
    of a class's subject on a school date, with the topic and how far it got.
@@ -203,6 +205,7 @@ async function getRegister(c: Ctx) {
     rows.push({ ...it, sno: rows.length + 1, date_to: items[j].date, topic: [...new Set(names)].join(' / ') || 'Holiday' })
     i = j
   }
+  if (p.get('format') === 'xlsx') return registerSheet(c, rows, !one)
   return ok({ items: rows, today: indiaToday() })
 }
 
@@ -266,4 +269,34 @@ async function saveDay(c: Ctx, yearId: string, section: string, subject: string,
   await c.db.prepare(`UPDATE lesson_register_days SET topic = ?, status = ?, updated_at = ? WHERE section_id = ? AND class_subject_id = ? AND on_date = ?`)
     .bind(nextTopic, after, now(), section, subject, day).run()
   return ok({ topic: nextTopic ?? '', status: after })
+}
+
+const STATUS_WORD: Record<Status, string> = { not_completed: 'Not completed', ongoing: 'Ongoing', completed: 'Completed' }
+const dmy = (d: string) => `${d.slice(8, 10)}-${d.slice(5, 7)}-${d.slice(0, 4)}`
+const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const wd = (d: string) => WEEKDAY[new Date(d + 'T00:00:00Z').getUTCDay()]
+
+/* THE REGISTER AS A SHEET (owner, 2026-10-30: "add sheet export"), laid out
+   like the school's own micro schedule: the school, the class and subject,
+   then S.No, Date, Day, Day type, Period, Topic, Status. */
+function registerSheet(c: Ctx, rows: Record<string, unknown>[], withClass: boolean): Response {
+  const first = rows[0] ?? {}
+  const title = withClass ? `Teacher: ${String(first.teacher ?? '')}` : `Class: ${first.class_name ?? ''} - ${first.section ?? ''}    Subject: ${first.subject ?? ''}`
+  const head = ['S.No', 'Date', 'Day', 'Day type', ...(withClass ? ['Class', 'Subject'] : []), 'Period', 'Topic', 'Status']
+  const last = String.fromCharCode(64 + head.length)
+  const out: (string | null)[][] = [[school(c).name], ['Lesson plan'], [title], head]
+  for (const r of rows) {
+    const d = String(r.date), to = r.date_to ? String(r.date_to) : ''
+    out.push([
+      String(r.sno), to ? `${dmy(d)} to ${dmy(to)}` : dmy(d), to ? `${wd(d)} to ${wd(to)}` : wd(d), String(r.day_type),
+      ...(withClass ? [`${r.class_name} - ${r.section}`, String(r.subject)] : []),
+      String(r.period ?? ''), String(r.topic ?? ''), r.status ? STATUS_WORD[r.status as Status] : '',
+    ])
+  }
+  const bytes = buildXLSX([{
+    name: 'Lesson plan', rows: out, boldRows: [0, 1, 3], merges: [`A1:${last}1`, `A2:${last}2`, `A3:${last}3`],
+    colWidths: [6, 24, 12, 9, ...(withClass ? [16, 16] : []), 10, 60, 14],
+  }])
+  const name = withClass ? 'lesson-plan' : `lesson-plan-${first.class_name ?? ''}-${first.section ?? ''}-${first.subject ?? ''}`.replace(/[^A-Za-z0-9-]+/g, '-')
+  return new Response(bytes, { headers: { 'content-type': XLSX_CONTENT_TYPE, 'content-disposition': `attachment; filename="${name}.xlsx"` } })
 }
