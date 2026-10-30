@@ -140,34 +140,42 @@ export default function Inbox() {
     </div>
   )
 
+  /* The staff layout on a desktop (Yajur, 2026-10-30, owner's mail mock): the
+     folders sit on top of the list, the list stays on the left and the message
+     reads on the right; Reload, Settings and Write go to the top bar. */
+  const split = compact && !phone
+  const tabs = (
+    <div className={compact ? 'flex items-center gap-2 border-b' : undefined}>
+      <div className={compact ? 'flex min-w-0 flex-1 gap-1 overflow-x-auto px-2 [scrollbar-width:none]' : TAB_BAR_FILL} role="tablist" aria-label="Folders">
+        {TABS.map((t) => (
+          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key, compact ? 'md' : 'lg')}
+            onClick={() => { setTab(t.key); setOpenId(null) }}>
+            {t.label}
+            {t.key === 'inbox' && b.unread > 0 && <Badge tone="primary">{b.unread}</Badge>}
+          </button>
+        ))}
+      </div>
+      {compact && !split && <div className="pb-1">{actions}</div>}
+    </div>
+  )
+
   return (
     <>
-      <PageHead eyebrow="Communication" title="Inbox" actions={b.address && !compact ? actions : undefined} />
+      <PageHead eyebrow="Communication" title="Inbox" actions={b.address && (!compact || split) ? actions : undefined} />
       <PageBody>
         {!b.address ? (
           <EmptyState title="You have no school email address yet." body="The office gives one on Communication > Mail addresses." />
         ) : (
           <div className="space-y-3">
-            {/* In the staff layout, small folder tabs with Settings and Write on the same row (Yajur, 2026-10-30). */}
-            <div className={compact ? 'flex items-center gap-2 border-b' : undefined}>
-              <div className={compact ? 'flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]' : TAB_BAR_FILL} role="tablist" aria-label="Folders">
-                {TABS.map((t) => (
-                  <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key, compact ? 'md' : 'lg')}
-                    onClick={() => { setTab(t.key); setOpenId(null) }}>
-                    {t.label}
-                    {t.key === 'inbox' && b.unread > 0 && <Badge tone="primary">{b.unread}</Badge>}
-                  </button>
-                ))}
-              </div>
-              {compact && <div className="pb-1">{actions}</div>}
-            </div>
+            {!split && tabs}
             {!canSend && <p className="text-[13px] text-muted-foreground">{b.address} <Badge tone="warning" className="ms-2">Switched off by the office</Badge></p>}
             <ConnectPrompt />
             {/* Messages' layout: the list alone, full width, until a message is
                 opened; then the list narrows to the left and the message opens
                 beside it. On a phone the message takes the screen with Back. */}
-            <div className={cn('grid gap-4 lg:items-start', openId && 'lg:grid-cols-[380px_minmax(0,1fr)]')}>
+            <div className={cn('grid gap-4 lg:items-start', (openId || split) && 'lg:grid-cols-[380px_minmax(0,1fr)]')}>
               <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))] lg:flex-col">
+                {split && tabs}
                 <div className="px-4 py-3">
                   <Input value={q} onChange={setQ} placeholder="Search subject, sender or text" srLabel="Search mail" type="search" />
                 </div>
@@ -199,6 +207,11 @@ export default function Inbox() {
                     )}
                   </div>
                 </ConversationPane>
+              )}
+              {split && !openId && (
+                <Card className="grid min-w-0 place-items-center lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))]">
+                  <p className="px-4 text-[13px] text-muted-foreground">Pick a message on the left to read it.</p>
+                </Card>
               )}
             </div>
           </div>
@@ -242,6 +255,31 @@ function MailList({ page, error, loading, openId, onOpen, folder }: {
   )
 }
 
+/* The message as tall as its text, so the pane has one scrollbar and the
+   attachments follow the text (owner, 2026-10-30: "no need of 2 scroll").
+   allow-same-origin only lets this page read the height: no script can run
+   inside (no allow-scripts, and the document's CSP forbids them). */
+function MailFrame({ doc }: { doc: string }) {
+  const ref = useRef<HTMLIFrameElement>(null)
+  const fit = () => {
+    const f = ref.current
+    const body = f?.contentDocument?.documentElement
+    if (f && body) f.style.height = `${body.scrollHeight}px`
+  }
+  useEffect(() => {
+    const f = ref.current
+    if (!f) return
+    const ro = new ResizeObserver(fit)
+    ro.observe(f)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <iframe ref={ref} title="Message" srcDoc={doc} onLoad={fit} scrolling="no"
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
+      className="block h-[60dvh] w-full overflow-hidden border-0 bg-card" />
+  )
+}
+
 function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onDelete, deleteError }: {
   m: MailMessage; canSend: boolean; onReply: (all: boolean) => void; onStar: () => void
   onUnread: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void; deleteError: unknown
@@ -277,8 +315,7 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
         </dl>
       </div>
       {m.html ? (
-        <iframe title="Message" srcDoc={doc} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
-          className="block h-[60dvh] w-full border-0 bg-card" />
+        <MailFrame doc={doc} />
       ) : (
         <pre className="whitespace-pre-wrap break-words px-4 py-4 font-sans text-[14px] leading-relaxed">{m.text || '(no text)'}</pre>
       )}
