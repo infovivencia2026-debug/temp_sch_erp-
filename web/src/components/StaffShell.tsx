@@ -282,7 +282,7 @@ function clock(iso: string | null | undefined, timeZone: string | undefined): st
 /** The one bar across the workspace: greeting and date, search, who is signed in. */
 /* `dashboard`: the greeting, name and sign-in times show on the dashboard
    only; other screens keep just the bar's controls (owner, 2026-10-24). */
-export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean; extra?: ReactNode }) {
+export function StaffHeaderContent({ signIns, dashboard, extra, railToggle }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean; extra?: ReactNode; railToggle?: ReactNode }) {
   const session = useSession()
   const phone = usePhone()
   const now = new Date()
@@ -333,10 +333,11 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
       </div>
       <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 md:col-start-3">
         {/* No avatar or staff ID here (owner, 2026-10-30): the profile in the panel's foot is enough. */}
-        {/* Focus | Work on a computer, short, before the sign-in times (owner, 2026-10-30); phones keep it in the panel. */}
+        {/* The sidebar toggle and Focus | Work, before the sign-in times (owner, 2026-10-30); phones keep Focus | Work in the panel. */}
+        {railToggle}
         <div className="shrink-0 max-sm:hidden"><LayoutSwitch /></div>
         {/* From lg up only: on a tablet the bar has no room and the times ran under the bell. */}
-        {dashboard && times && <p className="truncate max-lg:hidden text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
+        {dashboard && times && <p className="shrink-0 whitespace-nowrap max-lg:hidden text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
         {!dashboard && <div id="staff-actions" className="flex items-center gap-2" />}
         {extra}
         <Notifications />
