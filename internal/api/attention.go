@@ -297,7 +297,7 @@ var probes = []probe{
 	{
 		Key: "attendance.absent_today", Needs: rbac.AttendanceRead,
 		Daily:    true,
-		Severity: SeverityInfo, Action: "View register", Href: "attendance",
+		Severity: SeverityInfo, Action: "See who is absent", Href: "absentee_followup student_absentees attendance",
 		Headline: func(n int, _ int64) string {
 			return plural(n, "student", "students") + " absent today"
 		},

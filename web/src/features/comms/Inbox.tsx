@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Paperclip, Reply, ReplyAll, Settings, Star } from 'lucide-react'
+import { Paperclip, Reply, ReplyAll, RotateCw, Settings, Star } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import type { MailConnection, MailFolder, MailMessage, MailPage, MailPerson, MailSummary } from '@shared/api/feature_inbox'
@@ -11,6 +11,9 @@ import {
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { buzz } from '@/lib/haptics'
+import { useLocation } from 'react-router-dom'
+import { useSession } from '@/lib/session'
+import { staffLayoutOn } from '@/lib/staff-layout'
 import { useSearchParams } from 'react-router-dom'
 import { ConversationPane } from '@/components/ChatScreen'
 import { usePhone } from '@/lib/viewport'
@@ -42,6 +45,7 @@ function inertHtml(html: string): string {
 
 export default function Inbox() {
   const qc = useQueryClient()
+  const session = useSession()
   const [tab, setTab] = useState<Tab>('inbox')
   const [q, setQ] = useState('')
   /* The open message lives in the URL (?m=), as Messages keeps ?with=, so a
@@ -55,6 +59,8 @@ export default function Inbox() {
     setParams(next, { replace: !id })
   }
   const phone = usePhone()
+  /* Phones keep the mail screen as it was (owner, 2026-10-30). */
+  const compact = staffLayoutOn(session, useLocation().pathname.split('/')[1]) && !phone
   const [draft, setDraft] = useState<Draft | null>(null)
 
   const box = useQuery({ queryKey: ['mail', 'box'], queryFn: () => api.call('GET /comms/mail/box') })
@@ -127,39 +133,50 @@ export default function Inbox() {
   const b = box.data
   const canSend = b.status === 'active'
 
+  const actions = (
+    <div className="flex shrink-0 items-center gap-2">
+      <ReloadMail />
+      <MailboxSettings />
+      <Button onClick={() => setDraft({ to: '', cc: '', subject: '', text: '' })} disabled={!canSend}>Write</Button>
+    </div>
+  )
+
+  /* The staff layout on a desktop (Yajur, 2026-10-30, owner's mail mock): the
+     folders sit on top of the list, the list stays on the left and the message
+     reads on the right; Reload, Settings and Write go to the top bar. */
+  const split = compact
+  const tabs = (
+    <div className={compact ? 'flex items-center gap-2 border-b' : undefined}>
+      <div className={compact ? 'flex min-w-0 flex-1 gap-1 overflow-x-auto px-2 [scrollbar-width:none]' : TAB_BAR_FILL} role="tablist" aria-label="Folders">
+        {TABS.map((t) => (
+          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key, compact ? 'md' : 'lg')}
+            onClick={() => { setTab(t.key); setOpenId(null) }}>
+            {t.label}
+            {t.key === 'inbox' && b.unread > 0 && <Badge tone="primary">{b.unread}</Badge>}
+          </button>
+        ))}
+      </div>
+      {compact && !split && <div className="pb-1">{actions}</div>}
+    </div>
+  )
+
   return (
     <>
-      <PageHead
-        eyebrow="Communication"
-        title="Inbox"
-        actions={b.address ? (
-          <div className="flex items-center gap-2">
-            <MailboxSettings />
-            <Button onClick={() => setDraft({ to: '', cc: '', subject: '', text: '' })} disabled={!canSend}>Write</Button>
-          </div>
-        ) : undefined}
-      />
+      <PageHead eyebrow="Communication" title="Inbox" actions={b.address && (!compact || split) ? actions : undefined} />
       <PageBody>
         {!b.address ? (
           <EmptyState title="You have no school email address yet." body="The office gives one on Communication > Mail addresses." />
         ) : (
           <div className="space-y-3">
-            <div className={TAB_BAR_FILL} role="tablist" aria-label="Folders">
-              {TABS.map((t) => (
-                <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key, 'lg')}
-                  onClick={() => { setTab(t.key); setOpenId(null) }}>
-                  {t.label}
-                  {t.key === 'inbox' && b.unread > 0 && <Badge tone="primary">{b.unread}</Badge>}
-                </button>
-              ))}
-            </div>
+            {!split && tabs}
             {!canSend && <p className="text-[13px] text-muted-foreground">{b.address} <Badge tone="warning" className="ms-2">Switched off by the office</Badge></p>}
             <ConnectPrompt />
             {/* Messages' layout: the list alone, full width, until a message is
                 opened; then the list narrows to the left and the message opens
                 beside it. On a phone the message takes the screen with Back. */}
-            <div className={cn('grid gap-4 lg:items-start', openId && 'lg:grid-cols-[380px_minmax(0,1fr)]')}>
+            <div className={cn('grid gap-4 lg:items-start', (openId || split) && 'lg:grid-cols-[380px_minmax(0,1fr)]')}>
               <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))] lg:flex-col">
+                {split && tabs}
                 <div className="px-4 py-3">
                   <Input value={q} onChange={setQ} placeholder="Search subject, sender or text" srLabel="Search mail" type="search" />
                 </div>
@@ -191,6 +208,11 @@ export default function Inbox() {
                     )}
                   </div>
                 </ConversationPane>
+              )}
+              {split && !openId && (
+                <Card className="grid min-w-0 place-items-center lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))]">
+                  <p className="px-4 text-[13px] text-muted-foreground">Pick a message on the left to read it.</p>
+                </Card>
               )}
             </div>
           </div>
@@ -234,11 +256,38 @@ function MailList({ page, error, loading, openId, onOpen, folder }: {
   )
 }
 
+/* The message as tall as its text, so the pane has one scrollbar and the
+   attachments follow the text (owner, 2026-10-30: "no need of 2 scroll").
+   allow-same-origin only lets this page read the height: no script can run
+   inside (no allow-scripts, and the document's CSP forbids them). */
+function MailFrame({ doc }: { doc: string }) {
+  const ref = useRef<HTMLIFrameElement>(null)
+  const fit = () => {
+    const f = ref.current
+    const body = f?.contentDocument?.documentElement
+    if (f && body) f.style.height = `${body.scrollHeight}px`
+  }
+  useEffect(() => {
+    const f = ref.current
+    if (!f) return
+    const ro = new ResizeObserver(fit)
+    ro.observe(f)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <iframe ref={ref} title="Message" srcDoc={doc} onLoad={fit} scrolling="no"
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
+      className="block h-[60dvh] w-full overflow-hidden border-0 bg-card" />
+  )
+}
+
 function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onDelete, deleteError }: {
   m: MailMessage; canSend: boolean; onReply: (all: boolean) => void; onStar: () => void
   onUnread: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void; deleteError: unknown
 }) {
   const doc = useMemo(() => (m.html ? inertHtml(m.html) : ''), [m.html])
+  const phone = usePhone()
+  const quiet = phone ? 'ghost' : 'secondary'
   const many = m.to.length + m.cc.length > 1
   return (
     <div className="min-w-0">
@@ -246,17 +295,17 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
         <div className="flex flex-wrap items-center gap-2">
           {m.folder !== 'trash' && canSend && <Button variant="secondary" size="sm" onClick={() => onReply(false)}><Reply className="h-4 w-4" /> Reply</Button>}
           {m.folder !== 'trash' && canSend && many && <Button variant="secondary" size="sm" onClick={() => onReply(true)}><ReplyAll className="h-4 w-4" /> Reply all</Button>}
-          <Button variant="ghost" size="sm" onClick={onStar}>{m.starred ? 'Unstar' : 'Star'}</Button>
-          {m.folder === 'inbox' && <Button variant="ghost" size="sm" onClick={onUnread}>Mark unread</Button>}
+          <Button variant={quiet} size="sm" onClick={onStar}>{m.starred ? 'Unstar' : 'Star'}</Button>
+          {m.folder === 'inbox' && <Button variant={quiet} size="sm" onClick={onUnread}>Mark unread</Button>}
           {m.folder === 'trash' ? (
             <>
-              <Button variant="ghost" size="sm" onClick={onRestore}>Move back</Button>
+              <Button variant={quiet} size="sm" onClick={onRestore}>Move back</Button>
               <ConfirmButton tone="danger" confirmLabel="Delete for good" question="This message and its attachments are deleted and cannot be brought back." onConfirm={onDelete}>
                 Delete for good
               </ConfirmButton>
             </>
           ) : (
-            <Button variant="ghost" size="sm" onClick={onTrash}>Delete</Button>
+            <Button variant={quiet} size="sm" onClick={onTrash}>Delete</Button>
           )}
         </div>
         <FormNotice error={deleteError} />
@@ -269,8 +318,10 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
         </dl>
       </div>
       {m.html ? (
-        <iframe title="Message" srcDoc={doc} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
-          className="block h-[60dvh] w-full border-0 bg-card" />
+        phone ? (
+          <iframe title="Message" srcDoc={doc} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
+            className="block h-[60dvh] w-full border-0 bg-card" />
+        ) : <MailFrame doc={doc} />
       ) : (
         <pre className="whitespace-pre-wrap break-words px-4 py-4 font-sans text-[14px] leading-relaxed">{m.text || '(no text)'}</pre>
       )}
@@ -354,6 +405,26 @@ function useConnection() {
   }, [conn.data, qc])
   const c = conn.data
   return c && (c.server_ready || c.connected) ? c : null
+}
+
+/* Reload (owner, 2026-10-30): a connected mailbox first copies new mail from the
+   school's mail server, then the lists and the open message are read again. */
+function ReloadMail() {
+  const qc = useQueryClient()
+  const reload = useMutation({
+    mutationFn: async () => {
+      const c = qc.getQueryData<MailConnection>(['mail', 'connection'])
+      if (c?.connected && c.import.state !== 'queued' && c.import.state !== 'running') {
+        qc.setQueryData(['mail', 'connection'], await api.call('POST /comms/mail/connection/import'))
+      }
+      await qc.invalidateQueries({ queryKey: ['mail'] })
+    },
+  })
+  return (
+    <Button variant="ghost" title="Reload mail" aria-label="Reload mail" onClick={() => reload.mutate()} disabled={reload.isPending}>
+      <RotateCw className={cn('h-4 w-4', reload.isPending && 'animate-spin motion-reduce:animate-none')} />
+    </Button>
+  )
 }
 
 function MailboxSettings() {

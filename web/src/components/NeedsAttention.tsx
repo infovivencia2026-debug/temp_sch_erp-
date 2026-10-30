@@ -8,7 +8,8 @@ import {
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
-import { useCan } from '@/lib/session'
+import { useCan, useSession } from '@/lib/session'
+import { staffSidebarOn } from '@/lib/staff-layout'
 import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
 import { useLayout as useLayoutMode } from '@/lib/layout'
 import { cn } from '@/lib/utils'
@@ -128,6 +129,10 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
      there the strip is where the shortcuts live. */
   const { layout: layoutMode } = useLayoutMode()
   const boardHome = layoutMode === 'bento'
+  /* The staff top bar (Shell.tsx) draws its own greeting; same test as the Shell. */
+  const session = useSession()
+  const roleKey = useActiveRole()?.key
+  const staffBar = !boardHome && staffSidebarOn(session, roleKey)
   const shortcuts = useMemo(() => {
     if (!dashKeys.length || boardHome) return []
     const byKey = new Map<string, { key: string; name: string; href: string }>()
@@ -394,10 +399,11 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
     <div className="flex flex-col gap-6">
       {/* Clear of the top bar: on a phone the greeting sat flush under it. */}
       {!attentionFirst && <div className="pt-[var(--page-top)]">
-        <h2 className="font-display text-[26px] font-semibold tracking-[-0.02em]">
+        {/* The staff top bar already greets by name (owner, 2026-10-30); said once. */}
+        {!staffBar && <h2 className="font-display text-[26px] font-semibold tracking-[-0.02em]">
           {/* Never a bare ", Meera": with no greeting, the name alone. */}
           {greeting && name ? `${greeting}, ${name}` : greeting || name}
-        </h2>
+        </h2>}
         {items.length === 0 && (
           <p className="mt-1 text-[14px] text-muted-foreground">
             Nothing needs you right now.

@@ -106,12 +106,50 @@ export function PageHead({
   const bundled = useBundleTitle()
   if (bundled) title = bundled
   const embedded = useContext(EmbeddedPage)
+  /* The staff header's slot beside search (owner, 2026-10-30: "let all this be
+     beside the search bar"): when it is there, the breadcrumb goes into it and
+     the page keeps only its actions. */
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    if (embedded) return
+    setSlot(document.getElementById('staff-crumb'))
+    setActionSlot(document.getElementById('staff-actions'))
+  }, [embedded])
+  /* Buttons fit beside the bell; filters with labels (date, section, search)
+     do not -- the slot squeezed a date box into one letter a line (owner,
+     2026-10-30). Once drawn there, a screen whose actions hold a field moves
+     them to their own row under the bar instead. */
+  const [actionsInRow, setActionsInRow] = useState(false)
+  useEffect(() => {
+    if (actionSlot?.querySelector('input, select, textarea, label, .field')) setActionsInRow(true)
+  })
   if (embedded) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="eyebrow">{title}</p>
         {actions}
       </div>
+    )
+  }
+  if (slot && eyebrow) {
+    return (
+      <>
+        {createPortal(
+          <nav className="flex min-w-0 items-center gap-1 text-[12.5px] text-muted-foreground">
+            <span className="truncate">{eyebrow}</span>
+            <span aria-hidden className="text-muted-foreground/50">/</span>
+            <span className="truncate text-[15px] font-semibold text-foreground">{title}</span>
+          </nav>, slot)}
+        <h1 className="sr-only">{title}</h1>
+        {/* The page's actions beside the bell when the header has room for them. */}
+        {actions && actionSlot && !actionsInRow && createPortal(<InPageActions.Provider value={true}>{actions}</InPageActions.Provider>, actionSlot)}
+        {actions && (!actionSlot || actionsInRow) && (
+          <div data-page-head="" className={cn('flex flex-wrap items-end justify-end gap-3 px-[var(--page-gutter)] pt-3', WIDTH[width])}>
+            <InPageActions.Provider value={true}>{actions}</InPageActions.Provider>
+          </div>
+        )}
+      </>
     )
   }
   return (

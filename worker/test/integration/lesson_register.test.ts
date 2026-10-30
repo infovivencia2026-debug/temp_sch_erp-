@@ -34,7 +34,7 @@ it('lists each timetabled date with its day type, for the principal and the teac
   const r = await api('admin', 'GET', q)
   expect(r.status).toBe(200)
   const first = r.body.items.filter((x: { date: string }) => x.date === monday || x.date === tuesday)
-  expect(first.map((x: { date: string; day_type: string; mine: boolean }) => `${x.date}:${x.day_type}:${x.mine}`)).toEqual([`${monday}:working:false`, `${tuesday}:holiday:false`])
+  expect(first.map((x: { date: string; day_type: string; mine: boolean }) => `${x.date}:${x.day_type}:${x.mine}`)).toEqual([`${monday}:TD:false`, `${tuesday}:HD:false`])
   const opts = await api('teacher', 'GET', '/academics/lesson-register/options')
   expect(opts.body.sees_all).toBe(false)
   expect(opts.body.sections.map((s: { id: string }) => s.id)).toEqual([IDS.section])
@@ -59,4 +59,11 @@ it('refuses the principal writing, a holiday, and a period not in the timetable'
   const d = new Date(monday + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 2)
   expect((await api('teacher', 'PUT', '/academics/lesson-register', { ...at, on_date: d.toISOString().slice(0, 10), topic: 'x' })).status).toBe(404)
   expect((await api('parent', 'GET', '/academics/lesson-register/options')).body.sections ?? []).toEqual([])
+})
+
+it('exports the register as an Excel sheet', async () => {
+  const { call, as } = await import('./fixture')
+  const r = await call(`/api/v1${q}&format=xlsx`, { cookie: await as('admin') })
+  expect(r.status).toBe(200)
+  expect(r.headers.get('content-type')).toContain('spreadsheetml')
 })
