@@ -110,7 +110,12 @@ export function PageHead({
      beside the search bar"): when it is there, the breadcrumb goes into it and
      the page keeps only its actions. */
   const [slot, setSlot] = useState<HTMLElement | null>(null)
-  useEffect(() => { if (!embedded) setSlot(document.getElementById('staff-crumb')) }, [embedded])
+  const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    if (embedded) return
+    setSlot(document.getElementById('staff-crumb'))
+    setActionSlot(document.getElementById('staff-actions'))
+  }, [embedded])
   if (embedded) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -129,7 +134,9 @@ export function PageHead({
             <span className="truncate text-[15px] font-semibold text-foreground">{title}</span>
           </nav>, slot)}
         <h1 className="sr-only">{title}</h1>
-        {actions && (
+        {/* The page's actions beside the bell when the header has room for them. */}
+        {actions && actionSlot && createPortal(<InPageActions.Provider value={true}>{actions}</InPageActions.Provider>, actionSlot)}
+        {actions && !actionSlot && (
           <div data-page-head="" className={cn('flex flex-wrap items-center justify-end gap-2 px-[var(--page-gutter)] pt-3', WIDTH[width])}>
             <InPageActions.Provider value={true}>{actions}</InPageActions.Provider>
           </div>
