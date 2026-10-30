@@ -34,7 +34,7 @@ it('lists each timetabled date with its day type, for the principal and the teac
   const r = await api('admin', 'GET', q)
   expect(r.status).toBe(200)
   const first = r.body.items.filter((x: { date: string }) => x.date === monday || x.date === tuesday)
-  expect(first.map((x: { date: string; day_type: string; mine: boolean }) => `${x.date}:${x.day_type}:${x.mine}`)).toEqual([`${monday}:working:false`, `${tuesday}:holiday:false`])
+  expect(first.map((x: { date: string; day_type: string; mine: boolean }) => `${x.date}:${x.day_type}:${x.mine}`)).toEqual([`${monday}:TD:false`, `${tuesday}:HD:false`])
   const opts = await api('teacher', 'GET', '/academics/lesson-register/options')
   expect(opts.body.sees_all).toBe(false)
   expect(opts.body.sections.map((s: { id: string }) => s.id)).toEqual([IDS.section])

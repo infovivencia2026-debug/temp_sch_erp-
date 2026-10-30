@@ -12,7 +12,7 @@ import {
    (Not completed, Ongoing, Completed; never back). */
 
 type Status = 'not_completed' | 'ongoing' | 'completed'
-type DayType = 'working' | 'holiday' | 'exam'
+type DayType = 'TD' | 'HD' | 'ND' | 'TED' | 'NED'
 
 interface Options {
   sees_all: boolean
@@ -25,7 +25,7 @@ interface Row {
   sno: number; date: string; day_type: DayType
   section_id: string; class_subject_id: string; period_id: string; period: string
   class_name: string; section: string; subject: string; teacher: string
-  topic: string; status: Status; mine: boolean
+  topic: string; status: Status | null; mine: boolean
 }
 
 const STATUS: { value: Status; label: string }[] = [
@@ -34,11 +34,12 @@ const STATUS: { value: Status; label: string }[] = [
   { value: 'completed', label: 'Completed' },
 ]
 const statusLabel = (s: Status) => STATUS.find((x) => x.value === s)!.label
-const DAY_TYPE: Record<DayType, string> = { working: 'Working', holiday: 'Holiday', exam: 'Exam' }
+// The school's codes, as on its own sheet; the full words show on hover.
+const DAY_TYPE: Record<DayType, string> = { TD: 'Teaching day', HD: 'Holiday', ND: 'Non-teaching day', TED: 'Teaching and event day', NED: 'Non-teaching event day' }
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const ddmmyyyy = (d: string) => `${d.slice(8, 10)}-${d.slice(5, 7)}-${d.slice(0, 4)}`
 const weekday = (d: string) => WEEKDAYS[new Date(d + 'T00:00:00Z').getUTCDay()]
-const rowKey = (r: Row) => `${r.section_id}|${r.class_subject_id}|${r.date}|${r.period_id}`
+const rowKey = (r: Row) => `${r.section_id}|${r.class_subject_id}|${r.date}|${r.period_id || 'day'}`
 
 export default function LessonRegister() {
   const opts = useQuery({ queryKey: ['lesson-register-options'], queryFn: () => api.get<Options>('/api/v1/academics/lesson-register/options') })
@@ -147,16 +148,16 @@ export default function LessonRegister() {
                   <Td className="num">{r.sno}</Td>
                   <Td className="whitespace-nowrap">{ddmmyyyy(r.date)}</Td>
                   <Td>{weekday(r.date)}</Td>
-                  <Td><Badge tone={r.day_type === 'holiday' ? 'danger' : r.day_type === 'exam' ? 'warning' : 'neutral'}>{DAY_TYPE[r.day_type]}</Badge></Td>
+                  <Td><span title={DAY_TYPE[r.day_type]}><Badge tone={r.day_type === 'HD' ? 'danger' : r.day_type === 'ND' || r.day_type === 'NED' ? 'warning' : 'neutral'}>{r.day_type}</Badge></span></Td>
                   {showClass && <Td className="whitespace-nowrap">{sectionLabel(r)}</Td>}
                   {showClass && <Td>{r.subject}</Td>}
                   <Td className="whitespace-nowrap">{r.period}</Td>
                   <Td className="min-w-[220px]">
                     {edit ? <TopicCell value={r.topic} onSave={(topic) => topic !== r.topic && save.mutate({ row: r, topic })} />
-                      : r.topic || <span className="text-muted-foreground">Not written</span>}
+                      : r.topic || (r.period_id ? <span className="text-muted-foreground">Not written</span> : null)}
                   </Td>
                   <Td className="min-w-[170px]">
-                    {edit && r.status !== 'completed'
+                    {!r.status ? null : edit && r.status !== 'completed'
                       ? <Select value={r.status} onChange={(v) => v !== r.status && save.mutate({ row: r, status: v as Status })} options={STATUS.slice(at)} />
                       : <Badge tone={r.status === 'completed' ? 'success' : r.status === 'ongoing' ? 'warning' : 'neutral'}>{statusLabel(r.status)}</Badge>}
                   </Td>
