@@ -6,11 +6,14 @@ import { useOptimisticMutation } from '@/lib/optimistic'
 import type { MailConnection, MailFolder, MailMessage, MailPage, MailPerson, MailSummary } from '@shared/api/feature_inbox'
 import {
   PageHead, PageBody, Card, Badge, Button, ConfirmButton, Dialog, EmptyState, ErrorState, Field, FormNotice,
-  Input, Loading, Textarea, tabClass,
+  Input, Loading, Textarea, TAB_BAR_FILL, tabClass,
 } from '@/components/ui'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { buzz } from '@/lib/haptics'
+import { useLocation } from 'react-router-dom'
+import { useSession } from '@/lib/session'
+import { staffLayoutOn } from '@/lib/staff-layout'
 import { useSearchParams } from 'react-router-dom'
 import { ConversationPane } from '@/components/ChatScreen'
 import { usePhone } from '@/lib/viewport'
@@ -42,6 +45,8 @@ function inertHtml(html: string): string {
 
 export default function Inbox() {
   const qc = useQueryClient()
+  const session = useSession()
+  const compact = staffLayoutOn(session, useLocation().pathname.split('/')[1])
   const [tab, setTab] = useState<Tab>('inbox')
   const [q, setQ] = useState('')
   /* The open message lives in the URL (?m=), as Messages keeps ?with=, so a
@@ -127,29 +132,33 @@ export default function Inbox() {
   const b = box.data
   const canSend = b.status === 'active'
 
+  const actions = (
+    <div className="flex shrink-0 items-center gap-2">
+      <MailboxSettings />
+      <Button onClick={() => setDraft({ to: '', cc: '', subject: '', text: '' })} disabled={!canSend}>Write</Button>
+    </div>
+  )
+
   return (
     <>
-      <PageHead eyebrow="Communication" title="Inbox" />
+      <PageHead eyebrow="Communication" title="Inbox" actions={b.address && !compact ? actions : undefined} />
       <PageBody>
         {!b.address ? (
           <EmptyState title="You have no school email address yet." body="The office gives one on Communication > Mail addresses." />
         ) : (
           <div className="space-y-3">
-            {/* Folders as small tabs with Settings and Write on the same row (owner, 2026-10-30). */}
-            <div className="flex items-center gap-2 border-b">
-              <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]" role="tablist" aria-label="Folders">
+            {/* In the staff layout, small folder tabs with Settings and Write on the same row (Yajur, 2026-10-30). */}
+            <div className={compact ? 'flex items-center gap-2 border-b' : undefined}>
+              <div className={compact ? 'flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]' : TAB_BAR_FILL} role="tablist" aria-label="Folders">
                 {TABS.map((t) => (
-                  <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key)}
+                  <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key, compact ? 'md' : 'lg')}
                     onClick={() => { setTab(t.key); setOpenId(null) }}>
                     {t.label}
                     {t.key === 'inbox' && b.unread > 0 && <Badge tone="primary">{b.unread}</Badge>}
                   </button>
                 ))}
               </div>
-              <div className="flex shrink-0 items-center gap-2 pb-1">
-                <MailboxSettings />
-                <Button onClick={() => setDraft({ to: '', cc: '', subject: '', text: '' })} disabled={!canSend}>Write</Button>
-              </div>
+              {compact && <div className="pb-1">{actions}</div>}
             </div>
             {!canSend && <p className="text-[13px] text-muted-foreground">{b.address} <Badge tone="warning" className="ms-2">Switched off by the office</Badge></p>}
             <ConnectPrompt />
