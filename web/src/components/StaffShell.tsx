@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { LayoutSwitch } from './LayoutSwitch'
 import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
+import { COMBOS, MOVES, comboOf, regroupAdmin } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
   BookOpen, Bus, Images, CalendarClock, CalendarDays, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
@@ -168,6 +168,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   /* Question papers just above My profile, and My profile last (Yajur, 2026-10-21). */
   const LAST = ['exams', 'my_profile']
   const rank = (slug: string) => LAST.indexOf(slug)
+  if (roleKey === 'institution_admin') workspaces = regroupAdmin(workspaces)
   const groups = workspaces.flatMap((ws) => ws.sections.map((section) => ({ ws, section })))
     .map((g, i) => ({ ...g, i }))
     .sort((a, b) => (rank(a.section.slug) - rank(b.section.slug)) || a.i - b.i)

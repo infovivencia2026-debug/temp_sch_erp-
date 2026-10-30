@@ -1267,12 +1267,16 @@ export function Shell({
       )}
 
       {/* --- content ------------------------------------------------------ */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         {/* A quiet contextual bar, not a toolbar bolted to a box. No bottom
             border: the page beneath it is the same ground colour, and the
             sticky blur already says "this stays". */}
         {(staffLayout || staffNav) && (
-          <header data-paint="topbar" className="chrome sticky top-0 z-30 flex shrink-0 items-start gap-2 px-4 py-2.5 sm:px-7 md:min-h-[64px] md:items-center">
+          <header data-paint="topbar" className={cn('chrome sticky top-0 z-30 flex shrink-0 items-start gap-2 px-4 py-2.5 sm:px-7 md:min-h-[64px] md:items-center',
+            /* On a phone, Settings has only the menu button up here: it floats on
+               the line of the page's own title and back button instead of taking
+               a row of its own (Yajur, 2026-10-30). */
+            location.pathname.startsWith('/settings') && 'max-md:absolute max-md:right-0 max-md:top-0 max-md:!bg-transparent max-md:px-3 max-md:py-[16px] max-md:![backdrop-filter:none]')}>
             <button
               ref={openerRef}
               aria-label="Open navigation"

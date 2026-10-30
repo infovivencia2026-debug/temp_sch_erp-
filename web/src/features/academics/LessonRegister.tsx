@@ -74,6 +74,8 @@ export default function LessonRegister() {
     enabled: ready && !badRange,
   })
 
+  /* A card pressed shows only its rows; pressed again, all rows (owner, 2026-10-30). */
+  const [only, setOnly] = useState<'planned' | Status | null>(null)
   // Edits made here, shown at once over what the server sent.
   const [edits, setEdits] = useState<Record<string, { topic?: string; status?: Status }>>({})
   const save = useMutation({
@@ -94,6 +96,8 @@ export default function LessonRegister() {
 
   // The figures a head looks for first: how much of the plan is done.
   const planned = rows.filter((r) => r.status)
+  const pick = (k: 'planned' | Status) => setOnly((v) => (v === k ? null : k))
+  const shown = only === 'planned' ? planned : only ? rows.filter((r) => r.status === only) : rows
   const count = (s: Status) => planned.filter((r) => r.status === s).length
   const exportSheet = () => {
     const q = new URLSearchParams(params); q.set('format', 'xlsx')
@@ -167,14 +171,14 @@ export default function LessonRegister() {
           <>
           {planned.length > 0 && (
             <CellGrid cols={4}>
-              <Stat label="Planned days" value={planned.length} />
-              <Stat label="Completed" value={count('completed')} />
-              <Stat label="Ongoing" value={count('ongoing')} />
-              <Stat label="Not completed" value={count('not_completed')} />
+              <Stat label="Planned days" value={planned.length} onClick={() => pick('planned')} active={only === 'planned'} />
+              <Stat label="Completed" value={count('completed')} onClick={() => pick('completed')} active={only === 'completed'} />
+              <Stat label="Ongoing" value={count('ongoing')} onClick={() => pick('ongoing')} active={only === 'ongoing'} />
+              <Stat label="Not completed" value={count('not_completed')} onClick={() => pick('not_completed')} active={only === 'not_completed'} />
             </CellGrid>
           )}
-          <Table head={head} loading={reg.isPending} empty={!rows.length} emptyLabel="No periods for this choice in the timetable." noExport unpaged>
-            {rows.map((r) => {
+          <Table head={head} loading={reg.isPending} empty={!shown.length} emptyLabel={only ? 'No periods with this status.' : 'No periods for this choice in the timetable.'} noExport>
+            {shown.map((r) => {
               const edit = r.mine
               return (
                 <tr key={rowKey(r)} className={cn(r.day_type === 'HD' && 'bg-muted/40 text-muted-foreground')}>
