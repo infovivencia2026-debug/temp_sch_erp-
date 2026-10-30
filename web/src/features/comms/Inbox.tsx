@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Paperclip, Reply, ReplyAll, Settings, Star } from 'lucide-react'
+import { Paperclip, Reply, ReplyAll, RotateCw, Settings, Star } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useOptimisticMutation } from '@/lib/optimistic'
 import type { MailConnection, MailFolder, MailMessage, MailPage, MailPerson, MailSummary } from '@shared/api/feature_inbox'
@@ -134,6 +134,7 @@ export default function Inbox() {
 
   const actions = (
     <div className="flex shrink-0 items-center gap-2">
+      <ReloadMail />
       <MailboxSettings />
       <Button onClick={() => setDraft({ to: '', cc: '', subject: '', text: '' })} disabled={!canSend}>Write</Button>
     </div>
@@ -361,6 +362,26 @@ function useConnection() {
   }, [conn.data, qc])
   const c = conn.data
   return c && (c.server_ready || c.connected) ? c : null
+}
+
+/* Reload (owner, 2026-10-30): a connected mailbox first copies new mail from the
+   school's mail server, then the lists and the open message are read again. */
+function ReloadMail() {
+  const qc = useQueryClient()
+  const reload = useMutation({
+    mutationFn: async () => {
+      const c = qc.getQueryData<MailConnection>(['mail', 'connection'])
+      if (c?.connected && c.import.state !== 'queued' && c.import.state !== 'running') {
+        qc.setQueryData(['mail', 'connection'], await api.call('POST /comms/mail/connection/import'))
+      }
+      await qc.invalidateQueries({ queryKey: ['mail'] })
+    },
+  })
+  return (
+    <Button variant="ghost" title="Reload mail" aria-label="Reload mail" onClick={() => reload.mutate()} disabled={reload.isPending}>
+      <RotateCw className={cn('h-4 w-4', reload.isPending && 'animate-spin motion-reduce:animate-none')} />
+    </Button>
+  )
 }
 
 function MailboxSettings() {
