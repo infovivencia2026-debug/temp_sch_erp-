@@ -6,7 +6,7 @@ import { printDocument } from '@/lib/print'
 import { saveFile } from '@/lib/save-file'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Select, Input,
-  Field, SkeletonTable, ErrorState, EmptyState, FormNotice, Badge, ExportButton } from '@/components/ui'
+  Field, SkeletonTable, ErrorState, EmptyState, FormNotice, Badge } from '@/components/ui'
 
 /* Absentee follow-up.
  *
@@ -33,6 +33,8 @@ interface Contact {
   name: string
   phone: string
   relation: string
+  /** The guardian the school treats as first contact. */
+  primary?: number | boolean
 }
 
 interface Absentee {
@@ -115,7 +117,7 @@ function sheetRows(sections: AbsenteeSection[], onDate: string, withRemarks: boo
       cls: `${s.class_name} ${s.section_name}`.trim(),
       adm: st.admission_no,
       date,
-      parent: cs.map((c) => `${relationLabel(c.relation, c.name)}${c.name ? `: ${c.name}` : ''}`).join(' / '),
+      parent: cs.map((c) => `${relationLabel(c.relation, c.name)}${c.name ? `: ${c.name}` : ''}${c.primary ? ' (Primary)' : ''}`).join(' / '),
       phone: cs.map((c) => c.phone).join(' / '),
       remark: withRemarks ? [st.parent_response ?? '', informed].filter(Boolean).join(' · ') : '',
     }
@@ -149,7 +151,7 @@ function printSheetRows(rows: SheetRow[], onDate: string) {
     const remark = rr.insertCell()
     remark.colSpan = SHEET_HEAD.length
     const label = document.createElement('strong')
-    label.textContent = 'Remark: '
+    label.textContent = 'Reason for absence: '
     remark.append(label, r.remark)
     // A blank remark gets room to write in by hand.
     remark.style.height = r.remark ? '' : '28px'
@@ -171,9 +173,6 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
   const [sectionId, setSectionId] = useState('')
   // Find one child across the day's absentees by name or admission number.
   const [nameQ, setNameQ] = useState('')
-  // Export: who was called, and what the parent said, over a date range the office picks.
-  const [exportFrom, setExportFrom] = useState(today)
-  const [exportTo, setExportTo] = useState(today)
 
   const params = new URLSearchParams({ on_date: onDate })
   if (sectionId) params.set('section_id', sectionId)
@@ -230,22 +229,6 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
     </>
   )
 
-  /* Export: a call log over whatever range the office picks, not just today
-     (owner, 2026-10-29: "add export for absentee follow up ... custom date
-     from and to"). absentee_followups (worker/src/routes/admin/export.ts)
-     already existed for the last 180 days; it now takes from/to instead. */
-  const exportRow = (
-    <div className="flex flex-wrap items-end gap-3">
-      <Field label="Export from">
-        <Input type="date" value={exportFrom} onChange={setExportFrom} />
-      </Field>
-      <Field label="Export to">
-        <Input type="date" value={exportTo} onChange={setExportTo} />
-      </Field>
-      <ExportButton report="absentee_followups" label="Export call log" query={{ from: exportFrom, to: exportTo }} />
-    </div>
-  )
-
   /* The day on screen as a sheet: before the calls (no remarks) or after. */
   const dayRows = (withRemarks: boolean) => sheetRows(sections, onDate, withRemarks)
   const sheetRow = total > 0 && (
@@ -258,9 +241,13 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
         <Download className="h-4 w-4" />
         Export with remarks
       </Button>
+      <Button variant="secondary" onClick={() => printSheetRows(dayRows(false), onDate)}>
+        <Printer className="h-4 w-4" />
+        Print list
+      </Button>
       <Button variant="secondary" onClick={() => printSheetRows(dayRows(true), onDate)}>
         <Printer className="h-4 w-4" />
-        Print
+        Print with remarks
       </Button>
     </div>
   )
@@ -330,7 +317,6 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
         <>
           {/* Full-width stacked on a phone; the desktop row (sm+) is unchanged. */}
           <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}</div>
-          <div className="mb-3">{exportRow}</div>
           {sheetRow && <div className="mb-3">{sheetRow}</div>}
           {content}
         </>
@@ -338,7 +324,6 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
         <>
           <PageHead eyebrow="Attendance" title="Absentee follow-up" actions={controls} />
           <PageBody>
-            <div className="mb-1">{exportRow}</div>
             {sheetRow && <div className="mb-1">{sheetRow}</div>}
             {content}
           </PageBody>
@@ -481,7 +466,7 @@ function SectionCard({
 /* A phone number, as a button that dials it. Only rendered for a guardian who
    has a number, so there is never a dead control. The relation (Father, Mother,
    …) leads, with the guardian's own name beneath it and the number to dial. */
-function CallButton({ label, name, phone }: { label: string; name: string; phone: string }) {
+function CallButton({ label, name, phone, primary }: { label: string; name: string; phone: string; primary?: boolean }) {
   return (
     <a
       href={`tel:${phone}`}
@@ -494,6 +479,7 @@ function CallButton({ label, name, phone }: { label: string; name: string; phone
           {name && name !== label ? (
             <span className="font-normal text-muted-foreground"> · {name}</span>
           ) : null}
+          {primary ? <span className="font-normal text-muted-foreground"> · Primary</span> : null}
         </span>
         <span className="block font-mono text-[12px] text-muted-foreground">{phone}</span>
       </span>
@@ -543,6 +529,7 @@ function AbsenteeRow({
                 label={relationLabel(c.relation, c.name)}
                 name={c.name}
                 phone={c.phone}
+                primary={Boolean(c.primary)}
               />
             ))
           ) : (
