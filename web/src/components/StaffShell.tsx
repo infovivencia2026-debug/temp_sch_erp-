@@ -332,6 +332,7 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
       <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 md:col-start-3">
         {/* No avatar or staff ID here (owner, 2026-10-30): the profile in the panel's foot is enough. */}
         {dashboard && times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
+        {!dashboard && <div id="staff-actions" className="flex items-center gap-2" />}
         <Notifications />
       </div>
     </div>
