@@ -255,6 +255,31 @@ function MailList({ page, error, loading, openId, onOpen, folder }: {
   )
 }
 
+/* The message as tall as its text, so the pane has one scrollbar and the
+   attachments follow the text (owner, 2026-10-30: "no need of 2 scroll").
+   allow-same-origin only lets this page read the height: no script can run
+   inside (no allow-scripts, and the document's CSP forbids them). */
+function MailFrame({ doc }: { doc: string }) {
+  const ref = useRef<HTMLIFrameElement>(null)
+  const fit = () => {
+    const f = ref.current
+    const body = f?.contentDocument?.documentElement
+    if (f && body) f.style.height = `${body.scrollHeight}px`
+  }
+  useEffect(() => {
+    const f = ref.current
+    if (!f) return
+    const ro = new ResizeObserver(fit)
+    ro.observe(f)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <iframe ref={ref} title="Message" srcDoc={doc} onLoad={fit} scrolling="no"
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
+      className="block h-[60dvh] w-full overflow-hidden border-0 bg-card" />
+  )
+}
+
 function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onDelete, deleteError }: {
   m: MailMessage; canSend: boolean; onReply: (all: boolean) => void; onStar: () => void
   onUnread: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void; deleteError: unknown
@@ -290,8 +315,7 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
         </dl>
       </div>
       {m.html ? (
-        <iframe title="Message" srcDoc={doc} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
-          className="block h-[60dvh] w-full border-0 bg-card" />
+        <MailFrame doc={doc} />
       ) : (
         <pre className="whitespace-pre-wrap break-words px-4 py-4 font-sans text-[14px] leading-relaxed">{m.text || '(no text)'}</pre>
       )}
