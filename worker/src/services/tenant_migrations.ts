@@ -120,4 +120,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 120, name: 'live_changes', checksum: '7ec19c2238939c20ea37c4b7628456c00b9be6d9cac19ec03a98b5f9b808c9b1' },
   { version: 121, name: 'teacher_slot_same_subject', checksum: 'a731065eca4bae639b6b1967fdbda3262c042562c94062e827a8e85cbc83596e' },
   { version: 122, name: 'staff_feature_blocks', checksum: '28414fc94c43d88eff42fe708aa89a77e69382cb252a0ab24ee476692ae36aca' },
+  { version: 123, name: 'lesson_register', checksum: 'c75537ee3a134c22fd10a7c812ecfa1b6e0c481063807e861eed342129d4219f' },
 ]

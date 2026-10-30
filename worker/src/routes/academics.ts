@@ -6,6 +6,7 @@ import {
 } from './students/common'
 import { registerAdminAcademics } from './academics/admin'
 import { notifyPlanDecided, notifyPlanSubmitted } from './academics/plan_notify'
+import { registerLessonRegister } from './academics/lesson_register'
 
 /* Port of the /syllabus and /academics route groups (internal/api/api.go
    lines 332-408): syllabus.go, academics.go, co_scholastic.go, houses.go,
@@ -24,6 +25,7 @@ export function registerAcademics(r: Router) {
 
   // --- /academics ---------------------------------------------------------------
   registerAdminAcademics(r)
+  registerLessonRegister(r)
   r.get('/academics/years', 'academics.read', listAcademicYears)
   r.get('/academics/classes', 'academics.read', listClasses)
   r.get('/academics/sections', 'academics.read', listSections)

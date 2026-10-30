@@ -206,9 +206,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      the plans that deliver them, and the percentage that follows; three
      screens would each show a third of an answer. */
   'institution_admin.academics.curriculum_roadmap': screen(() => import('./academics/Syllabus')),
-  'institution_admin.academics.lesson_plans': screen(() => import('./academics/Syllabus')),
+  'institution_admin.academics.lesson_plans': screen(() => import('./academics/LessonRegister')),
   'institution_admin.academics.syllabus_progress': screen(() => import('./academics/Syllabus')),
-  'faculty.teaching.lesson_plans_content': screen(() => import('./academics/Syllabus')),
+  'faculty.teaching.lesson_plans_content': screen(() => import('./academics/LessonRegister')),
 
   /* Exam day. One screen, two halves: the office allocates halls and prints
      the invigilator's plan, a candidate reads their own ticket. Which half you
@@ -429,7 +429,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hod.timetable.my_timetable': screen(() => import('./shared/Timetable')),
   'hod.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   'hod.teaching.homework_classwork': screen(() => import('./workflow/Homework')),
-  'hod.teaching.lesson_plans_content': screen(() => import('./academics/Syllabus')),
+  'hod.teaching.lesson_plans_content': screen(() => import('./academics/LessonRegister')),
   'hod.marks_report_cards.marks_entry': screen(() => import('./exams/Gradebook')),
   'hod.marks_report_cards.report_cards': screen(() => import('./exams/ReportCards')),
   'hod.communication.communication': screen(() => import('./faculty/Communication')),
