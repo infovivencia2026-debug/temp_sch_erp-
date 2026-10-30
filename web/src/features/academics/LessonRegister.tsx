@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, Table, Td, Badge, Field, FormNotice, Input, Select, ErrorState, EmptyState, PrintButton,
+  PageHead, PageBody, Card, CellGrid, Stat, Table, Td, Badge, Button, Field, FormNotice, Input, Select, ErrorState, EmptyState, PrintButton,
 } from '@/components/ui'
+import { saveFile } from '@/lib/save-file'
+import { cn } from '@/lib/utils'
 
 /* LESSON PLAN (owner, 2026-10-30): one row per timetabled period on a school
    date, worked out from the timetable and the calendar. The principal reads
@@ -49,6 +51,8 @@ export default function LessonRegister() {
   const [subject, setSubject] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  // A teacher's full plan stays closed until they open it; today's classes come first.
+  const [open, setOpen] = useState(false)
   const o = opts.data
   const all = o?.sees_all ?? false
 
@@ -88,18 +92,39 @@ export default function LessonRegister() {
 
   if (opts.isError) return <ErrorState error={opts.error} />
 
+  // The figures a head looks for first: how much of the plan is done.
+  const planned = rows.filter((r) => r.status)
+  const count = (s: Status) => planned.filter((r) => r.status === s).length
+  const exportSheet = () => {
+    const q = new URLSearchParams(params); q.set('format', 'xlsx')
+    return saveFile(`/api/v1/academics/lesson-register?${q}`, 'lesson-plan.xlsx')
+  }
+
   const head = [
-    'S.No', 'Date', 'Day', 'Day type',
+    '#', 'Date & day', 'Day type',
     ...(showClass ? ['Class', 'Subject'] : []),
     'Period', 'Topic', 'Status',
   ]
 
   return (
     <>
-      <PageHead eyebrow="Academics" title="Lesson plan" actions={rows.length ? <PrintButton title="Lesson plan" subtitle={`${ddmmyyyy(rows[0].date)} to ${ddmmyyyy(rows[rows.length - 1].date_to ?? rows[rows.length - 1].date)}`} /> : undefined} />
+      <PageHead eyebrow="Academics" title="Lesson plan" actions={rows.length ? (
+        <>
+          <Button variant="secondary" onClick={() => void exportSheet()}>Export to Excel</Button>
+          <PrintButton title="Lesson plan" subtitle={`${ddmmyyyy(rows[0].date)} to ${ddmmyyyy(rows[rows.length - 1].date_to ?? rows[rows.length - 1].date)}`} />
+        </>
+      ) : undefined} />
       <PageBody>
+        {o && !all && <TodayClasses edits={edits} save={(v) => save.mutate(v)} saving={save.isPending} />}
+        {o && !all && (
+          <Button variant="secondary" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+            {open ? 'Hide full lesson plan' : 'Show full lesson plan'}
+          </Button>
+        )}
+        {(all || open) && <>
         <Card className="p-4 sm:p-5">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Every filter on one line on a wide screen: five with View by and a class, four otherwise. */}
+          <div className={cn('grid gap-4 sm:grid-cols-2', all && by === 'class' ? 'lg:grid-cols-5' : 'lg:grid-cols-4')}>
             {all && (
               <Field label="View by">
                 <Select value={by} onChange={(v) => setBy(v as 'teacher' | 'class')}
@@ -139,33 +164,43 @@ export default function LessonRegister() {
           <EmptyState title={all && by === 'teacher' ? 'Choose a teacher' : 'Choose a class and subject'}
             body={opts.data && !opts.data.sections.length ? 'No classes are in the timetable for this year yet.' : 'The lesson plan for every period in the timetable shows here.'} />
         ) : reg.isError ? <ErrorState error={reg.error} /> : (
-          <Table head={head} loading={reg.isPending} empty={!rows.length} emptyLabel="No periods for this choice in the timetable.">
+          <>
+          {planned.length > 0 && (
+            <CellGrid cols={4}>
+              <Stat label="Planned days" value={planned.length} />
+              <Stat label="Completed" value={count('completed')} />
+              <Stat label="Ongoing" value={count('ongoing')} />
+              <Stat label="Not completed" value={count('not_completed')} />
+            </CellGrid>
+          )}
+          <Table head={head} loading={reg.isPending} empty={!rows.length} emptyLabel="No periods for this choice in the timetable." noExport unpaged>
             {rows.map((r) => {
               const edit = r.mine
-              const at = STATUS.findIndex((s) => s.value === r.status)
               return (
-                <tr key={rowKey(r)}>
-                  <Td className="num">{r.sno}</Td>
-                  <Td className="whitespace-nowrap">{ddmmyyyy(r.date)}{r.date_to && <> to {ddmmyyyy(r.date_to)}</>}</Td>
-                  <Td>{weekday(r.date)}{r.date_to && <> to {weekday(r.date_to)}</>}</Td>
-                  <Td><span title={DAY_TYPE[r.day_type]}><Badge tone={r.day_type === 'HD' ? 'danger' : r.day_type === 'ND' || r.day_type === 'NED' ? 'warning' : 'neutral'}>{r.day_type}</Badge></span></Td>
-                  {showClass && <Td className="whitespace-nowrap">{sectionLabel(r)}</Td>}
-                  {showClass && <Td>{r.subject}</Td>}
-                  <Td className="whitespace-nowrap">{r.period}</Td>
-                  <Td className="min-w-[220px]">
-                    {edit ? <TopicCell value={r.topic} onSave={(topic) => topic !== r.topic && save.mutate({ row: r, topic })} />
-                      : r.topic || (r.period_id ? <span className="text-muted-foreground">Not written</span> : null)}
+                <tr key={rowKey(r)} className={cn(r.day_type === 'HD' && 'bg-muted/40 text-muted-foreground')}>
+                  <Td className="num w-[56px] font-semibold text-muted-foreground">{r.sno}</Td>
+                  <Td className="whitespace-nowrap">
+                    <span className="font-semibold tabular-nums text-foreground">{ddmmyyyy(r.date)}{r.date_to && <> to {ddmmyyyy(r.date_to)}</>}</span>
+                    <span className="mt-0.5 block text-[12px] text-muted-foreground">{weekday(r.date)}{r.date_to && <> to {weekday(r.date_to)}</>}</span>
                   </Td>
-                  <Td className="min-w-[170px]">
-                    {!r.status ? null : edit && r.status !== 'completed'
-                      ? <Select value={r.status} onChange={(v) => v !== r.status && save.mutate({ row: r, status: v as Status })} options={STATUS.slice(at)} />
-                      : <Badge tone={r.status === 'completed' ? 'success' : r.status === 'ongoing' ? 'warning' : 'neutral'}>{statusLabel(r.status)}</Badge>}
+                  <Td><span title={DAY_TYPE[r.day_type]}><Badge tone={r.day_type === 'HD' ? 'danger' : r.day_type === 'ND' || r.day_type === 'NED' ? 'warning' : r.day_type === 'TED' ? 'info' : 'neutral'} className="rounded-md px-2.5 py-1 font-semibold">{r.day_type}</Badge></span></Td>
+                  {showClass && <Td><Badge tone="primary" className="rounded-lg px-3 py-1 font-semibold">{sectionLabel(r)}</Badge></Td>}
+                  {showClass && <Td className="font-semibold">{r.subject}</Td>}
+                  <Td>{r.period && <Badge className="rounded-md border border-border px-2.5 py-1">{r.period}</Badge>}</Td>
+                  <Td className="min-w-[240px] max-w-[560px] whitespace-normal leading-relaxed">
+                    {edit ? <TopicCell value={r.topic} onSave={(topic) => topic !== r.topic && save.mutate({ row: r, topic })} />
+                      : r.topic || (r.period_id ? <span className="text-[13px] italic text-muted-foreground">Not written</span> : null)}
+                  </Td>
+                  <Td className="min-w-[160px]">
+                    {r.status && <StatusBadge status={r.status} />}
                   </Td>
                 </tr>
               )
             })}
           </Table>
+          </>
         )}
+        </>}
       </PageBody>
     </>
   )
@@ -176,4 +211,57 @@ function TopicCell({ value, onSave }: { value: string; onSave: (v: string) => vo
   const [v, setV] = useState(value)
   useEffect(() => setV(value), [value])
   return <Input value={v} onChange={setV} onBlur={() => onSave(v.trim())} placeholder="Write the topic" srLabel="Topic" />
+}
+
+function StatusBadge({ status }: { status: Status }) {
+  return <Badge tone={status === 'completed' ? 'success' : status === 'ongoing' ? 'warning' : 'danger'} className="rounded-full px-3 py-1 font-semibold">{statusLabel(status)}</Badge>
+}
+
+const indiaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date())
+
+/* TODAY'S CLASSES (owner, 2026-10-30): what a teacher opens the screen for.
+   Each period they teach today, its topic and its status; a change here is
+   saved at once. The status only moves forward. */
+function TodayClasses({ edits, save, saving }: {
+  edits: Record<string, { topic?: string; status?: Status }>
+  save: (v: { row: Row; topic?: string; status?: Status }) => void
+  saving: boolean
+}) {
+  const today = indiaToday()
+  const q = useQuery({
+    queryKey: ['lesson-register', 'today', today],
+    queryFn: () => api.get<{ items: Row[] }>(`/api/v1/academics/lesson-register?from=${today}&to=${today}`),
+  })
+  const rows = (q.data?.items ?? []).filter((r) => r.period_id).map((r) => ({ ...r, ...edits[rowKey(r)] }))
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-[17px] font-semibold">Today's classes</h2>
+        <span className="text-[14px] text-muted-foreground">{weekday(today)}, {ddmmyyyy(today)}</span>
+      </div>
+      {q.isError ? <FormNotice error={q.error} /> : q.isPending ? <p className="text-[14px] text-muted-foreground">Loading today's classes.</p>
+        : !rows.length ? <p className="text-[14px] text-muted-foreground">You have no classes today.</p> : (
+        <ul className="divide-y divide-border">
+          {rows.map((r) => {
+            const at = STATUS.findIndex((s) => s.value === r.status)
+            return (
+              <li key={rowKey(r)} className="grid gap-3 py-3 sm:grid-cols-[minmax(150px,200px)_1fr_180px] sm:items-center">
+                <div>
+                  <Badge tone="primary" className="rounded-lg px-3 py-1 font-semibold">{r.class_name} - {r.section}</Badge>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px]">
+                    <span className="font-semibold">{r.subject}</span>
+                    <Badge className="rounded-md border border-border px-2 py-0.5">{r.period}</Badge>
+                  </div>
+                </div>
+                <TopicCell value={r.topic} onSave={(topic) => topic !== r.topic && save({ row: r, topic })} />
+                {r.status === 'completed' || !r.status ? <StatusBadge status={r.status ?? 'not_completed'} />
+                  : <Select value={r.status} onChange={(v) => v !== r.status && save({ row: r, status: v as Status })} options={STATUS.slice(at)} />}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {saving && <span className="sr-only" role="status">Saving</span>}
+    </Card>
+  )
 }

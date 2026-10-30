@@ -46,7 +46,6 @@ function inertHtml(html: string): string {
 export default function Inbox() {
   const qc = useQueryClient()
   const session = useSession()
-  const compact = staffLayoutOn(session, useLocation().pathname.split('/')[1])
   const [tab, setTab] = useState<Tab>('inbox')
   const [q, setQ] = useState('')
   /* The open message lives in the URL (?m=), as Messages keeps ?with=, so a
@@ -60,6 +59,8 @@ export default function Inbox() {
     setParams(next, { replace: !id })
   }
   const phone = usePhone()
+  /* Phones keep the mail screen as it was (owner, 2026-10-30). */
+  const compact = staffLayoutOn(session, useLocation().pathname.split('/')[1]) && !phone
   const [draft, setDraft] = useState<Draft | null>(null)
 
   const box = useQuery({ queryKey: ['mail', 'box'], queryFn: () => api.call('GET /comms/mail/box') })
@@ -143,7 +144,7 @@ export default function Inbox() {
   /* The staff layout on a desktop (Yajur, 2026-10-30, owner's mail mock): the
      folders sit on top of the list, the list stays on the left and the message
      reads on the right; Reload, Settings and Write go to the top bar. */
-  const split = compact && !phone
+  const split = compact
   const tabs = (
     <div className={compact ? 'flex items-center gap-2 border-b' : undefined}>
       <div className={compact ? 'flex min-w-0 flex-1 gap-1 overflow-x-auto px-2 [scrollbar-width:none]' : TAB_BAR_FILL} role="tablist" aria-label="Folders">
@@ -285,6 +286,8 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
   onUnread: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void; deleteError: unknown
 }) {
   const doc = useMemo(() => (m.html ? inertHtml(m.html) : ''), [m.html])
+  const phone = usePhone()
+  const quiet = phone ? 'ghost' : 'secondary'
   const many = m.to.length + m.cc.length > 1
   return (
     <div className="min-w-0">
@@ -292,17 +295,17 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
         <div className="flex flex-wrap items-center gap-2">
           {m.folder !== 'trash' && canSend && <Button variant="secondary" size="sm" onClick={() => onReply(false)}><Reply className="h-4 w-4" /> Reply</Button>}
           {m.folder !== 'trash' && canSend && many && <Button variant="secondary" size="sm" onClick={() => onReply(true)}><ReplyAll className="h-4 w-4" /> Reply all</Button>}
-          <Button variant="secondary" size="sm" onClick={onStar}>{m.starred ? 'Unstar' : 'Star'}</Button>
-          {m.folder === 'inbox' && <Button variant="secondary" size="sm" onClick={onUnread}>Mark unread</Button>}
+          <Button variant={quiet} size="sm" onClick={onStar}>{m.starred ? 'Unstar' : 'Star'}</Button>
+          {m.folder === 'inbox' && <Button variant={quiet} size="sm" onClick={onUnread}>Mark unread</Button>}
           {m.folder === 'trash' ? (
             <>
-              <Button variant="secondary" size="sm" onClick={onRestore}>Move back</Button>
+              <Button variant={quiet} size="sm" onClick={onRestore}>Move back</Button>
               <ConfirmButton tone="danger" confirmLabel="Delete for good" question="This message and its attachments are deleted and cannot be brought back." onConfirm={onDelete}>
                 Delete for good
               </ConfirmButton>
             </>
           ) : (
-            <Button variant="secondary" size="sm" onClick={onTrash}>Delete</Button>
+            <Button variant={quiet} size="sm" onClick={onTrash}>Delete</Button>
           )}
         </div>
         <FormNotice error={deleteError} />
@@ -315,7 +318,10 @@ function Reader({ m, canSend, onReply, onStar, onUnread, onTrash, onRestore, onD
         </dl>
       </div>
       {m.html ? (
-        <MailFrame doc={doc} />
+        phone ? (
+          <iframe title="Message" srcDoc={doc} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer"
+            className="block h-[60dvh] w-full border-0 bg-card" />
+        ) : <MailFrame doc={doc} />
       ) : (
         <pre className="whitespace-pre-wrap break-words px-4 py-4 font-sans text-[14px] leading-relaxed">{m.text || '(no text)'}</pre>
       )}
