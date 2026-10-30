@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CheckCircle2, Phone } from 'lucide-react'
+import { Check, CheckCircle2, Download, Phone, Printer } from 'lucide-react'
 import { api } from '@/lib/api'
+import { printDocument } from '@/lib/print'
+import { saveFile } from '@/lib/save-file'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Select, Input,
   Field, SkeletonTable, ErrorState, EmptyState, FormNotice, Badge, ExportButton } from '@/components/ui'
@@ -96,6 +98,67 @@ function today(): string {
   return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10)
 }
 
+/* THE DAY'S SHEET (owner, 2026-10-30): one block per child -- name, class,
+   admission no, date, parent name and number on one line, the remark on the
+   line below. Built from the list on screen, so it can be taken out before
+   anyone has rung (remarks left blank, to write in by hand) as well as after. */
+interface SheetRow { name: string; cls: string; adm: string; date: string; parent: string; phone: string; remark: string }
+
+function sheetRows(sections: AbsenteeSection[], onDate: string, withRemarks: boolean): SheetRow[] {
+  const [y, m, d] = onDate.split('-')
+  const date = `${d}-${m}-${y}`
+  return sections.flatMap((s) => s.students.map((st) => {
+    const cs = st.contacts ?? []
+    const informed = st.informed ? `Informed by parent: ${st.informed.split('|')[0]}` : ''
+    return {
+      name: st.name,
+      cls: `${s.class_name} ${s.section_name}`.trim(),
+      adm: st.admission_no,
+      date,
+      parent: cs.map((c) => `${relationLabel(c.relation, c.name)}${c.name ? `: ${c.name}` : ''}`).join(' / '),
+      phone: cs.map((c) => c.phone).join(' / '),
+      remark: withRemarks ? [st.parent_response ?? '', informed].filter(Boolean).join(' · ') : '',
+    }
+  }))
+}
+
+const SHEET_HEAD = ['Name', 'Class', 'Adm No', 'Date', 'Parent name', 'Number']
+
+/* The sheet as a real Excel file, built by the server so the remark is one
+   merged cell under Name to Number (worker/src/routes/daily.ts absenteeSheet). */
+function downloadSheet(onDate: string, sectionId: string, withRemarks: boolean) {
+  const q = new URLSearchParams({ on_date: onDate, remarks: withRemarks ? '1' : '0' })
+  if (sectionId) q.set('section_id', sectionId)
+  return saveFile(`/api/v1/attendance/absentees/sheet?${q}`, `absentees-${onDate}.xlsx`)
+}
+
+function printSheetRows(rows: SheetRow[], onDate: string) {
+  const table = document.createElement('table')
+  const head = table.createTHead().insertRow()
+  for (const h of SHEET_HEAD) {
+    const th = document.createElement('th')
+    th.textContent = h
+    head.appendChild(th)
+  }
+  const body = table.createTBody()
+  for (const r of rows) {
+    const tr = body.insertRow()
+    for (const v of [r.name, r.cls, r.adm, r.date, r.parent, r.phone]) tr.insertCell().textContent = v
+    const rr = body.insertRow()
+    // The remark spans the whole row, Name to Number.
+    const remark = rr.insertCell()
+    remark.colSpan = SHEET_HEAD.length
+    const label = document.createElement('strong')
+    label.textContent = 'Remark: '
+    remark.append(label, r.remark)
+    // A blank remark gets room to write in by hand.
+    remark.style.height = r.remark ? '' : '28px'
+  }
+  const wrap = document.createElement('div')
+  wrap.appendChild(table)
+  printDocument({ source: wrap, title: 'Absentee follow-up', subtitle: `${rows.length} absent · ${rows[0]?.date ?? onDate}` })
+}
+
 function fmtStamp(iso: string): string {
   const d = new Date(iso)
   return d.toLocaleString(undefined, {
@@ -183,6 +246,25 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
     </div>
   )
 
+  /* The day on screen as a sheet: before the calls (no remarks) or after. */
+  const dayRows = (withRemarks: boolean) => sheetRows(sections, onDate, withRemarks)
+  const sheetRow = total > 0 && (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="secondary" onClick={() => void downloadSheet(onDate, sectionId, false)}>
+        <Download className="h-4 w-4" />
+        Export list
+      </Button>
+      <Button variant="secondary" onClick={() => void downloadSheet(onDate, sectionId, true)}>
+        <Download className="h-4 w-4" />
+        Export with remarks
+      </Button>
+      <Button variant="secondary" onClick={() => printSheetRows(dayRows(true), onDate)}>
+        <Printer className="h-4 w-4" />
+        Print
+      </Button>
+    </div>
+  )
+
   const content = (
     <>
         {isLoading ? (
@@ -249,6 +331,7 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
           {/* Full-width stacked on a phone; the desktop row (sm+) is unchanged. */}
           <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}</div>
           <div className="mb-3">{exportRow}</div>
+          {sheetRow && <div className="mb-3">{sheetRow}</div>}
           {content}
         </>
       ) : (
@@ -256,6 +339,7 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
           <PageHead eyebrow="Attendance" title="Absentee follow-up" actions={controls} />
           <PageBody>
             <div className="mb-1">{exportRow}</div>
+            {sheetRow && <div className="mb-1">{sheetRow}</div>}
             {content}
           </PageBody>
         </>

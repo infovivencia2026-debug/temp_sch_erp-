@@ -10,6 +10,8 @@ export interface SheetSpec {
   rows: (string | null | undefined)[][] // null/undefined leaves the cell empty, as Go skipped nil
   freezeHeader?: boolean
   colWidths?: number[] // optional, in Excel character units
+  merges?: string[] // ranges like "A3:F3", drawn as one cell
+  boldRows?: number[] // 0-based row indexes written in bold
 }
 
 export const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -34,18 +36,22 @@ function sheetXML(s: SheetSpec): string {
     ? '<cols>' + s.colWidths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('') + '</cols>'
     : ''
   const out: string[] = []
+  const bold = new Set(s.boldRows ?? [])
   s.rows.forEach((row, r) => {
     const cells: string[] = []
+    const st = bold.has(r) ? ' s="1"' : ''
     row.forEach((v, c) => {
       if (v == null) return
       const ref = colName(c + 1) + (r + 1)
-      cells.push(`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${esc(String(v))}</t></is></c>`)
+      cells.push(`<c r="${ref}"${st} t="inlineStr"><is><t xml:space="preserve">${esc(String(v))}</t></is></c>`)
     })
     out.push(`<row r="${r + 1}">${cells.join('')}</row>`)
   })
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
     + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-    + view + '<sheetFormatPr defaultRowHeight="15"/>' + cols + '<sheetData>' + out.join('') + '</sheetData></worksheet>'
+    + view + '<sheetFormatPr defaultRowHeight="15"/>' + cols + '<sheetData>' + out.join('') + '</sheetData>'
+    + (s.merges?.length ? `<mergeCells count="${s.merges.length}">` + s.merges.map((m) => `<mergeCell ref="${m}"/>`).join('') + '</mergeCells>' : '')
+    + '</worksheet>'
 }
 
 /** Builds the workbook bytes. Sheet names follow Excel's rules (<=31 chars, no []:*?/\). */
@@ -65,11 +71,11 @@ export function buildXLSX(sheets: SheetSpec[]): Uint8Array {
       + sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')
       + `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
     ['xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-      + '<fonts count="1"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts>'
+      + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts>'
       + '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
       + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
       + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-      + '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>'
+      + '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'
       + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
     ...sheets.map((s, i): [string, string] => [`xl/worksheets/sheet${i + 1}.xml`, sheetXML(s)]),
   ]

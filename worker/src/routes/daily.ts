@@ -8,6 +8,7 @@ import {
   HttpError, badRequest, bool, forbidden, notFound, ok, created, readJSON, uuid, uuidParam, uuidQuery, isUUID, now,
 } from '../http'
 import { json } from '../env'
+import { buildXLSX, XLSX_CONTENT_TYPE } from '../services/xlsx'
 import { publishTopic } from '../services/live'
 import { auditStmt } from './admin/common'
 import { schoolDay } from '../auth/session'
@@ -687,6 +688,7 @@ function registerAttendance(r: Router) {
   // RequireAnyPermission(AttendanceRead, AttendanceReadAll): either grant
   // opens these, so they are registered as 'auth' and anyAttendanceRead gates.
   r.get('/attendance/absentees', 'auth', listAbsentees)
+  r.get('/attendance/absentees/sheet', 'auth', absenteeSheet)
   r.post('/attendance/absentees/followup', 'auth', recordAbsenceFollowup)
   r.post('/attendance/absentees/section-done', 'auth', finishAbsenceSection)
 }
@@ -717,6 +719,42 @@ const contactsAgg = `COALESCE((SELECT json_group_array(json_object('name', name,
             FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
            WHERE sg.student_id = st.id AND g.phone IS NOT NULL AND trim(g.phone) <> ''
            ORDER BY (g.relation = 'father') DESC, (g.relation = 'mother') DESC, sg.is_primary DESC, g.full_name)), '[]')`
+
+/* THE DAY'S ABSENTEES AS A SHEET (owner, 2026-10-30): per child, one row of
+   name, class, admission no, date, parent name and number, and under it the
+   remark merged across all six columns. remarks=0 leaves the remark blank, for
+   a list taken out before anyone has rung. Same scope as the list on screen:
+   it is that list, read through listAbsentees. */
+async function absenteeSheet(c: Ctx): Promise<Response> {
+  const withRemarks = c.url.searchParams.get('remarks') !== '0'
+  const day = await (await listAbsentees(c)).json() as {
+    date: string
+    sections: { class_name: string; section_name: string; students: {
+      name: string; admission_no: string; contacts?: { name: string; phone: string; relation: string }[]
+      parent_response?: string; informed?: string | null }[] }[]
+  }
+  const [y, m, d] = day.date.split('-')
+  const date = `${d}-${m}-${y}`
+  const rel = (r: string, n: string) => (r?.trim() ? r.trim().charAt(0).toUpperCase() + r.trim().slice(1) : n || 'Guardian')
+  const rows: string[][] = [['Name', 'Class', 'Adm No', 'Date', 'Parent name', 'Number']]
+  const merges: string[] = []
+  for (const s of day.sections) for (const st of s.students) {
+    const cs = st.contacts ?? []
+    rows.push([st.name, `${s.class_name} ${s.section_name}`.trim(), st.admission_no, date,
+      cs.map((x) => `${rel(x.relation, x.name)}${x.name ? `: ${x.name}` : ''}`).join(' / '),
+      cs.map((x) => x.phone).join(' / ')])
+    const remark = withRemarks
+      ? [st.parent_response ?? '', st.informed ? `Informed by parent: ${st.informed.split('|')[0]}` : ''].filter(Boolean).join(' · ')
+      : ''
+    rows.push([`Remark: ${remark}`])
+    merges.push(`A${rows.length}:F${rows.length}`)
+  }
+  const bytes = buildXLSX([{ name: 'Absentees', rows, merges, boldRows: [0], freezeHeader: true, colWidths: [26, 10, 12, 12, 34, 24] }])
+  return new Response(bytes, { status: 200, headers: {
+    'Content-Type': XLSX_CONTENT_TYPE,
+    'Content-Disposition': `attachment; filename="absentees-${day.date}${withRemarks ? '-remarks' : ''}.xlsx"`,
+  } })
+}
 
 async function listAbsentees(c: Ctx): Promise<Response> {
   anyAttendanceRead(c)
