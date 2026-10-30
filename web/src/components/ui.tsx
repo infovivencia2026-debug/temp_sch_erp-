@@ -518,8 +518,9 @@ export function Stat({
       aria-pressed={onClick && !rich ? active : undefined}
       className={cn(
         'cell',
-        onClick && !rich && 'w-full cursor-pointer text-left transition-colors hover:bg-accent',
-        onClick && active && 'bg-accent',
+        /* Pressable figures light in the primary colour, not grey (owner, 2026-10-30). */
+        onClick && !rich && 'w-full cursor-pointer text-left transition-colors hover:bg-primary/[0.06]',
+        onClick && active && 'bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary))]',
       )}
     >
       <Head
