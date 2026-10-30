@@ -350,7 +350,8 @@ const FOOT_ICON = 'foot-icon grid size-10 max-sm:size-12 shrink-0 place-items-ce
 export function NavScrollButton({ dir }: { dir: 1 | -1 }) {
   const label = dir < 0 ? 'Scroll menu up' : 'Scroll menu down'
   return (
-    <div className={cn('shrink-0 px-[18px] max-sm:px-4', dir < 0 ? 'pt-3' : 'pb-1 pt-2')}>
+    /* Not on a phone (owner, 2026-10-30): the menu scrolls under the finger there. */
+    <div className={cn('shrink-0 px-[18px] max-sm:hidden', dir < 0 ? 'pt-3' : 'pb-1 pt-2')}>
       <Button variant="secondary" size="sm" className="w-full" aria-label={label} title={label} onClick={() => scrollNav(dir)}>
         {dir < 0 ? <ChevronUp aria-hidden className="h-4 w-4" /> : <ChevronDown aria-hidden className="h-4 w-4" />}
       </Button>
