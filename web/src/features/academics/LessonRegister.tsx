@@ -123,7 +123,8 @@ export default function LessonRegister() {
         )}
         {(all || open) && <>
         <Card className="p-4 sm:p-5">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Every filter on one line on a wide screen: five with View by and a class, four otherwise. */}
+          <div className={cn('grid gap-4 sm:grid-cols-2', all && by === 'class' ? 'lg:grid-cols-5' : 'lg:grid-cols-4')}>
             {all && (
               <Field label="View by">
                 <Select value={by} onChange={(v) => setBy(v as 'teacher' | 'class')}
