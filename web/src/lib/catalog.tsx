@@ -313,6 +313,12 @@ export function useFeature(sectionSlug?: string, featureSlug?: string) {
 
        Returning undefined here is what lets that message show. */
     if (sectionSlug && featureSlug) {
+      /* A screen moved to another group keeps working from its old address
+         (bookmarks, links in notifications): same role, same screen. */
+      for (const section of role.sections) {
+        const feature = section.features.find((f) => f.slug === featureSlug)
+        if (feature) return { section, feature }
+      }
       return { section: undefined, feature: undefined }
     }
 
