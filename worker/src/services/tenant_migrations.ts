@@ -121,4 +121,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 121, name: 'teacher_slot_same_subject', checksum: 'a731065eca4bae639b6b1967fdbda3262c042562c94062e827a8e85cbc83596e' },
   { version: 122, name: 'staff_feature_blocks', checksum: '28414fc94c43d88eff42fe708aa89a77e69382cb252a0ab24ee476692ae36aca' },
   { version: 123, name: 'lesson_register', checksum: 'c75537ee3a134c22fd10a7c812ecfa1b6e0c481063807e861eed342129d4219f' },
+  { version: 124, name: 'absence_called_phone', checksum: 'a39c9240719ab4f6e6f4563e8f2a6ea5db6b0defa2a96bf8572988515e5bc3e6' },
 ]
