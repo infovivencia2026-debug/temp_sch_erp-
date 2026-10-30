@@ -369,7 +369,7 @@ export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: st
   const session = useSession()
   const fullName = session.user?.full_name ?? ''
   return (
-    <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4">
+    <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4 max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
       <StaffProfileCard name={fullName} sub={employeeCode} photoId={session.user?.avatar_key} onNavigate={onNavigate} />
     </div>
   )

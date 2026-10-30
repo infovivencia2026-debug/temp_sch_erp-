@@ -732,6 +732,9 @@ export function Shell({
              at its foot is always reachable (owner, 2026-10-09). */
           'shrink-0 flex-row bg-sidebar md:sticky md:top-0 md:h-dvh md:self-start',
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[288px]',
+          /* The visible height on a phone, not the layout height: iPhone Safari's
+             bottom bar sat over the foot of the menu and hid Settings (Yajur, 2026-10-30). */
+          'max-md:bottom-auto max-md:h-dvh',
           /* The line between the sidebar and the page, at every width. It was
              drawn only below lg, so on a desktop the white sidebar ran into
              the white page with nothing marking where one ended. */
@@ -1276,7 +1279,7 @@ export function Shell({
               aria-expanded={navOpen}
               aria-controls="shell-nav"
               /* The staff bar's menu button sits at the top right (Yajur, 2026-10-21). */
-              className="order-last grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+              className="order-last ml-auto grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
               onClick={() => setNavOpen(true)}
             >
               <Menu className="h-6 w-6 md:h-5 md:w-5" />
