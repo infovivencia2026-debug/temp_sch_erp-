@@ -57,16 +57,16 @@ export function ComboTabs() {
    (lib/catalog useFeature). Screens not named here stay in their own group. */
 const ADMIN_GROUPS: [string, string, string[]][] = [
   ['home', 'Home', ['Dashboard']],
-  ['home_more', 'Home', ['Approvals', 'School activity', 'Helpdesk']],
+  ['home_more', 'Home', ['Today at school', 'Approvals', 'School activity', 'Helpdesk']],
   ['school_settings', 'School settings', ['School setup', 'Rules', 'Move from MyClassBoard', 'Branding', 'Roles & permissions', 'Logins & access', 'Privacy', 'Class Setup', 'Year Rollover', 'Mail addresses', 'Message Channels']],
-  ['students', 'Students', ['Student 360', 'Class 360', 'Student photographs', 'Groups & lists', 'Certificates & transfers', 'Class Promotion', 'Admissions Pipeline']],
+  ['students', 'Students', ['Student 360', 'Class 360', 'Student photographs', 'Groups & lists', 'Certificates & transfers', 'Class Promotion', 'Student council', 'Admissions Pipeline']],
   ['academics', 'Academics', ['Master Timetable', 'Substitutions', 'School Calendar', 'Teacher Assignment', 'Subject overview', 'Curriculum Roadmap', 'Lesson Plans', 'Syllabus Progress', 'Activities & Electives', 'Department academics']],
   ['attendance', 'Attendance', ['Present & absent', 'Attendance Audit']],
   ['exams_all', 'Exams', ['Exams & results', 'Exams & papers', 'Question paper approval', 'Mark moderation', 'Exam seating plan', 'Performance overview']],
   ['fees', 'Fees', ['Fee Dashboard', 'Fee Collection', 'Fee Default', 'Student wallets', 'Period Close']],
   ['communication', 'Communication', ['Messages', 'All messages', 'Inbox', 'Circulars', 'Complaints', 'Class Status', 'Interaction log', 'School Achievements Showcase', 'School Gallery']],
   ['staff', 'Staff', ['Staff groups & lists', 'Staff attendance register', 'Biometric Readers', 'Staff Working Hours', 'Staff Hours This Month', 'Leave Rules & LOP', 'Staff attendance reports', 'Appraisals', 'My pay']],
-  ['reports', 'Reports', ['Reports', 'Custom Report Builder', 'Department reports', 'Performance analytics', 'Returns readiness', 'Scheduled digests', 'Instruction Hours']],
+  ['reports', 'Reports', ['Reports', 'Custom Report Builder', 'Department reports', 'Performance analytics', 'Returns readiness', 'Scheduled digests', 'Instruction Hours', 'Child Info reconciliation', 'SQAA compliance', 'Mid-day meal return']],
 ]
 
 export function regroupAdmin<W extends { slug: string; name: string; sections: ApiSection[] }>(workspaces: W[]): { slug: string; name: string; sections: ApiSection[] }[] {
