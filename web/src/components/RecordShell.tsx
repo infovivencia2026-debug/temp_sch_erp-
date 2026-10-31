@@ -51,7 +51,10 @@ export function RecordShell({
   /** Query-string key holding the open tab, so a tab is linkable. */
   tabParam = 'tab',
   media,
+  buttons,
 }: {
+  /** Plain buttons in place of the Actions menu (Staff 360: Print, Excel). */
+  buttons?: React.ReactNode
   /** A picture beside the name -- the student's photo on Student 360. */
   media?: React.ReactNode
   title: string
@@ -155,6 +158,7 @@ export function RecordShell({
           </div>
           </div>
 
+          {buttons && <div className="flex shrink-0 flex-wrap items-center gap-3">{buttons}</div>}
           {actions.length > 0 && (
             <div className="shrink-0" ref={trigger}>
               <Button variant="secondary" onClick={() => setMenuOpen((v) => !v)}>
