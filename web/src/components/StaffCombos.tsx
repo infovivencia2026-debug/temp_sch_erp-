@@ -87,3 +87,40 @@ export function regroupAdmin<W extends { slug: string; name: string; sections: A
   }
   return out
 }
+
+/* Other roles: a few screens filed under the wrong group (owner, 2026-10-31).
+   Feature slug -> [group slug, group name]; an existing group of that slug
+   takes it, otherwise a new group is added at the end. */
+const ROLE_MOVES: Record<string, Record<string, [string, string]>> = {
+  finance: { store_catalogue: ['stores', 'Stores'] },
+  super_admin: { white_label_branding: ['institution_setup', 'Institution Setup'] },
+}
+
+/** One group per section slug (HOD had "My Profile" twice), then the role's moves. */
+export function regroupRole<W extends { slug: string; name: string; sections: ApiSection[] }>(roleKey: string, workspaces: W[]): { slug: string; name: string; sections: ApiSection[] }[] {
+  const seen = new Map<string, ApiSection>()
+  const out: { slug: string; name: string; sections: ApiSection[] }[] = []
+  for (const w of workspaces) {
+    const sections: ApiSection[] = []
+    for (const s of w.sections) {
+      const first = seen.get(s.slug)
+      if (first) { first.features = [...first.features, ...s.features]; continue }
+      const copy = { ...s, features: [...s.features] }
+      seen.set(s.slug, copy)
+      sections.push(copy)
+    }
+    if (sections.length) out.push({ slug: w.slug, name: w.name, sections })
+  }
+  const moves = ROLE_MOVES[roleKey]
+  if (!moves) return out
+  for (const [slug, [to, name]] of Object.entries(moves)) {
+    const from = out.flatMap((w) => w.sections).find((s) => s.features.some((f) => f.slug === slug))
+    if (!from || from.slug === to) continue
+    const f = from.features.find((x) => x.slug === slug)!
+    from.features = from.features.filter((x) => x.slug !== slug)
+    const target = out.flatMap((w) => w.sections).find((s) => s.slug === to)
+    if (target) target.features = [...target.features, f]
+    else out.push({ slug: to, name, sections: [{ ...from, slug: to, name, workspace: name, features: [f] }] })
+  }
+  return out.map((w) => ({ ...w, sections: w.sections.filter((s) => s.features.length) })).filter((w) => w.sections.length)
+}
