@@ -74,7 +74,13 @@ export function regroupAdmin<W extends { slug: string; name: string; sections: A
   const placed = new Set<string>()
   const out: { slug: string; name: string; sections: ApiSection[] }[] = []
   for (const [slug, name, names] of ADMIN_GROUPS) {
-    const features = names.flatMap((n) => all.filter((x) => x.f.name === n && !placed.has(x.f.key))).map((x) => { placed.add(x.f.key); return x.f })
+    /* Once per screen: a screen listed under several sections (Messages is in
+       four) was placed once per listing, and the whole group drew four times. */
+    const features = names.flatMap((n) => all.filter((x) => x.f.name === n)).filter((x) => {
+      if (placed.has(x.f.key)) return false
+      placed.add(x.f.key)
+      return true
+    }).map((x) => x.f)
     if (!features.length) continue
     const section = { ...all.find((x) => x.f.key === features[0].key)!.s, slug, name, workspace: name, features }
     const ws = out.find((w) => w.name === name)
@@ -83,7 +89,23 @@ export function regroupAdmin<W extends { slug: string; name: string; sections: A
   }
   for (const w of workspaces) {
     const sections = w.sections.map((s) => ({ ...s, features: s.features.filter((f) => !placed.has(f.key)) })).filter((s) => s.features.length)
-    if (sections.length) out.push({ slug: w.slug, name: w.name, sections })
+    if (!sections.length) continue
+    /* A leftover with a group's name (Mail under Communication) joins that
+       group; pushed as its own, the menu drew Communication five times. */
+    const same = out.find((o) => o.name === w.name)
+    if (same) same.sections.push(...sections)
+    else out.push({ slug: w.slug, name: w.name, sections })
+  }
+  /* One section per slug: the menu files screens by section slug, and several
+     sections sharing 'communication' each drew the whole merged list. */
+  for (const w of out) {
+    const bySlug = new Map<string, ApiSection>()
+    for (const sec of w.sections) {
+      const have = bySlug.get(sec.slug)
+      if (have) have.features = [...have.features, ...sec.features.filter((f) => !have.features.some((x) => x.key === f.key))]
+      else bySlug.set(sec.slug, { ...sec, features: [...sec.features] })
+    }
+    w.sections = [...bySlug.values()]
   }
   return out
 }

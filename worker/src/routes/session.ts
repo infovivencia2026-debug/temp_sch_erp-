@@ -44,7 +44,9 @@ export async function sessionBody(env: Env, req: Request, id?: Identity | null):
   const fromId = id && id.institution?.id === inst.id ? id : null
 
   const [user, roles, perms, branding, sub] = await Promise.all([
-    db.prepare('SELECT full_name, avatar_key, must_change_password FROM users WHERE id = ?').bind(s.user_id)
+    /* The staff photo the office uploaded stands in when the person has not set one (Yajur, 2026-10-31). */
+    db.prepare(`SELECT full_name, COALESCE(avatar_key, (SELECT e.photo_file_id FROM employees e WHERE e.user_id = users.id AND e.photo_file_id IS NOT NULL LIMIT 1)) AS avatar_key,
+        must_change_password FROM users WHERE id = ?`).bind(s.user_id)
       .first<{ full_name: string; avatar_key: string | null; must_change_password: number }>(),
     fromId ? { results: [...fromId.roles].sort().map((key) => ({ key })) }
       : db.prepare('SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? ORDER BY r.key').bind(s.user_id)
