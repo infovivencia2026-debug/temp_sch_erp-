@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 474 features.
+// Roles is the catalog: 24 roles, 487 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -324,6 +324,7 @@ var Roles = []Role{
 					{Key: "institution_admin.students.class_promotion", Slug: "class_promotion", Name: "Class Promotion", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child's history survives the promotion."},
 					{Key: "institution_admin.students.groups_lists", Slug: "groups_lists", Name: "Groups & lists", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's own groupings, the swimming squad, the 3.15 bus, the children a trust pays for. Picked by hand, or defined by a rule over any field including the columns your own spreadsheet brought in, so a group stays right when a child joins the class."},
 					{Key: "institution_admin.students.class_360", Slug: "class_360", Name: "Class 360", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One class on a page: the roster with guardian contacts, attendance and results, the timetable and who teaches what, and fee status, with quick actions to mark attendance, enter marks, edit or move a student."},
+					{Key: "institution_admin.students.student_council", Slug: "student_council", Name: "Student council", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Council positions, who holds each, vacancies and their duties."},
 				},
 			},
 			{
@@ -476,6 +477,7 @@ var Roles = []Role{
 					{Key: "institution_admin.analysis.custom_report_builder", Slug: "custom_report_builder", Name: "Custom Report Builder", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Build your own report: pick the data, the columns and the filters, preview it, save it, share it with colleagues and export it."},
 					{Key: "institution_admin.analysis.department_reports", Slug: "department_reports", Name: "Department reports", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Attendance, workload, results and a summary for each department side by side."},
 					{Key: "institution_admin.analysis.performance_analytics", Slug: "performance_analytics", Name: "Performance analytics", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Subject pass rates, the term-on-term trend, the spread of marks and the students at risk."},
+					{Key: "institution_admin.analysis.today_at_school", Slug: "today_at_school", Name: "Today at school", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One page for today: staff away, periods not covered, attendance not taken and anything else that needs doing before the day ends."},
 				},
 			},
 			{
@@ -500,6 +502,8 @@ var Roles = []Role{
 				Workspace: "Administration",
 				Features: []Feature{
 					{Key: "institution_admin.statutory_returns.instruction_hours", Slug: "instruction_hours", Name: "Instruction Hours", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Days taught and hours delivered against the minimum the board requires, while there is still term left to make them up."},
+					{Key: "institution_admin.statutory_returns.child_info_reconciliation", Slug: "child_info_reconciliation", Name: "Child Info reconciliation", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "Upload the state Child Info file and match each record to a student here; mismatches are listed to fix one by one."},
+					{Key: "institution_admin.statutory_returns.sqaa_compliance", Slug: "sqaa_compliance", Name: "SQAA compliance", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "The SQAA framework for the school: each standard, the evidence held for it and how far the school meets it."},
 				},
 			},
 			{
@@ -524,6 +528,14 @@ var Roles = []Role{
 				Workspace: "School Gallery",
 				Features: []Feature{
 					{Key: "institution_admin.school_gallery.school_gallery", Slug: "school_gallery", Name: "School Gallery", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every Class Status post that was pinned to the gallery, newest first: sports day, annual day, class trips. Tap a photo or video to play it full screen."},
+				},
+			},
+			{
+				Slug:      "mid_day_meal",
+				Name:      "Mid Day Meal",
+				Workspace: "Administration",
+				Features: []Feature{
+					{Key: "institution_admin.mid_day_meal.mid_day_meal_return", Slug: "mid_day_meal_return", Name: "Mid-day meal return", Scope: Scope("institution"), Tier: Tier("advanced"), Summary: "The month's mid-day meal return: meals served against enrolment and stock, ready to finalise and send."},
 				},
 			},
 		},
@@ -617,6 +629,7 @@ var Roles = []Role{
 					{Key: "hod.academics.subject_overview", Slug: "subject_overview", Name: "Subject overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "For each subject's head: every teacher of that subject from Grade 1 up, their classes, periods, average marks and lesson plans; the subject's timetable across all classes; notices those teachers posted; and meetings the head calls, sent to all those teachers."},
 					{Key: "hod.academics.subject_meetings", Slug: "subject_meetings", Name: "Subject meetings", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Meetings your subject head has called. See the date, place and agenda, and answer Attending or Can't come with a note."},
 					{Key: "hod.academics.course_outcomes", Slug: "course_outcomes", Name: "Course outcomes", Scope: Scope("department"), Tier: Tier("core"), Summary: "Programme and course outcomes for the department's subjects, which papers measure each outcome, and whether the class attained it, computed from marks."},
+					{Key: "hod.academics.department_students", Slug: "department_students", Name: "Department students", Scope: Scope("department"), Tier: Tier("core"), Summary: "Every student taking the department's subjects, class by class."},
 				},
 			},
 			{
@@ -781,6 +794,8 @@ var Roles = []Role{
 					{Key: "faculty.my_classes.behaviour", Slug: "behaviour", Name: "Behaviour", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Award a badge for what a child did well, or record a concern and what was done about it, one record per child, read in order, with whether the family was told."},
 					{Key: "faculty.my_classes.student_details", Slug: "student_details", Name: "My students", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One child's full record: profile, guardians, attendance, marks and remarks."},
 					{Key: "faculty.my_classes.class_360", Slug: "class_360", Name: "Class 360", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers, with the actions you are allowed on your own section."},
+					{Key: "faculty.my_classes.montessori_tracking", Slug: "montessori_tracking", Name: "Montessori tracking", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Which materials each child has been shown, practised and mastered."},
+					{Key: "faculty.my_classes.student_portfolio", Slug: "student_portfolio", Name: "Student portfolio", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "A portfolio of each child's work through the year."},
 				},
 			},
 			{
@@ -794,6 +809,7 @@ var Roles = []Role{
 					{Key: "faculty.attendance.absentee_followup", Slug: "absentee_followup", Name: "Absentee followup", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Every child marked away today, section by section, with admission number and the father's and mother's numbers to tap-to-call, a Pending/Called dropdown and the reason the parent gave; Done at the foot of a section saves every response and stamps the section finished, the same screen reviews any past day, section by section."},
 					{Key: "faculty.attendance.student_absentees", Slug: "student_absentees", Name: "Present & absent", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent's response. Refreshes on its own as calls are recorded, so a colleague's follow-up appears live without editing anything, the calling itself stays on Absentee followup."},
 					{Key: "faculty.attendance.offline_attendance_diary_capture", Slug: "offline_attendance_diary_capture", Name: "Offline Attendance & Diary Capture", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns."},
+					{Key: "faculty.attendance.absence_alerts_to_parents", Slug: "absence_alerts_to_parents", Name: "Absence alerts to parents", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "When and how a parent is told their child was marked absent, once, after the register is taken."},
 				},
 			},
 			{
@@ -805,6 +821,7 @@ var Roles = []Role{
 					{Key: "faculty.teaching.assignments_submissions", Slug: "assignments_submissions", Name: "Assignments & submissions", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Create assignments, review submissions, grade and add feedback."},
 					{Key: "faculty.teaching.lesson_plans_content", Slug: "lesson_plans_content", Name: "Lesson plans / content", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Plan lessons and attach learning resources when LMS/lesson planning is enabled."},
 					{Key: "faculty.teaching.lms_study_material_upload", Slug: "lms_study_material_upload", Name: "LMS Study Material Upload", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Upload PDF notes, audio recordings, video links, and presentation slides per subject chapter."},
+					{Key: "faculty.teaching.virtual_classes", Slug: "virtual_classes", Name: "Virtual classes", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Schedule an online class for a section and share the link with its students."},
 				},
 			},
 			{
@@ -823,6 +840,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "faculty.marks_report_cards.marks_entry", Slug: "marks_entry", Name: "Marks entry", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Enter internal/exam marks for assigned subjects; validate before submission."},
 					{Key: "faculty.marks_report_cards.report_cards", Slug: "report_cards", Name: "Report cards", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Generate and issue the report card for every child in the class."},
+					{Key: "faculty.marks_report_cards.holistic_progress_card", Slug: "holistic_progress_card", Name: "Holistic progress card", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "The holistic progress card for each child: domains, levels and the teacher's note."},
 				},
 			},
 			{
@@ -843,6 +861,7 @@ var Roles = []Role{
 					{Key: "faculty.question_papers_online_tests.ai_examcell_paper_generator", Slug: "ai_examcell_paper_generator", Name: "AI Examcell Paper Generator", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "A paper drawn from the question bank by blueprint: so many of each difficulty, kind, chapter and mark value, at random. Nothing is written; a row the bank cannot fill says by how many."},
 					{Key: "faculty.question_papers_online_tests.ved_ai_assessment_assistant", Slug: "ved_ai_assessment_assistant", Name: "Ved AI Assessment Assistant", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Not buildable here: needs a language model to suggest rubric criteria, quiz questions and essay prompts, and this deployment has none."},
 					{Key: "faculty.question_papers_online_tests.objective_online_test_creation", Slug: "objective_online_test_creation", Name: "Objective Online Test Creation", Scope: Scope("assigned_classes"), Tier: Tier("advanced"), Summary: "Create auto-graded MCQ, True/False, and Fill-in-the-blank online tests with timers."},
+					{Key: "faculty.question_papers_online_tests.online_test_grading", Slug: "online_test_grading", Name: "Online test grading", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Mark the written answers of an online test, question by question."},
 				},
 			},
 			{
@@ -1499,6 +1518,7 @@ var Roles = []Role{
 					{Key: "admissions.enquiries.24_7_admission_chatbot", Slug: "24_7_admission_chatbot", Name: "24/7 Admission Chatbot", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Not buildable here: answering tuition and syllabus questions needs a language model this deployment does not have; the public enquiry form already captures leads. Web widget chatbot."},
 					{Key: "admissions.enquiries.ai_voice_agent_integration", Slug: "ai_voice_agent_integration", Name: "AI Voice Agent Integration", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Not buildable here: outbound voice calls need a telephony vendor and a speech model, neither of which this deployment holds. Confirm entrance exam attendance or follow up by call."},
 					{Key: "admissions.enquiries.campus_visits", Slug: "campus_visits", Name: "Campus Visits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Open houses, campus tours and counselling days: the slots on offer, who has booked one, who is showing them round, and who actually turned up. A slot that is full cannot be booked twice."},
+					{Key: "admissions.enquiries.follow_up_sequences", Slug: "follow_up_sequences", Name: "Follow-up sequences", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Timed follow-up messages for enquiries; a family that replies or applies is taken off the sequence."},
 				},
 			},
 			{

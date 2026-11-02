@@ -63,24 +63,11 @@ function importedModules(files: string[]): Set<string> {
 /* Unreachable as of the day this test landed. Sorted, repo-relative, no
    extension. Shrink it; never grow it. */
 const KNOWN = new Set([
-  'features/admissions/CampaignSequences',
-  'features/analytics/Today',
   'features/bento/BentoMenuBar',
-  'features/communication/AbsenceAlerts',
-  'features/compliance/ChildInfoReconciliation',
-  'features/compliance/SQAACompliance',
-  'features/exams/HolisticCard',
-  'features/faculty/ExamGrading',
-  'features/faculty/MontessoriTracking',
-  'features/faculty/PortfolioBuilder',
-  'features/faculty/VirtualClasses',
   'features/learning/CreditBank',
   'features/operations/MDMRegister',
-  'features/operations/MDMUtilisation',
   'features/operations/Workspace',
   'features/setup/PeriodUpload',
-  'features/students/DepartmentStudents',
-  'features/students/StudentCouncil',
 ])
 
 describe('every feature screen is reachable', () => {

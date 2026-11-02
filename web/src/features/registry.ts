@@ -66,6 +66,20 @@ import { transportDeskKeys } from './operations/transport-desk-keys'
  * the client can actually render. Run `make catalog` after editing.
  */
 export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>> = {
+  // Built screens that had no menu entry, added back (owner, 2026-10-31).
+  'institution_admin.students.student_council': screen(() => import('./students/StudentCouncil')),
+  'institution_admin.analysis.today_at_school': screen(() => import('./analytics/Today')),
+  'institution_admin.statutory_returns.child_info_reconciliation': screen(() => import('./compliance/ChildInfoReconciliation')),
+  'institution_admin.statutory_returns.sqaa_compliance': screen(() => import('./compliance/SQAACompliance')),
+  'institution_admin.mid_day_meal.mid_day_meal_return': screen(() => import('./operations/MDMUtilisation')),
+  'hod.academics.department_students': screen(() => import('./students/DepartmentStudents')),
+  'faculty.my_classes.montessori_tracking': screen(() => import('./faculty/MontessoriTracking')),
+  'faculty.my_classes.student_portfolio': screen(() => import('./faculty/PortfolioBuilder')),
+  'faculty.attendance.absence_alerts_to_parents': screen(() => import('./communication/AbsenceAlerts')),
+  'faculty.teaching.virtual_classes': screen(() => import('./faculty/VirtualClasses')),
+  'faculty.marks_report_cards.holistic_progress_card': screen(() => import('./exams/HolisticCard')),
+  'faculty.question_papers_online_tests.online_test_grading': screen(() => import('./faculty/ExamGrading')),
+  'admissions.enquiries.follow_up_sequences': screen(() => import('./admissions/CampaignSequences')),
   'institution_admin.students.student_360': screen(() => import('./shared/StudentProfile')),
   /* The office that admits a child is the office that hands their family the
      login — internal/api/api.go has said so beside the endpoint all along, and
