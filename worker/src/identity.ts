@@ -206,7 +206,7 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
   }
   const db = tenantDb(env, institution)
   const homeDb = institution === home ? db : tenantDb(env, home)
-  const [u, roles, perms, direct, blocked, groupBlocked] = await Promise.all([
+  const [u, roles, perms, direct, blocked] = await Promise.all([
     homeDb.prepare(`SELECT full_name, must_change_password FROM users WHERE id = ? AND status = 'active'`).bind(s.user_id)
       .first<{ full_name: string; must_change_password: number }>(),
     db.prepare(`SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?`).bind(s.user_id).all<{ key: string }>(),
@@ -229,16 +229,14 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
           OR EXISTS (SELECT 1 FROM student_guardians sg JOIN enrollments e ON e.student_id = sg.student_id AND e.status = 'active'
             WHERE sg.guardian_id = g.id
             AND ((fb.scope = 'class' AND e.class_id = fb.target_id) OR (fb.scope = 'section' AND e.section_id = fb.target_id))))))
-        UNION SELECT 'staff:' || feature_slug FROM staff_feature_blocks`)
-      .bind(s.user_id).all<{ key: string }>().catch(() => ({ results: [] as { key: string }[] })),
-    /* Screens hidden from one group of staff (owner, 2026-11-02): a role the
-       person holds, or class teachers / subject teachers by their duty this
-       year. Its own statement, so a school without the table yet loses
-       nothing else. */
-    db.prepare(`SELECT DISTINCT 'staff:' || b.feature_slug AS key FROM staff_feature_audience_blocks b
-        WHERE b.audience IN (SELECT 'role:' || r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?1)
-           OR (b.audience = 'duty:class_teacher' AND EXISTS (SELECT 1 FROM sections WHERE class_teacher_id = ?1))
-           OR (b.audience = 'duty:subject_teacher' AND EXISTS (SELECT 1 FROM section_subject_teachers WHERE teacher_user_id = ?1))`)
+        UNION SELECT 'staff:' || feature_slug FROM staff_feature_blocks
+        /* Hidden from one group of staff (owner, 2026-11-02): a role the person
+           holds, or class / subject teachers by duty. In this statement, not
+           its own, to keep a request's D1 budget (test/integration/perf). */
+        UNION SELECT 'staff:' || b.feature_slug FROM staff_feature_audience_blocks b
+         WHERE b.audience IN (SELECT 'role:' || r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?1)
+            OR (b.audience = 'duty:class_teacher' AND EXISTS (SELECT 1 FROM sections WHERE class_teacher_id = ?1))
+            OR (b.audience = 'duty:subject_teacher' AND EXISTS (SELECT 1 FROM section_subject_teachers WHERE teacher_user_id = ?1))`)
       .bind(s.user_id).all<{ key: string }>().catch(() => ({ results: [] as { key: string }[] })),
   ])
   if (!u) return null
@@ -248,7 +246,7 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
      away, so the key itself is refused to every school account. */
   const off = new Set((blocked.results ?? []).map((b) => b.key).filter((k) => k.startsWith('student.') || k.startsWith('parent.')))
   // Screens off for all staff ride the same statement, as staff:<slug> (routes/admin/feature_blocks.ts).
-  const staffSlugs = new Set([...(blocked.results ?? []), ...(groupBlocked.results ?? [])].map((b) => b.key).filter((k) => k.startsWith('staff:')).map((k) => k.slice(6)))
+  const staffSlugs = new Set((blocked.results ?? []).map((b) => b.key).filter((k) => k.startsWith('staff:')).map((k) => k.slice(6)))
   const staffBlocked = (k: string) => staffSlugs.size > 0 && !k.startsWith('student.') && !k.startsWith('parent.') && staffSlugs.has(k.slice(k.lastIndexOf('.') + 1))
   const granted = [...perms.results, ...direct.results].map((p) => p.key).filter((k) => !k.startsWith('platform.') && !off.has(k) && !staffBlocked(k))
   /* A TEACHING SCREEN GIVEN TO SOMEONE WHO DOES NOT TEACH (owner, 2026-10-13:

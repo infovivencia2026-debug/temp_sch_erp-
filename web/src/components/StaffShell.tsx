@@ -179,6 +179,9 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   const listed = groups.map((g) => ({ ...g, list: items(g.section) }))
   const held = new Set(listed.flatMap((g) => g.list.map((f) => f.slug)))
   const hidden = new Set(COMBOS.flatMap((c) => c.slugs.filter((s) => s !== c.slugs.find((x) => held.has(x)))))
+  /* The same screen under two names (owner, 2026-11-02): the admin's Lesson
+     Plans is the teacher's Lesson plans / content. Under Teaching once. */
+  if (held.has('lesson_plans_content')) hidden.add('lesson_plans')
   const present = new Set(listed.filter((g) => g.list.length).map((g) => g.section.slug))
   const target = (slug: string, from: string) => (MOVES[slug] && present.has(MOVES[slug]) ? MOVES[slug] : from)
   const concerns = useOpenConcerns(held.has('concerns_from_parents'))
