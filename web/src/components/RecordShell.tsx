@@ -164,9 +164,11 @@ export function RecordShell({
               {menuOpen && createPortal(
                 <>
                   {/* Click-away, so the menu does not need a global listener. */}
-                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
+                  {/* Above the record itself: Staff 360 opens the record as a z-[90]
+                      layer, and a z-50 menu opened behind it, showing nothing. */}
+                  <div className="fixed inset-0 z-[100]" onClick={() => setMenuOpen(false)} aria-hidden />
                   <div
-                    className="fixed z-50 min-w-[220px] overflow-hidden rounded-md border bg-card shadow-lg"
+                    className="fixed z-[101] min-w-[220px] overflow-hidden rounded-md border bg-card shadow-lg"
                     style={{ top: menuAt.top, right: menuAt.right }}
                   >
                     <ScrollBox style={{ maxHeight: menuAt.maxHeight }}>
