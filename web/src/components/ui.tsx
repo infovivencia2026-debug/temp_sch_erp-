@@ -462,6 +462,7 @@ export function Stat({
   period,
   onClick,
   active,
+  tint,
   control,
   detail,
   parts,
@@ -502,6 +503,8 @@ export function Stat({
   onClick?: () => void
   /** Whether this card's filter is the one currently applied. */
   active?: boolean
+  /** Pressed and hovered in the primary colour instead of grey. */
+  tint?: boolean
   /** A small control beside the label (a picker that narrows the figure). */
   control?: ReactNode
 }) {
@@ -518,9 +521,11 @@ export function Stat({
       aria-pressed={onClick && !rich ? active : undefined}
       className={cn(
         'cell',
-        /* Pressable figures light in the primary colour, not grey (owner, 2026-10-30). */
-        onClick && !rich && 'w-full cursor-pointer text-left transition-colors hover:bg-primary/[0.06]',
-        onClick && active && 'bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary))]',
+        onClick && !rich && 'w-full cursor-pointer text-left transition-colors',
+        /* Lit in the primary colour where a screen asks (Lesson plan, owner
+           2026-11-02: "only for that screen"); grey everywhere else. */
+        onClick && !rich && (tint ? 'hover:bg-primary/[0.06]' : 'hover:bg-accent'),
+        onClick && active && (tint ? 'bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary))]' : 'bg-accent'),
       )}
     >
       <Head
