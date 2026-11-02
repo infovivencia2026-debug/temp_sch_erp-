@@ -4802,24 +4802,11 @@ html[data-reduce-motion] :active { transform: none !important; }
    few pixels the moment it grows long enough to scroll. An older browser
    that knows neither property keeps its own bar, which is what it had. */
 .menu-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)) transparent;
-  scrollbar-gutter: stable;
+  /* No bar at all (owner, 2026-11-02: "no need of scroll bar there"): the
+     list still scrolls by wheel, touch and keys. */
+  scrollbar-width: none;
 }
-.menu-scroll::-webkit-scrollbar { width: 10px; }
-.menu-scroll::-webkit-scrollbar-track { background: transparent; }
-.menu-scroll::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border: 3px solid transparent;
-  background-clip: content-box;
-  border-radius: 9999px;
-}
-@media (hover: hover) {
-  .menu-scroll:hover::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.45);
-    background-clip: content-box;
-  }
-}
+.menu-scroll::-webkit-scrollbar { display: none; }
 
 /* EVERY SCROLLBAR IN THE PRODUCT, NOT THE ONES WE REMEMBERED.
 
