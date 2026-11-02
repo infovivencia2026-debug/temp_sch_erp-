@@ -18,7 +18,6 @@ import { featurePath, type ApiSection } from '@/lib/catalog'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
-import { Button } from './ui'
 import { PersonAvatar } from './ChatScreen'
 import { CommandSearch } from './CommandSearch'
 import Notifications from './Notifications'
@@ -359,11 +358,12 @@ export function NavScrollButton({ dir }: { dir: 1 | -1 }) {
   const label = dir < 0 ? 'Scroll menu up' : 'Scroll menu down'
   return (
     /* Not on a phone (owner, 2026-10-30): the menu scrolls under the finger there. */
-    <div className={cn('shrink-0 px-[18px] max-sm:hidden', dir < 0 ? 'pt-3' : 'pb-1 pt-2')}>
-      <Button variant="secondary" size="sm" className="w-full" aria-label={label} title={label} onClick={() => scrollNav(dir)}>
-        {dir < 0 ? <ChevronUp aria-hidden className="h-4 w-4" /> : <ChevronDown aria-hidden className="h-4 w-4" />}
-      </Button>
-    </div>
+    /* No box, as ScrollBox's arrows (owner, 2026-11-02: "invisible like
+       this"): the full width stays pressable, only the arrow shows. */
+    <button type="button" aria-label={label} title={label} onClick={() => scrollNav(dir)}
+      className="flex h-8 w-full shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:hidden">
+      {dir < 0 ? <ChevronUp aria-hidden className="h-4 w-4" /> : <ChevronDown aria-hidden className="h-4 w-4" />}
+    </button>
   )
 }
 

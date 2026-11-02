@@ -171,10 +171,10 @@ export default function LessonRegister() {
           <>
           {planned.length > 0 && (
             <CellGrid cols={4}>
-              <Stat label="Planned days" value={planned.length} onClick={() => pick('planned')} active={only === 'planned'} />
-              <Stat label="Completed" value={count('completed')} onClick={() => pick('completed')} active={only === 'completed'} />
-              <Stat label="Ongoing" value={count('ongoing')} onClick={() => pick('ongoing')} active={only === 'ongoing'} />
-              <Stat label="Not completed" value={count('not_completed')} onClick={() => pick('not_completed')} active={only === 'not_completed'} />
+              <Stat label="Planned days" value={planned.length} tint onClick={() => pick('planned')} active={only === 'planned'} />
+              <Stat label="Completed" value={count('completed')} tint onClick={() => pick('completed')} active={only === 'completed'} />
+              <Stat label="Ongoing" value={count('ongoing')} tint onClick={() => pick('ongoing')} active={only === 'ongoing'} />
+              <Stat label="Not completed" value={count('not_completed')} tint onClick={() => pick('not_completed')} active={only === 'not_completed'} />
             </CellGrid>
           )}
           <Table head={head} loading={reg.isPending} empty={!shown.length} emptyLabel={only ? 'No periods with this status.' : 'No periods for this choice in the timetable.'} noExport>
