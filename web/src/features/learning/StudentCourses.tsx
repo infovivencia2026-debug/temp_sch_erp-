@@ -574,7 +574,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                         })()}
                       </div>
                       <div className="relative shrink-0 sm:w-56">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
                         <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a lesson"
                           aria-label="Find a lesson"
                           className="h-10 w-full rounded-xl border bg-muted/40 pl-8 pr-3 text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-ring" />

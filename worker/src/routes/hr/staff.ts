@@ -704,35 +704,68 @@ export function registerStaff(r: Router) {
     if (!isUUIDish(eid)) throw badRequest('invalid employee id')
     const e = await c.db.prepare(`
       SELECT e.employee_code, e.first_name, e.last_name, e.phone, e.email, e.qualification, d.name AS department, dg.name AS designation,
-             e.employment_type, e.status, e.joined_on, e.experience_years, e.emergency_contact_name, e.emergency_contact_phone
+             e.employment_type, e.status, e.joined_on, e.experience_years, e.emergency_contact_name, e.emergency_contact_phone, e.user_id
         FROM employees e LEFT JOIN departments d ON d.id = e.department_id LEFT JOIN designations dg ON dg.id = e.designation_id WHERE e.id = ?`)
       .bind(eid).first<Record<string, string | number | null>>()
     if (!e) throw notFound()
-    const ov = await resolveStaffOverview(c.db, eid)
-    const v = (x: unknown) => (x === null || x === undefined ? '' : String(x))
+    const uid = e.user_id ? String(e.user_id) : null
+    const [ov, x] = await Promise.all([resolveStaffOverview(c.db, eid), overviewExtras(c.db, eid, uid)])
+    const remarks = uid ? ((await c.db.prepare(`SELECT sr.observed_on, sr.kind, COALESCE(u.full_name,'') AS author, sr.author_role, sr.body
+        FROM staff_remarks sr LEFT JOIN users u ON u.id = sr.author_user_id WHERE sr.subject_user_id = ? ORDER BY sr.observed_on DESC LIMIT 200`).bind(uid)
+      .all<{ observed_on: string; kind: string; author: string; author_role: string; body: string }>().catch(() => ({ results: [] }))).results ?? []) : []
+    const apps = ((await c.db.prepare(`SELECT COALESCE(ac.name,'') AS cycle, a.status, COALESCE(a.final_score,'') AS score, COALESCE(a.final_band,'') AS band,
+        COALESCE(a.reviewer_comments,'') AS comments FROM appraisals a LEFT JOIN appraisal_cycles ac ON ac.id = a.cycle_id WHERE a.employee_id = ? ORDER BY a.reviewed_at DESC`).bind(eid)
+      .all<{ cycle: string; status: string; score: string; band: string; comments: string }>().catch(() => ({ results: [] }))).results) ?? []
+    const v = (y: unknown) => (y === null || y === undefined ? '' : String(y))
+    const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 1000) / 10}%` : '')
     const name = (v(e.first_name) + ' ' + v(e.last_name)).trim()
-    const profile: string[][] = [
-      ['Field', 'Value'],
-      ['Name', name], ['Staff ID', v(e.employee_code)], ['Designation', v(e.designation)], ['Department', v(e.department)],
-      ['Employment', v(e.employment_type)], ['Status', v(e.status)], ['Joined', v(e.joined_on)], ['Qualification', v(e.qualification)],
-      ['Experience (years)', v(e.experience_years)], ['Phone', v(e.phone)], ['Email', v(e.email)],
-      ['Emergency contact', v(e.emergency_contact_name)], ['Emergency phone', v(e.emergency_contact_phone)],
-    ]
-    if (ov) {
-      profile.push(
-        ['Subjects taught', v(ov.load.subjects_count)], ['Sections', v(ov.load.sections_count)],
-        ['Students taught', v(ov.load.students_count)], ['Periods / week', v(ov.load.periods_per_week)],
-        ['Class teacher of', ov.load.class_teacher_of.map((x) => `${x.class} ${x.section}`).join(', ')],
-        ['Results (avg %)', ov.marks.has_marks ? v(ov.marks.overall_avg_pct) : ''], ['Pass rate %', ov.marks.has_marks ? v(ov.marks.pass_rate_pct) : ''],
-      )
+
+    /* ONE SHEET (owner, 2026-11-02: "should be in one with their performance
+       and any remarks and subject wise all performance including stats").
+       Blocks one under another, each under a bold heading across the sheet. */
+    const rows: string[][] = []
+    const bold: number[] = []
+    const merges: string[] = []
+    const heading = (t: string) => {
+      if (rows.length) rows.push([])
+      bold.push(rows.length); rows.push([t]); merges.push(`A${rows.length}:E${rows.length}`)
     }
-    const sheets = [
-      { name: 'Overview', rows: profile, freezeHeader: true, boldRows: [0], colWidths: [22, 48] },
-      { name: 'Classes & subjects', rows: [['Class', 'Section', 'Subject', 'Students'], ...(ov?.load.subjects ?? []).map((x) => [x.class, x.section, x.subject, v(x.students)])], freezeHeader: true, boldRows: [0], colWidths: [14, 10, 24, 10] },
-      { name: 'Results by subject', rows: [['Subject', 'Average %', 'Students', 'Exams'], ...(ov?.marks.by_subject ?? []).map((x) => [x.subject, v(x.avg_pct), v(x.students), v(x.exams)])], freezeHeader: true, boldRows: [0], colWidths: [24, 12, 10, 8] },
-    ]
+    const table = (head: string[], body: string[][], empty: string) => {
+      bold.push(rows.length); rows.push(head)
+      if (body.length) rows.push(...body)
+      else rows.push([empty])
+    }
+    heading(`${name}: staff overview${x.yearName ? `, ${x.yearName}` : ''}`)
+    heading('Profile')
+    rows.push(['Staff ID', v(e.employee_code)], ['Designation', v(e.designation)], ['Department', v(e.department)], ['Employment', v(e.employment_type)],
+      ['Status', v(e.status)], ['Joined', v(e.joined_on)], ['Qualification', v(e.qualification)], ['Experience (years)', v(e.experience_years)],
+      ['Phone', v(e.phone)], ['Email', v(e.email)], ['Emergency contact', `${v(e.emergency_contact_name)} ${v(e.emergency_contact_phone)}`.trim()])
+    heading('Stats this year')
+    rows.push(['Attendance', `${pct(x.attendance.present, x.attendance.marked)} (${x.attendance.present} of ${x.attendance.marked} days)`],
+      ['Late', v(x.attendance.late)], ['On leave (days marked)', v(x.attendance.onLeave)],
+      ['Leave taken', `${x.leave.days} days, ${x.leave.requests} approved requests`], ['Leave left', x.leave.balance === null ? '' : v(x.leave.balance)],
+      ['Homework set', v(x.homework)], ['Lesson plans', `${x.lessonPlans.n} (${x.lessonPlans.ok} approved)`], ['Duties', v(x.duties)],
+      ['Activities', x.activities.map((a) => a.name).join(', ')])
+    heading('Teaching load')
+    rows.push(['Subjects taught', v(ov?.load.subjects_count ?? 0)], ['Sections', v(ov?.load.sections_count ?? 0)], ['Students taught', v(ov?.load.students_count ?? 0)],
+      ['Periods / week', v(ov?.load.periods_per_week ?? 0)], ['Class teacher of', (ov?.load.class_teacher_of ?? []).map((y) => `${y.class} ${y.section}`).join(', ')])
+    table(['Class', 'Section', 'Subject', 'Students'], (ov?.load.subjects ?? []).map((y) => [y.class, y.section, y.subject, v(y.students)]), 'No classes assigned in the timetable.')
+    heading('Performance')
+    if (ov?.marks.has_marks) rows.push(['Average %', v(ov.marks.overall_avg_pct)], ['Pass rate %', v(ov.marks.pass_rate_pct)], ['Distinction rate %', v(ov.marks.distinction_rate_pct)])
+    else rows.push(['No published marks yet.'])
+    table(['Subject', 'Average %', 'Students', 'Exams'], (ov?.marks.by_subject ?? []).map((y) => [y.subject, v(y.avg_pct), v(y.students), v(y.exams)]), 'No subject results yet.')
+    rows.push([])
+    table(['Class', 'Section', 'Average %'], (ov?.marks.by_section ?? []).map((y) => [y.class, y.section, v(y.avg_pct)]), 'No section results yet.')
+    rows.push([])
+    table(['Exam', 'Date', 'Average %'], (ov?.marks.trend ?? []).map((y) => [y.exam, y.date, v(y.avg_pct)]), 'No exam results yet.')
+    heading('Remarks')
+    table(['Date', 'Kind', 'By', 'Role', 'Remark'], remarks.map((y) => [y.observed_on, y.kind, y.author, y.author_role, y.body]), 'No remarks recorded.')
+    rows.push([])
+    table(['Appraisal', 'Status', 'Score', 'Band', 'Reviewer comments'], apps.map((y) => [y.cycle, y.status, y.score, y.band, y.comments]), 'No appraisals recorded.')
+
     const file = `${(name || 'staff').replace(/[^A-Za-z0-9]+/g, '-')}-overview.xlsx`
-    return new Response(buildXLSX(sheets), { status: 200, headers: { 'Content-Type': XLSX_CONTENT_TYPE, 'Content-Disposition': `attachment; filename="${file}"` } })
+    return new Response(buildXLSX([{ name: 'Staff overview', rows, merges, boldRows: bold, colWidths: [24, 30, 22, 14, 60] }]), { status: 200,
+      headers: { 'Content-Type': XLSX_CONTENT_TYPE, 'Content-Disposition': `attachment; filename="${file}"` } })
   })
 
   r.get('/hr/employees/{id}/overview/report', READ, async (c) => {
