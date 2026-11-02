@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createPortal } from 'react-dom'
+import { shrinkImage } from '@/lib/shrink-image'
 import { Phone, Mail, Printer, Camera, MoreHorizontal, Download } from 'lucide-react'
 import StudentAvatar from '@/components/StudentAvatar'
 import { SearchBox } from '@/components/rows'
@@ -688,7 +690,7 @@ function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
     setErr(null)
     try {
       const form = new FormData()
-      form.append('file', f, f.name)
+      form.append('file', await shrinkImage(f, 600))
       const up = await fetch('/api/v1/files', { method: 'POST', credentials: 'same-origin', body: form })
       if (!up.ok) throw new Error('The photo could not be uploaded.')
       const j = (await up.json()) as { file_id: string }
@@ -865,7 +867,10 @@ function RowMenu({ label, items }: { label: string; items: RowMenuItem[] }) {
           <span className="sr-only">{label}</span>
         </Button>
       </span>
-      {at && (
+      {/* On document.body: the table card's backdrop blur makes it the box a
+          fixed menu is placed in, so drawn inside it the menu landed off the
+          card's clipped edge and the button seemed to do nothing. */}
+      {at && createPortal(
         <div ref={box} role="menu" aria-label={label} onKeyDown={walk}
           style={{ top: at.top, right: at.right }}
           className="fixed z-50 w-60 overflow-hidden rounded-lg border bg-card py-1 shadow-pop">
@@ -877,7 +882,8 @@ function RowMenu({ label, items }: { label: string; items: RowMenuItem[] }) {
               {it.hint && <span className="block whitespace-normal text-[12px] text-muted-foreground">{it.hint}</span>}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

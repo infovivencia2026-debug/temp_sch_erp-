@@ -178,7 +178,7 @@ const PROBES: Probe[] = [
            AND NOT EXISTS (SELECT 1 FROM student_attendance sa WHERE sa.section_id = s.id AND sa.on_date = ?)
            AND EXISTS (SELECT 1 FROM enrollments e WHERE e.section_id = s.id AND e.status = 'active')`, ...args, today) }
     } },
-  { key: 'attendance.absent_today', needs: 'academics.attendance.read', daily: true, severity: 'info', action: 'View register', href: 'attendance',
+  { key: 'attendance.absent_today', needs: 'academics.attendance.read', daily: true, severity: 'info', action: 'See who is absent', href: 'absentee_followup student_absentees attendance',
     headline: (n) => plural(n, 'student', 'students') + ' absent today',
     run: async (c, sc, today) => {
       const p = attendancePredicate(sc, 'sa')

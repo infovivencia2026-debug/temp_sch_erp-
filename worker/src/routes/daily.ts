@@ -8,6 +8,7 @@ import {
   HttpError, badRequest, bool, forbidden, notFound, ok, created, readJSON, uuid, uuidParam, uuidQuery, isUUID, now,
 } from '../http'
 import { json } from '../env'
+import { buildXLSX, XLSX_CONTENT_TYPE } from '../services/xlsx'
 import { publishTopic } from '../services/live'
 import { auditStmt } from './admin/common'
 import { schoolDay } from '../auth/session'
@@ -687,6 +688,7 @@ function registerAttendance(r: Router) {
   // RequireAnyPermission(AttendanceRead, AttendanceReadAll): either grant
   // opens these, so they are registered as 'auth' and anyAttendanceRead gates.
   r.get('/attendance/absentees', 'auth', listAbsentees)
+  r.get('/attendance/absentees/sheet', 'auth', absenteeSheet)
   r.post('/attendance/absentees/followup', 'auth', recordAbsenceFollowup)
   r.post('/attendance/absentees/section-done', 'auth', finishAbsenceSection)
 }
@@ -718,6 +720,46 @@ const contactsAgg = `COALESCE((SELECT json_group_array(json_object('name', name,
            WHERE sg.student_id = st.id AND g.phone IS NOT NULL AND trim(g.phone) <> ''
            ORDER BY (g.relation = 'father') DESC, (g.relation = 'mother') DESC, sg.is_primary DESC, g.full_name)), '[]')`
 
+/* THE DAY'S ABSENTEES AS A SHEET (owner, 2026-10-30): per child, one row of
+   name, class, admission no, date, parent name and number, and under it the
+   remark merged across all six columns. remarks=0 leaves the remark blank, for
+   a list taken out before anyone has rung. Same scope as the list on screen:
+   it is that list, read through listAbsentees. */
+async function absenteeSheet(c: Ctx): Promise<Response> {
+  const withRemarks = c.url.searchParams.get('remarks') !== '0'
+  const day = await (await listAbsentees(c)).json() as {
+    date: string
+    sections: { class_name: string; section_name: string; students: {
+      name: string; admission_no: string; contacts?: { name: string; phone: string; relation: string; primary?: number | boolean }[]
+      parent_response?: string; called_phone?: string; informed?: string | null }[] }[]
+  }
+  const [y, m, d] = day.date.split('-')
+  const date = `${d}-${m}-${y}`
+  const rel = (r: string, n: string) => (r?.trim() ? r.trim().charAt(0).toUpperCase() + r.trim().slice(1) : n || 'Guardian')
+  const rows: string[][] = [['Name', 'Class', 'Adm No', 'Date', 'Parent name', 'Number']]
+  const merges: string[] = []
+  for (const s of day.sections) for (const st of s.students) {
+    /* With remarks, the parent who was rung replaces the full list: their
+       name (Primary when they are) and the number dialled. */
+    const all = st.contacts ?? []
+    const rung = withRemarks && st.called_phone ? all.find((x) => x.phone === st.called_phone) : undefined
+    const cs = rung ? [rung] : withRemarks && st.called_phone ? [{ name: '', phone: st.called_phone, relation: '' }] : all
+    rows.push([st.name, `${s.class_name} ${s.section_name}`.trim(), st.admission_no, date,
+      cs.map((x) => `${x.relation || x.name ? rel(x.relation, x.name) : ''}${x.name ? `: ${x.name}` : ''}${x.primary ? ' (Primary)' : ''}`).join(' / '),
+      cs.map((x) => x.phone).join(' / ')])
+    const remark = withRemarks
+      ? [st.parent_response ?? '', st.informed ? `Informed by parent: ${st.informed.split('|')[0]}` : ''].filter(Boolean).join(' · ')
+      : ''
+    rows.push([`Reason for absence: ${remark}`])
+    merges.push(`A${rows.length}:F${rows.length}`)
+  }
+  const bytes = buildXLSX([{ name: 'Absentees', rows, merges, boldRows: [0], freezeHeader: true, colWidths: [26, 10, 12, 12, 34, 24] }])
+  return new Response(bytes, { status: 200, headers: {
+    'Content-Type': XLSX_CONTENT_TYPE,
+    'Content-Disposition': `attachment; filename="absentees-${day.date}${withRemarks ? '-remarks' : ''}.xlsx"`,
+  } })
+}
+
 async function listAbsentees(c: Ctx): Promise<Response> {
   anyAttendanceRead(c)
   const q = c.url.searchParams
@@ -731,7 +773,7 @@ async function listAbsentees(c: Ctx): Promise<Response> {
       SELECT sa.section_id, sec.name AS section_name, c.name AS class_name, du.full_name AS done_by, d.done_at,
              sa.student_id, ${fullName3('st')} AS name, st.admission_no, sa.status AS mark,
              ${contactsAgg} AS contacts,
-             COALESCE(f.call_status, 'not_called') AS call_status, COALESCE(f.parent_response, '') AS parent_response,
+             COALESCE(f.call_status, 'not_called') AS call_status, COALESCE(f.parent_response, '') AS parent_response, COALESCE(f.called_phone, '') AS called_phone,
              COALESCE(fu.full_name, '') AS called_by, f.updated_at AS called_at,
              /* The parent already told the school (leave or an absence report):
                 said on the row, so nobody rings a family that has written in. */
@@ -775,14 +817,14 @@ async function listAbsentees(c: Ctx): Promise<Response> {
     let contacts: unknown[] = []
     try { contacts = JSON.parse(it.contacts as string) } catch { /* a bad aggregate leaves no numbers rather than no row */ }
     sections[i].students.push({ student_id: it.student_id, name: it.name, admission_no: it.admission_no, mark: it.mark,
-      contacts, call_status: it.call_status, parent_response: it.parent_response, called_by: it.called_by, called_at: it.called_at ?? null,
+      contacts, call_status: it.call_status, parent_response: it.parent_response, called_phone: it.called_phone, called_by: it.called_by, called_at: it.called_at ?? null,
       informed: it.informed ?? null })
   }
   return ok({ date: on, sections, present: present.results })
 }
 
 /** upsertAbsenceFollowup: the scope check and the statement, shared by the two writers. */
-async function absenceFollowupStmt(c: Ctx, res: Resolved, studentId: string, onDate: string, callStatus: string, parentResponse: string): Promise<D1PreparedStatement> {
+async function absenceFollowupStmt(c: Ctx, res: Resolved, studentId: string, onDate: string, callStatus: string, parentResponse: string, calledPhone: string): Promise<D1PreparedStatement> {
   if (!res.allAttendance) {
     const sl = inList('e.section_id', res.sectionIds)
     const visible = await c.db.prepare(`SELECT (EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = ? AND ${sl.sql}) OR ?) AS v`)
@@ -791,29 +833,30 @@ async function absenceFollowupStmt(c: Ctx, res: Resolved, studentId: string, onD
   }
   const st = await c.db.prepare('SELECT institution_id FROM students WHERE id = ?').bind(studentId).first<{ institution_id: string }>()
   if (!st) throw notFound('resource not found')
-  return c.db.prepare(`INSERT INTO student_absence_followup (institution_id, student_id, on_date, call_status, parent_response, updated_by, updated_at)
-    VALUES (?,?,?,?,?,?,?)
+  return c.db.prepare(`INSERT INTO student_absence_followup (institution_id, student_id, on_date, call_status, parent_response, called_phone, updated_by, updated_at)
+    VALUES (?,?,?,?,?,?,?,?)
     ON CONFLICT (student_id, on_date) DO UPDATE SET call_status = excluded.call_status, parent_response = excluded.parent_response,
+      called_phone = excluded.called_phone,
       updated_by = excluded.updated_by, updated_at = excluded.updated_at`)
-    .bind(st.institution_id, studentId, onDate, callStatus, parentResponse, c.id.userId, now())
+    .bind(st.institution_id, studentId, onDate, callStatus, parentResponse, callStatus === 'not_called' ? '' : calledPhone.trim().slice(0, 32), c.id.userId, now())
 }
 
 async function recordAbsenceFollowup(c: Ctx): Promise<Response> {
   anyAttendanceRead(c)
-  const req = await readJSON<{ student_id?: string; on_date?: string; call_status?: string; parent_response?: string }>(c.req)
+  const req = await readJSON<{ student_id?: string; on_date?: string; call_status?: string; parent_response?: string; called_phone?: string }>(c.req)
   if (!isUUID(req.student_id)) throw badRequest('student_id must be a uuid')
   const onDate = req.on_date || today()
   if (!isDate(onDate)) throw badRequest('on_date must be YYYY-MM-DD')
   if (!callStatuses.has(req.call_status ?? '')) throw badRequest('invalid call_status: ' + (req.call_status ?? ''))
   const res = await resolveScope(c)
-  const stmt = await absenceFollowupStmt(c, res, req.student_id, onDate, req.call_status!, req.parent_response ?? '')
+  const stmt = await absenceFollowupStmt(c, res, req.student_id, onDate, req.call_status!, req.parent_response ?? '', req.called_phone ?? '')
   await stmt.run()
   return ok({ ok: true })
 }
 
 async function finishAbsenceSection(c: Ctx): Promise<Response> {
   anyAttendanceRead(c)
-  const req = await readJSON<{ section_id?: string; on_date?: string; entries?: Array<{ student_id: string; call_status: string; parent_response?: string }> }>(c.req)
+  const req = await readJSON<{ section_id?: string; on_date?: string; entries?: Array<{ student_id: string; call_status: string; parent_response?: string; called_phone?: string }> }>(c.req)
   const sectionId = req.section_id ?? ''
   if (!isUUID(sectionId)) throw badRequest('section_id must be a uuid')
   const onDate = req.on_date || today()
@@ -826,7 +869,7 @@ async function finishAbsenceSection(c: Ctx): Promise<Response> {
   const res = await resolveScope(c)
   if (!res.allAttendance && !res.sectionIds.includes(sectionId)) throw forbidden('missing permission: academics.attendance.read for this section')
   const stmts: D1PreparedStatement[] = []
-  for (const e of entries) stmts.push(await absenceFollowupStmt(c, res, e.student_id, onDate, e.call_status, e.parent_response ?? ''))
+  for (const e of entries) stmts.push(await absenceFollowupStmt(c, res, e.student_id, onDate, e.call_status, e.parent_response ?? '', e.called_phone ?? ''))
   const sec = await c.db.prepare('SELECT institution_id FROM sections WHERE id = ?').bind(sectionId).first<{ institution_id: string }>()
   if (!sec) throw notFound('resource not found')
   stmts.push(c.db.prepare(`INSERT INTO absence_followup_section_done (institution_id, section_id, on_date, done_by, done_at) VALUES (?,?,?,?,?)

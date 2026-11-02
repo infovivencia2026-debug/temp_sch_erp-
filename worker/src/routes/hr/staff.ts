@@ -7,6 +7,7 @@ import { addDays, fullName, isHHMM, isUUIDish, istClock, istMinute, nextNumber, 
 import { employeeFilter, growthReach } from './reach'
 import { overviewExtras, staffOverviewDoc } from './staff_overview_doc'
 import { school } from '../school'
+import { buildXLSX, XLSX_CONTENT_TYPE } from '../../services/xlsx'
 
 /* Port of the /hr group's own handlers: the dashboard, the employee directory
    (role_backoffice.go), one member of staff (staff_detail.go), the workload
@@ -693,6 +694,45 @@ export function registerStaff(r: Router) {
     const ov = await resolveStaffOverview(c.db, c.params.id)
     if (!ov) throw notFound()
     return ok(ov)
+  })
+
+  /* One person's overview as an Excel sheet (owner, 2026-10-31: "just keep
+     print and excel"). The same facts as the printed overview: profile, load
+     and results. Bank, PAN, UAN and ESI stay off it, as on the print. */
+  r.get('/hr/employees/{id}/overview/xlsx', READ, async (c) => {
+    const eid = c.params.id
+    if (!isUUIDish(eid)) throw badRequest('invalid employee id')
+    const e = await c.db.prepare(`
+      SELECT e.employee_code, e.first_name, e.last_name, e.phone, e.email, e.qualification, d.name AS department, dg.name AS designation,
+             e.employment_type, e.status, e.joined_on, e.experience_years, e.emergency_contact_name, e.emergency_contact_phone
+        FROM employees e LEFT JOIN departments d ON d.id = e.department_id LEFT JOIN designations dg ON dg.id = e.designation_id WHERE e.id = ?`)
+      .bind(eid).first<Record<string, string | number | null>>()
+    if (!e) throw notFound()
+    const ov = await resolveStaffOverview(c.db, eid)
+    const v = (x: unknown) => (x === null || x === undefined ? '' : String(x))
+    const name = (v(e.first_name) + ' ' + v(e.last_name)).trim()
+    const profile: string[][] = [
+      ['Field', 'Value'],
+      ['Name', name], ['Staff ID', v(e.employee_code)], ['Designation', v(e.designation)], ['Department', v(e.department)],
+      ['Employment', v(e.employment_type)], ['Status', v(e.status)], ['Joined', v(e.joined_on)], ['Qualification', v(e.qualification)],
+      ['Experience (years)', v(e.experience_years)], ['Phone', v(e.phone)], ['Email', v(e.email)],
+      ['Emergency contact', v(e.emergency_contact_name)], ['Emergency phone', v(e.emergency_contact_phone)],
+    ]
+    if (ov) {
+      profile.push(
+        ['Subjects taught', v(ov.load.subjects_count)], ['Sections', v(ov.load.sections_count)],
+        ['Students taught', v(ov.load.students_count)], ['Periods / week', v(ov.load.periods_per_week)],
+        ['Class teacher of', ov.load.class_teacher_of.map((x) => `${x.class} ${x.section}`).join(', ')],
+        ['Results (avg %)', ov.marks.has_marks ? v(ov.marks.overall_avg_pct) : ''], ['Pass rate %', ov.marks.has_marks ? v(ov.marks.pass_rate_pct) : ''],
+      )
+    }
+    const sheets = [
+      { name: 'Overview', rows: profile, freezeHeader: true, boldRows: [0], colWidths: [22, 48] },
+      { name: 'Classes & subjects', rows: [['Class', 'Section', 'Subject', 'Students'], ...(ov?.load.subjects ?? []).map((x) => [x.class, x.section, x.subject, v(x.students)])], freezeHeader: true, boldRows: [0], colWidths: [14, 10, 24, 10] },
+      { name: 'Results by subject', rows: [['Subject', 'Average %', 'Students', 'Exams'], ...(ov?.marks.by_subject ?? []).map((x) => [x.subject, v(x.avg_pct), v(x.students), v(x.exams)])], freezeHeader: true, boldRows: [0], colWidths: [24, 12, 10, 8] },
+    ]
+    const file = `${(name || 'staff').replace(/[^A-Za-z0-9]+/g, '-')}-overview.xlsx`
+    return new Response(buildXLSX(sheets), { status: 200, headers: { 'Content-Type': XLSX_CONTENT_TYPE, 'Content-Disposition': `attachment; filename="${file}"` } })
   })
 
   r.get('/hr/employees/{id}/overview/report', READ, async (c) => {

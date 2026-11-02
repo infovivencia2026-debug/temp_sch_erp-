@@ -60,7 +60,7 @@ import { usePanes } from '@/lib/panes'
 import { multitaskingAllowed } from '@/lib/tabs'
 import { staffLayoutOn, staffSidebarOn } from '@/lib/staff-layout'
 import { ComboTabs } from '@/components/StaffCombos'
-import { StaffHeaderContent, StaffNavList, StaffPanelFoot, isHomeSection, useTodaySignIns } from '@/components/StaffShell'
+import { NavScrollButton, StaffHeaderContent, StaffNavList, StaffPanelFoot, isHomeSection, useTodaySignIns } from '@/components/StaffShell'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
@@ -732,6 +732,9 @@ export function Shell({
              at its foot is always reachable (owner, 2026-10-09). */
           'shrink-0 flex-row bg-sidebar md:sticky md:top-0 md:h-dvh md:self-start',
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[288px]',
+          /* The visible height on a phone, not the layout height: iPhone Safari's
+             bottom bar sat over the foot of the menu and hid Settings (Yajur, 2026-10-30). */
+          'max-md:bottom-auto max-md:h-dvh',
           /* The line between the sidebar and the page, at every width. It was
              drawn only below lg, so on a desktop the white sidebar ran into
              the white page with nothing marking where one ended. */
@@ -928,11 +931,11 @@ export function Shell({
             onClick={() => toggleRail(true)}
             aria-label="Hide navigation"
             title="Hide navigation"
-            className="absolute right-2.5 top-2.5 z-10 hidden h-10 w-10 place-items-center
+            className={cn(`absolute right-2.5 top-2.5 z-10 hidden h-10 w-10 place-items-center
                        rounded-full text-muted-foreground transition-colors duration-100
                        hover:bg-surface-hover hover:text-foreground
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
-                       lg:grid"
+                       lg:grid`)}
           >
             <PanelLeftClose className="h-5 w-5" />
           </button>
@@ -1102,6 +1105,7 @@ export function Shell({
         </div>
 
         {/* --- navigation: indentation, not a tree ------------------------ */}
+        {staffNav && <NavScrollButton dir={-1} />}
         <nav aria-label="Sections" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', staffNav ? 'flex flex-col gap-4 px-[18px] py-5 max-sm:px-4' : 'px-3 pb-3')}>
           {/* Recent was here, above the workspace.
 
@@ -1229,6 +1233,7 @@ export function Shell({
               controls for one thing on one screen reads as two different
               things until somebody presses both. */}
         </nav>
+        {staffNav && <NavScrollButton dir={1} />}
         {/* Focus | Work, beside the rail's cog at the foot of the sidebar. */}
         {staffNav ? (
           <StaffPanelFoot employeeCode={signIns.data?.employee_code} onNavigate={() => setNavOpen(false)} />
@@ -1262,23 +1267,29 @@ export function Shell({
       )}
 
       {/* --- content ------------------------------------------------------ */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         {/* A quiet contextual bar, not a toolbar bolted to a box. No bottom
             border: the page beneath it is the same ground colour, and the
             sticky blur already says "this stays". */}
-        {staffLayout && (
-          <header data-paint="topbar" className="chrome sticky top-0 z-30 flex shrink-0 items-start gap-2 px-4 py-2.5 sm:px-7 md:min-h-[64px] md:items-center">
+        {(staffLayout || staffNav) && (
+          <header data-paint="topbar" className={cn('chrome sticky top-0 z-30 flex shrink-0 items-start gap-2 px-4 py-2.5 sm:px-7 md:min-h-[64px] md:items-center',
+            /* On a phone, Settings has only the menu button up here: it floats on
+               the line of the page's own title and back button instead of taking
+               a row of its own (Yajur, 2026-10-30). */
+            location.pathname.startsWith('/settings') && 'max-md:absolute max-md:right-0 max-md:top-0 max-md:!bg-transparent max-md:px-3 max-md:py-[16px] max-md:![backdrop-filter:none]')}>
             <button
               ref={openerRef}
               aria-label="Open navigation"
               aria-expanded={navOpen}
               aria-controls="shell-nav"
               /* The staff bar's menu button sits at the top right (Yajur, 2026-10-21). */
-              className="order-last grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+              className="order-last ml-auto grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
               onClick={() => setNavOpen(true)}
             >
               <Menu className="h-6 w-6 md:h-5 md:w-5" />
             </button>
+            {/* The sidebar opens and closes where it always did (owner, 2026-10-30):
+                the panel's own button hides it, and this brings it back. */}
             {railHidden && (
               <button
                 type="button"
@@ -1291,10 +1302,13 @@ export function Shell({
               </button>
             )}
             {/* Settings shows settings only (Yajur, 2026-10-24): no name, sign-in times or search over it. */}
-            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} dashboard={['home', 'dashboard'].includes(location.pathname.split('/')[2] ?? '')} />}
+            {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} dashboard={['home', 'dashboard'].includes(location.pathname.split('/')[2] ?? '')}
+              /* Every staff role gets this bar (owner, 2026-10-30, "all should have like" the teacher's);
+                 the school and year switchers from the old bar come along, and draw nothing for one school, one year. */
+              extra={<><InstitutionSwitch /><GroupReportLink /><YearSwitch /></>} />}
           </header>
         )}
-        {!chromeless && !staffLayout && (
+        {!chromeless && !staffLayout && !staffNav && (
         <header data-paint="topbar" className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
           {/* Gone only at lg, because from lg up the full sidebar is on the
               screen. On a tablet the 58px rail is visible but the panel behind

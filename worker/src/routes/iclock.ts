@@ -266,14 +266,13 @@ export async function handleIclock(env: Env, req: Request, url: URL): Promise<Re
   if (path === '/iclock/cdata' && req.method === 'GET') {
     /* The reader's settings: send every punch at once (Realtime), from the
        start of its log, and check in every 30 seconds.
-       No TimeZone. A reader given one sets its own clock from it and the
-       server's time, and eSSL firmware reads the zone in whole hours: India's
-       5.5 became 5 or 6, the clock half an hour behind or ahead (Yajur,
-       2026-10-22). The clock is set to India time directly instead, by
-       SET OPTION DateTime below (the command name the X2008 and other ZMM220
-       readers read), which carries no zone to misread. */
+       TimeZone in minutes (330 = UTC+5:30). The reader sets its own clock
+       from the server's time and its zone; given hours it read 5.5 as 5 and
+       ran 30 minutes slow, and it ignores SET OPTION DateTime (Yajur,
+       2026-10-30: sent up to 120 minutes ahead, the clock never moved).
+       Push firmware reads a zone outside -12..12 as minutes. */
     return text([
-      `GET OPTION FROM: ${serial}`, 'ATTLOGStamp=0', 'OPERLOGStamp=9999', 'ATTPHOTOStamp=None', 'ErrorDelay=60', 'Delay=30',
+      `GET OPTION FROM: ${serial}`, 'ATTLOGStamp=0', 'OPERLOGStamp=9999', 'ATTPHOTOStamp=None', 'ErrorDelay=60', 'Delay=30', 'TimeZone=330',
       'TransTimes=00:00;14:05', 'TransInterval=1', 'TransFlag=TransData AttLog', 'Realtime=1', 'Encrypt=None',
     ].join('\n') + '\n')
   }

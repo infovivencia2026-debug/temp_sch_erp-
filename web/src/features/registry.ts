@@ -66,6 +66,20 @@ import { transportDeskKeys } from './operations/transport-desk-keys'
  * the client can actually render. Run `make catalog` after editing.
  */
 export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>> = {
+  // Built screens that had no menu entry, added back (owner, 2026-10-31).
+  'institution_admin.students.student_council': screen(() => import('./students/StudentCouncil')),
+  'institution_admin.analysis.today_at_school': screen(() => import('./analytics/Today')),
+  'institution_admin.statutory_returns.child_info_reconciliation': screen(() => import('./compliance/ChildInfoReconciliation')),
+  'institution_admin.statutory_returns.sqaa_compliance': screen(() => import('./compliance/SQAACompliance')),
+  'institution_admin.mid_day_meal.mid_day_meal_return': screen(() => import('./operations/MDMUtilisation')),
+  'hod.academics.department_students': screen(() => import('./students/DepartmentStudents')),
+  'faculty.my_classes.montessori_tracking': screen(() => import('./faculty/MontessoriTracking')),
+  'faculty.my_classes.student_portfolio': screen(() => import('./faculty/PortfolioBuilder')),
+  'faculty.attendance.absence_alerts_to_parents': screen(() => import('./communication/AbsenceAlerts')),
+  'faculty.teaching.virtual_classes': screen(() => import('./faculty/VirtualClasses')),
+  'faculty.marks_report_cards.holistic_progress_card': screen(() => import('./exams/HolisticCard')),
+  'faculty.question_papers_online_tests.online_test_grading': screen(() => import('./faculty/ExamGrading')),
+  'admissions.enquiries.follow_up_sequences': screen(() => import('./admissions/CampaignSequences')),
   'institution_admin.students.student_360': screen(() => import('./shared/StudentProfile')),
   /* The office that admits a child is the office that hands their family the
      login — internal/api/api.go has said so beside the endpoint all along, and
@@ -206,9 +220,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      the plans that deliver them, and the percentage that follows; three
      screens would each show a third of an answer. */
   'institution_admin.academics.curriculum_roadmap': screen(() => import('./academics/Syllabus')),
-  'institution_admin.academics.lesson_plans': screen(() => import('./academics/Syllabus')),
+  'institution_admin.academics.lesson_plans': screen(() => import('./academics/LessonRegister')),
   'institution_admin.academics.syllabus_progress': screen(() => import('./academics/Syllabus')),
-  'faculty.teaching.lesson_plans_content': screen(() => import('./academics/Syllabus')),
+  'faculty.teaching.lesson_plans_content': screen(() => import('./academics/LessonRegister')),
 
   /* Exam day. One screen, two halves: the office allocates halls and prints
      the invigilator's plan, a candidate reads their own ticket. Which half you
@@ -221,6 +235,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.help.helpdesk': screen(() => import('./help/Helpdesk')), // feature:help.helpdesk
   'hr.payroll.year_end_payout': screen(() => import('./payroll/YearEndPayout')), // feature:payroll.year_end_payout
   'front_office.communication.parent_concerns': screen(() => import('./comms/ParentConcerns')), // feature:communication.parent_concerns
+  'admissions.communication.parent_concerns': screen(() => import('./comms/ParentConcerns')), // feature:communication.parent_concerns
   'faculty.communication.concerns_from_parents': screen(() => import('./comms/ConcernsFromParents')), // feature:communication.concerns_from_parents
   'hod.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
   'institution_admin.academics.subject_overview': screen(() => import('./academics/SubjectOverview')), // feature:academics.subject_overview
@@ -429,7 +444,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hod.timetable.my_timetable': screen(() => import('./shared/Timetable')),
   'hod.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   'hod.teaching.homework_classwork': screen(() => import('./workflow/Homework')),
-  'hod.teaching.lesson_plans_content': screen(() => import('./academics/Syllabus')),
+  'hod.teaching.lesson_plans_content': screen(() => import('./academics/LessonRegister')),
   'hod.marks_report_cards.marks_entry': screen(() => import('./exams/Gradebook')),
   'hod.marks_report_cards.report_cards': screen(() => import('./exams/ReportCards')),
   'hod.communication.communication': screen(() => import('./faculty/Communication')),

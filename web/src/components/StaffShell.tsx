@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
+import { LayoutSwitch } from './LayoutSwitch'
 import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { COMBOS, MOVES, comboOf } from '@/components/StaffCombos'
+import { COMBOS, MOVES, comboOf, regroupAdmin, regroupRole } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
 import {
   BookOpen, Bus, Images, CalendarClock, CalendarDays, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
@@ -11,12 +13,12 @@ import { api } from '@/lib/api'
 import { buzz } from '@/lib/haptics'
 import { BentoSettings } from '@/features/bento/BentoSettings'
 import { HelpButton } from '@/features/help/HelpEntry'
-import { LayoutSwitch } from './LayoutSwitch'
 import { usePhone } from '@/lib/viewport'
 import { featurePath, type ApiSection } from '@/lib/catalog'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { Button } from './ui'
 import { PersonAvatar } from './ChatScreen'
 import { CommandSearch } from './CommandSearch'
 import Notifications from './Notifications'
@@ -166,6 +168,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   /* Question papers just above My profile, and My profile last (Yajur, 2026-10-21). */
   const LAST = ['exams', 'my_profile']
   const rank = (slug: string) => LAST.indexOf(slug)
+  workspaces = roleKey === 'institution_admin' ? regroupAdmin(workspaces) : regroupRole(roleKey, workspaces)
   const groups = workspaces.flatMap((ws) => ws.sections.map((section) => ({ ws, section })))
     .map((g, i) => ({ ...g, i }))
     .sort((a, b) => (rank(a.section.slug) - rank(b.section.slug)) || a.i - b.i)
@@ -280,7 +283,7 @@ function clock(iso: string | null | undefined, timeZone: string | undefined): st
 /** The one bar across the workspace: greeting and date, search, who is signed in. */
 /* `dashboard`: the greeting, name and sign-in times show on the dashboard
    only; other screens keep just the bar's controls (owner, 2026-10-24). */
-export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean }) {
+export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean; extra?: ReactNode }) {
   const session = useSession()
   const phone = usePhone()
   const now = new Date()
@@ -331,17 +334,35 @@ export function StaffHeaderContent({ signIns, dashboard }: { signIns: ReturnType
       </div>
       <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 md:col-start-3">
         {/* No avatar or staff ID here (owner, 2026-10-30): the profile in the panel's foot is enough. */}
-        {dashboard && times && <p className="truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
+        {/* Focus | Work before the sign-in times, in its own pill look (owner, 2026-10-30); phones and tablets keep it in the panel. */}
+        <div className="shrink-0 max-lg:hidden"><LayoutSwitch bar /></div>
+        {/* From lg up only: on a tablet the bar has no room and the times ran under the bell. */}
+        {dashboard && times && <p className="shrink-0 whitespace-nowrap max-lg:hidden text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
+        {extra}
         <Notifications />
       </div>
     </div>
   )
 }
 
-/* The panel's foot (owner's side-panel design, 2026-10-24): Focus | Work as
-   one full-width pill, then a card with who is signed in and Help, Settings
+/* No Focus | Work pill here (owner, 2026-10-30): the layout is chosen in Settings. */
+/* The panel's foot (owner's side-panel design, 2026-10-24): a card with who is signed in and Help, Settings
    and Sign out. The avatar and name open the account page. */
 const FOOT_ICON = 'foot-icon grid size-10 max-sm:size-12 shrink-0 place-items-center rounded-[10px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+
+/** Up above the menu and down below it (owner, 2026-10-30): real buttons
+    that scroll the menu when its groups run past the panel's height. */
+export function NavScrollButton({ dir }: { dir: 1 | -1 }) {
+  const label = dir < 0 ? 'Scroll menu up' : 'Scroll menu down'
+  return (
+    /* Not on a phone (owner, 2026-10-30): the menu scrolls under the finger there. */
+    <div className={cn('shrink-0 px-[18px] max-sm:hidden', dir < 0 ? 'pt-3' : 'pb-1 pt-2')}>
+      <Button variant="secondary" size="sm" className="w-full" aria-label={label} title={label} onClick={() => scrollNav(dir)}>
+        {dir < 0 ? <ChevronUp aria-hidden className="h-4 w-4" /> : <ChevronDown aria-hidden className="h-4 w-4" />}
+      </Button>
+    </div>
+  )
+}
 
 function scrollNav(dir: 1 | -1) {
   const nav = document.querySelector<HTMLElement>('nav[aria-label="Sections"]')
@@ -352,17 +373,8 @@ export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: st
   const session = useSession()
   const fullName = session.user?.full_name ?? ''
   return (
-    <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4">
-      {/* Up and down through the menu (owner, 2026-10-30): the groups run past the panel's height. */}
-      <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1"><LayoutSwitch pill /></div>
-        <button type="button" aria-label="Scroll menu up" title="Scroll menu up" className={FOOT_ICON} onClick={() => scrollNav(-1)}>
-          <ChevronUp aria-hidden className="h-5 w-5" />
-        </button>
-        <button type="button" aria-label="Scroll menu down" title="Scroll menu down" className={FOOT_ICON} onClick={() => scrollNav(1)}>
-          <ChevronDown aria-hidden className="h-5 w-5" />
-        </button>
-      </div>
+    <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4 max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+      <div className="lg:hidden"><LayoutSwitch pill /></div>
       <StaffProfileCard name={fullName} sub={employeeCode} photoId={session.user?.avatar_key} onNavigate={onNavigate} />
     </div>
   )
@@ -379,9 +391,13 @@ export function StaffProfileCard({ name, sub, photoId, onNavigate }: {
         /* Reads as a button (owner, 2026-10-28: "idk that is clickable"): it
            lifts on hover and tints on press, with a chevron saying it opens. */
         className="group -my-1 -ml-1.5 flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-[10px] px-1.5 transition-colors duration-150 hover:bg-primary/10 active:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        {/* The photo alone (owner, 2026-10-30): the cut-off name and staff ID said nothing. */}
+        {/* The photo alone on a computer, where the name was cut off; the name
+            beside it on a phone, where the panel is wide (owner, 2026-10-30). */}
         <PersonAvatar name={name || '?'} photoId={photoId} size={42} />
-        <span className="sr-only">{name}{sub ? ` ${sub}` : ''}</span>
+        <span className="min-w-0 max-sm:block sm:sr-only">
+          <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-bold text-foreground">{name}</span>
+          {sub && <span className="block truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground tabular-nums">{sub}</span>}
+        </span>
         <ChevronRight aria-hidden className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5" />
       </Link>
       <div className="flex shrink-0 items-center gap-0.5">

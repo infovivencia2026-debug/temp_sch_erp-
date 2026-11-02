@@ -5,7 +5,7 @@ const Bars = lazy(() => import('./StaffRecordCharts').then((m) => ({ default: m.
 const ExamTrend = lazy(() => import('./StaffRecordCharts').then((m) => ({ default: m.ExamTrend })))
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Layers, GraduationCap, CalendarClock, CalendarCheck, CalendarOff, ListChecks, Clock } from 'lucide-react'
+import { Printer, Download, BookOpen, Layers, GraduationCap, CalendarClock, CalendarCheck, CalendarOff, ListChecks, Clock } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   Card, CardHeader, CellGrid, Stat, FormGrid, Field as FormField, Select, Input, FormNotice,
@@ -14,7 +14,8 @@ import {
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import CardViewer from '@/components/CardViewer'
 import { formatDate, formatPaise, formatTime, cn } from '@/lib/utils'
-import { RecordShell, type RecordTab, type RecordAction } from '@/components/RecordShell'
+import { RecordShell, type RecordTab } from '@/components/RecordShell'
+import { saveFile } from '@/lib/save-file'
 import { PhotoViewer } from '@/components/PhotoViewer'
 import WeekGrid from '@/components/WeekGrid'
 import Timeline from '@/components/Timeline'
@@ -309,6 +310,7 @@ export default function StaffRecord({ employeeID, onClose }: {
      through. The server hands back {html, css}; CardViewer sanitises it,
      scales it to the page and prints it — the one print path in the product. */
   const [report, setReport] = useState<{ html: string; css?: string; name?: string } | null>(null)
+  const [sheetError, setSheetError] = useState(false)
   const exportReport = useMutation({
     mutationFn: () => api.get<{ html: string; css?: string }>(
       `/api/v1/hr/employees/${employeeID}/overview/report`),
@@ -1095,17 +1097,34 @@ export default function StaffRecord({ employeeID, onClose }: {
     },
   ]
 
-  const actions: RecordAction[] = [
-    /* It opens the print sheet, where Save as PDF is the browser's own
-       choice; calling it Export PDF promised a file. */
-    { label: exportReport.isPending ? 'Preparing…' : 'Print overview', onClick: () => exportReport.mutate(), disabled: exportReport.isPending },
-  ]
+  /* Print and Excel as two buttons, no Actions menu (owner, 2026-10-31).
+     Print opens the print sheet, where Save as PDF is the browser's own. */
+  const buttons = (
+    <>
+      <Button variant="secondary" onClick={() => exportReport.mutate()} disabled={exportReport.isPending}>
+        <Printer className="h-4 w-4" />
+        {exportReport.isPending ? 'Preparing…' : 'Print'}
+      </Button>
+      <Button variant="secondary" onClick={() => {
+        setSheetError(false)
+        saveFile(`/api/v1/hr/employees/${employeeID}/overview/xlsx`, `${d.full_name}-overview.xlsx`).catch(() => setSheetError(true))
+      }}>
+        <Download className="h-4 w-4" />
+        Excel
+      </Button>
+    </>
+  )
 
   return shell(
     <>
       {exportReport.error && (
         <div className="border-b bg-destructive/10 px-[var(--page-gutter)] py-2 text-[13px] text-destructive">
           The overview could not be prepared for printing. Please try again.
+        </div>
+      )}
+      {sheetError && (
+        <div className="border-b bg-destructive/10 px-[var(--page-gutter)] py-2 text-[13px] text-destructive">
+          The Excel sheet could not be downloaded. Please try again.
         </div>
       )}
       <RecordShell
@@ -1130,7 +1149,7 @@ export default function StaffRecord({ employeeID, onClose }: {
         subtitle={[d.relieved_on && `Left on ${formatDate(d.relieved_on)}`, d.designation, d.department, d.employee_code].filter(Boolean).join(' · ')}
         status={d.status}
         tabs={tabs}
-        actions={actions}
+        buttons={buttons}
         onBack={close}
         backLabel="Back to staff"
         /* Its own key, so the directory's own query string is left alone. */

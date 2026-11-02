@@ -554,6 +554,10 @@ export default function Notifications() {
             open ? 'bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
           )}
           onClick={dismiss}
+          /* The drawer plays its own exit; without this the app-wide exit
+             copied it, open, once it had left, and slid it out a second time
+             (owner, 2026-10-30: "coming back open and closing"). */
+          data-no-exit=""
         >
           <aside
             role="dialog"

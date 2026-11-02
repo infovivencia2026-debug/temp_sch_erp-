@@ -32,6 +32,7 @@ const QUIET: RegExp[] = [
   /\/portal\/diary\/notes/,   // the planner: the tick and the coloured paper are the confirmation (owner, 2026-10-10)
   /\/outbox|\/sync|\/heartbeat|\/ping|\/beacon|\/telemetry|\/analytics/,
   /\/notifications\/read|\/read-all|\/dismiss|\/seen/,
+  /\/comms\/mail(\/|\?|$)/, // star, read, trash, reload: the list itself shows the change
   /\/pay(ments)?\/|\/collect|\/checkout|\/upi|\/gateway/, // money names its receipt itself
   // Things the app saves on its own, not a person pressing Save.
   /preferences|display|\/layout|\/board|widget|shortcut|\/coach|\/tour|\/onboarding-hints|draft|autosave|\/progress|\/activity|\/pins?(\/|$)|\/favourites?|\/recent|\/order(ing)?(\/|$)|\/position/,
@@ -42,10 +43,20 @@ const QUIET: RegExp[] = [
    its own (a board rearranged, a panel remembered, a draft kept) are not
    news to anyone. */
 let lastGestureAt = 0
+/* AND ONLY FOR A SAVE BUTTON (owner, 2026-10-30: "showing late and not
+   needed"). A star, a tick, a tab, a reload or a toggle shows its own change
+   on screen; "Saved" is said only after a button whose words say it saves. */
+let lastGestureSaves = false
+const SAVE_WORDS = /\b(save|saved|submit|update|apply|create|add|confirm|approve|reject|publish|record|delete|remove|done)\b/i
 if (typeof window !== 'undefined') {
-  const mark = () => { lastGestureAt = Date.now() }
+  const mark = (e: Event) => {
+    lastGestureAt = Date.now()
+    const t = e.target instanceof Element ? e.target.closest('button, [role="button"], a, input[type="submit"]') : null
+    const words = t ? `${t.getAttribute('aria-label') ?? ''} ${t.getAttribute('title') ?? ''} ${t.textContent ?? ''} ${(t as HTMLInputElement).value ?? ''}` : ''
+    lastGestureSaves = SAVE_WORDS.test(words) || (e.type === 'keydown' && !!(e.target as Element | null)?.closest?.('form'))
+  }
   window.addEventListener('pointerup', mark, { capture: true, passive: true })
-  window.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') mark() }, { capture: true, passive: true })
+  window.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') mark(e) }, { capture: true, passive: true })
 }
 
 const WORD: Record<string, string> = {
@@ -67,7 +78,7 @@ export function noteWrite(method: string, path: string) {
   const clean = path.split('#')[0]
   if (QUIET.some((re) => re.test(clean))) return
   const doneAt = Date.now()
-  if (doneAt - lastGestureAt > 4000) return
+  if (doneAt - lastGestureAt > 4000 || !lastGestureSaves) return
   /* A beat, so a screen's own onSuccess -- which runs after this -- gets to
      speak first. If it did, it said more than "Saved" and this stays quiet. */
   window.setTimeout(() => {
@@ -77,5 +88,5 @@ export function noteWrite(method: string, path: string) {
        without it. A deletion the server took gets the two-pulse warn: it is
        news that something is gone, and it must not read as "Saved". */
     buzz(m === 'DELETE' ? 'warn' : 'tap')
-  }, 250)
+  }, 120)
 }

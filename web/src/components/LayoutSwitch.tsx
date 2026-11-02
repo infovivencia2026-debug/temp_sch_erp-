@@ -25,7 +25,9 @@ const LABEL: Record<Layout, 'shell.layout.classic' | 'shell.layout.bento'> = {
 }
 
 /** `pill`: the staff panel's full-width pill track with icons (owner's side-panel design, 2026-10-24). */
-export function LayoutSwitch({ pill = false }: { pill?: boolean } = {}) {
+/** `bar`: the same pill look, sized for the staff top bar. */
+export function LayoutSwitch({ pill = false, bar = false }: { pill?: boolean; bar?: boolean } = {}) {
+  const round = pill || bar
   const { layout, setLayout } = useLayout()
   const t = useT()
   const qc = useQueryClient()
@@ -65,7 +67,9 @@ export function LayoutSwitch({ pill = false }: { pill?: boolean } = {}) {
       /* The shared segment strip's ground (SEG_BAR), as two equal halves sized
          to their labels: no stretched empty track, no heavy shadow. The whole
          control is --control-h tall (40px desk, 44px phone). */
-      className={pill
+      className={bar
+        ? 'relative inline-grid grid-cols-2 gap-1 rounded-full border bg-muted p-1'
+        : pill
         /* Height from its 48px halves, not a fixed 48: the phone rule makes every
            menu button 48 tall, which overflowed a 48 track with 4px padding. */
         ? 'relative grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1 rounded-full border bg-muted p-1'
@@ -73,7 +77,7 @@ export function LayoutSwitch({ pill = false }: { pill?: boolean } = {}) {
     >
       {/* The pill colours its own active half; a measured slider overshot the
           track on phones (owner, 2026-10-24). */}
-      {!pill && <SlidingIndicator listRef={groupRef} active={layout} className="rounded-sm bg-primary" />}
+      {!round && <SlidingIndicator listRef={groupRef} active={layout} className="rounded-sm bg-primary" />}
       {/* Focus first, then Work: the order the owner reads them in. */}
       {[...LAYOUTS].sort((a) => (a === 'bento' ? -1 : 1)).map((value) => {
         const active = layout === value
@@ -88,14 +92,14 @@ export function LayoutSwitch({ pill = false }: { pill?: boolean } = {}) {
             title={t(LABEL[value])}
             className={cn(
               'flex min-w-0 items-center justify-center px-3 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              pill ? 'min-h-12' : 'h-full',
-              pill ? 'gap-2 rounded-full text-[calc(14px*var(--font-scale,1))] font-bold' : 'rounded-sm text-[13px]',
+              pill ? 'min-h-12' : bar ? 'h-8' : 'h-full',
+              pill ? 'gap-2 rounded-full text-[calc(14px*var(--font-scale,1))] font-bold' : bar ? 'gap-1.5 rounded-full text-[13px] font-bold' : 'rounded-sm text-[13px]',
               active
-                ? cn('bg-primary text-primary-foreground', pill ? 'shadow-[0_4px_12px_hsl(var(--primary)/0.25)]' : 'font-medium')
+                ? cn('bg-primary text-primary-foreground', round ? 'shadow-[0_4px_12px_hsl(var(--primary)/0.25)]' : 'font-medium')
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {pill && <Icon aria-hidden className="h-4 w-4 shrink-0" />}
+            {round && <Icon aria-hidden className="h-4 w-4 shrink-0" />}
             {t(LABEL[value])}
           </button>
         )

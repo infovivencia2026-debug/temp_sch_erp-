@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CheckCircle2, Phone } from 'lucide-react'
+import { Check, CheckCircle2, Download, Phone, Printer } from 'lucide-react'
 import { api } from '@/lib/api'
+import { printDocument } from '@/lib/print'
+import { saveFile } from '@/lib/save-file'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Select, Input,
   Field, SkeletonTable, ErrorState, EmptyState, FormNotice, Badge, ExportButton } from '@/components/ui'
@@ -31,6 +33,8 @@ interface Contact {
   name: string
   phone: string
   relation: string
+  /** The guardian the school treats as first contact. */
+  primary?: number | boolean
 }
 
 interface Absentee {
@@ -45,6 +49,8 @@ interface Absentee {
   mark?: string
   call_status: CallStatus
   parent_response?: string
+  /** The guardian number rung, picked on the row. */
+  called_phone?: string
   /** "reason|status" when the parent applied for leave or reported the absence. */
   informed?: string | null
 }
@@ -94,6 +100,70 @@ function today(): string {
   const d = new Date()
   const off = d.getTimezoneOffset()
   return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10)
+}
+
+/* THE DAY'S SHEET (owner, 2026-10-30): one block per child -- name, class,
+   admission no, date, parent name and number on one line, the remark on the
+   line below. Built from the list on screen, so it can be taken out before
+   anyone has rung (remarks left blank, to write in by hand) as well as after. */
+interface SheetRow { name: string; cls: string; adm: string; date: string; parent: string; phone: string; remark: string }
+
+function sheetRows(sections: AbsenteeSection[], onDate: string, withRemarks: boolean): SheetRow[] {
+  const [y, m, d] = onDate.split('-')
+  const date = `${d}-${m}-${y}`
+  return sections.flatMap((s) => s.students.map((st) => {
+    /* With remarks, the parent who was rung replaces the full list. */
+    const all = st.contacts ?? []
+    const rung = withRemarks && st.called_phone ? all.find((c) => c.phone === st.called_phone) : undefined
+    const cs: Contact[] = rung ? [rung] : withRemarks && st.called_phone ? [{ name: '', phone: st.called_phone, relation: '' }] : all
+    const informed = st.informed ? `Informed by parent: ${st.informed.split('|')[0]}` : ''
+    return {
+      name: st.name,
+      cls: `${s.class_name} ${s.section_name}`.trim(),
+      adm: st.admission_no,
+      date,
+      parent: cs.map((c) => `${relationLabel(c.relation, c.name)}${c.name ? `: ${c.name}` : ''}${c.primary ? ' (Primary)' : ''}`).join(' / '),
+      phone: cs.map((c) => c.phone).join(' / '),
+      remark: withRemarks ? [st.parent_response ?? '', informed].filter(Boolean).join(' · ') : '',
+    }
+  }))
+}
+
+const SHEET_HEAD = ['Name', 'Class', 'Adm No', 'Date', 'Parent name', 'Number']
+
+/* The sheet as a real Excel file, built by the server so the remark is one
+   merged cell under Name to Number (worker/src/routes/daily.ts absenteeSheet). */
+function downloadSheet(onDate: string, sectionId: string, withRemarks: boolean) {
+  const q = new URLSearchParams({ on_date: onDate, remarks: withRemarks ? '1' : '0' })
+  if (sectionId) q.set('section_id', sectionId)
+  return saveFile(`/api/v1/attendance/absentees/sheet?${q}`, `absentees-${onDate}.xlsx`)
+}
+
+function printSheetRows(rows: SheetRow[], onDate: string) {
+  const table = document.createElement('table')
+  const head = table.createTHead().insertRow()
+  for (const h of SHEET_HEAD) {
+    const th = document.createElement('th')
+    th.textContent = h
+    head.appendChild(th)
+  }
+  const body = table.createTBody()
+  for (const r of rows) {
+    const tr = body.insertRow()
+    for (const v of [r.name, r.cls, r.adm, r.date, r.parent, r.phone]) tr.insertCell().textContent = v
+    const rr = body.insertRow()
+    // The remark spans the whole row, Name to Number.
+    const remark = rr.insertCell()
+    remark.colSpan = SHEET_HEAD.length
+    const label = document.createElement('strong')
+    label.textContent = 'Reason for absence: '
+    remark.append(label, r.remark)
+    // A blank remark gets room to write in by hand.
+    remark.style.height = r.remark ? '' : '28px'
+  }
+  const wrap = document.createElement('div')
+  wrap.appendChild(table)
+  printDocument({ source: wrap, title: 'Absentee follow-up', subtitle: `${rows.length} absent · ${rows[0]?.date ?? onDate}` })
 }
 
 function fmtStamp(iso: string): string {
@@ -183,6 +253,29 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
     </div>
   )
 
+  /* The day on screen as a sheet: before the calls (no remarks) or after. */
+  const dayRows = (withRemarks: boolean) => sheetRows(sections, onDate, withRemarks)
+  const sheetRow = total > 0 && (
+    <div className="flex flex-wrap items-end gap-3">
+      <Button variant="secondary" onClick={() => void downloadSheet(onDate, sectionId, false)}>
+        <Download className="h-4 w-4" />
+        Export list
+      </Button>
+      <Button variant="secondary" onClick={() => void downloadSheet(onDate, sectionId, true)}>
+        <Download className="h-4 w-4" />
+        Export with remarks
+      </Button>
+      <Button variant="secondary" onClick={() => printSheetRows(dayRows(false), onDate)}>
+        <Printer className="h-4 w-4" />
+        Print list
+      </Button>
+      <Button variant="secondary" onClick={() => printSheetRows(dayRows(true), onDate)}>
+        <Printer className="h-4 w-4" />
+        Print with remarks
+      </Button>
+    </div>
+  )
+
   const content = (
     <>
         {isLoading ? (
@@ -247,15 +340,18 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
       {embedded ? (
         <>
           {/* Full-width stacked on a phone; the desktop row (sm+) is unchanged. */}
-          <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}</div>
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}{sheetRow}</div>
           <div className="mb-3">{exportRow}</div>
           {content}
         </>
       ) : (
         <>
-          <PageHead eyebrow="Attendance" title="Absentee follow-up" actions={controls} />
+          {/* Filters and buttons in the body, full width: the header's slot beside
+              search is too narrow and squeezed the date into a column. */}
+          <PageHead eyebrow="Attendance" title="Absentee follow-up" />
           <PageBody>
-            <div className="mb-1">{exportRow}</div>
+            <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}{sheetRow}</div>
+            <div className="mb-3">{exportRow}</div>
             {content}
           </PageBody>
         </>
@@ -277,7 +373,7 @@ function SectionCard({
 }) {
   const qc = useQueryClient()
 
-  type Edit = { call_status: CallStatus; parent_response: string }
+  type Edit = { call_status: CallStatus; parent_response: string; called_phone: string }
 
   /* `edits` holds ONLY the rows this person has changed and not yet had
      confirmed by the server — a thin overlay, never a full snapshot. Every
@@ -292,6 +388,7 @@ function SectionCard({
   const serverValue = (st: Absentee): Edit => ({
     call_status: st.call_status ?? 'not_called',
     parent_response: st.parent_response ?? '',
+    called_phone: st.called_phone ?? '',
   })
   const effective = (st: Absentee): Edit => edits[st.student_id] ?? serverValue(st)
 
@@ -305,7 +402,7 @@ function SectionCard({
         const e = prev[st.student_id]
         if (!e) continue
         const srv = serverValue(st)
-        if (e.call_status !== srv.call_status || e.parent_response !== srv.parent_response) {
+        if (e.call_status !== srv.call_status || e.parent_response !== srv.parent_response || e.called_phone !== srv.called_phone) {
           next[st.student_id] = e
         }
       }
@@ -397,7 +494,7 @@ function SectionCard({
 /* A phone number, as a button that dials it. Only rendered for a guardian who
    has a number, so there is never a dead control. The relation (Father, Mother,
    …) leads, with the guardian's own name beneath it and the number to dial. */
-function CallButton({ label, name, phone }: { label: string; name: string; phone: string }) {
+function CallButton({ label, name, phone, primary }: { label: string; name: string; phone: string; primary?: boolean }) {
   return (
     <a
       href={`tel:${phone}`}
@@ -410,6 +507,7 @@ function CallButton({ label, name, phone }: { label: string; name: string; phone
           {name && name !== label ? (
             <span className="font-normal text-muted-foreground"> · {name}</span>
           ) : null}
+          {primary ? <span className="font-normal text-muted-foreground"> · Primary</span> : null}
         </span>
         <span className="block font-mono text-[12px] text-muted-foreground">{phone}</span>
       </span>
@@ -423,8 +521,8 @@ function AbsenteeRow({
   onChange,
 }: {
   student: Absentee
-  edit: { call_status: CallStatus; parent_response: string }
-  onChange: (patch: Partial<{ call_status: CallStatus; parent_response: string }>) => void
+  edit: { call_status: CallStatus; parent_response: string; called_phone: string }
+  onChange: (patch: Partial<{ call_status: CallStatus; parent_response: string; called_phone: string }>) => void
 }) {
   return (
     <div className="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-start">
@@ -459,6 +557,7 @@ function AbsenteeRow({
                 label={relationLabel(c.relation, c.name)}
                 name={c.name}
                 phone={c.phone}
+                primary={Boolean(c.primary)}
               />
             ))
           ) : (
@@ -470,7 +569,13 @@ function AbsenteeRow({
       <div className="grid gap-2 sm:w-[420px] sm:grid-cols-[130px_1fr]">
         <Select
           value={edit.call_status}
-          onChange={(v) => onChange({ call_status: v as CallStatus })}
+          onChange={(v) => {
+            const cs = student.contacts ?? []
+            const first = (cs.find((c) => c.primary) ?? cs[0])?.phone ?? ''
+            onChange(v === 'not_called'
+              ? { call_status: v as CallStatus, called_phone: '' }
+              : { call_status: v as CallStatus, called_phone: edit.called_phone || first })
+          }}
           options={statusOptions(edit.call_status)}
         />
         <Input
@@ -479,6 +584,20 @@ function AbsenteeRow({
           placeholder="Why absent, the parent's reason"
           srLabel="Parent's reason for the absence"
         />
+        {/* Which parent was rung, once the row says Called. */}
+        {edit.call_status !== 'not_called' && (student.contacts?.length ?? 0) > 0 && (
+          <div className="sm:col-span-2">
+            <Select
+              value={edit.called_phone}
+              onChange={(v) => onChange({ called_phone: v })}
+              placeholder="Who was called"
+              options={(student.contacts ?? []).map((c) => ({
+                value: c.phone,
+                label: `${relationLabel(c.relation, c.name)}${c.name ? ` ${c.name}` : ''}${c.primary ? ' (Primary)' : ''} · ${c.phone}`,
+              }))}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

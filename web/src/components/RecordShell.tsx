@@ -51,7 +51,10 @@ export function RecordShell({
   /** Query-string key holding the open tab, so a tab is linkable. */
   tabParam = 'tab',
   media,
+  buttons,
 }: {
+  /** Plain buttons in place of the Actions menu (Staff 360: Print, Excel). */
+  buttons?: React.ReactNode
   /** A picture beside the name -- the student's photo on Student 360. */
   media?: React.ReactNode
   title: string
@@ -155,6 +158,7 @@ export function RecordShell({
           </div>
           </div>
 
+          {buttons && <div className="flex shrink-0 flex-wrap items-center gap-3">{buttons}</div>}
           {actions.length > 0 && (
             <div className="shrink-0" ref={trigger}>
               <Button variant="secondary" onClick={() => setMenuOpen((v) => !v)}>
@@ -164,9 +168,11 @@ export function RecordShell({
               {menuOpen && createPortal(
                 <>
                   {/* Click-away, so the menu does not need a global listener. */}
-                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
+                  {/* Above the record itself: Staff 360 opens the record as a z-[90]
+                      layer, and a z-50 menu opened behind it, showing nothing. */}
+                  <div className="fixed inset-0 z-[100]" onClick={() => setMenuOpen(false)} aria-hidden />
                   <div
-                    className="fixed z-50 min-w-[220px] overflow-hidden rounded-md border bg-card shadow-lg"
+                    className="fixed z-[101] min-w-[220px] overflow-hidden rounded-md border bg-card shadow-lg"
                     style={{ top: menuAt.top, right: menuAt.right }}
                   >
                     <ScrollBox style={{ maxHeight: menuAt.maxHeight }}>
