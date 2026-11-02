@@ -22,6 +22,19 @@
  */
 
 export const FEATURE_ICONS: Record<string, string> = {
+  student_council: 'how_to_reg',
+  today_at_school: 'event_note',
+  child_info_reconciliation: 'sync_alt',
+  sqaa_compliance: 'verified',
+  mid_day_meal_return: 'restaurant',
+  department_students: 'groups',
+  montessori_tracking: 'extension',
+  student_portfolio: 'folder_shared',
+  absence_alerts_to_parents: 'notifications_active',
+  virtual_classes: 'video_call',
+  holistic_progress_card: 'workspace_premium',
+  online_test_grading: 'grading',
+  follow_up_sequences: 'forward_to_inbox',
   // Built screens given a menu entry (owner, 2026-10-27).
   exams_monitoring: 'pending_actions', // Exams monitoring
   ssc_registration: 'how_to_reg', // SSC registration
@@ -415,6 +428,7 @@ export const FEATURE_ICONS: Record<string, string> = {
 /** One per section, the fallback for a slug that somehow has no row above
     (a freshly generated catalogue, before the table catches up). */
 export const SECTION_ICONS: Record<string, string> = {
+  mid_day_meal: 'restaurant',
   board_exams: 'workspace_premium', // Board Exams
   tasks: 'checklist', // Tasks
   activity: 'browse_activity', // Activity
