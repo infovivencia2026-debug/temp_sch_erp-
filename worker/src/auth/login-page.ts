@@ -482,7 +482,7 @@ const PHONE_FIT_CSS = `
 @media (max-width:639px){
   .auth-split .card input:not([type="hidden"]){height:48px;font-size:16px}
   .auth-split .card button[type="submit"]{height:48px;font-size:16px}
-  .auth-split .card h1{font-size:24px}
+  .auth-split .card h1{font-size:30px;font-weight:800;letter-spacing:-0.02em}
 }
 @media (max-width:379px){
   .auth-split:not(.has-slides){padding-left:12px;padding-right:12px}
@@ -579,7 +579,9 @@ export function loginHTML(o: {
   const style = (b ? brandStyle(b) : '') + PHONE_FIT_CSS + (vendor ? '' : TAB_CSS) + (slides.length ? SLIDES_CSS : '') + FIT_CSS
   const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? SLIDES_JS : '') + (slides.length ? PHONE_JS : '') + NO_ZOOM_JS
   return page
-    .replace('@@H1@@', vendor ? esc(m.vendorH1) : w.SIGNIN)
+    /* Owner, 2026-11-02: "Sign in to yajur.os", big and bold. The word is the
+       school name's first word, so it fits any school. */
+    .replace('@@H1@@', vendor ? esc(m.vendorH1) : b?.name ? `${w.SIGNIN} ${lang === 'te' ? '' : 'to '}<b>${esc(b.name.trim().split(/\s+/)[0]!.toLowerCase())}.os</b>` : w.SIGNIN)
     .replace('@@LEDE@@', vendor ? esc(m.vendorLede) : '@@NAME@@')
     .split('@@NAME@@').join(esc(b?.name ?? 'XULO'))
     .replace('@@SPLITCLASS@@', slides.length ? (o.error || id ? ' has-slides p2' : ' has-slides') : '')
