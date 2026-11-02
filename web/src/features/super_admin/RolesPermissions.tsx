@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lock, Plus, Check, Download, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, Field, Select, CardHeader, CellGrid, Stat, Button, Input,
+  PageHead, PageBody, Card, Select, CardHeader, CellGrid, Stat, Button, Input,
   Table, Td, Badge, Loading, SkeletonTable, ErrorState, EmptyState, FormNotice, ConfirmButton,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -113,7 +113,7 @@ const LEVEL_HINT: Record<string, string> = {
 /* SCREENS OFF FOR ALL STAFF (owner, 2026-10-28: "hide My Pay for all the
    staff"). Whatever roles a person holds, a screen switched off here leaves
    their menu at their next page load. */
-function AllStaffScreensOff() {
+function AllStaffScreensOff({ lead }: { lead: React.ReactNode }) {
   const qc = useQueryClient()
   const offs = useQuery({ queryKey: ['staff-feature-blocks'], queryFn: () => api.get<{ items: { feature_slug: string }[] }>('/api/v1/admin/staff-feature-blocks') })
   const feats = useQuery({ queryKey: ['feature-catalog'], queryFn: () => api.get<{ items: { key: string; name: string }[] }>('/api/v1/admin/features') })
@@ -134,15 +134,15 @@ function AllStaffScreensOff() {
   const off = offs.data?.items ?? []
   return (
     <div className="space-y-4">
-      <p className="m-0 text-[13px] text-muted-foreground">A hidden screen leaves every staff member's menu, whatever their role.</p>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-end gap-3">
+        {lead}
         <div className="w-72 max-w-full"><Select value={pick} onChange={setPick} placeholder="Choose a screen to hide"
           options={[...names].filter(([slug]) => !off.some((o) => o.feature_slug === slug)).sort((a, b) => a[1].localeCompare(b[1])).map(([slug, name]) => ({ value: slug, label: name }))} /></div>
         <Button disabled={!pick || set.isPending} onClick={() => set.mutate({ slug: pick, off: true })}>Hide</Button>
       </div>
       <FormNotice error={set.error} />
       <div>
-        <p className="m-0 mb-2 text-[13px] font-medium text-muted-foreground">Hidden now</p>
+        <p className="m-0 mb-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Hidden for all staff ({off.length})</p>
         {off.length === 0 ? (
           <p className="m-0 text-[14px] text-muted-foreground">Nothing is hidden. Staff see every screen their role gives them.</p>
         ) : (
@@ -150,7 +150,6 @@ function AllStaffScreensOff() {
             {off.map((o) => (
               <li key={o.feature_slug} className="flex items-center gap-3 px-3 py-2.5">
                 <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{names.get(o.feature_slug) ?? o.feature_slug}</span>
-                <Badge tone="warning">Hidden</Badge>
                 <Button size="sm" variant="secondary" disabled={set.isPending} onClick={() => set.mutate({ slug: o.feature_slug, off: false })}>Show again</Button>
               </li>
             ))}
@@ -199,17 +198,16 @@ function StaffScreensOff() {
     { value: 'duty:subject_teacher', label: 'Subject teachers' },
     ...staffRoles.map((r) => ({ value: 'role:' + r.key, label: r.name })),
   ]
+  const whoPick = <div className="w-60 max-w-full"><Select value={who} onChange={setWho} options={options} /></div>
   return (
     <Card className="mb-4 space-y-4 p-4">
       <div>
         <h2 className="m-0 text-[16px] font-semibold">Hide screens from staff</h2>
-        <p className="m-0 mt-1 text-[13px] text-muted-foreground">Choose who, then hide or show each of their screens.</p>
+        <p className="m-0 mt-1 text-[13px] text-muted-foreground">Hidden screens leave the menu of the staff you choose.</p>
       </div>
-      <Field label="Who">
-        <div className="w-72 max-w-full"><Select value={who} onChange={setWho} options={options} /></div>
-      </Field>
-      {who === 'all' ? <AllStaffScreensOff /> : (
+      {who === 'all' ? <AllStaffScreensOff lead={whoPick} /> : (
         <>
+          {whoPick}
           {feats.isLoading || roles.isLoading ? <Loading /> : feats.error ? <ErrorState error={feats.error} /> : (
             <div className="space-y-3">
               <p className="m-0 text-[13px] font-medium text-muted-foreground">
