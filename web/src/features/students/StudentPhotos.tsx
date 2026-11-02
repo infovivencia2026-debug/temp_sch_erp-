@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { shrinkImage } from '@/lib/shrink-image'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Upload, X, Image as ImageIcon } from 'lucide-react'
@@ -447,7 +448,7 @@ export default function StudentPhotos() {
         const photos: { admission_no: string; file_id: string }[] = []
         for (const r of sendable) {
           const form = new FormData()
-          form.append('file', r.file)
+          form.append('file', await shrinkImage(r.file, 600))
           const up = await fetch('/api/v1/files', { method: 'POST', body: form })
           if (!up.ok) throw new Error(`${r.file.name} did not upload`)
           const j = (await up.json()) as { file_id: string }

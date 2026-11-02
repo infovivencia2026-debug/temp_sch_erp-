@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
+import { shrinkImage } from '@/lib/shrink-image'
 import { Phone, Mail, Printer, Camera, MoreHorizontal, Download } from 'lucide-react'
 import StudentAvatar from '@/components/StudentAvatar'
 import { SearchBox } from '@/components/rows'
@@ -689,7 +690,7 @@ function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
     setErr(null)
     try {
       const form = new FormData()
-      form.append('file', f, f.name)
+      form.append('file', await shrinkImage(f, 600))
       const up = await fetch('/api/v1/files', { method: 'POST', credentials: 'same-origin', body: form })
       if (!up.ok) throw new Error('The photo could not be uploaded.')
       const j = (await up.json()) as { file_id: string }
