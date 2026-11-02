@@ -351,15 +351,15 @@ export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'st
   return (
     <>
     {/* FOUR NUMBERS, ALL COUNTED FROM THE ROLL BELOW, so they always match it.
-        "Not issued" is the one to press: it shows exactly who has no working
-        login yet, ready to issue. */}
+        Plain figures, not buttons (owner, 2026-11-02: "remove" the pressing);
+        the Status filter on the list does the narrowing. */}
     <CellGrid cols={4}>
       <Stat label={who + ' on the roll'} value={roster.isLoading ? '…' : rows.length}
-        hint={status ? 'Show everyone' : 'Everyone below'} active={status === ''} onClick={() => setStatus('')} />
+        hint="Everyone below" />
       <Stat label="Can sign in" value={roster.isLoading ? '…' : rows.length - without}
-        hint="Have a working login" active={status === 'issued'} onClick={() => setStatus(status === 'issued' ? '' : 'issued')} />
+        hint="Have a working login" />
       <Stat label="Not issued" value={roster.isLoading ? '…' : without}
-        hint={without ? 'Press to see them and issue' : 'Everybody has a login'} active={status === 'not'} onClick={() => setStatus(status === 'not' ? '' : 'not')} />
+        hint={without ? 'Without a working login' : 'Everybody has a login'} />
       <Stat label="Signed in now" value={signedIn ?? '-'} hint="Active in the last 10 minutes" />
     </CellGrid>
     <Card>

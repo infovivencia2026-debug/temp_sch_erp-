@@ -45,6 +45,25 @@ export function registerFeatureBlocks(r: Router): void {
     else await c.db.prepare(`INSERT OR IGNORE INTO staff_feature_blocks (feature_slug, created_by, created_at) VALUES (?, ?, ?)`).bind(slug, c.id.userId, now()).run()
     return ok({ slug, off: b.off !== false })
   })
+  /* Screens hidden from one group of staff (owner, 2026-11-02). audience:
+     role:<key>, duty:class_teacher or duty:subject_teacher. */
+  const AUDIENCE = /^(role:[a-z0-9_]{2,60}|duty:(class_teacher|subject_teacher))$/
+  r.get('/admin/staff-feature-blocks/by-group', 'access.users.read', async (c) => {
+    const rows = (await c.db.prepare(`SELECT audience, feature_slug, created_at FROM staff_feature_audience_blocks ORDER BY created_at DESC`)
+      .all<{ audience: string; feature_slug: string; created_at: string }>()).results ?? []
+    return ok({ items: rows })
+  })
+  r.post('/admin/staff-feature-blocks/by-group', 'access.users.write', async (c) => {
+    const b = await readJSON<{ audience?: string; slug?: string; off?: boolean }>(c.req)
+    const audience = (b.audience ?? '').trim()
+    const slug = (b.slug ?? '').trim()
+    if (!AUDIENCE.test(audience)) throw badRequest('audience is role:<key>, duty:class_teacher or duty:subject_teacher')
+    if (!/^[a-z0-9_]{2,80}$/.test(slug)) throw badRequest('slug is a screen name like my_pay')
+    if (b.off === false) await c.db.prepare(`DELETE FROM staff_feature_audience_blocks WHERE audience = ? AND feature_slug = ?`).bind(audience, slug).run()
+    else await c.db.prepare(`INSERT OR IGNORE INTO staff_feature_audience_blocks (audience, feature_slug, created_by, created_at) VALUES (?, ?, ?, ?)`).bind(audience, slug, c.id.userId, now()).run()
+    return ok({ audience, slug, off: b.off !== false })
+  })
+
   /* What is off now, with a readable name for each target. */
   r.get('/admin/feature-blocks', 'access.users.read', async (c) => {
     const rows = (await c.db.prepare(`SELECT id, portal, feature_key, scope, target_id, created_at FROM feature_blocks ORDER BY created_at DESC LIMIT 2000`)

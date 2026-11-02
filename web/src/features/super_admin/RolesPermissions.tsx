@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lock, Plus, Check, Download, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, Select, CardHeader, CellGrid, Stat, Button, Input,
+  PageHead, PageBody, Card, Field, Select, CardHeader, CellGrid, Stat, Button, Input,
   Table, Td, Badge, Loading, SkeletonTable, ErrorState, EmptyState, FormNotice, ConfirmButton,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -113,7 +113,7 @@ const LEVEL_HINT: Record<string, string> = {
 /* SCREENS OFF FOR ALL STAFF (owner, 2026-10-28: "hide My Pay for all the
    staff"). Whatever roles a person holds, a screen switched off here leaves
    their menu at their next page load. */
-function StaffScreensOff() {
+function AllStaffScreensOff() {
   const qc = useQueryClient()
   const offs = useQuery({ queryKey: ['staff-feature-blocks'], queryFn: () => api.get<{ items: { feature_slug: string }[] }>('/api/v1/admin/staff-feature-blocks') })
   const feats = useQuery({ queryKey: ['feature-catalog'], queryFn: () => api.get<{ items: { key: string; name: string }[] }>('/api/v1/admin/features') })
@@ -133,11 +133,8 @@ function StaffScreensOff() {
   })
   const off = offs.data?.items ?? []
   return (
-    <Card className="mb-4 space-y-4 p-4">
-      <div>
-        <h2 className="m-0 text-[16px] font-semibold">Hide screens from staff</h2>
-        <p className="m-0 mt-1 text-[13px] text-muted-foreground">A hidden screen leaves every staff member's menu, whatever their role.</p>
-      </div>
+    <div className="space-y-4">
+      <p className="m-0 text-[13px] text-muted-foreground">A hidden screen leaves every staff member's menu, whatever their role.</p>
       <div className="flex flex-wrap items-center gap-2">
         <div className="w-72 max-w-full"><Select value={pick} onChange={setPick} placeholder="Choose a screen to hide"
           options={[...names].filter(([slug]) => !off.some((o) => o.feature_slug === slug)).sort((a, b) => a[1].localeCompare(b[1])).map(([slug, name]) => ({ value: slug, label: name }))} /></div>
@@ -160,6 +157,99 @@ function StaffScreensOff() {
           </ul>
         )}
       </div>
+    </div>
+  )
+}
+
+/* HIDE SCREENS, BY WHO (owner, 2026-11-02: "let them choose role class
+   teacher or subject teacher ... show all the feature they have ... they will
+   hide it from there, or show which are hidden, and also show all feature to
+   give to that role"). All staff keeps the list above. A role or a teaching
+   duty lists every screen that group has, each with Hide / Show; for a role,
+   the role's own feature editor below gives it more. Class and subject
+   teachers are the Faculty role by duty, so they list Faculty's screens. */
+function StaffScreensOff() {
+  const qc = useQueryClient()
+  const [who, setWho] = useState('all')
+  const roles = useQuery({ queryKey: ['admin-roles'], queryFn: () => api.get<List<AdminRole>>('/api/v1/admin/roles') })
+  const staffRoles = (roles.data?.items ?? []).filter((r) => !['student', 'parent', 'guardian'].includes(r.key) && !r.key.startsWith('platform') && !r.key.startsWith('seller'))
+  const faculty = staffRoles.find((r) => r.key === 'faculty')
+  const role = who.startsWith('role:') ? staffRoles.find((r) => 'role:' + r.key === who) : who.startsWith('duty:') ? faculty : undefined
+  const feats = useQuery({
+    queryKey: ['role-features', role?.id],
+    queryFn: () => api.get<RoleFeatures>(`/api/v1/admin/roles/${role!.id}/features`),
+    enabled: !!role,
+  })
+  const groupOff = useQuery({
+    queryKey: ['staff-feature-blocks-by-group'],
+    queryFn: () => api.get<{ items: { audience: string; feature_slug: string }[] }>('/api/v1/admin/staff-feature-blocks/by-group'),
+  })
+  const allOff = useQuery({ queryKey: ['staff-feature-blocks'], queryFn: () => api.get<{ items: { feature_slug: string }[] }>('/api/v1/admin/staff-feature-blocks') })
+  const set = useMutation({
+    mutationFn: (v: { slug: string; off: boolean }) => api.post('/api/v1/admin/staff-feature-blocks/by-group', { audience: who, ...v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['staff-feature-blocks-by-group'] }),
+  })
+  const hidden = new Set((groupOff.data?.items ?? []).filter((x) => x.audience === who).map((x) => x.feature_slug))
+  const hiddenAll = new Set((allOff.data?.items ?? []).map((x) => x.feature_slug))
+  const slugOf = (key: string) => key.slice(key.lastIndexOf('.') + 1)
+  const held = (feats.data?.sections ?? []).map((sec) => ({ ...sec, features: sec.features.filter((f) => f.held) })).filter((sec) => sec.features.length)
+  const options = [
+    { value: 'all', label: 'All staff' },
+    { value: 'duty:class_teacher', label: 'Class teachers' },
+    { value: 'duty:subject_teacher', label: 'Subject teachers' },
+    ...staffRoles.map((r) => ({ value: 'role:' + r.key, label: r.name })),
+  ]
+  return (
+    <Card className="mb-4 space-y-4 p-4">
+      <div>
+        <h2 className="m-0 text-[16px] font-semibold">Hide screens from staff</h2>
+        <p className="m-0 mt-1 text-[13px] text-muted-foreground">Choose who, then hide or show each of their screens.</p>
+      </div>
+      <Field label="Who">
+        <div className="w-72 max-w-full"><Select value={who} onChange={setWho} options={options} /></div>
+      </Field>
+      {who === 'all' ? <AllStaffScreensOff /> : (
+        <>
+          {feats.isLoading || roles.isLoading ? <Loading /> : feats.error ? <ErrorState error={feats.error} /> : (
+            <div className="space-y-3">
+              <p className="m-0 text-[13px] font-medium text-muted-foreground">
+                Their screens ({held.reduce((n, s) => n + s.features.length, 0)}), {hidden.size} hidden
+              </p>
+              {held.map((sec) => (
+                <div key={sec.slug}>
+                  <p className="m-0 mb-1 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{sec.name}</p>
+                  <ul className="m-0 list-none divide-y rounded-xl border p-0">
+                    {sec.features.map((f) => {
+                      const slug = slugOf(f.key)
+                      const off = hidden.has(slug)
+                      return (
+                        <li key={f.key} className="flex items-center gap-3 px-3 py-2.5">
+                          <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{f.name}</span>
+                          {hiddenAll.has(slug) && <Badge tone="warning">Hidden for all staff</Badge>}
+                          {off && <Badge tone="warning">Hidden</Badge>}
+                          <Button size="sm" variant="secondary" disabled={set.isPending} onClick={() => set.mutate({ slug, off: !off })}>
+                            {off ? 'Show again' : 'Hide'}
+                          </Button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
+              <FormNotice error={set.error} />
+            </div>
+          )}
+          {who.startsWith('role:') && role && (
+            <div>
+              <p className="m-0 mb-2 text-[13px] font-medium text-muted-foreground">Give this role more screens</p>
+              <FeaturesEditor roleID={role.id} />
+            </div>
+          )}
+          {who.startsWith('duty:') && (
+            <p className="m-0 text-[13px] text-muted-foreground">To give teachers more screens, choose the Faculty role above.</p>
+          )}
+        </>
+      )}
     </Card>
   )
 }

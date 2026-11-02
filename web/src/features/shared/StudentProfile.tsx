@@ -3,6 +3,7 @@ import { Anchored } from '@/components/AnchoredPanel'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
+import StudentAvatar from '@/components/StudentAvatar'
 import { Phone, Mail } from 'lucide-react'
 import type { StudentProfile as StudentProfileBody, StudentRecord as StudentDetail } from '@shared/api'
 import { api, type List, type Student, type Klass, type Section } from '@/lib/api'
@@ -779,12 +780,18 @@ export default function StudentProfile() {
                 {rows.map((s) => (
                   <tr key={s.id}>
                     <Td className="font-medium">
-                      {s.full_name}
-                      {s.roll_no ? (
-                        <span className="block text-[12px] font-normal text-muted-foreground">
-                          Roll {s.roll_no}
-                        </span>
-                      ) : null}
+                      {/* The child's face beside the name, as on report cards (owner, 2026-11-02). */}
+                      <div className="flex items-center gap-3">
+                        <StudentAvatar name={s.full_name} photoFileId={s.photo_file_id} seed={s.id} size={40} />
+                        <div className="min-w-0">
+                          {s.full_name}
+                          {s.roll_no ? (
+                            <span className="block text-[12px] font-normal text-muted-foreground">
+                              Roll {s.roll_no}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
                     </Td>
                     <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '-'}</Td>
                     <Td className="font-mono text-[12px]">{s.admission_no}</Td>

@@ -229,7 +229,14 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
           OR EXISTS (SELECT 1 FROM student_guardians sg JOIN enrollments e ON e.student_id = sg.student_id AND e.status = 'active'
             WHERE sg.guardian_id = g.id
             AND ((fb.scope = 'class' AND e.class_id = fb.target_id) OR (fb.scope = 'section' AND e.section_id = fb.target_id))))))
-        UNION SELECT 'staff:' || feature_slug FROM staff_feature_blocks`)
+        UNION SELECT 'staff:' || feature_slug FROM staff_feature_blocks
+        /* Hidden from one group of staff (owner, 2026-11-02): a role the person
+           holds, or class / subject teachers by duty. In this statement, not
+           its own, to keep a request's D1 budget (test/integration/perf). */
+        UNION SELECT 'staff:' || b.feature_slug FROM staff_feature_audience_blocks b
+         WHERE b.audience IN (SELECT 'role:' || r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?1)
+            OR (b.audience = 'duty:class_teacher' AND EXISTS (SELECT 1 FROM sections WHERE class_teacher_id = ?1))
+            OR (b.audience = 'duty:subject_teacher' AND EXISTS (SELECT 1 FROM section_subject_teachers WHERE teacher_user_id = ?1))`)
       .bind(s.user_id).all<{ key: string }>().catch(() => ({ results: [] as { key: string }[] })),
   ])
   if (!u) return null
