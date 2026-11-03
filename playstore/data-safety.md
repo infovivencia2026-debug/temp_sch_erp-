@@ -10,7 +10,7 @@ every answer is derived from what the app and its backend actually do (see the
 |---|---|---|
 | Does your app collect or share any of the required user data types? | **Yes** | Login, student records, fee data, push token |
 | Is all of the user data collected by your app encrypted in transit? | **Yes** | HTTPS only; `android:usesCleartextTraffic="false"` in the manifest; API on Cloud Run over TLS |
-| Do you provide a way for users to request that their data is deleted? | **Yes** | In-app: Account → "Request account deletion"; web: https://school-erp-cqj.pages.dev/delete-account |
+| Do you provide a way for users to request that their data is deleted? | **Yes** | In-app: Account → "Request account deletion"; web: https://erp.xulo.in/delete-account |
 | Has your app been independently validated against a global security standard? | No | (optional badge; leave unchecked) |
 
 ## Data types — what to tick
@@ -48,7 +48,7 @@ For every "Collected = Yes" row also answer:
 - **Committed to Play Families policy:** No (app is not designed for children — see `target-audience.md`).
 
 ## Wording for the "Privacy policy" field
-`https://school-erp-cqj.pages.dev/privacy`
+`https://erp.xulo.in/privacy`
 
 ## Why these answers are safe to give
 - Server: Go API under FORCE row-level security per school; passwords hashed (`PASSWORD_PEPPER` + salted hash); no ad or analytics SDK anywhere in the web or Android code.

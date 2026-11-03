@@ -39,5 +39,5 @@ Any other info:    Opens the staff workspace: Take attendance, Homework, Timetab
 
 ## Also fill in Play Console → Store settings
 - Support email: `[SUPPORT_EMAIL]` (shown publicly on the listing)
-- Website: https://school-erp-cqj.pages.dev
+- Website: https://erp.xulo.in
 - Phone (optional)
