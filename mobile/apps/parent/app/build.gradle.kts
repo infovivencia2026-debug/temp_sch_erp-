@@ -43,7 +43,7 @@ android {
     defaultConfig {
         /* A school's own app (scripts/apps/build-school.sh) passes its store
            id, version and address as -P properties from the school's
-           app.json; with none this is the WISEN app. No school is written
+           app.json; with none this is the XULO app. No school is written
            into this file. */
         applicationId = (project.findProperty("appId") as String?) ?: "com.schoolerp.parent"
         // 24 rather than the tracker's 26: this asks nothing of the platform

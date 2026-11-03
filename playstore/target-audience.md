@@ -1,4 +1,4 @@
-# Target audience and content — answers for WISEN
+# Target audience and content — answers for XULO
 
 Play Console → Policy → App content → **Target audience and content**.
 
