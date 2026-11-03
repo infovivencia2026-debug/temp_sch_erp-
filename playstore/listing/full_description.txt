@@ -22,4 +22,4 @@ PRIVACY
 The app has no ads and no third-party analytics. It does not ask for your location, contacts or messages. Your school controls the records; you see only the children linked to your account. Everything travels encrypted. Read the full policy at https://erp.xulo.in/privacy and how to delete your account at https://erp.xulo.in/delete-account.
 
 WHO CAN USE IT
-You need a login from a school that uses XULO — the school creates it for you. If you do not have one, ask your school office. Support: [SUPPORT_EMAIL]
+You need a login from a school that uses XULO — the school creates it for you. If you do not have one, ask your school office. Support: support@xulo.in

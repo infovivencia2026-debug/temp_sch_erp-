@@ -1,7 +1,7 @@
 # Content rating (IARC questionnaire) — answers for XULO
 
 Play Console → Policy → App content → **Content ratings** → Start questionnaire.
-Email address: `[SUPPORT_EMAIL]`. **Category: "Utility, Productivity, Communication, or Other"**
+Email address: `support@xulo.in`. **Category: "Utility, Productivity, Communication, or Other"**
 (not Reference/News, not Social — the forum is a school-moderated feature, not the app's purpose).
 
 Answer every question truthfully as below. Expected result: **Everyone / 3+ / PEGI 3** (all boards),
