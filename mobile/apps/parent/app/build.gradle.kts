@@ -45,7 +45,7 @@ android {
            id, version and address as -P properties from the school's
            app.json; with none this is the XULO app. No school is written
            into this file. */
-        applicationId = (project.findProperty("appId") as String?) ?: "com.schoolerp.parent"
+        applicationId = (project.findProperty("appId") as String?) ?: "com.xulo.app"
         // 24 rather than the tracker's 26: this asks nothing of the platform
         // that a 2016 phone cannot do, and the families least likely to own a
         // new handset are the ones who most need the bus on a screen.

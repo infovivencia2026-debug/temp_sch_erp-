@@ -1,6 +1,6 @@
 # XULO — Google Play submission kit
 
-**App:** XULO (parent / school app) · **Package:** `com.schoolerp.parent` · **Project:** `mobile/apps/parent/`
+**App:** XULO (parent / school app) · **Package:** `com.xulo.app` · **Project:** `mobile/apps/parent/`
 **Portal it loads:** https://school-erp-cqj.pages.dev · **API:** Cloud Run, asia-south1
 
 This folder holds everything needed to publish the Android app on Google Play:

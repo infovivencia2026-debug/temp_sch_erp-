@@ -1,7 +1,7 @@
 # Handoff — XULO on Google Play
 
 You are being handed this folder to guide a non-specialist operator through publishing
-**XULO** (`com.schoolerp.parent`) to Google Play. The engineering is done; what remains
+**XULO** (`com.xulo.app`) to Google Play. The engineering is done; what remains
 is a Play Console walkthrough plus a handful of facts only the operator has.
 
 Everything in this folder is the submission kit: listing copy, graphics, and the exact
@@ -12,7 +12,7 @@ authoritative and this file only tells you the current state.
 
 | | |
 |---|---|
-| Package | `com.schoolerp.parent` |
+| Package | `com.xulo.app` |
 | Display name | XULO |
 | versionName / versionCode | 1.0.0 / 1 |
 | targetSdk | 37 (Play's floor is 35) |
@@ -63,7 +63,7 @@ git-ignored. It lives on the operator's machine at `playstore/out/app-release.aa
 - **No `google-services.json`.** Firebase push is therefore dead in this build, while
   the manifest still declares `POST_NOTIFICATIONS`. A reviewer may flag a permission
   with no working feature. Either add the file (Firebase console → project settings →
-  Android app `com.schoolerp.parent` → `mobile/apps/parent/app/google-services.json`)
+  Android app `com.xulo.app` → `mobile/apps/parent/app/google-services.json`)
   and rebuild, or accept the risk for a closed test.
 - **Deep links.** After enrolling in Play App Signing, take Google's app-signing
   SHA-256 from Play Console → Setup → App signing and add it to
