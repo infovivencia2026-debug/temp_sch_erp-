@@ -289,3 +289,4 @@ Last checked: 2026-10-02.
 - 2026-11-02 Hide screens card cleaned: Who + screen + Hide in one row, fewer labels. Done (typecheck).
 - 2026-11-02 School logo shown as a circle (loading screen, sidebar, splash), no plate; round Yajur logo PNG made for upload. Done (typecheck).
 - 2026-11-02 Sign-in heading: 'Sign in to <school>.os' (yajur.os), big and bold. Done (worker tests).
+- 2026-11-03 Sign-in heading in caps, Inter font. Done.

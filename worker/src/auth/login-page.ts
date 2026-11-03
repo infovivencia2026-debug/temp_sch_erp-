@@ -482,7 +482,7 @@ const PHONE_FIT_CSS = `
 @media (max-width:639px){
   .auth-split .card input:not([type="hidden"]){height:48px;font-size:16px}
   .auth-split .card button[type="submit"]{height:48px;font-size:16px}
-  .auth-split .card h1{font-size:30px;font-weight:800;letter-spacing:-0.02em}
+  .auth-split .card h1{font-family:'Inter Variable',Inter,system-ui,sans-serif;font-size:30px;font-weight:800;letter-spacing:-0.01em;text-transform:uppercase}
 }
 @media (max-width:379px){
   .auth-split:not(.has-slides){padding-left:12px;padding-right:12px}
