@@ -296,7 +296,7 @@ const SLIDES_CSS = `
   .auth-split.has-slides.p2 .card{position:relative;z-index:1;flex:none;width:100%;margin:-24px 0 0;max-width:none;padding:0 16px;border:0;border-radius:0;background:transparent;
     -webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none;color:var(--fg);animation:authPage .28s ease-out}
   .auth-split.has-slides .card > *{max-width:none}
-  .auth-split.has-slides .card h1{color:var(--fg)}
+  .auth-split.has-slides .card h1{color:var(--brand,var(--fg))}
   .auth-split.has-slides .card label{color:var(--secondary)}
   .auth-split.has-slides .card .lede,.auth-split.has-slides .card .fineprint{color:var(--muted)}
   .auth-split.has-slides .card .fineprint a{color:var(--accent)}
@@ -505,8 +505,10 @@ body.auth{height:100vh;height:100dvh;min-height:0;overflow:hidden;overscroll-beh
 body.auth .auth-split .card{overflow-y:auto;overscroll-behavior:contain}
 body.auth,body.auth .auth-split .card{scrollbar-width:none;-ms-overflow-style:none}
 body.auth::-webkit-scrollbar,body.auth .auth-split .card::-webkit-scrollbar{display:none;width:0;height:0}
-body.auth .card h1{font-family:'Inter Variable',Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-0.01em;text-transform:uppercase}
-@media (min-width:640px){body.auth .card h1{font-size:34px}}
+body.auth .card h1,body.auth .auth-split .card h1{font-family:'Inter Variable',Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-0.01em;text-transform:uppercase;color:var(--brand,#1e40af)}
+@media (min-width:640px){body.auth .card h1{font-size:30px;white-space:nowrap}}
+[data-theme="dark"] body.auth .card h1,[data-theme="dark"] body.auth .auth-split.has-slides .card h1{color:color-mix(in srgb, var(--brand,#1e40af) 45%, #fff)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) body.auth .card h1,:root:not([data-theme="light"]) body.auth .auth-split.has-slides .card h1{color:color-mix(in srgb, var(--brand,#1e40af) 45%, #fff)}}
 @media (min-width:640px){
   body.auth .auth-split{min-height:min(95vh, calc(100dvh - 3rem));max-height:calc(100dvh - 3rem)}
 }
