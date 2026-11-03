@@ -506,7 +506,9 @@ body.auth .auth-split .card{overflow-y:auto;overscroll-behavior:contain}
 body.auth,body.auth .auth-split .card{scrollbar-width:none;-ms-overflow-style:none}
 body.auth::-webkit-scrollbar,body.auth .auth-split .card::-webkit-scrollbar{display:none;width:0;height:0}
 body.auth .card h1,body.auth .auth-split .card h1{font-family:'Inter Variable',Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-0.01em;text-transform:uppercase;color:var(--brand,#1e40af)}
-@media (min-width:640px){body.auth .card h1{font-size:30px;white-space:nowrap}}
+body.auth .card h1,body.auth .auth-split .card h1{font-size:15px;white-space:nowrap;line-height:1.1}
+body.auth .card h1 b{font-size:3em;font-weight:800;letter-spacing:-0.02em}
+@media (max-width:379px){body.auth .card h1,body.auth .auth-split .card h1{font-size:13px}}
 [data-theme="dark"] body.auth .card h1,[data-theme="dark"] body.auth .auth-split.has-slides .card h1{color:color-mix(in srgb, var(--brand,#1e40af) 45%, #fff)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) body.auth .card h1,:root:not([data-theme="light"]) body.auth .auth-split.has-slides .card h1{color:color-mix(in srgb, var(--brand,#1e40af) 45%, #fff)}}
 @media (min-width:640px){
