@@ -579,7 +579,7 @@ class MainActivity : Activity() {
         fun print() {
             val view = target as? WebView ?: return
             view.post {
-                val name = view.title?.takeIf { it.isNotBlank() } ?: "WISEN"
+                val name = view.title?.takeIf { it.isNotBlank() } ?: "XULO"
                 val manager = view.context.getSystemService(Context.PRINT_SERVICE) as? android.print.PrintManager
                     ?: return@post
                 runCatching {

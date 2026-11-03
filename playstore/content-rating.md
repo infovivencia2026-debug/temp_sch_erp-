@@ -1,4 +1,4 @@
-# Content rating (IARC questionnaire) — answers for WISEN
+# Content rating (IARC questionnaire) — answers for XULO
 
 Play Console → Policy → App content → **Content ratings** → Start questionnaire.
 Email address: `[SUPPORT_EMAIL]`. **Category: "Utility, Productivity, Communication, or Other"**
