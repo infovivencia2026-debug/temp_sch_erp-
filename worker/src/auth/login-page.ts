@@ -521,6 +521,7 @@ body.auth::-webkit-scrollbar,body.auth .auth-split .card::-webkit-scrollbar{disp
   body.auth .auth-split:not(.has-slides){padding-top:calc(env(safe-area-inset-top, 0px) + 48px);padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 8px)}
   body.auth .auth-split:not(.has-slides) .card{padding-top:12px;padding-bottom:12px}
   body.auth .auth-split .card h1{margin-bottom:2px}
+  body.auth .card h1{font-family:'Inter Variable',Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-0.01em;text-transform:uppercase}
   body.auth .auth-split .card .lede{margin-bottom:6px}
   body.auth .auth-split .card .error{margin-bottom:8px}
   body.auth .auth-split .who button{height:52px;gap:2px}
