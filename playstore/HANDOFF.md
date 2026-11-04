@@ -16,7 +16,7 @@ authoritative and this file only tells you the current state.
 | Display name | XULO |
 | versionName / versionCode | 1.0.0 / 1 |
 | targetSdk | 37 (Play's floor is 35) |
-| What it is | A WebView shell around the school's portal at https://school-erp-cqj.pages.dev. No login of its own, no local copy of any screen. |
+| What it is | A WebView shell around the school's portal at https://erp.xulo.in. No login of its own, no local copy of any screen. |
 | Bundle | `playstore/out/app-release.aab`, 1.9 MB, signed and verified (`jar verified`, `CN=WISEN, O=WISEN, C=IN`) |
 
 Built 2026-09-23. The bundle is NOT in this folder if it was zipped from git — it is

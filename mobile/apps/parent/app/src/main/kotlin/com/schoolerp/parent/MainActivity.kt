@@ -2173,7 +2173,11 @@ class MainActivity : Activity() {
 
         /** True for the school's own pages, on any of the names it answers on. */
         fun isPortal(host: String?): Boolean =
-            host != null && (PORTAL_HOSTS.contains(host.lowercase()) || host.equals(savedSchoolHost(), ignoreCase = true))
+            host != null && (PORTAL_HOSTS.contains(host.lowercase())
+                // An alias starting with "." covers every school under that
+                // domain (".xulo.in": yjps.xulo.in and the next school's).
+                || PORTAL_HOSTS.any { it.startsWith(".") && host.lowercase().endsWith(it) }
+                || host.equals(savedSchoolHost(), ignoreCase = true))
 
         /* The generic app's chosen school (Native.saveSchool). */
         fun savedSchoolHost(): String? = runCatching {

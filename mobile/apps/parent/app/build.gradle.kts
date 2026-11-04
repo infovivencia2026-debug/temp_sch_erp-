@@ -82,7 +82,7 @@ android {
            compiled into every handset already in the field and will go on
            redirecting for as long as that box is up. */
         val portalAliases = (project.findProperty("portalAliases") as String?)
-            ?: "temperp.187-127-178-100.sslip.io,school-erp-cqj.pages.dev"
+            ?: "temperp.187-127-178-100.sslip.io,school-erp-cqj.pages.dev,.xulo.in"
         buildConfigField("String", "PORTAL_ALIASES", "\"$portalAliases\"")
 
         /* THE SAME HOST, FOR THE DEEP LINK FILTER.

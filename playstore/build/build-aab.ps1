@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $App  = Join-Path $Root "mobile\apps\parent"
 $Out  = Join-Path $Root "playstore\out"
-$Portal = if ($env:PORTAL_URL) { $env:PORTAL_URL } else { "https://school-erp-cqj.pages.dev" }
+$Portal = if ($env:PORTAL_URL) { $env:PORTAL_URL } else { "https://erp.xulo.in" }
 
 if (-not (Test-Path (Join-Path $App "keystore.properties"))) {
   throw "missing $App\keystore.properties -- see playstore\build\KEYSTORE.md"

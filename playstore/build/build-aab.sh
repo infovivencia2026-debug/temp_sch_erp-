@@ -13,7 +13,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 APP="$ROOT/mobile/apps/parent"
 OUT="$ROOT/playstore/out"
-PORTAL_URL="${PORTAL_URL:-https://school-erp-cqj.pages.dev}"
+PORTAL_URL="${PORTAL_URL:-https://erp.xulo.in}"
 
 [ -f "$APP/keystore.properties" ] || { echo "missing $APP/keystore.properties -- see playstore/build/KEYSTORE.md" >&2; exit 1; }
 [ -f "$APP/app/google-services.json" ] || echo "WARNING: no google-services.json -- the bundle will build but push notifications will not work" >&2
