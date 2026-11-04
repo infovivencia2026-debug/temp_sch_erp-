@@ -52,7 +52,7 @@ function brandStyle(b: Brand): string {
 .auth-brand .blob-2,.auth-brand .blob-4{background:${a}}
 .auth-brand .blob-3{background:color-mix(in srgb, ${p} 50%, #fff)}
 button[type="submit"]{background:${p};border-color:${p}}
-.auth-logo{max-width:96px;max-height:96px;border-radius:14px;background:#fff;padding:8px;object-fit:contain}
+.auth-logo{max-width:96px;max-height:96px;object-fit:contain}
 </style>`
 }
 
@@ -260,7 +260,8 @@ const SLIDES_CSS = `
     padding:calc(env(safe-area-inset-top, 0px) + 38px) 20px calc(env(safe-area-inset-bottom, 0px) + 220px)}
   .auth-split.has-slides .auth-brand-mark{align-self:flex-start;margin:0 0 14px;font-size:32px}
   .auth-split.has-slides .auth-logo{align-self:flex-start;margin-bottom:14px}
-  .auth-split.has-slides .auth-logo{max-width:48px;max-height:48px;padding:5px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.25)}
+  /* Just the logo, no white tile behind it (owner, 2026-11-04). */
+  .auth-split.has-slides .auth-logo{max-width:64px;max-height:64px;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.3))}
   .auth-split.has-slides .auth-brand-eyebrow{margin:0 0 10px}
   .auth-split.has-slides .auth-brand-title{font-size:40px;line-height:1.08;letter-spacing:-0.02em;margin:0;max-width:12ch}
   .auth-split.has-slides .auth-brand-sub{display:none}
