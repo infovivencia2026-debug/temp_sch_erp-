@@ -1,7 +1,7 @@
-# Content rating (IARC questionnaire) — answers for WISEN
+# Content rating (IARC questionnaire) — answers for XULO
 
 Play Console → Policy → App content → **Content ratings** → Start questionnaire.
-Email address: `[SUPPORT_EMAIL]`. **Category: "Utility, Productivity, Communication, or Other"**
+Email address: `support@xulo.in`. **Category: "Utility, Productivity, Communication, or Other"**
 (not Reference/News, not Social — the forum is a school-moderated feature, not the app's purpose).
 
 Answer every question truthfully as below. Expected result: **Everyone / 3+ / PEGI 3** (all boards),
@@ -32,5 +32,5 @@ possibly with an "Users Interact" / "Shares Info" interactive element flag becau
 Because the forum/messaging exists, the Play UGC policy applies. Confirm before submission that the product provides, for UGC surfaces:
 1. a way for users to **report** a post/message and for the school to act on it;
 2. a way to **block** or restrict a user (school suspends the account);
-3. in-app terms/rules for conduct (link to https://school-erp-cqj.pages.dev/terms §3).
+3. in-app terms/rules for conduct (link to https://erp.xulo.in/terms §3).
 If "report" is not visible in the forum UI today, add it before going to production.

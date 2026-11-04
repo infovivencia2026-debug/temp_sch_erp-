@@ -981,7 +981,7 @@ export function Shell({
               <>
                 {session.institution?.logo_key ? (
                   <img src={`/api/v1/files/${session.institution.logo_key}?inline=1`} alt=""
-                    className="aspect-square h-12 w-12 shrink-0 rounded-xl border bg-white object-contain" />
+                    className="aspect-square h-12 w-12 shrink-0 rounded-full object-cover" />
                 ) : (
                   <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border bg-primary/10 text-primary">
                     <School className="h-6 w-6" strokeWidth={1.75} />

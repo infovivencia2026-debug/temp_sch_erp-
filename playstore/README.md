@@ -1,7 +1,7 @@
-# WISEN — Google Play submission kit
+# XULO — Google Play submission kit
 
-**App:** WISEN (parent / school app) · **Package:** `com.schoolerp.parent` · **Project:** `mobile/apps/parent/`
-**Portal it loads:** https://school-erp-cqj.pages.dev · **API:** Cloud Run, asia-south1
+**App:** XULO (parent / school app) · **Package:** `com.xulo.app` · **Project:** `mobile/apps/parent/`
+**Portal it loads:** https://erp.xulo.in · **API:** Cloud Run, asia-south1
 
 This folder holds everything needed to publish the Android app on Google Play:
 the store-listing text, the graphics, the exact answers for every policy form,
@@ -46,7 +46,7 @@ playstore/
 | Screenshots | `assets/screenshots/` | Minimum 2 phone screenshots; the app cannot be listed without them |
 
 The three legal pages are already live once deployed (push to `main`):
-**https://school-erp-cqj.pages.dev/privacy** · **/terms** · **/delete-account**
+**https://erp.xulo.in/privacy** · **/terms** · **/delete-account**
 
 ---
 
@@ -79,7 +79,7 @@ So **this whole folder is ~30 KB of text and graphics, and the AAB will be about
 | **Target API level** | New apps must target Android 15 (API 35) or higher. | `targetSdk = 37` ✅ |
 | **App bundle format** | Must upload `.aab`, not `.apk`. | `build/` scripts produce `app-release.aab` |
 | **Play App Signing** | Mandatory for new apps. You upload with an *upload key*; Google signs with the *app signing key*. | See `build/KEYSTORE.md`. **After enrolling, replace the SHA-256 in `web/public/well-known/assetlinks.json` with Google's app-signing certificate fingerprint**, or deep links stop verifying. |
-| **Privacy policy URL** | Required in Play Console and inside the app. | https://school-erp-cqj.pages.dev/privacy ✅ (fill placeholders) |
+| **Privacy policy URL** | Required in Play Console and inside the app. | https://erp.xulo.in/privacy ✅ (fill placeholders) |
 | **Data safety section** | Mandatory, must be truthful, must match behaviour. | `data-safety.md` ✅ |
 | **Account deletion** | Apps with sign-in must offer an in-app deletion path and a web URL. | In-app: Account → "Request account deletion" ✅ · Web: /delete-account ✅ |
 | **Content rating** | IARC questionnaire before publishing. | `content-rating.md` ✅ |
@@ -114,9 +114,9 @@ So **this whole folder is ~30 KB of text and graphics, and the AAB will be about
    - Target audience → `target-audience.md`
    - News app → No · COVID → No · Data safety → `data-safety.md`
    - Government app → No · Financial features → see table above
-   - Privacy policy → `https://school-erp-cqj.pages.dev/privacy`
+   - Privacy policy → `https://erp.xulo.in/privacy`
    - App category → **Education** · Tags: Education, Parenting
-   - Store settings → contact email = `[SUPPORT_EMAIL]`, website = https://school-erp-cqj.pages.dev
+   - Store settings → contact email = `[SUPPORT_EMAIL]`, website = https://erp.xulo.in
 3. **Main store listing** → paste `listing/*.txt`, upload `assets/icon-512.png`, `assets/feature-graphic-1024x500.png`, and your screenshots.
 
 ### C. Release
@@ -137,5 +137,5 @@ So **this whole folder is ~30 KB of text and graphics, and the AAB will be about
 
 ## 5. Notes an assessor may raise
 - The app is a WebView shell of the school portal. Play permits this when the app **adds value beyond the website** (push notifications, offline pages, biometric lock, home-screen presence, deep links) — all present. Say so in the full description; it is already worded that way.
-- The store icon and feature graphic reuse the app's existing launcher mark (a bus). If you have proper WISEN brand art, replace `assets/icon-512.png` (keep 512×512, no transparency) and the feature graphic.
+- The store icon and feature graphic reuse the app's existing launcher mark (a bus). If you have proper XULO brand art, replace `assets/icon-512.png` (keep 512×512, no transparency) and the feature graphic.
 - Children's data: the *users* are adults; the app is **not** child-directed. Do not opt into the "Designed for Families" programme — it would impose requirements (ad SDK certification, etc.) that do not apply.

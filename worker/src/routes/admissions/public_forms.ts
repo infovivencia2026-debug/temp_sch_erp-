@@ -1,3 +1,4 @@
+import { notifyHoldersStmts } from '../../notify_holders'
 import type { Env } from '../../env'
 import { json } from '../../env'
 import { isUUID, now, uuid } from '../../http'
@@ -284,6 +285,10 @@ async function insertPublicApplication(t: Tenant, versionID: string, def: FormDe
       .bind(uuid(), inst, appID, versionID, a.field.id, a.text ?? null, a.number === undefined ? null : String(a.number), a.date ?? null,
         a.bool === undefined ? null : a.bool ? 1 : 0, a.fileID ?? null, a.url ?? null, ts))
   }
+  // The admissions desk hears of a new online application at once (owner audit, 2026-11-04).
+  stmts.push(...(await notifyHoldersStmts(db, inst, 'admissions.write', null, 'admission_application',
+    `New online application ${appNo}`, 'A family applied through the admission form. Open Applications to review it.',
+    '/go/applications', 'application', appID)))
   await db.batch(stmts)
   /* Not performed, and not a 501 because Go never lets them fail the
      application: issueEnquiryLogin (the family's login, sent by message) and

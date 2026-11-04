@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { Pencil } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section, type Klass, type Subject, type AcademicYear } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, Table, Td, Badge, Button, Input, Reload, SkeletonTable, ErrorState, tabClass } from '@/components/ui'
+  PageHead, PageBody, Card, Table, Td, Badge, Button, Input, Reload, SkeletonTable, ErrorState, FormNotice, ConfirmButton, tabClass } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 import { ImportButton } from '@/components/DataPortActions'
 import { formatDate, cn } from '@/lib/utils'
@@ -242,12 +242,45 @@ function Years() {
     queryKey: ['years'],
     queryFn: () => api.get<List<AcademicYear>>('/api/v1/academics/years'),
   })
+  const qc = useQueryClient()
   const [editing, setEditing] = useState<string | null>(null)
+  const [f, setF] = useState({ name: '', starts_on: '', ends_on: '' })
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['years'] }); qc.invalidateQueries({ queryKey: ['academics', 'years'] }) }
+  /* Year end in one place (owner, 2026-11-04: "nothing gaps should be there"):
+     add next year (not current yet), roll the setup into it, promote, then
+     make it current. */
+  const add = useMutation({
+    mutationFn: () => api.post('/api/v1/setup/academic-years', { ...f, is_current: false }),
+    onSuccess: () => { setF({ name: '', starts_on: '', ends_on: '' }); refresh() },
+  })
+  const makeCurrent = useMutation({
+    mutationFn: (id: string) => api.patch(`/api/v1/setup/academic-years/${id}`, { is_current: true }),
+    onSuccess: refresh,
+  })
   if (q.isLoading && !q.data) return <SkeletonTable columns={5} />
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
   return (
     <>
+      <div className="space-y-3 border-b p-4">
+        <p className="m-0 text-[13px] font-semibold">Start a new year</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex w-40 flex-col gap-1 text-[13px]"><span className="text-muted-foreground">Name</span>
+            <Input value={f.name} placeholder="2027-28" onChange={(v) => setF({ ...f, name: v })} /></label>
+          <label className="flex w-44 flex-col gap-1 text-[13px]"><span className="text-muted-foreground">Starts on</span>
+            <Input type="date" value={f.starts_on} onChange={(v) => setF({ ...f, starts_on: v })} /></label>
+          <label className="flex w-44 flex-col gap-1 text-[13px]"><span className="text-muted-foreground">Ends on</span>
+            <Input type="date" value={f.ends_on} onChange={(v) => setF({ ...f, ends_on: v })} /></label>
+          <Button disabled={!f.name || !f.starts_on || !f.ends_on} pending={add.isPending} onClick={() => add.mutate()}>Add year</Button>
+        </div>
+        <FormNotice error={add.error ?? makeCurrent.error} />
+        <ol className="m-0 list-decimal space-y-0.5 pl-5 text-[13px] text-muted-foreground">
+          <li>Add the new year here. It is not current yet.</li>
+          <li><Link className="underline" to="/go/year_rollover">Year rollover</Link>: copy sections, fees, bus places and the timetable into it.</li>
+          <li><Link className="underline" to="/go/class_promotion">Class promotion</Link>: move each section up, top class first.</li>
+          <li>Press Make current on the new year below.</li>
+        </ol>
+      </div>
       <RefreshBar q={q} label="Re-read the years" />
       <Table head={['Year', 'Starts', 'Ends', '', '']} empty={!rows.length}>
         {rows.map((y) =>
@@ -269,7 +302,9 @@ function Years() {
               <Td className="font-medium">{y.name}</Td>
               <Td>{formatDate(y.starts_on)}</Td>
               <Td>{formatDate(y.ends_on)}</Td>
-              <Td>{y.is_current && <Badge tone="success">Current</Badge>}</Td>
+              <Td>{y.is_current ? <Badge tone="success">Current</Badge> : (
+                <ConfirmButton confirmLabel="Make current" question={`Attendance, fees and marks use ${y.name} from now.`} disabled={makeCurrent.isPending} onConfirm={() => makeCurrent.mutate(y.id)}>Make current</ConfirmButton>
+              )}</Td>
               <Td><EditButton onClick={() => setEditing(y.id)} /></Td>
             </tr>
           ),

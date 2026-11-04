@@ -168,6 +168,12 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   const LAST = ['exams', 'my_profile']
   const rank = (slug: string) => LAST.indexOf(slug)
   workspaces = roleKey === 'institution_admin' ? regroupAdmin(workspaces) : regroupRole(roleKey, workspaces)
+  /* A screen borrowed from another role (the admin's menu carries every
+     office's screens) opens at its own role's address, as search does. */
+  const goTo = (from: string, f: { key: string; slug: string }) => {
+    const [r, sec] = f.key.split('.')
+    return r && sec && r !== roleKey ? featurePath(r, sec, f.slug) : featurePath(roleKey, from, f.slug)
+  }
   const groups = workspaces.flatMap((ws) => ws.sections.map((section) => ({ ws, section })))
     .map((g, i) => ({ ...g, i }))
     .sort((a, b) => (rank(a.section.slug) - rank(b.section.slug)) || a.i - b.i)
@@ -226,9 +232,9 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
           const name = homes++ === 0 ? 'Home' : (ws.name !== 'Home' ? ws.name : section.name)
           return (
             <StaffNavGroup key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={label(name)}
-              hue={hue} icon={uniqueIcon('home', usedIcons)} go={featurePath(roleKey, first.section, first.f.slug)}>
+              hue={hue} icon={uniqueIcon('home', usedIcons)} go={goTo(first.section, first.f)}>
               {[...list, ...inHome].map(({ section: from, f }) => (
-                <NavLink key={f.key} data-row to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
+                <NavLink key={f.key} data-row to={goTo(from, f)} onClick={onNavigate} title={f.summary}
                   className={({ isActive }) => staffItemClass(isActive || !!comboOf(f.slug)?.slugs.includes(here), f.live)}>
                   <LineIcon name={`${f.slug} ${f.name}`} size={20} />
                   <span className="truncate">{label(f.name)}</span>
@@ -241,7 +247,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
           const first = list[0]
           const name = !home ? first.f.name : homes++ === 0 ? 'Home' : (ws.name !== 'Home' ? ws.name : section.name)
           return (
-            <NavLink key={`${ws.slug}.${section.slug}`} to={featurePath(roleKey, first.section, first.f.slug)} onClick={onNavigate}
+            <NavLink key={`${ws.slug}.${section.slug}`} to={goTo(first.section, first.f)} onClick={onNavigate}
               title={home ? undefined : first.f.summary} style={{ '--h': hue } as React.CSSProperties}
               className={({ isActive }) => cn('nav-pill nav-pill__head nav-tap shrink-0', (isActive || (!home && !!comboOf(first.f.slug)?.slugs.includes(here))) && 'nav-pill--on')}>
               <PillBadge icon={uniqueIcon(home ? 'home' : `${section.slug} ${first.f.slug} ${name}`, usedIcons)} />
@@ -256,7 +262,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
             hue={hue} icon={uniqueIcon(`${section.slug} ${title}`, usedIcons)}
             count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}>
             {list.map(({ section: from, f }) => (
-              <NavLink key={f.key} data-row to={featurePath(roleKey, from, f.slug)} onClick={onNavigate} title={f.summary}
+              <NavLink key={f.key} data-row to={goTo(from, f)} onClick={onNavigate} title={f.summary}
                 className={({ isActive }) => {
                   // A grouped item stays lit while one of its tabs is open.
                   const on = isActive || !!comboOf(f.slug)?.slugs.includes(here)

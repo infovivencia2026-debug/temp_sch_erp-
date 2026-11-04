@@ -579,7 +579,7 @@ class MainActivity : Activity() {
         fun print() {
             val view = target as? WebView ?: return
             view.post {
-                val name = view.title?.takeIf { it.isNotBlank() } ?: "WISEN"
+                val name = view.title?.takeIf { it.isNotBlank() } ?: "XULO"
                 val manager = view.context.getSystemService(Context.PRINT_SERVICE) as? android.print.PrintManager
                     ?: return@post
                 runCatching {
@@ -2173,7 +2173,11 @@ class MainActivity : Activity() {
 
         /** True for the school's own pages, on any of the names it answers on. */
         fun isPortal(host: String?): Boolean =
-            host != null && (PORTAL_HOSTS.contains(host.lowercase()) || host.equals(savedSchoolHost(), ignoreCase = true))
+            host != null && (PORTAL_HOSTS.contains(host.lowercase())
+                // An alias starting with "." covers every school under that
+                // domain (".xulo.in": yjps.xulo.in and the next school's).
+                || PORTAL_HOSTS.any { it.startsWith(".") && host.lowercase().endsWith(it) }
+                || host.equals(savedSchoolHost(), ignoreCase = true))
 
         /* The generic app's chosen school (Native.saveSchool). */
         fun savedSchoolHost(): String? = runCatching {

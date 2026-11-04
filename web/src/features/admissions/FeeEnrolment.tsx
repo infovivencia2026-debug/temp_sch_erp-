@@ -224,6 +224,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
 
   const enrol = useMutation({
     mutationFn: () => api.post<{
+      student_id?: string
       admission_no?: string
       invoice_no?: string
       net_paise?: number
@@ -471,6 +472,9 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                 ) : (
                   <p>No bill was raised. This child is billed with the class.</p>
                 )}
+                {enrol.data.invoice_no && Number(enrol.data.net_paise) > 0 && enrol.data.student_id && (
+                  <JoiningFee studentId={enrol.data.student_id} duePaise={Number(enrol.data.net_paise)} />
+                )}
                 <p className="text-muted-foreground">
                   Their full record is in Student 360.
                 </p>
@@ -558,5 +562,52 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
         </p>
       </div>
     </Card>
+  )
+}
+
+const PAY_MODES = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'upi', label: 'UPI' },
+  { value: 'card', label: 'Card' },
+  { value: 'bank_transfer', label: 'Bank transfer' },
+  { value: 'cheque', label: 'Cheque' },
+]
+
+/* THE JOINING FEE, TAKEN WHERE THE CHILD JOINED. The parent is at the desk
+   with the money; sending them to the fee counter for the first receipt is a
+   second queue. Shows Paid once the receipt exists, Due until then. */
+function JoiningFee({ studentId, duePaise }: { studentId: string; duePaise: number }) {
+  const can = useCan()
+  const [amount, setAmount] = useState(String(duePaise / 100))
+  const [mode, setMode] = useState('cash')
+  const [ref, setRef] = useState('')
+  const pay = useMutation({
+    mutationFn: () => api.call('POST /fees/payments', {
+      body: { student_id: studentId, amount_paise: rupeesToPaise(amount), mode, reference_no: ref || undefined },
+    }),
+  })
+  if (pay.data) {
+    return (
+      <p className="flex items-center gap-2">
+        <Badge tone="success">Fee paid</Badge>
+        Receipt <span className="font-mono font-medium">{pay.data.receipt_no}</span>
+      </p>
+    )
+  }
+  if (!can('finance.payments.write')) {
+    return <p><Badge tone="warning">Fee due</Badge> Take it at the fee counter.</p>
+  }
+  return (
+    <div className="space-y-2 border-t border-success/30 pt-2">
+      <p className="flex items-center gap-2"><Badge tone="warning">Fee due</Badge> Take it now</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="w-28"><Input value={amount} onChange={setAmount} /></div>
+        <div className="w-36"><Select value={mode} onChange={setMode} options={PAY_MODES} /></div>
+        {mode !== 'cash' && <div className="w-36"><Input value={ref} onChange={setRef} placeholder="Reference" /></div>}
+        <Button onClick={() => pay.mutate()} pending={pay.isPending}
+          disabled={!(rupeesToPaise(amount) > 0)}>Mark fee paid</Button>
+      </div>
+      <FormNotice error={pay.error} />
+    </div>
   )
 }

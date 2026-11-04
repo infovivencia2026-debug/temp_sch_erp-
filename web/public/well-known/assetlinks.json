@@ -1,11 +1,25 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.schoolerp.parent",
       "sha256_cert_fingerprints": [
         "FF:8F:D3:C1:EF:08:D1:17:F7:91:10:2A:A1:52:94:FF:CA:43:B3:C5:0A:2F:6F:5F:60:71:1D:D1:C7:4A:95:CF"
+      ]
+    }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.xulo.app",
+      "sha256_cert_fingerprints": [
+        "0C:76:72:0A:B3:44:57:FE:94:31:1F:58:6A:6C:09:C4:41:9B:B5:D0:FC:9B:D2:B1:84:2F:99:3B:C9:40:57:62"
       ]
     }
   }

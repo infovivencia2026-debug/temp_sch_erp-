@@ -443,7 +443,7 @@ export function registerAdmissionsWorkflow(r: Router) {
     if (!approved && note === '') throw badRequest('say what has to happen first, the desk has to tell the family something')
     const t = now()
     const res = await c.db.prepare(`UPDATE applications SET enrolment_approved_by = ?, enrolment_approved_at = ?, enrolment_note = NULLIF(?,''), updated_at = ?
-      WHERE id = ? AND status = 'offered' AND enrolment_approved_at IS NULL AND enrolment_note IS NULL`)
+      WHERE id = ? AND status = 'offered' AND enrolment_approved_at IS NULL`)
       .bind(approved ? c.id.userId : null, approved ? t : null, note, t, c.params.id).run()
     if (res.meta.changes === 0) throw new HttpError(409, 'that application is not waiting on an admission decision', { code: 'not_pending' })
     // Tell the desk user who offered the seat what was decided.
@@ -503,8 +503,11 @@ export function registerAdmissionsWorkflow(r: Router) {
         (is_rte = 1 OR quota = 'rte') AS is_rte, status, student_id, aadhaar_consent, aadhaar_last4, apaar_id, prior_udise_code, previous_school, blood_group, nationality, address
         FROM applications WHERE id = ?`).bind(appID).first<Record<string, unknown>>()
     if (!app) throw notFound()
-    const welcome = { note: 'parent login is not issued by the worker' }
-    if (app.student_id) return created({ student_id: app.student_id, admission_no: '', status: 'enrolled', invoice_no: '', net_paise: 0, parent_login: welcome })
+    const welcome = { note: 'parent login is sent to the family by message' }
+    if (app.student_id) {
+      const st = await c.db.prepare(`SELECT COALESCE(admission_no, '') AS n FROM students WHERE id = ?`).bind(app.student_id).first<{ n: string }>()
+      return created({ student_id: app.student_id, admission_no: st?.n ?? '', status: 'enrolled', invoice_no: '', net_paise: 0, parent_login: welcome })
+    }
     if (app.status !== 'offered' && app.status !== 'accepted') throw badRequest('only an offered application can be enrolled')
 
     const inst = str(app.institution_id), campusID = str(app.campus_id), classID = str(app.class_sought), phone = str(app.parent_phone)
@@ -605,6 +608,8 @@ export function registerAdmissionsWorkflow(r: Router) {
     stmts.push(c.db.prepare(`UPDATE enquiries SET status = 'applied', updated_at = ? WHERE id = (SELECT enquiry_id FROM applications WHERE id = ?)`).bind(t, appID))
     await c.db.batch(stmts)
     await autoIssueFamilyLogins(c, studentID)
+    // The family hears the joining is confirmed (welcome message), never failing the enrolment.
+    await notifyApplicationStage(c, appID, 'accepted').catch(() => null)
     return created({ student_id: studentID, admission_no: admissionNo, status: 'enrolled', invoice_no: billedNo, net_paise: billedPaise, parent_login: welcome })
   })
 }
@@ -643,19 +648,19 @@ async function sendEnquiryLink(c: Ctx, enquiryId: string, studentName: string, p
 /* Go's applicantFacts / loadApplicantFacts / notifyApplicant (admissions_notify.go):
    the one row every applicant message is built from, and one templated email to
    the parent. Never throws: 'no_email' is Go's errNoApplicantEmail. */
-export type ApplicantFacts = { student_name: string; parent_name: string; email: string; application_no: string; class_sought: string; school_name: string }
+export type ApplicantFacts = { student_name: string; parent_name: string; email: string; phone?: string; application_no: string; class_sought: string; school_name: string }
 export async function loadApplicantFacts(c: Ctx, appID: string): Promise<ApplicantFacts | null> {
   return c.db.prepare(`
     SELECT TRIM(COALESCE(a.first_name,'') || ' ' || COALESCE(a.last_name,'')) AS student_name, COALESCE(a.parent_name,'') AS parent_name,
-           COALESCE(a.parent_email,'') AS email, COALESCE(a.application_no,'') AS application_no, COALESCE(cl.name,'') AS class_sought,
+           COALESCE(a.parent_email,'') AS email, COALESCE(a.parent_phone,'') AS phone, COALESCE(a.application_no,'') AS application_no, COALESCE(cl.name,'') AS class_sought,
            COALESCE(i.name,'') AS school_name
       FROM applications a LEFT JOIN classes cl ON cl.id = a.class_sought LEFT JOIN institutions i ON i.id = a.institution_id
      WHERE a.id = ?`).bind(appID).first<ApplicantFacts>()
 }
 export async function notifyApplicant(c: Ctx, appID: string, code: string, f: ApplicantFacts,
   extra: Record<string, string> | null, occurrence: string): Promise<{ ok: true } | { ok: false; noEmail: boolean; error: string }> {
-  const email = f.email.trim()
-  if (email === '') return { ok: false, noEmail: true, error: 'no email address on this application' }
+  const email = f.email.trim(), phone = (f.phone ?? '').trim()
+  if (email === '' && phone === '') return { ok: false, noEmail: true, error: 'no email address or phone on this application' }
   const vars: Record<string, string> = {
     school_name: f.school_name || 'your school', parent_name: f.parent_name.trim() || 'Sir/Madam',
     student_name: f.student_name.trim() || 'your child', application_no: f.application_no,
@@ -663,10 +668,22 @@ export async function notifyApplicant(c: Ctx, appID: string, code: string, f: Ap
     ...(extra ?? {}),
   }
   try {
+    /* Most families give a phone, not an email (owner audit, 2026-11-04):
+       the same message goes by WhatsApp and SMS too, each where it is set up. */
     const ms = new Messenger(scopeOf(c))
-    await ms.queue({ channel: 'email', template_code: code, vars, recipient: email, source_kind: 'application', source_id: appID,
-      occurrence_key: occurrence === '' ? null : occurrence })
+    let sent = 0
+    let last = ''
+    for (const channel of ['email', 'whatsapp', 'sms']) {
+      const to = channel === 'email' ? email : phone
+      if (to === '') continue
+      try {
+        await ms.queue({ channel, template_code: code, vars, recipient: to, source_kind: 'application', source_id: appID,
+          occurrence_key: occurrence === '' ? null : occurrence + (channel === 'email' ? '' : ':' + channel) })
+        sent++
+      } catch (e) { last = e instanceof Error ? e.message : String(e) }
+    }
     await ms.kick()
+    if (!sent) return { ok: false, noEmail: false, error: last || 'no channel could send' }
   } catch (e) {
     return { ok: false, noEmail: false, error: e instanceof Error ? e.message : String(e) }
   }
