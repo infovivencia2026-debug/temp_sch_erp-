@@ -71,7 +71,7 @@ async function computeStaffOverview(db: D1Database, staffID: string, userID: str
   ov.load.sections_count = sectionSet.size
   ov.load.students_count = (await db.prepare(`SELECT count(DISTINCT en.student_id) AS n FROM section_subject_teachers sst JOIN enrollments en ON en.section_id = sst.section_id AND en.status = 'active' WHERE sst.teacher_user_id = ?`).bind(userID).first<{ n: number }>())?.n ?? 0
   ov.load.periods_per_week = (await db.prepare(`SELECT count(*) AS n FROM timetable_entries WHERE teacher_user_id = ?`).bind(userID).first<{ n: number }>())?.n ?? 0
-  const ct = await db.prepare(`SELECT c.name AS class, sec.name AS section FROM sections sec JOIN classes c ON c.id = sec.class_id WHERE sec.class_teacher_id = ? ORDER BY c.name, sec.name`).bind(userID).all<{ class: string; section: string }>()
+  const ct = await db.prepare(`SELECT c.name AS class, sec.name AS section FROM sections sec JOIN classes c ON c.id = sec.class_id WHERE sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?) ORDER BY c.name, sec.name`).bind(userID).all<{ class: string; section: string }>()
   ov.load.class_teacher_of = ct.results
 
   const mr = await db.prepare(`
@@ -681,7 +681,7 @@ export function registerStaff(r: Router) {
          WHERE sst.teacher_user_id = ? ORDER BY c.level, sec.name, sub.name`).bind(e.user_id).all()).results
       classTeacherOf = (await c.db.prepare(`SELECT sec.id AS section_id, c.name AS class, sec.name AS section,
           CAST((SELECT count(*) FROM enrollments en WHERE en.section_id = sec.id AND en.status = 'active') AS TEXT) AS students
-          FROM sections sec JOIN classes c ON c.id = sec.class_id WHERE sec.class_teacher_id = ? ORDER BY c.level, sec.name`).bind(e.user_id).all()).results
+          FROM sections sec JOIN classes c ON c.id = sec.class_id WHERE sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?) ORDER BY c.level, sec.name`).bind(e.user_id).all()).results
     }
     const prior = await c.db.prepare(`SELECT year_name AS year, COALESCE(designation,'') AS designation, days_present, days_total, leaves_taken, COALESCE(notes,'') AS notes
         FROM employee_year_history WHERE employee_id = ? ORDER BY year_name DESC`).bind(eid).all()

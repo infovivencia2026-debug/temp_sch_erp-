@@ -859,7 +859,7 @@ async function sendPortalMessage(c: Ctx): Promise<Response> {
        class teacher, and transport staff (bus messages). */
     const mayWriteFamilies = can(c.id, 'comms.announcements.write') || can(c.id, 'operations.transport.read') ||
       bool((await c.db.prepare(`SELECT EXISTS (SELECT 1 FROM enrollments e JOIN sections sec ON sec.id = e.section_id
-          WHERE e.student_id = ? AND e.status = 'active' AND sec.class_teacher_id = ?) AS ok`).bind(sid, me).first<{ ok: number }>())?.ok)
+          WHERE e.student_id = ? AND e.status = 'active' AND sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?)) AS ok`).bind(sid, me).first<{ ok: number }>())?.ok)
     if (!can(c.id, 'operations.transport.read') && !(await teacherParentMessagesOn(c))) {
       throw new HttpError(403, 'this school keeps teacher messages to staff; send a class notice to reach families', { code: 'forbidden' })
     }
@@ -954,7 +954,7 @@ async function teacherMayWrite(c: Ctx, sid: string, teacherID: string, parentID:
          WHERE e.student_id = ?1 AND e.status = 'active'
            AND (
              EXISTS (SELECT 1 FROM sections sec
-                      WHERE sec.id = e.section_id AND sec.class_teacher_id = ?2)
+                      WHERE sec.id = e.section_id AND sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?2))
           OR EXISTS (SELECT 1 FROM section_subject_teachers sst
                       WHERE sst.section_id = e.section_id AND sst.teacher_user_id = ?2)
           OR EXISTS (SELECT 1 FROM timetable_entries te

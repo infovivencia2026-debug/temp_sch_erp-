@@ -358,7 +358,9 @@ export function Shell({
     session.institution?.display_name?.trim() ||
     session.institution?.name ||
     'XULO'
-  const faviconKey = session.institution?.favicon_key
+  /* No favicon uploaded: the school's logo instead of the product's mark
+     (owner, 2026-11-04: Yajur's tab showed XULO). */
+  const faviconKey = session.institution?.favicon_key || session.institution?.logo_key
   useEffect(() => {
     const prevTitle = document.title
     document.title = brandName

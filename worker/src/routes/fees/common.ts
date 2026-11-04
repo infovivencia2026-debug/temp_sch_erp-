@@ -351,7 +351,7 @@ export async function studentPredicate(c: Ctx, alias: string): Promise<{ sql: st
     c.db.prepare(`
       SELECT section_id AS id FROM section_subject_teachers WHERE teacher_user_id = ?1
       UNION SELECT section_id FROM timetable_entries WHERE teacher_user_id = ?1
-      UNION SELECT id FROM sections WHERE class_teacher_id = ?1
+      UNION SELECT section_id AS id FROM section_class_teachers WHERE user_id = ?1
       UNION SELECT DISTINCT te.section_id FROM timetable_entries te JOIN employees emp ON emp.user_id = te.teacher_user_id
              WHERE emp.department_id IN (SELECT id FROM departments WHERE head_user_id = ?1)`).bind(uid).all<{ id: string }>(),
     ownStudentIds(c),

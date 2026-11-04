@@ -107,8 +107,8 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
   'admissions.test_scheduled': {
     subject: 'Entrance test for {{student_name}}',
     body: 'Dear {{parent_name}},\n\nAn entrance test has been scheduled for ' +
-      '{{student_name}} ({{application_no}}). The date, the time and where ' +
-      'to come are on your admission page:\n{{portal_url}}\n\n{{school_name}}',
+      '{{student_name}} ({{application_no}}) on {{scheduled_at}}. Please come ' +
+      'a little early.\n\n{{school_name}}',
   },
   'admissions.interviewed': {
     subject: 'Thank you for coming in - {{student_name}}',

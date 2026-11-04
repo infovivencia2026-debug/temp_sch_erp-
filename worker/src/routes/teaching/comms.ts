@@ -19,7 +19,7 @@ async function reachesTaughtStudent(c: Ctx, s: Scope, studentId: string): Promis
 }
 async function isClassTeacherOfChild(c: Ctx, studentId: string): Promise<boolean> {
   const r = await c.db.prepare(`SELECT 1 AS ok FROM enrollments e JOIN sections sec ON sec.id = e.section_id
-      WHERE e.student_id = ? AND e.status = 'active' AND sec.class_teacher_id = ? LIMIT 1`).bind(studentId, c.id.userId).first()
+      WHERE e.student_id = ? AND e.status = 'active' AND sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?) LIMIT 1`).bind(studentId, c.id.userId).first()
   return !!r
 }
 function taughtStudentsPredicate(s: Scope, column: string): { sql: string; args: string[] } {

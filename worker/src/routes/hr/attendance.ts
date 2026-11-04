@@ -16,7 +16,7 @@ const omitNull = <T extends object>(o: T): T => {
 /** scope.CanMarkSection: the class teacher of the section, or anyone who may mark any register. */
 async function canMarkSection(c: { db: D1Database; id: import('../../identity').Identity }, sectionID: string): Promise<boolean> {
   if (c.id.platformAdmin || can(c.id, 'academics.attendance.write.any')) return true
-  const row = await c.db.prepare(`SELECT 1 FROM sections WHERE id = ? AND class_teacher_id = ?`).bind(sectionID, c.id.userId).first()
+  const row = await c.db.prepare(`SELECT 1 FROM section_class_teachers WHERE section_id = ? AND user_id = ?`).bind(sectionID, c.id.userId).first()
   return !!row
 }
 
