@@ -12,7 +12,7 @@ import { ConversationPane } from '@/components/ChatScreen'
 import { useSession } from '@/lib/session'
 import { useCan } from '@/lib/session'
 import { useI18n } from '@/lib/i18n'
-import { useResolvedRole, usable, featurePath } from '@/lib/catalog'
+import { useResolvedRole, useCatalog, usable, featurePath } from '@/lib/catalog'
 import { buildIndex, rank, fold, type SearchDoc } from '@/lib/search/feature-search'
 import { collectDiagnostics, lastErrorRef } from '@/lib/diagnostics'
 import { formatDate, cn } from '@/lib/utils'
@@ -113,16 +113,18 @@ export default function HelpCentre() {
 
 // --- home ----------------------------------------------------------------------
 
+function screensOf(role: ReturnType<typeof useResolvedRole>['role']): (SearchDoc & { path: string })[] {
+  const out: (SearchDoc & { path: string })[] = []
+  for (const s of role?.sections ?? []) for (const f of s.features) {
+    if (!usable(f)) continue
+    out.push({ key: f.key, name: f.name, slug: f.slug, section: s.name, workspace: s.workspace || '', summary: f.summary ?? '', path: featurePath(role!.key, s.slug, f.slug) })
+  }
+  return out
+}
+
 function useScreens(): (SearchDoc & { path: string })[] {
   const { role } = useResolvedRole()
-  return useMemo(() => {
-    const out: (SearchDoc & { path: string })[] = []
-    for (const s of role?.sections ?? []) for (const f of s.features) {
-      if (!usable(f)) continue
-      out.push({ key: f.key, name: f.name, slug: f.slug, section: s.name, workspace: s.workspace || '', summary: f.summary ?? '', path: featurePath(role!.key, s.slug, f.slug) })
-    }
-    return out
-  }, [role])
+  return useMemo(() => screensOf(role), [role])
 }
 
 function Home({ articles, requests, onRequest, onReport, onAll }: {
@@ -152,7 +154,7 @@ function Home({ articles, requests, onRequest, onReport, onAll }: {
         <SearchResults hits={hits} onRequest={onRequest} onReport={onReport} />
       ) : (
         <>
-          <Faqs screens={screens} />
+          <Faqs />
 
           {open.length > 0 && (
             <Card>
@@ -182,8 +184,14 @@ function Home({ articles, requests, onRequest, onReport, onAll }: {
   )
 }
 
-function Faqs({ screens }: { screens: (SearchDoc & { path: string })[] }) {
-  const { role } = useResolvedRole()
+function Faqs() {
+  /* The role of the screen Help was opened from, for someone who holds
+     several; otherwise the person's first role. */
+  const { role: first } = useResolvedRole()
+  const [params] = useSearchParams()
+  const roles = useCatalog().roles
+  const fromKey = (params.get('from') ?? '').split('/').filter(Boolean)[0]
+  const role = roles.find((r) => r.key === fromKey) ?? first
   const navigate = useNavigate()
   const { t } = useI18n()
   const [openQ, setOpenQ] = useState<string | null>(null)
@@ -195,7 +203,9 @@ function Faqs({ screens }: { screens: (SearchDoc & { path: string })[] }) {
         <ul className="divide-y">
           {items.map((f) => {
             const open = openQ === f.q
-            const screen = f.screen ? screens.find((s) => s.name === f.screen) : undefined
+            /* Profile is the account page every person has, menu or not. */
+            const screen = f.screen === 'Profile' ? { name: 'Profile', path: '/account' }
+              : f.screen ? screensOf(role).find((s) => s.name === f.screen) : undefined
             return (
               <li key={f.q}>
                 <button type="button" onClick={() => setOpenQ(open ? null : f.q)} aria-expanded={open}
