@@ -482,7 +482,7 @@ const PHONE_FIT_CSS = `
 @media (max-width:639px){
   .auth-split .card input:not([type="hidden"]){height:48px;font-size:16px}
   .auth-split .card button[type="submit"]{height:48px;font-size:16px}
-  .auth-split .card h1{font-family:'Inter Variable',Inter,system-ui,sans-serif;font-size:30px;font-weight:800;letter-spacing:-0.01em;text-transform:uppercase}
+  .auth-split .card h1{font-family:'Inter Variable',Inter,system-ui,sans-serif;font-size:30px;font-weight:800;letter-spacing:-0.01em}
 }
 @media (max-width:379px){
   .auth-split:not(.has-slides){padding-left:12px;padding-right:12px}
@@ -505,7 +505,7 @@ body.auth{height:100vh;height:100dvh;min-height:0;overflow:hidden;overscroll-beh
 body.auth .auth-split .card{overflow-y:auto;overscroll-behavior:contain}
 body.auth,body.auth .auth-split .card{scrollbar-width:none;-ms-overflow-style:none}
 body.auth::-webkit-scrollbar,body.auth .auth-split .card::-webkit-scrollbar{display:none;width:0;height:0}
-body.auth .card h1,body.auth .auth-split .card h1{font-family:'Inter Variable',Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-0.01em;text-transform:uppercase;color:var(--brand,#1e40af)}
+body.auth .card h1,body.auth .auth-split .card h1{font-family:'Inter Variable',Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-0.01em;color:var(--brand,#1e40af)}
 body.auth .card h1,body.auth .auth-split .card h1{font-size:15px;white-space:nowrap;line-height:1.1}
 body.auth .card h1 b{font-size:3em;font-weight:800;letter-spacing:-0.02em}
 @media (max-width:379px){body.auth .card h1,body.auth .auth-split .card h1{font-size:13px}}
@@ -585,10 +585,10 @@ export function loginHTML(o: {
   const style = (b ? brandStyle(b) : '') + PHONE_FIT_CSS + (vendor ? '' : TAB_CSS) + (slides.length ? SLIDES_CSS : '') + FIT_CSS
   const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? SLIDES_JS : '') + (slides.length ? PHONE_JS : '') + NO_ZOOM_JS
   return page
-    /* Owner, 2026-11-02: "Sign in to yajur.os", big and bold. The word is the
+    /* Owner, 2026-11-04: "Sign in to YAJUR OS" (was "SIGN IN TO yajur.os"), big and bold. The word is the
        school name's first word, so it fits any school. */
-    .replace('@@H1@@', vendor ? esc(m.vendorH1) : b?.name ? `${w.SIGNIN} ${lang === 'te' ? '' : 'to '}<b>${esc(b.name.trim().split(/\s+/)[0]!.toLowerCase())}.os</b>` : w.SIGNIN)
-    .replace('@@LEDE@@', vendor ? esc(m.vendorLede) : '@@NAME@@')
+    .replace('@@H1@@', vendor ? esc(m.vendorH1) : b?.name ? `${w.SIGNIN} ${lang === 'te' ? '' : 'to '}<b>${esc(b.name.trim().split(/\s+/)[0]!.toUpperCase())} OS</b>` : w.SIGNIN)
+    .replace(/<p class="lede">@@LEDE@@<\/p>/, () => vendor ? `<p class="lede">${esc(m.vendorLede)}</p>` : b?.name ? '' : '<p class="lede">@@NAME@@</p>')
     .split('@@NAME@@').join(esc(b?.name ?? 'XULO'))
     .replace('@@SPLITCLASS@@', slides.length ? (o.error || id ? ' has-slides p2' : ' has-slides') : '')
     .replace('@@STYLE@@', () => style)
