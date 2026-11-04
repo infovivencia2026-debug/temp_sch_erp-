@@ -54,7 +54,8 @@ export default function ChapterPlan({ sectionId, classSubjectId }: { sectionId: 
       <p className="text-[14px] text-muted-foreground">{done} of {items.length} chapters completed</p>
       <div className="grid gap-3">
         {items.map((c, i) => (
-          <Card key={c.id} className="cursor-pointer p-4 transition-colors hover:border-primary/50" onClick={() => setOpenId(c.id)}>
+          <button key={c.id} type="button" className="block w-full text-left" onClick={() => setOpenId(c.id)}>
+          <Card className="p-4 transition-colors hover:border-primary/50">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-semibold">{i + 1}. {c.title}</p>
@@ -70,6 +71,7 @@ export default function ChapterPlan({ sectionId, classSubjectId }: { sectionId: 
               <span className="w-10 text-right text-[13px] tabular-nums text-muted-foreground">{c.progress}%</span>
             </div>
           </Card>
+          </button>
         ))}
       </div>
       {open && <ChapterDialog chapter={open} sectionId={sectionId} onClose={() => setOpenId(null)} queryKey={key} />}
