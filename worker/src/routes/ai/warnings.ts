@@ -23,7 +23,7 @@ async function visibility(c: Ctx): Promise<Vis> {
   else {
     const s = await resolveScope(c)
     if (s.classTeacherOf.length > 0) {
-      parts.push(`(${studentRules} AND w.section_id IN (SELECT id FROM sections WHERE class_teacher_id = ?))`)
+      parts.push(`(${studentRules} AND w.section_id IN (SELECT section_id AS id FROM section_class_teachers WHERE user_id = ?))`)
       args.push(c.id.userId)
     }
   }

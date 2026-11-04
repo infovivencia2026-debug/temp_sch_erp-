@@ -157,7 +157,7 @@ export async function draftContext(c: Ctx, k: DraftKind, b: DraftRequest): Promi
           FROM leave_requests lr LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
          WHERE lr.id = ? AND (? OR EXISTS (SELECT 1 FROM students st
               JOIN sections sec ON sec.id = (SELECT e.section_id FROM enrollments e WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1)
-             WHERE st.id = lr.student_id AND sec.class_teacher_id = ?))`)
+             WHERE st.id = lr.student_id AND sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?)))`)
         .bind(b.leave_request_id, can(c, 'hr.leave.approve') ? 1 : 0, c.id.userId).first<Record<string, string | null>>()
       if (!row) throw notFound('no such leave request you can answer')
       const d = decision || 'approved'

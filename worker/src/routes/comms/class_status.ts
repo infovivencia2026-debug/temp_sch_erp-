@@ -278,7 +278,7 @@ const AUDIENCE_SQL = `
       /* A class or section post reaches its teachers too: the class teacher,
          whoever is assigned a subject in it, and whoever is on its timetable. */
       SELECT DISTINCT ts.post_id, u.id, NULL FROM ts JOIN users u ON u.status = 'active'
-       WHERE EXISTS (SELECT 1 FROM sections s WHERE s.id = ts.section_id AND s.class_teacher_id = u.id)
+       WHERE EXISTS (SELECT 1 FROM sections s WHERE s.id = ts.section_id AND s.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = u.id))
           OR EXISTS (SELECT 1 FROM section_subject_teachers sst WHERE sst.section_id = ts.section_id AND sst.teacher_user_id = u.id)
           OR EXISTS (SELECT 1 FROM timetable_entries te WHERE te.section_id = ts.section_id AND te.teacher_user_id = u.id)`
 

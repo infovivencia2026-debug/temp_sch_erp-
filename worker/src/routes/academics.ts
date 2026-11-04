@@ -244,7 +244,7 @@ async function listSections(c: Ctx) {
     /* "Class teacher of" means exactly that, whatever else the role may do:
        a teacher who may mark any section was handed every section here, and
        My students opened on somebody else's class. */
-    if (m === 'class_teacher') { mine = 'sec.class_teacher_id = ?'; args.push(c.id.userId) }
+    if (m === 'class_teacher') { mine = 'sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?)'; args.push(c.id.userId) }
     else if (!scope.anySection) {
       if (ids.length === 0) mine = '0'
       else { mine = `sec.id IN (SELECT value FROM json_each(?))`; args.push(JSON.stringify(ids)) }
@@ -267,7 +267,7 @@ async function listSubjects(c: Ctx) {
     if (!scope.anySection && !scope.platformAdmin) {
       args.push(c.id.userId, c.id.userId, c.id.userId)
       where = `(EXISTS (SELECT 1 FROM class_subjects cs JOIN section_subject_teachers sst ON sst.class_subject_id = cs.id WHERE cs.subject_id = subjects.id AND sst.teacher_user_id = ?)
-             OR EXISTS (SELECT 1 FROM class_subjects cs JOIN sections sec ON sec.class_id = cs.class_id WHERE cs.subject_id = subjects.id AND sec.class_teacher_id = ?)
+             OR EXISTS (SELECT 1 FROM class_subjects cs JOIN sections sec ON sec.class_id = cs.class_id WHERE cs.subject_id = subjects.id AND sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?))
              OR EXISTS (SELECT 1 FROM subject_heads h WHERE h.subject_id = subjects.id AND h.head_user_id = ?))`
     }
   }

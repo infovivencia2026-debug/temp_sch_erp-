@@ -259,7 +259,7 @@ async function previewMarksEnter(c: Ctx, p: Params): Promise<ProposedAction> {
                 JOIN enrollments en ON en.section_id = t.section_id AND en.status = 'active' AND en.student_id = ?3
                WHERE es.id = ?1)
           OR EXISTS (SELECT 1 FROM enrollments en JOIN sections sec ON sec.id = en.section_id
-               WHERE en.status = 'active' AND en.student_id = ?3 AND sec.class_teacher_id = ?2)) AS ok`)
+               WHERE en.status = 'active' AND en.student_id = ?3 AND sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?2))) AS ok`)
       .bind(h.id, c.id.userId, s.id).first<{ ok: number }>()
     if (!okRow?.ok) throw refuse('you are neither the subject teacher of this paper nor the class teacher of this student')
   }

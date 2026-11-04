@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
@@ -134,7 +135,7 @@ export default function ClassTeachers() {
         )}
       </div>
 
-      <Table head={['Class', 'Section', 'Students', 'Class teacher', '']} empty={!rows.length}
+      <Table head={['Class', 'Section', 'Students', 'Class teacher', 'Also class teachers', '']} empty={!rows.length}
         emptyLabel="No sections yet, add them on the setup wizard first.">
         {rows.map((s) => (
           <tr key={s.id}>
@@ -149,6 +150,9 @@ export default function ClassTeachers() {
                 placeholder="Nobody"
               />
             </Td>
+            <Td className="min-w-[220px]">
+              <CoTeachers sectionId={s.id} options={options.filter((o) => !o.value.startsWith('emp:') && o.value !== currentFor(s))} />
+            </Td>
             <Td>
               {!s.class_teacher && !draft[s.id] && <Badge tone="warning">unowned</Badge>}
             </Td>
@@ -156,5 +160,39 @@ export default function ClassTeachers() {
         ))}
       </Table>
     </Card>
+  )
+}
+
+/* MORE THAN ONE CLASS TEACHER (owner, 2026-11-04: a head of pre-primary with
+   every class-teacher feature in Nursery, Jr KG and Sr KG, each class keeping
+   its own). The named class teacher stays in the column before; these are
+   the others, saved as soon as they are added or removed. One person may be
+   an extra class teacher of several sections. */
+function CoTeachers({ sectionId, options }: { sectionId: string; options: { value: string; label: string }[] }) {
+  const qc = useQueryClient()
+  const key = ['section-co-teachers', sectionId]
+  const list = useQuery({
+    queryKey: key,
+    queryFn: () => api.get<{ items: { user_id: string; full_name: string }[] }>(`/api/v1/setup/sections/${sectionId}/co-teachers`),
+  })
+  const ids = (list.data?.items ?? []).map((x) => x.user_id)
+  const save = useMutation({
+    mutationFn: (next: string[]) => api.put(`/api/v1/setup/sections/${sectionId}/co-teachers`, { user_ids: next }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+  })
+  return (
+    <div className="space-y-1.5">
+      {(list.data?.items ?? []).map((t) => (
+        <span key={t.user_id} className="mr-1 inline-flex items-center gap-1">
+          <Badge>{t.full_name}</Badge>
+          <Button size="sm" variant="ghost" aria-label={`Remove ${t.full_name}`} title="Remove" disabled={save.isPending}
+            onClick={() => save.mutate(ids.filter((x) => x !== t.user_id))}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </span>
+      ))}
+      <Select value="" onChange={(v) => v && save.mutate([...ids, v])} options={options.filter((o) => !ids.includes(o.value))} placeholder="Add a class teacher" />
+      <FormNotice error={save.error} />
+    </div>
   )
 }
