@@ -534,7 +534,7 @@ async function requireMarksAccess(c: Ctx, esId: string, studentIds: string[]): P
   const allowed = await c.db.prepare(`
     SELECT DISTINCT en.student_id FROM enrollments en JOIN sections sec ON sec.id = en.section_id
      WHERE en.status = 'active' AND en.student_id IN (SELECT value FROM json_each(?3))
-       AND (sec.class_teacher_id = ?2 OR EXISTS (
+       AND (sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?2) OR EXISTS (
          SELECT 1 FROM exam_subjects es
            JOIN section_subject_teachers t ON t.class_subject_id = es.class_subject_id AND t.section_id = en.section_id AND t.teacher_user_id = ?2
           WHERE es.id = ?1))`).bind(esId, c.id.userId, js(studentIds)).all<{ student_id: string }>()

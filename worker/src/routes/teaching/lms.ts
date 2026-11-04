@@ -196,7 +196,7 @@ export function registerLMS(r: Router) {
       FROM sections sec JOIN classes cl ON cl.id = sec.class_id JOIN class_subjects cs ON cs.class_id = cl.id JOIN subjects sub ON sub.id = cs.subject_id
       ${mineOnly ? 'LEFT ' : ''}JOIN lms_courses lc ON lc.section_id = sec.id AND lc.class_subject_id = cs.id
       WHERE ${mineOnly ? `(EXISTS (SELECT 1 FROM section_subject_teachers t WHERE t.section_id = sec.id AND t.class_subject_id = cs.id AND t.teacher_user_id = ?)
-                 OR sec.class_teacher_id = ? ${s.allStudents ? '' : `OR (sec.id IN (${marks()}) AND NOT EXISTS (SELECT 1 FROM section_subject_teachers t2 WHERE t2.teacher_user_id = ?))`})` : '1'}
+                 OR sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?) ${s.allStudents ? '' : `OR (sec.id IN (${marks()}) AND NOT EXISTS (SELECT 1 FROM section_subject_teachers t2 WHERE t2.teacher_user_id = ?))`})` : '1'}
       ORDER BY cl.level, cl.name, sec.name, sub.name LIMIT 400`)
       .bind(...(mineOnly ? [s.userId, s.userId, ...(s.allStudents ? [] : [js(s.sectionIds), s.userId])] : []))
       .all<Record<string, unknown>>()

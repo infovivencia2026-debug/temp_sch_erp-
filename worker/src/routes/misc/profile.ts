@@ -61,7 +61,7 @@ async function readProfile(c: Ctx): Promise<Response> {
       JOIN class_subjects cs ON cs.id = sst.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
      WHERE sst.teacher_user_id = ? ORDER BY c.level, sec.name, sub.name`).bind(c.id.userId).all<{ class: string; section: string | null; subject: string }>()).results
   const ct = (await c.db.prepare(`SELECT c.name AS class, sec.name AS section FROM sections sec JOIN classes c ON c.id = sec.class_id
-     WHERE sec.class_teacher_id = ? ORDER BY c.level, sec.name`).bind(c.id.userId).all<{ class: string; section: string | null }>()).results
+     WHERE sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?) ORDER BY c.level, sec.name`).bind(c.id.userId).all<{ class: string; section: string | null }>()).results
   if (staff || load.length || ct.length) {
     const label = (r: { class: string; section: string | null }) => `${r.class} ${r.section ?? ''}`.trim()
     const classes = new Map<string, boolean>()

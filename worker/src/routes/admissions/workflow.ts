@@ -29,7 +29,8 @@ const admissionApprovalKey = 'enrolment_needs_approval'
 
 async function admissionApprovalRequired(db: D1Database): Promise<boolean> {
   const cfg = await moduleConfig(db, 'admissions')
-  return cfg[admissionApprovalKey] === 'true' || cfg[admissionApprovalKey] === true
+  // On unless a school turns it off (owner, 2026-11-04): the principal signs off every joining.
+  return cfg[admissionApprovalKey] !== 'false' && cfg[admissionApprovalKey] !== false
 }
 
 /** Seeds the paperwork checklist for one application (idempotent on (application_id, doc_type)). */
@@ -362,7 +363,21 @@ export function registerAdmissionsWorkflow(r: Router) {
     const max = typeof req.max_score === 'number' ? String(req.max_score) : null
     await c.db.prepare(`INSERT INTO admission_assessments (id, institution_id, application_id, kind, scheduled_at, score, max_score, remarks, conducted_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
       .bind(uuid(), c.id.institution!.id, c.params.id, kind, nz(req.scheduled_at), score, max, nz(req.remarks), c.id.userId, now()).run()
-    return created({ application_id: c.params.id, kind })
+    /* A date with no score yet is a schedule: the application moves to
+       test_scheduled and the parent is told the day and time. */
+    let told = false
+    if (str(req.scheduled_at) !== '' && score === null) {
+      await c.db.prepare(`UPDATE applications SET status = 'test_scheduled', updated_at = ? WHERE id = ? AND status IN ('submitted','under_review','documents_pending','test_scheduled')`)
+        .bind(now(), c.params.id).run()
+      const f = await loadApplicantFacts(c, c.params.id).catch(() => null)
+      if (f) {
+        const when = str(req.scheduled_at).replace('T', ' ')
+        const r = await notifyApplicant(c, c.params.id, 'admissions.test_scheduled', f,
+          { test_date: when, scheduled_at: when, kind: kind === 'interview' ? 'interview' : 'entrance test' }, 'stage:test_scheduled:' + when)
+        told = r.ok
+      }
+    }
+    return created({ application_id: c.params.id, kind, parent_told: told })
   })
 
   r.post('/admissions/workflow/applications/{id}/decision', WRITE, async (c) => {

@@ -197,11 +197,11 @@ async function resolveScope(c: Ctx): Promise<Resolved> {
     c.db.prepare(`
       SELECT section_id AS id FROM section_subject_teachers WHERE teacher_user_id = ?
       UNION SELECT section_id FROM timetable_entries WHERE teacher_user_id = ?
-      UNION SELECT id FROM sections WHERE class_teacher_id = ?
+      UNION SELECT section_id AS id FROM section_class_teachers WHERE user_id = ?
       UNION SELECT DISTINCT te.section_id FROM timetable_entries te
               JOIN employees emp ON emp.user_id = te.teacher_user_id
              WHERE emp.department_id IN (SELECT id FROM departments WHERE head_user_id = ?)`).bind(u, u, u, u).all<{ id: string }>(),
-    c.db.prepare('SELECT id FROM sections WHERE class_teacher_id = ?').bind(u).all<{ id: string }>(),
+    c.db.prepare('SELECT section_id AS id FROM section_class_teachers WHERE user_id = ?').bind(u).all<{ id: string }>(),
     c.db.prepare(`
       SELECT id FROM students WHERE user_id = ?
       UNION SELECT sg.student_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
@@ -1546,7 +1546,7 @@ async function getApprovals(c: Ctx): Promise<Response> {
           FROM leave_requests lr
           JOIN students st ON st.id = lr.student_id
           JOIN sections sec ON sec.id = (SELECT e.section_id FROM enrollments e WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1)
-               AND sec.class_teacher_id = ?
+               AND sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?)
           LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
           LEFT JOIN users u ON u.id = lr.applied_by
          WHERE lr.status = 'pending' AND lr.subject_kind = 'student'
@@ -1909,7 +1909,7 @@ async function decideLeave(c: Ctx): Promise<Response> {
      WHERE lr.id = ? AND lr.status = 'pending'
        AND (? OR EXISTS (SELECT 1 FROM students st
                           JOIN sections sec ON sec.id = (SELECT e.section_id FROM enrollments e WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1)
-                         WHERE st.id = lr.student_id AND sec.class_teacher_id = ?))`)
+                         WHERE st.id = lr.student_id AND sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?)))`)
     .bind(lid, can(c.id, 'hr.leave.approve') ? 1 : 0, c.id.userId)
     .first<{ employee_id: string | null; leave_type_id: string | null; days: string; applied_by: string | null; kind: string | null; from_date: string; to_date: string; reason: string; place: string | null; subject_user: string | null }>()
   if (row && row.subject_user === c.id.userId) throw new HttpError(403, 'you cannot decide your own leave. Another approver will answer it.', { code: 'own_request' })

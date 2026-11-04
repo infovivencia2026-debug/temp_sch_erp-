@@ -235,7 +235,7 @@ async function resolveIdentity(env: Env, req: Request, s: Session, prefetched?: 
            its own, to keep a request's D1 budget (test/integration/perf). */
         UNION SELECT 'staff:' || b.feature_slug FROM staff_feature_audience_blocks b
          WHERE b.audience IN (SELECT 'role:' || r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?1)
-            OR (b.audience = 'duty:class_teacher' AND EXISTS (SELECT 1 FROM sections WHERE class_teacher_id = ?1))
+            OR (b.audience = 'duty:class_teacher' AND EXISTS (SELECT 1 FROM section_class_teachers WHERE user_id = ?1))
             OR (b.audience = 'duty:subject_teacher' AND EXISTS (SELECT 1 FROM section_subject_teachers WHERE teacher_user_id = ?1))`)
       .bind(s.user_id).all<{ key: string }>().catch(() => ({ results: [] as { key: string }[] })),
   ])

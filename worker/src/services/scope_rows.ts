@@ -30,7 +30,7 @@ export interface ScopeRows {
 export const SECTION_SET_SQL = `
   SELECT section_id AS id FROM section_subject_teachers WHERE teacher_user_id = ?1
   UNION SELECT section_id FROM timetable_entries WHERE teacher_user_id = ?1
-  UNION SELECT id FROM sections WHERE class_teacher_id = ?1
+  UNION SELECT section_id AS id FROM section_class_teachers WHERE user_id = ?1
   UNION SELECT DISTINCT te.section_id FROM timetable_entries te
           JOIN employees emp ON emp.user_id = te.teacher_user_id
          WHERE emp.department_id IN (SELECT id FROM departments WHERE head_user_id = ?1)
@@ -62,9 +62,9 @@ async function load(c: { db: D1Database; id: Identity }): Promise<ScopeRows> {
     c.db.prepare(`SELECT campus_id FROM user_roles WHERE user_id = ?`).bind(u),
     c.db.prepare(`SELECT id FROM departments WHERE head_user_id = ?`).bind(u),
     c.db.prepare(SECTION_SET_SQL).bind(u),
-    c.db.prepare(`SELECT id FROM sections WHERE class_teacher_id = ?`).bind(u),
+    c.db.prepare(`SELECT section_id AS id FROM section_class_teachers WHERE user_id = ?`).bind(u),
     c.db.prepare(`SELECT (EXISTS (SELECT 1 FROM section_subject_teachers t WHERE t.teacher_user_id = ?1)
-                       OR EXISTS (SELECT 1 FROM sections s WHERE s.class_teacher_id = ?1)) AS t`).bind(u),
+                       OR EXISTS (SELECT 1 FROM sections s WHERE s.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?1))) AS t`).bind(u),
     c.db.prepare(STUDENT_SET_SQL).bind(u, todayIST()),
   ])
   const r: ScopeRows = { campusIds: [], allCampuses: false, departmentIds: [], sectionIds: [], classTeacherOf: [], studentIds: [], teaches: false }
