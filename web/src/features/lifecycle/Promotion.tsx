@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import { api, type List, type Section, type AcademicYear } from '@/lib/api'
 import { walkRoster } from '@/lib/rosters'
 import {
-  PageHead, PageBody, Card, CardHeader, Table, Td, Button,
+  PageHead, PageBody, Card, CardHeader, Table, Td, Button, ConfirmButton,
   Badge, Select, SkeletonTable, ErrorState, FormNotice, EmptyState,
 } from '@/components/ui'
 
@@ -57,7 +57,7 @@ export default function Promotion() {
   })
 
   const promote = useMutation({
-    mutationFn: () => {
+    mutationFn: (allowDues: boolean = false) => {
       const all = (roster.data?.items ?? []).map((s) => s.id)
       const moving = all.filter((id) => !held.has(id))
       return api.post<{ promoted: number }>('/api/v1/lifecycle/promote', {
@@ -67,6 +67,7 @@ export default function Promotion() {
         // Omitted entirely when nobody is held back, so the server takes its
         // "whole section" path rather than a list that happens to be complete.
         ...(held.size ? { student_ids: moving } : {}),
+        ...(allowDues ? { allow_dues: true } : {}),
       })
     },
     onSuccess: (r) => {
@@ -135,7 +136,15 @@ export default function Promotion() {
               The source and destination are the same section.
             </p>
           )}
-          <FormNotice error={promote.error} ok={result} />
+          {/* Unpaid fees stop a promotion until the office says so (server
+              code students_have_dues); the dues stay on the child's account. */}
+          {(promote.error as { code?: string } | null)?.code === 'students_have_dues' ? (
+            <div className="flex flex-wrap items-center gap-3 px-5 pb-4">
+              <p className="m-0 flex-1 text-[13px] text-destructive">{(promote.error as Error).message}</p>
+              <ConfirmButton confirmLabel="Promote with dues" question="Their unpaid fees stay on their account in the new year."
+                onConfirm={() => promote.mutate(true)}>Promote anyway</ConfirmButton>
+            </div>
+          ) : <FormNotice error={promote.error} ok={result} />}
         </Card>
 
         {!from ? (
@@ -161,7 +170,7 @@ export default function Promotion() {
               action={
                 <Button
                   disabled={!ready || promote.isPending}
-                  onClick={() => promote.mutate()}
+                  onClick={() => promote.mutate(false)}
                 >
                   {promote.isPending
                     ? 'Promoting…'

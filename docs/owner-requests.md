@@ -294,3 +294,6 @@ Last checked: 2026-10-02.
 - 2026-11-04 Academic years tab (Academics > Class Setup): add a year, Make current, year-end steps linked. Done (typecheck).
 - 2026-11-04 Admin menu: Class Setup and Year Rollover moved from School settings to Academics. Done (typecheck).
 - 2026-11-04 Admin menu shows every screen search can open (other offices' screens filed under the admin groups), same-named sub-groups merged. Done (browser: 216 screens, no errors).
+- 2026-11-04 Admin menu back to the admin's own screens (other roles via role switch, owner). Done (browser: 62 screens).
+- 2026-11-04 Promotion: "Promote anyway" when fees are owed (was a dead end). Done (typecheck).
+- 2026-11-04 Admissions: parent messages by WhatsApp + SMS too (were email only); welcome message at enrolment; sent-back joining can be approved again; desk notified of new online applications; re-enrol shows admission no. Done (tests).

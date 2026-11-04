@@ -112,7 +112,7 @@ const WA_PLACEHOLDER = /\{\{([a-z_][a-z0-9_]*)\}\}/g
 const WA_CATEGORIES: Record<string, string> = {}
 for (const k of ['attendance.absent', 'fees.overdue', 'homework.set', 'ptm.reminder', 'reportcard.published', 'payroll.payslip', 'student.remark',
   'announcement.published', 'messaging.direct', 'messaging.test', 'admissions.enquiry_link', 'admissions.portal_login', 'admissions.portal_existing',
-  'admissions.portal_ready', 'admissions.applicant_ready', 'admissions.application_received', 'digest.daily']) WA_CATEGORIES[k] = 'UTILITY'
+  'admissions.portal_ready', 'admissions.applicant_ready', 'admissions.application_received', 'admissions.under_review', 'admissions.documents_pending', 'admissions.test_scheduled', 'admissions.interviewed', 'admissions.offered', 'admissions.accepted', 'admissions.rejected', 'admissions.waitlisted', 'digest.daily']) WA_CATEGORIES[k] = 'UTILITY'
 /** A template that carries a secret (a password, a one-time code) is AUTHENTICATION to Meta,
     whatever the code's usual category: submitted as UTILITY it is a policy breach that gets
     the template, and in time the number, disabled. */
