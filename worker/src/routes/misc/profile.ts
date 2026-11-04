@@ -52,6 +52,10 @@ async function readProfile(c: Ctx): Promise<Response> {
   /* The school address from Staff Inbox, if one is assigned (owner, 2026-10-24). */
   const mail = await c.db.prepare(`SELECT address FROM mail_addresses WHERE user_id = ? AND status = 'active'`).bind(c.id.userId).first<{ address: string }>()
   if (mail?.address) out.school_email = mail.address
+  /* The person's own photo from their staff or student record (owner, 2026-11-04). */
+  const ph = await c.db.prepare(`SELECT photo_file_id AS id FROM employees WHERE user_id = ? AND photo_file_id IS NOT NULL
+      UNION ALL SELECT photo_file_id FROM students WHERE user_id = ? AND photo_file_id IS NOT NULL LIMIT 1`).bind(c.id.userId, c.id.userId).first<{ id: string }>()
+  if (ph?.id) out.photo_file_id = ph.id
   /* WHAT THIS PERSON TEACHES, for staff only: the signed-in user's own
      assignments, from the tables Staff 360 reads. Students and parents get no key. */
   const staff = await c.db.prepare(`SELECT 1 AS x FROM employees WHERE user_id = ? LIMIT 1`).bind(c.id.userId).first()

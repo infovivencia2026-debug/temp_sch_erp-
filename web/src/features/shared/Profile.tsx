@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { useCan, useSession } from '@/lib/session'
 import { MyGrowthPanels } from '@/features/hr/MyGrowth'
+import { PhotoViewer } from '@/components/PhotoViewer'
 import { TwoFactorCard, MyDevicesCard, MySessionActivityCard } from './SecurityCards'
 
 
@@ -80,6 +81,7 @@ interface Profile {
   id: string; full_name: string; email?: string; phone?: string
   status: string; last_login_at?: string; mfa_enabled: boolean
   school_email?: string
+  photo_file_id?: string
   teaching?: { classes: { name: string; class_teacher: boolean }[]; subjects: string[] }
   enrolment?: {
     admission_no: string; class_name?: string; section_name?: string
@@ -94,6 +96,7 @@ export default function ProfileView() {
   // Without self.profile.write the record is read-only: the office keeps it.
   const canEdit = useCan()('self.profile.write')
   const qc = useQueryClient()
+  const [viewingPhoto, setViewingPhoto] = useState(false)
   const { data, isLoading, error } = useQuery({
     queryKey: ['profile'],
     queryFn: () => api.get<Profile>('/api/v1/profile'),
@@ -244,17 +247,28 @@ export default function ProfileView() {
         {!(editing && canEdit) && (
           <div className="m-5 flex flex-col gap-4 rounded-2xl border bg-surface-sunken/40 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
+              {data?.photo_file_id ? (
+                <button type="button" onClick={() => setViewingPhoto(true)} aria-label="View photo"
+                  className="h-16 w-16 flex-none overflow-hidden rounded-2xl border">
+                  <img src={`/api/v1/files/${data.photo_file_id}?inline=1`} alt="" className="h-full w-full object-cover" />
+                </button>
+              ) : (
               <span
-                className="grid h-16 w-16 flex-none place-items-center rounded-2xl bg-primary/10 text-[20px] font-extrabold text-primary"
-                aria-hidden
-              >
-                {(data?.full_name ?? '?')
-                  .split(/\s+/)
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map((w) => w[0]?.toUpperCase())
-                  .join('')}
-              </span>
+                  className="grid h-16 w-16 flex-none place-items-center rounded-2xl bg-primary/10 text-[20px] font-extrabold text-primary"
+                  aria-hidden
+                >
+                  {(data?.full_name ?? '?')
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((w) => w[0]?.toUpperCase())
+                    .join('')}
+                </span>
+              )}
+              {viewingPhoto && data?.photo_file_id && (
+                <PhotoViewer src={`/api/v1/files/${data.photo_file_id}?inline=1`} name={`${data.full_name}'s photo`}
+                  onClose={() => setViewingPhoto(false)} />
+              )}
               <div className="min-w-0 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-[19px] font-bold">{data?.full_name}</h3>
