@@ -436,7 +436,13 @@ export async function appointEmployee(c: Ctx, campus: string, req: EmployeeReque
   const schoolEmail = nullStr(req.school_email?.trim())
   const fullName = `${req.first_name} ${req.last_name ?? ''}`.trim()
 
-  if (req.create_login) {
+  /* A role picked while adding the person is kept even when no login is
+     made yet (owner, 2026-11-04: "after adding the role ... it showed none"):
+     the account is created invited, with the role, and issuing the login
+     later activates that same account instead of making one with no role. */
+  const keepRoleOnly = !req.create_login && employeeRoles(req).length > 0
+    && !(phone && await c.db.prepare(`SELECT 1 AS x FROM users WHERE institution_id = ? AND phone = ?`).bind(inst, phone).first())
+  if (req.create_login || keepRoleOnly) {
     const byEmail = email
       ? await c.db.prepare(`SELECT id FROM users WHERE institution_id = ? AND email = ?`).bind(inst, email).first<{ id: string }>()
       : null
