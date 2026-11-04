@@ -291,3 +291,4 @@ Last checked: 2026-10-02.
 - 2026-11-02 Sign-in heading: 'Sign in to <school>.os' (yajur.os), big and bold. Done (worker tests).
 - 2026-11-03 Sign-in heading in caps, Inter font. Done.
 - 2026-11-03 Sign-in heading blue (school colour, lighter in dark), one line on desktop. Done (browser).
+- 2026-11-04 Academic years tab (Academics > Class Setup): add a year, Make current, year-end steps linked. Done (typecheck).
