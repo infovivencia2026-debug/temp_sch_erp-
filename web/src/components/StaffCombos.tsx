@@ -58,9 +58,9 @@ export function ComboTabs() {
 const ADMIN_GROUPS: [string, string, string[]][] = [
   ['home', 'Home', ['Dashboard']],
   ['home_more', 'Home', ['Today at school', 'Approvals', 'School activity', 'Helpdesk']],
-  ['school_settings', 'School settings', ['School setup', 'Rules', 'Move from MyClassBoard', 'Branding', 'Roles & permissions', 'Logins & access', 'Privacy', 'Class Setup', 'Year Rollover', 'Mail addresses', 'Message Channels']],
+  ['school_settings', 'School settings', ['School setup', 'Rules', 'Move from MyClassBoard', 'Branding', 'Roles & permissions', 'Logins & access', 'Privacy', 'Mail addresses', 'Message Channels']],
   ['students', 'Students', ['Student 360', 'Class 360', 'Student photographs', 'Groups & lists', 'Certificates & transfers', 'Class Promotion', 'Student council', 'Admissions Pipeline']],
-  ['academics', 'Academics', ['Master Timetable', 'Substitutions', 'School Calendar', 'Teacher Assignment', 'Subject overview', 'Curriculum Roadmap', 'Lesson Plans', 'Syllabus Progress', 'Activities & Electives', 'Department academics']],
+  ['academics', 'Academics', ['Class Setup', 'Year Rollover', 'Master Timetable', 'Substitutions', 'School Calendar', 'Teacher Assignment', 'Subject overview', 'Curriculum Roadmap', 'Lesson Plans', 'Syllabus Progress', 'Activities & Electives', 'Department academics']],
   ['attendance', 'Attendance', ['Present & absent', 'Attendance Audit']],
   ['exams_all', 'Exams', ['Exams & results', 'Exams & papers', 'Question paper approval', 'Mark moderation', 'Exam seating plan', 'Performance overview']],
   ['fees', 'Fees', ['Fee Dashboard', 'Fee Collection', 'Fee Default', 'Student wallets', 'Period Close']],
