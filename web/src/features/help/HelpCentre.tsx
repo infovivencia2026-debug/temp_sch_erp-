@@ -27,6 +27,7 @@ import { Redact, type RedactedImage } from './Redact'
 import { showMe } from './Spotlight'
 import { Troubleshooter } from './Troubleshooter'
 import { AssistCard } from './Assist'
+import { faqsFor } from './faqs'
 import { STAGE_KEY, STAGE_TONE, articleBlocks, shownStage } from './help-lib'
 
 /* THE HELP CENTRE, for every person of a school.
@@ -82,8 +83,8 @@ export default function HelpCentre() {
           </nav>
         )}
         {view === 'home' && (
-          <Home cats={cats.data?.items ?? []} articles={articles.data?.items ?? []} requests={mine.data?.items ?? []}
-            onTopic={(k) => go({ topic: k })} onRequest={(id) => go({ request: id })} onReport={() => go({ report: '1' })}
+          <Home articles={articles.data?.items ?? []} requests={mine.data?.items ?? []}
+            onRequest={(id) => go({ request: id })} onReport={() => go({ report: '1' })}
             onAll={() => go({ tab: 'requests' })} />
         )}
         {view === 'topic' && (
@@ -124,9 +125,9 @@ function useScreens(): (SearchDoc & { path: string })[] {
   }, [role])
 }
 
-function Home({ cats, articles, requests, onTopic, onRequest, onReport, onAll }: {
-  cats: HelpCategoryOption[]; articles: HelpArticleView[]; requests: HelpTicket[]
-  onTopic: (k: string) => void; onRequest: (id: string) => void; onReport: () => void; onAll: () => void
+function Home({ articles, requests, onRequest, onReport, onAll }: {
+  articles: HelpArticleView[]; requests: HelpTicket[]
+  onRequest: (id: string) => void; onReport: () => void; onAll: () => void
 }) {
   const { t } = useI18n()
   const [q, setQ] = useState('')
@@ -151,18 +152,7 @@ function Home({ cats, articles, requests, onTopic, onRequest, onReport, onAll }:
         <SearchResults hits={hits} onRequest={onRequest} onReport={onReport} />
       ) : (
         <>
-          <section aria-labelledby="help-topics">
-            <h2 id="help-topics" className="mb-2 text-[13px] font-semibold text-muted-foreground">{t('help.topics')}</h2>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {cats.map((c) => (
-                <button key={c.key} type="button" onClick={() => onTopic(c.key)}
-                  className="card flex min-h-[44px] items-center justify-between gap-3 px-4 py-3 text-left text-[15px] font-medium hover:bg-surface-hover">
-                  <span className="min-w-0 truncate">{c.label}</span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                </button>
-              ))}
-            </div>
-          </section>
+          <Faqs screens={screens} />
 
           {open.length > 0 && (
             <Card>
@@ -173,8 +163,15 @@ function Home({ cats, articles, requests, onTopic, onRequest, onReport, onAll }:
             </Card>
           )}
 
-          <Tips />
-          <AssistCard />
+          {/* Tips and screen sharing stay, folded under the questions
+              (owner, 2026-11-04: FAQs first, not all this). */}
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] font-semibold text-muted-foreground">
+              <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden="true" />
+              What's new and screen sharing
+            </summary>
+            <div className="mt-3 space-y-4"><Tips /><AssistCard /></div>
+          </details>
 
           <div className="flex justify-center pb-2">
             <span data-help-anchor="help-report"><Button onClick={onReport}>{t('help.report')}</Button></span>
@@ -182,6 +179,51 @@ function Home({ cats, articles, requests, onTopic, onRequest, onReport, onAll }:
         </>
       )}
     </div>
+  )
+}
+
+function Faqs({ screens }: { screens: (SearchDoc & { path: string })[] }) {
+  const { role } = useResolvedRole()
+  const navigate = useNavigate()
+  const { t } = useI18n()
+  const [openQ, setOpenQ] = useState<string | null>(null)
+  const items = faqsFor(role?.key)
+  return (
+    <section aria-labelledby="help-faqs">
+      <h2 id="help-faqs" className="mb-2 text-[13px] font-semibold text-muted-foreground">Frequently asked questions</h2>
+      <Card>
+        <ul className="divide-y">
+          {items.map((f) => {
+            const open = openQ === f.q
+            const screen = f.screen ? screens.find((s) => s.name === f.screen) : undefined
+            return (
+              <li key={f.q}>
+                <button type="button" onClick={() => setOpenQ(open ? null : f.q)} aria-expanded={open}
+                  className="flex min-h-[48px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left hover:bg-surface-hover">
+                  <span className="min-w-0 flex-1 font-medium">{f.q}</span>
+                  <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} aria-hidden="true" />
+                </button>
+                {open && (
+                  <div className="space-y-2 px-[var(--card-pad)] pb-4 text-[14px] leading-relaxed">
+                    {f.a.map((step, i) => (
+                      <p key={i} className="flex gap-2">
+                        {f.a.length > 1 && <span className="w-5 shrink-0 font-semibold tabular-nums">{i + 1}.</span>}
+                        <span>{step}</span>
+                      </p>
+                    ))}
+                    {screen && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Button variant="secondary" size="sm" onClick={() => { navigate(screen.path); showMe('page-title', screen.name) }}>{t('help.show_me')}</Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </Card>
+    </section>
   )
 }
 

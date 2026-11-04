@@ -403,9 +403,12 @@ export function StaffProfileCard({ name, sub, photoId, onNavigate }: {
         {/* The photo alone on a computer, where the name was cut off; the name
             beside it on a phone, where the panel is wide (owner, 2026-10-30). */}
         <PersonAvatar name={name || '?'} photoId={photoId} size={42} />
-        <span className="min-w-0 max-sm:block sm:sr-only">
-          <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-bold text-foreground">{name}</span>
-          {sub && <span className="block truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground tabular-nums">{sub}</span>}
+        {/* No empty gap beside the photo on a computer (owner, 2026-11-04):
+            the first name fills it there, the full name on a phone. */}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-bold text-foreground max-sm:hidden">{name.split(/\s+/).find((w) => w.length > 2) ?? name}</span>
+          <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-bold text-foreground sm:hidden">{name}</span>
+          {sub && <span className="block truncate max-sm:block sm:hidden text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground tabular-nums">{sub}</span>}
         </span>
         <ChevronRight aria-hidden className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5" />
       </Link>
