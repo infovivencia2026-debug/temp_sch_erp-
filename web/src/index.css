@@ -4583,14 +4583,19 @@ input[type='time']::-webkit-date-and-time-value {
    read as "sharp at the bottom". The card does not clip (menus and tooltips
    inside it must escape), so instead the first and last children, and the
    children of those, take the card's own corner radii. Nothing changes for
-   a child that paints no fill. */
-.card > :first-child,
-.card > :first-child > :first-child {
+   a child that paints no fill.
+
+   Text is left out (owner, 2026-11-04: "all text overlapping"): a line of
+   text that clips (truncate, line-clamp) took the card's round corners too,
+   and those corners shaved the first and last letters off every such label
+   ("Our plan and bili"). Text paints no fill, so it never needed them. */
+.card > :first-child:not(span, .truncate, [class*='line-clamp']),
+.card > :first-child > :first-child:not(span, .truncate, [class*='line-clamp']) {
   border-top-left-radius: inherit;
   border-top-right-radius: inherit;
 }
-.card > :last-child,
-.card > :last-child > :last-child {
+.card > :last-child:not(span, .truncate, [class*='line-clamp']),
+.card > :last-child > :last-child:not(span, .truncate, [class*='line-clamp']) {
   border-bottom-left-radius: inherit;
   border-bottom-right-radius: inherit;
 }
