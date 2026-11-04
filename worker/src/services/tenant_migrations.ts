@@ -126,4 +126,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 126, name: 'lesson_register_day_status', checksum: '0a408585e4702e740353392fe8205ee492084477c8b5a20ceb7cfed5909a0ca9' },
   { version: 127, name: 'staff_feature_audience_blocks', checksum: 'e486a0ee6e27ec04dfcbac40b196f30c58c68109699c2de58769825c774d6404' },
   { version: 128, name: 'section_co_teachers', checksum: 'f2506eca12308cc2409615b821354a80c828e148983fb7874b77f94b43aecbf9' },
+  { version: 129, name: 'chapter_progress', checksum: '4b14ffdbde0a23075f09ca0cba6ed52e237568c2f06a1fac358a54befe310cd2' },
 ]

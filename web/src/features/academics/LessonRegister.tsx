@@ -6,6 +6,7 @@ import {
 } from '@/components/ui'
 import { saveFile } from '@/lib/save-file'
 import { cn } from '@/lib/utils'
+import ChapterPlan from './ChapterPlan'
 
 /* LESSON PLAN (owner, 2026-10-30): one row per timetabled period on a school
    date, worked out from the timetable and the calendar. The principal reads
@@ -51,8 +52,9 @@ export default function LessonRegister() {
   const [subject, setSubject] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  // A teacher's full plan stays closed until they open it; today's classes come first.
-  const [open, setOpen] = useState(false)
+  /* Filters first, then the chapters of that class and subject (owner,
+     2026-11-04: "no need of todays classes"). Day by day is the old sheet. */
+  const [view, setView] = useState<'chapters' | 'days'>('chapters')
   const o = opts.data
   const all = o?.sees_all ?? false
 
@@ -119,16 +121,10 @@ export default function LessonRegister() {
         </>
       ) : undefined} />
       <PageBody>
-        {o && !all && <TodayClasses edits={edits} save={(v) => save.mutate(v)} saving={save.isPending} />}
-        {o && !all && (
-          <Button variant="secondary" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-            {open ? 'Hide full lesson plan' : 'Show full lesson plan'}
-          </Button>
-        )}
-        {(all || open) && <>
+        <>
         <Card className="p-4 sm:p-5">
           {/* Every filter on one line on a wide screen: five with View by and a class, four otherwise. */}
-          <div className={cn('grid gap-4 sm:grid-cols-2', all && by === 'class' ? 'lg:grid-cols-5' : 'lg:grid-cols-4')}>
+          <div className={cn('grid gap-4 sm:grid-cols-2', all && by === 'class' ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
             {all && (
               <Field label="View by">
                 <Select value={by} onChange={(v) => setBy(v as 'teacher' | 'class')}
@@ -152,19 +148,30 @@ export default function LessonRegister() {
                 </Field>
               </>
             )}
+            {!(all && by === 'teacher') && (
+              <Field label="Show">
+                <Select value={view} onChange={(v) => setView(v as 'chapters' | 'days')}
+                  options={[{ value: 'chapters', label: 'Chapters' }, { value: 'days', label: 'Day by day' }]} />
+              </Field>
+            )}
+            {(view === 'days' || (all && by === 'teacher')) && <>
             <Field label="From date">
               <Input type="date" value={from} onChange={setFrom} />
             </Field>
             <Field label="To date">
               <Input type="date" value={to} onChange={setTo} min={from || undefined} />
             </Field>
+            </>}
           </div>
           {badRange && <p role="alert" className="mt-3 text-[14px] text-destructive">The from date is after the to date.</p>}
         </Card>
 
         {save.isError && <FormNotice error={save.error} />}
 
-        {!ready ? (
+        {view === 'chapters' && !(all && by === 'teacher') ? (
+          section && subject ? <ChapterPlan sectionId={section} classSubjectId={subject} />
+            : <EmptyState title="Choose a class and subject" body="Every chapter of that subject shows here, with its progress." />
+        ) : !ready ? (
           <EmptyState title={all && by === 'teacher' ? 'Choose a teacher' : 'Choose a class and subject'}
             body={opts.data && !opts.data.sections.length ? 'No classes are in the timetable for this year yet.' : 'The lesson plan for every period in the timetable shows here.'} />
         ) : reg.isError ? <ErrorState error={reg.error} /> : (
@@ -204,7 +211,7 @@ export default function LessonRegister() {
           </Table>
           </>
         )}
-        </>}
+        </>
       </PageBody>
     </>
   )
@@ -228,53 +235,4 @@ function TopicCell({ value, onSave }: { value: string; onSave: (v: string) => vo
 
 function StatusBadge({ status }: { status: Status }) {
   return <Badge tone={status === 'completed' ? 'success' : status === 'ongoing' ? 'warning' : 'danger'} className="rounded-full px-3 py-1 font-semibold">{statusLabel(status)}</Badge>
-}
-
-const indiaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date())
-
-/* TODAY'S CLASSES (owner, 2026-10-30): what a teacher opens the screen for.
-   Each period they teach today, its topic and its status; a change here is
-   saved at once. The status only moves forward. */
-function TodayClasses({ edits, save, saving }: {
-  edits: Record<string, { topic?: string; status?: Status }>
-  save: (v: { row: Row; topic?: string; status?: Status }) => void
-  saving: boolean
-}) {
-  const today = indiaToday()
-  const q = useQuery({
-    queryKey: ['lesson-register', 'today', today],
-    queryFn: () => api.get<{ items: Row[] }>(`/api/v1/academics/lesson-register?from=${today}&to=${today}`),
-  })
-  const rows = (q.data?.items ?? []).filter((r) => r.period_id).map((r) => ({ ...r, ...edits[rowKey(r)] }))
-  return (
-    <Card className="p-4 sm:p-5">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[17px] font-semibold">Today's classes</h2>
-        <span className="text-[14px] text-muted-foreground">{weekday(today)}, {ddmmyyyy(today)}</span>
-      </div>
-      {q.isError ? <FormNotice error={q.error} /> : q.isPending ? <p className="text-[14px] text-muted-foreground">Loading today's classes.</p>
-        : !rows.length ? <p className="text-[14px] text-muted-foreground">You have no classes today.</p> : (
-        <ul className="divide-y divide-border">
-          {rows.map((r) => {
-            const at = STATUS.findIndex((s) => s.value === r.status)
-            return (
-              <li key={rowKey(r)} className="grid gap-3 py-3 sm:grid-cols-[minmax(150px,200px)_1fr_180px] sm:items-center">
-                <div>
-                  <Badge tone="primary" className="rounded-lg px-3 py-1 font-semibold">{r.class_name} - {r.section}</Badge>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px]">
-                    <span className="font-semibold">{r.subject}</span>
-                    <Badge className="rounded-md border border-border px-2 py-0.5">{r.period}</Badge>
-                  </div>
-                </div>
-                <TopicCell value={r.topic} onSave={(topic) => topic !== r.topic && save({ row: r, topic })} />
-                {r.status === 'completed' || !r.status ? <StatusBadge status={r.status ?? 'not_completed'} />
-                  : <Select value={r.status} onChange={(v) => v !== r.status && save({ row: r, status: v as Status })} options={STATUS.slice(at)} />}
-              </li>
-            )
-          })}
-        </ul>
-      )}
-      {saving && <span className="sr-only" role="status">Saving</span>}
-    </Card>
-  )
 }
