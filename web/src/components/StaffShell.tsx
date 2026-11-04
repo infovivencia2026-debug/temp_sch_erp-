@@ -330,17 +330,17 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
     )
   }
   return (
-    <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[minmax(0,1fr)_minmax(0,420px)_minmax(0,1fr)]">
+    <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)_minmax(0,1fr)]">
       <div className="min-w-0">
         {dashboard && <>{/* The account's name first, then the greeting and the date (Yajur, 2026-10-21). */}
         <p className="truncate text-[calc(16px*var(--font-scale,1))] font-bold leading-tight">{fullName || first}</p>
         <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}</p></>}
         {!dashboard && <div id="staff-crumb" className="min-w-0" />}
       </div>
-      <div className="col-span-2 row-start-2 min-w-0 md:col-span-1 md:col-start-2 md:row-start-1">
+      <div className="col-span-2 row-start-2 min-w-0 lg:col-span-1 lg:col-start-2 lg:row-start-1">
         <CommandSearch wide fill />
       </div>
-      <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 md:col-start-3">
+      <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 lg:col-start-3">
         {/* No avatar or staff ID here (owner, 2026-10-30): the profile in the panel's foot is enough. */}
         {/* Focus | Work before the sign-in times, in its own pill look (owner, 2026-10-30); phones and tablets keep it in the panel. */}
         <div className="shrink-0 max-lg:hidden"><LayoutSwitch bar /></div>
