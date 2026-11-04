@@ -1,6 +1,6 @@
 import { Anchored } from './AnchoredPanel'
 import { GlassIconButton } from '@/components/ui'
-import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Check, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Rows3,
@@ -153,6 +153,20 @@ interface Workspace {
    because nesting them would have meant changing every feature key to carry a
    fourth level -- and a feature key is a seeded grant and a saved bookmark,
    not just a string. */
+/* Where another office's screens sit in the admin's menu: its workspace name
+   to one of the admin's groups. Unlisted names keep their own group (Library,
+   Transport, Hostel, Admissions, Stores). */
+const MENU_HOME: Record<string, string> = {
+  Timetable: 'Academics', Teaching: 'Academics', 'My Classes': 'Academics', 'Department Workspace': 'Academics',
+  LMS: 'Academics', Activities: 'Academics',
+  Assessments: 'Exams', Examinations: 'Exams',
+  Accounts: 'Fees', 'Banking & Reports': 'Fees', 'Campus Money': 'Fees', Money: 'Fees', Finance: 'Fees',
+  'Attendance & Leave': 'Staff', Employees: 'Staff', Payroll: 'Staff', People: 'Staff',
+  'My Work': 'Home', 'Front Desk': 'Admissions',
+  Clinic: 'Student care', Counselling: 'Student care', Discipline: 'Student care',
+  Access: 'School settings', Audit: 'School settings', Systems: 'School settings',
+}
+
 function workspacesFor(
   role: { sections: ApiSection[] } | undefined,
   showPlanned: boolean,
@@ -506,7 +520,29 @@ export function Shell({
      A rail that only ever followed clicks would sit on Home while somebody
      worked in Operations all afternoon. */
   const permSet = new Set(session.permissions)
-  const railWorkspaces = workspacesFor(role, showPlanned, showAdvanced, permSet)
+  /* THE ADMIN'S MENU HOLDS EVERY SCREEN SEARCH CAN OPEN (owner, 2026-11-04:
+     "some dont have the screen to go, i need to search"). The other offices'
+     screens join it, once each, filed by their own workspace; the admin menu's
+     grouping (StaffCombos regroupAdmin) then places them. */
+  const menuRole = useMemo(() => {
+    if (!role || role.key !== 'institution_admin') return role
+    const have = new Set(role.sections.flatMap((s) => s.features.map((f) => f.slug)))
+    const extra: ApiSection[] = []
+    for (const r of catalog.roles) {
+      if (r.key === role.key) continue
+      for (const s of r.sections) {
+        const features = s.features.filter((f) => !have.has(f.slug))
+        features.forEach((f) => have.add(f.slug))
+        /* A section named like an admin group (Attendance, Communication)
+           joins that group rather than sitting inside another. */
+        const ws = ['Attendance', 'Communication', 'Exams', 'Students', 'Reports'].includes(s.name) && s.workspace !== 'Staff'
+          ? s.name : MENU_HOME[s.workspace || s.name] ?? (s.workspace || s.name)
+        if (features.length) extra.push({ ...s, workspace: ws, features })
+      }
+    }
+    return { ...role, sections: [...role.sections, ...extra] }
+  }, [role, catalog.roles])
+  const railWorkspaces = workspacesFor(menuRole, showPlanned, showAdvanced, permSet)
 
   const activeWs =
     railWorkspaces.find((w) => w.slug === railPick) ??

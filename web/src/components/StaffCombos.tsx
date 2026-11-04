@@ -101,7 +101,7 @@ export function regroupAdmin<W extends { slug: string; name: string; sections: A
   for (const w of out) {
     const bySlug = new Map<string, ApiSection>()
     for (const sec of w.sections) {
-      const have = bySlug.get(sec.slug)
+      const have = bySlug.get(sec.slug) ?? [...bySlug.values()].find((x) => x.name === sec.name)
       if (have) have.features = [...have.features, ...sec.features.filter((f) => !have.features.some((x) => x.key === f.key))]
       else bySlug.set(sec.slug, { ...sec, features: [...sec.features] })
     }

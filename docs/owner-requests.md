@@ -293,3 +293,4 @@ Last checked: 2026-10-02.
 - 2026-11-03 Sign-in heading blue (school colour, lighter in dark), one line on desktop. Done (browser).
 - 2026-11-04 Academic years tab (Academics > Class Setup): add a year, Make current, year-end steps linked. Done (typecheck).
 - 2026-11-04 Admin menu: Class Setup and Year Rollover moved from School settings to Academics. Done (typecheck).
+- 2026-11-04 Admin menu shows every screen search can open (other offices' screens filed under the admin groups), same-named sub-groups merged. Done (browser: 216 screens, no errors).
