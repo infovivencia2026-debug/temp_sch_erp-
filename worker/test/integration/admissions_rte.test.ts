@@ -102,6 +102,7 @@ describe('conversion carries statutory fields', () => {
     await api('admin', 'POST', '/admissions/applications/patch', { id: a.body.id, quota: 'rte', aadhaar_consent: true, aadhaar_last4: '1234',
       apaar_id: 'APAAR123', prior_udise_code: '36123456789', blood_group: 'B+' })
     await E.TENANT_TEST.prepare(`UPDATE applications SET status = 'offered' WHERE id = ?`).bind(a.body.id).run()
+    await api('admin', 'PUT', '/admissions/workflow/admission-approval', { required: false })
     const r = await api('admin', 'POST', `/admissions/workflow/applications/${a.body.id}/enrol`, { section_id: IDS.section, no_invoice: true })
     expect(r.status).toBe(201)
     const st = await E.TENANT_TEST.prepare(`SELECT category, is_rte, aadhaar_consent, aadhaar_last4, apaar_id, prior_udise_code, prior_school, blood_group, address_line1

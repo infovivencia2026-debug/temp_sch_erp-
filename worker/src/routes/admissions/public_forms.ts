@@ -5,6 +5,8 @@ import { isUUID, now, uuid } from '../../http'
 import { loadFormDefinition, type FormDefinition } from './forms'
 import { nextNumber, optionsForKind, todayIST } from './util'
 import { leadFromToken } from './enquiry_links'
+import { loadApplicantFacts, notifyApplicant } from './workflow'
+import type { Ctx } from '../../router'
 import { allTenants, callerAddress, decodeStrict, goError, goInternal, goNotFound, rateLimited, type Tenant } from '../comms/public_common'
 
 /* Port of mountAdmissionsPublic (admissions_growth.go): GET and POST
@@ -312,6 +314,17 @@ async function submitPublicAdmissionForm(env: Env, req: Request, slug: string, l
   const [checked, problems] = validateSubmission(def, body)
   if (problems.length) return goError(400, 'validation_failed', 'Some answers need attention.', { details: problems })
   const appNo = await insertPublicApplication(found.t, found.versionID, def, checked, callerAddress(req), await leadFromToken(env, found.t.inst.id, lead))
+  /* The family hears the school has it (owner, 2026-11-04): the same
+     "application received" message the desk sends, by email, WhatsApp, SMS.
+     Never fails the submission. */
+  try {
+    const row = await found.t.db.prepare(`SELECT id FROM applications WHERE application_no = ?`).bind(appNo).first<{ id: string }>()
+    if (row) {
+      const c = { env, db: found.t.db, req, id: { institution: { id: found.t.inst.id } } } as unknown as Ctx
+      const facts = await loadApplicantFacts(c, row.id)
+      if (facts) await notifyApplicant(c, row.id, 'admissions.application_received', facts, null, 'stage:submitted')
+    }
+  } catch { /* the application is saved; the message is best-effort */ }
   // What must still be carried in on paper, said again on the receipt.
   const bring = def.sections.flatMap((sec) => sec.fields.filter((f) => f.field_type === 'bring').map((f) => ({ label: f.label, note: f.help_text ?? undefined })))
   return json({ application_no: appNo, message: 'Your application has been received. Please keep this number for reference.', bring }, 201)
