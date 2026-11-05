@@ -15,6 +15,7 @@ const ALLOWED: Record<string, string> = {
   'features/admissions/FrontDesk.tsx': 'inline result list, not a dropdown',
   'features/students/StudentPhotos.tsx': 'photo grid selection, not a dropdown',
   'features/super_admin/TriggerRules.tsx': 'vendor-only free-text code field with suggestions',
+  'features/public/WebsiteForm.tsx': 'public form embedded on the school website, outside the app shell',
 }
 const BAD = /<select[\s>]|<datalist[\s>]|role=["']combobox["']|role=["']listbox["']/
 
