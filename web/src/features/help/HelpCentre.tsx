@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, FileText, LayoutGrid, MessageSquare } from '
 import { api, ApiError } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Badge, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  EmptyState, ErrorState, Loading, tabClass, TAB_BAR,
+  EmptyState, ErrorState, Loading, tabClass, TAB_BAR, SEG_BAR, segClass,
 } from '@/components/ui'
 import { ChatThread, type ChatMessage } from '@/components/Chat'
 import { ConversationPane } from '@/components/ChatScreen'
@@ -144,8 +144,15 @@ function Home({ articles, requests, onRequest, onReport, onAll }: {
 
   return (
     <div className="space-y-5">
-      <div data-help-anchor="help-search">
-        <Input value={q} onChange={setQ} type="search" srLabel={t('help.search_label')} placeholder={t('help.search_placeholder')} autoFocus />
+      {/* The search sits in a soft tinted banner (owner's design, 2026-11-05:
+          the old page was "ugly grey"). Primary tint, so it follows the
+          school's brand colour and dark mode. */}
+      <div data-help-anchor="help-search" className="rounded-[20px] border border-primary/20 bg-primary/[0.06] p-5 sm:p-7">
+        <h2 className="text-[20px] font-bold leading-tight text-foreground sm:text-[22px]">How can we help?</h2>
+        <p className="mb-4 mt-1 text-[14px] text-muted-foreground">Search for a screen or a task, or pick a question below.</p>
+        <div className="max-w-[460px]">
+          <Input value={q} onChange={setQ} type="search" srLabel={t('help.search_label')} placeholder={t('help.search_placeholder')} autoFocus />
+        </div>
       </div>
 
       {hits ? (
@@ -189,43 +196,67 @@ function Faqs() {
      that screen is in their own menu; general questions always show. */
   const mine = screensOf(role)
   const items = faqsFor(role?.key).filter((f) => !f.screen || f.screen === 'Profile' || mine.some((s) => s.name === f.screen))
+  /* Grouped by the menu section of the screen each answer opens, so the
+     topics are this person's own menu headings; account and general
+     questions come last. Topic pills filter when there is more than one. */
+  const GENERAL = 'Account & general'
+  const topicOf = (f: (typeof items)[number]) =>
+    !f.screen || f.screen === 'Profile' ? GENERAL : mine.find((s) => s.name === f.screen)?.section ?? GENERAL
+  const topics = [...new Set(items.map(topicOf))].sort((x, y) => (x === GENERAL ? 1 : 0) - (y === GENERAL ? 1 : 0))
+  const [topic, setTopic] = useState<string | null>(null)
+  const shown = topics.filter((tp) => !topic || tp === topic)
   return (
-    <section aria-labelledby="help-faqs">
-      <h2 id="help-faqs" className="mb-2 text-[13px] font-semibold text-muted-foreground">Frequently asked questions</h2>
-      <Card>
-        <ul className="divide-y">
-          {items.map((f) => {
-            const open = openQ === f.q
-            /* Profile is the account page every person has, menu or not. */
-            const screen = f.screen === 'Profile' ? { name: 'Profile', path: '/account' }
-              : f.screen ? mine.find((s) => s.name === f.screen) : undefined
-            return (
-              <li key={f.q}>
-                <button type="button" onClick={() => setOpenQ(open ? null : f.q)} aria-expanded={open}
-                  className="flex min-h-[48px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left hover:bg-surface-hover">
-                  <span className="min-w-0 flex-1 font-medium">{f.q}</span>
-                  <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} aria-hidden="true" />
-                </button>
-                {open && (
-                  <div className="space-y-2 px-[var(--card-pad)] pb-4 text-[14px] leading-relaxed">
-                    {f.a.map((step, i) => (
-                      <p key={i} className="flex gap-2">
-                        {f.a.length > 1 && <span className="w-5 shrink-0 font-semibold tabular-nums">{i + 1}.</span>}
-                        <span>{step}</span>
-                      </p>
-                    ))}
-                    {screen && (
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <Button variant="secondary" size="sm" onClick={() => { navigate(screen.path); showMe('page-title', screen.name) }}>{t('help.show_me')}</Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      </Card>
+    <section aria-labelledby="help-faqs" className="space-y-4">
+      <h2 id="help-faqs" className="text-[16px] font-semibold">Frequently asked questions</h2>
+      {topics.length > 1 && (
+        <div className={SEG_BAR} role="tablist" aria-label="Topics">
+          <button type="button" role="tab" aria-selected={!topic} className={segClass(!topic)} onClick={() => setTopic(null)}>All</button>
+          {topics.map((tp) => (
+            <button key={tp} type="button" role="tab" aria-selected={topic === tp} className={segClass(topic === tp)} onClick={() => setTopic(tp)}>{tp}</button>
+          ))}
+        </div>
+      )}
+      {shown.map((tp) => (
+        <div key={tp}>
+          {topics.length > 1 && <h3 className="mb-2 mt-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{tp}</h3>}
+          <ul className="flex flex-col gap-2.5">
+            {items.filter((f) => topicOf(f) === tp).map((f) => {
+              const open = openQ === f.q
+              /* Profile is the account page every person has, menu or not. */
+              const screen = f.screen === 'Profile' ? { name: 'Profile', path: '/account' }
+                : f.screen ? mine.find((s) => s.name === f.screen) : undefined
+              return (
+                <li key={f.q} className={cn(
+                  'overflow-hidden rounded-[12px] border bg-card transition-[transform,box-shadow,border-color] duration-200',
+                  '[@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:border-primary/30 [@media(hover:hover)]:hover:shadow-[0_10px_20px_-5px_hsl(var(--primary)/0.10)]',
+                  open && 'border-primary/30',
+                )}>
+                  <button type="button" onClick={() => setOpenQ(open ? null : f.q)} aria-expanded={open}
+                    className="group flex min-h-[52px] w-full items-center gap-3 px-5 py-3.5 text-left">
+                    <span className="min-w-0 flex-1 text-[15px] font-medium">{f.q}</span>
+                    <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-[transform,color] duration-300 [@media(hover:hover)]:group-hover:text-primary', open && 'rotate-90 text-primary')} aria-hidden="true" />
+                  </button>
+                  {open && (
+                    <div className="space-y-2 border-t bg-surface-subtle px-5 py-4 text-[14px] leading-relaxed text-muted-foreground">
+                      {f.a.map((step, i) => (
+                        <p key={i} className="flex gap-2">
+                          {f.a.length > 1 && <span className="w-5 shrink-0 font-semibold tabular-nums text-foreground">{i + 1}.</span>}
+                          <span>{step}</span>
+                        </p>
+                      ))}
+                      {screen && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <Button variant="secondary" size="sm" onClick={() => { navigate(screen.path); showMe('page-title', screen.name) }}>{t('help.show_me')}</Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
     </section>
   )
 }
