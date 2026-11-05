@@ -152,6 +152,12 @@ gallery (`?elements=1`) is the living checklist: add every new variant to it.
   wait for the server.
 - **White label.** Nothing school-specific in the source. "XULO" only where the
   vendor is meant.
+- **Every device size** (owner, 2026-11-05: "everything we build from now on
+  should fit all sizes"). Before a screen or layout change is called done, run
+  `node scripts/screen-check.cjs --only <its url part>` against the test site:
+  phones 320-430, tablets 768/1024, laptops 1280-1536, PCs 1920/2560,
+  projectors, smartboards and 4K TVs. It must report nothing; look at its
+  screenshots too. No text over text, nothing cut off, no sideways page scroll.
 - **Phone first.** Check 360 and 390 wide, light and dark, before calling a
   screen done.
 
