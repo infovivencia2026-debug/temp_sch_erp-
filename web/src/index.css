@@ -5742,3 +5742,27 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
   border-radius: 18px !important;
   box-shadow: 0 4px 20px -2px rgb(15 23 42 / 0.05) !important;
 }
+
+/* CellGrid wraps each card in its own grid cell, so a card is not always a
+   direct child: reach every .cell inside a cell-grid. */
+.cell-grid .cell {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border) / 0.8) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 4px 20px -2px rgb(15 23 42 / 0.05) !important;
+  padding: 22px 24px;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+@media (hover: hover) {
+  .cell-grid .cell:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -4px hsl(var(--primary) / 0.12) !important;
+    border-color: hsl(var(--primary) / 0.3) !important;
+  }
+}
+.cell-grid .cell .stat { font-size: 34px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; margin-top: 10px; }
+.cell-grid .cell p:first-child { font-size: 13.5px; font-weight: 600; }
+@media (max-width: 639px) {
+  .cell-grid .cell { padding: 18px; }
+  .cell-grid .cell .stat { font-size: 28px; }
+}
