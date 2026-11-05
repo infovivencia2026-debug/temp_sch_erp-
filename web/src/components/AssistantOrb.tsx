@@ -1,35 +1,21 @@
 import { useEffect, useRef } from 'react'
 
-/* The assistant's status, as a fluid ball.
+/* The assistant's face (owner, 2026-11-05: "this is the face of the AI bot,
+   change it", with eyes that follow the cursor).
 
-   A spinner says "busy". This says which KIND of busy, which is the thing
-   somebody waiting actually wants to know: is it still reading, or already
-   writing? Three states, and the difference between them is legible from
-   across a desk without reading the label.
+   A white head with a dark visor; two glowing eyes on the visor say what the
+   assistant is doing, legible from across a desk without reading a label:
+     idle       tall soft eyes, blinking now and then
+     typing     eyes open wide: it is listening to what is being written
+     thinking   one eye squints, a question mark floats: it is working it out
+     answering  eyes bob as it speaks
+   The eyes (and, a little, the head) follow the pointer anywhere on the page.
 
-   THE BALL. Five soft blobs -- teal, cyan, green, lime, emerald -- drifting
-   under a glass haze, the design the owner handed over. Each blob runs its
-   own slow keyframe loop in CSS, which the compositor animates for free.
-
-   STATES BLEND, THEY DO NOT RESTART. Swapping one CSS animation for another
-   restarts it at its own keyframe zero, which makes the ball jump at exactly
-   the moment somebody is watching it for reassurance. So the keyframes never
-   change. What a state changes is the PLAYBACK RATE of the running
-   animations -- idle drifts, thinking churns, answering flows -- eased from
-   one rate to the next over a quarter of a second through the Web Animations
-   API, and the glow, which is a CSS transition on the ball itself. The blobs
-   are always where they were a frame ago.
-
-   Reduced motion stops the drift and keeps the glow: a still ball that
-   brightens when it is thinking still says the one thing it exists to say. */
+   Drawn at 240px and scaled to `size`, so the 44px button over the dock and
+   the 160px face inside the chat are the same face. Reduced motion: no
+   floating, no tracking, no blinking -- the expressions alone still say it. */
 
 export type OrbState = 'idle' | 'thinking' | 'answering'
-
-/* How fast the drift runs in each state, as a multiple of the design's own
-   tempo. Idle is a breath; thinking is visibly churning; answering flows a
-   little faster than rest, the way somebody speaking moves more than
-   somebody listening. */
-const RATE: Record<OrbState, number> = { idle: 1, thinking: 3.2, answering: 1.7 }
 
 export function AssistantOrb({
   state,
@@ -40,81 +26,76 @@ export function AssistantOrb({
 }: {
   state: OrbState
   size?: number
-  /* Being typed at. The owner wanted the ball to move quickly while a
-     question is being written -- the same churn as thinking, so the ball
-     answers each keystroke -- and to settle again a moment after the last
-     key. Wins over awake, because a hover is a smaller thing than typing. */
+  /* Being typed at: wins over the state's idle face. */
   typing?: boolean
-  /* Pointed at. Applied on top of whatever the state asked for, rather than
-     as a fourth state: a hover during "thinking" must not slow the ball to
-     some hover speed. It quickens a little and brightens, and leaves the
-     state's own rate alone. */
+  /* Pointed at: the face lifts a little and the eyes brighten. */
   awake?: boolean
-  /* Quiet. At 160px inside the chat the full-strength blobs were a lava
-     lamp beside the words; this fades them and takes the saturation down so
-     the ball reads as a soft circle that happens to be moving. */
+  /* Inside the chat: a softer shadow so it sits beside the words. */
   subtle?: boolean
 }) {
   const ref = useRef<HTMLSpanElement>(null)
-  // The target lives in a ref: the easing loop reads it every frame, and a
-  // re-run of the effect on each change would tear the loop down.
-  /* The subtle ball has less colour to move, so it moves more: nearly
-     double the drift, or at 160px with the blobs faded the motion was there
-     and nobody could see it. */
-  const base = RATE[state] * (subtle ? 1.9 : 1)
-  const want = typing ? Math.max(base, RATE.thinking * (subtle ? 1.3 : 1)) : base * (awake ? 1.4 : 1)
-  const target = useRef(want)
-  target.current = want
 
   useEffect(() => {
     const el = ref.current
-    if (!el) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    let rate = target.current
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let raf = 0
-    let last = 0
-    /* Touched only while the rate is moving. getAnimations() brings the
-       whole page's style up to date before it answers, so calling it every
-       frame turned each page change -- the Settings window opening, above
-       all -- into a forced restyle inside this loop (owner, 2026-10-26:
-       "settings opening stuck stuck"). Once settled there is nothing to set. */
-    let applied = NaN
-    /* A blob whose animation (re)starts begins at rate 1: set it again. */
-    const restart = () => { applied = NaN }
-    el.addEventListener('animationstart', restart)
-    const frame = (now: number) => {
-      const dt = Math.min(0.05, (now - (last || now)) / 1000)
-      last = now
-      // Critically damped, not springy: an overshoot reads as a bounce, and
-      // a bouncing status light looks like an error.
-      rate += (target.current - rate) * Math.min(1, dt * 4)
-      if (Math.abs(target.current - rate) < 0.002) rate = target.current
-      if (rate !== applied) {
-        applied = rate
-        for (const a of el.getAnimations({ subtree: true })) a.playbackRate = rate
-      }
-      raf = requestAnimationFrame(frame)
+    let px = 0
+    let py = 0
+    const apply = () => {
+      raf = 0
+      const r = el.getBoundingClientRect()
+      if (!r.width) return
+      // In the 240px drawing's own units, capped so the eyes stay on the visor.
+      const k = 240 / r.width
+      const dx = Math.max(-28, Math.min(28, ((px - (r.left + r.width / 2)) * k) / 25))
+      const dy = Math.max(-18, Math.min(18, ((py - (r.top + r.height / 2)) * k) / 25))
+      el.style.setProperty('--look-x', `${dx.toFixed(1)}px`)
+      el.style.setProperty('--look-y', `${dy.toFixed(1)}px`)
     }
-    raf = requestAnimationFrame(frame)
-    return () => { cancelAnimationFrame(raf); el.removeEventListener('animationstart', restart) }
+    const move = (e: PointerEvent) => {
+      px = e.clientX
+      py = e.clientY
+      if (!raf) raf = requestAnimationFrame(apply)
+    }
+    window.addEventListener('pointermove', move, { passive: true })
+    let blinkT = 0
+    let openT = 0
+    const blink = () => {
+      el.setAttribute('data-blink', '')
+      openT = window.setTimeout(() => el.removeAttribute('data-blink'), 150)
+      blinkT = window.setTimeout(blink, 2000 + Math.random() * 3000)
+    }
+    blinkT = window.setTimeout(blink, 2000)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      cancelAnimationFrame(raf)
+      clearTimeout(blinkT)
+      clearTimeout(openT)
+    }
   }, [])
 
+  const face = typing && state === 'idle' ? 'listening' : state
   return (
     <span
       ref={ref}
-      className="fluid-orb"
-      data-state={state}
+      className="bot-face"
+      data-face={face}
       data-awake={awake || typing ? '' : undefined}
       data-subtle={subtle ? '' : undefined}
-      style={{ width: size, height: size, ['--orb-size' as string]: `${size}px` }}
+      style={{ width: size, height: size, ['--bot-scale' as string]: String(size / 240) }}
       aria-hidden="true"
     >
-      <span className="fluid-orb__blob fluid-orb__blob-1" />
-      <span className="fluid-orb__blob fluid-orb__blob-2" />
-      <span className="fluid-orb__blob fluid-orb__blob-3" />
-      <span className="fluid-orb__blob fluid-orb__blob-4" />
-      <span className="fluid-orb__blob fluid-orb__blob-5" />
-      <span className="fluid-orb__glass" />
+      <span className="bot-face__art">
+        <span className="bot-face__head">
+          <span className="bot-face__visor">
+            <span className="bot-face__q">?</span>
+            <span className="bot-face__eyes">
+              <span className="bot-face__eye bot-face__eye--l" />
+              <span className="bot-face__eye bot-face__eye--r" />
+            </span>
+          </span>
+        </span>
+      </span>
     </span>
   )
 }
