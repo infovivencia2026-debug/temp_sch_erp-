@@ -5508,3 +5508,64 @@ button.glass-btn:active:not(:disabled) {
 html[data-reduce-motion] .scrim.search-sheet,
 html[data-reduce-motion] .scrim.search-sheet > [role='dialog'],
 html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+
+/* TABLES, THE OWNER'S DESIGN (2026-11-05: "every table, all screens, all
+   roles, all logins"). One block for the shared Table and every other table
+   that carries .responsive-table: a quiet uppercase header, roomy rows, and
+   a hover that tints the row and draws a primary bar down its first cell.
+   Tokens only, so dark mode and a school's own colours still hold. */
+.table-frame {
+  border-radius: var(--radius-card, 20px);
+}
+.responsive-table thead th {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: hsl(var(--muted-foreground) / 0.85);
+  background: hsl(var(--surface-subtle));
+  border-bottom: 1px solid hsl(var(--border));
+}
+.responsive-table thead th button { text-transform: inherit; letter-spacing: inherit; }
+.responsive-table tbody td {
+  padding-top: 16px;
+  padding-bottom: 16px;
+  vertical-align: middle;
+  transition: color 0.2s ease, padding 0.2s ease;
+}
+.responsive-table tbody tr:not(:last-child) > td {
+  border-bottom: 1px solid hsl(var(--border) / 0.6);
+}
+/* The row's name reads first: the first cell is semibold. */
+.responsive-table tbody td:first-child:not([colspan]) { font-weight: 600; }
+.responsive-table tbody tr {
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (hover: hover) {
+  .responsive-table tbody tr:hover {
+    background: hsl(var(--primary) / 0.045);
+  }
+  .responsive-table tbody tr:hover > td:first-child:not([colspan]) {
+    box-shadow: inset 3px 0 0 hsl(var(--primary));
+    color: hsl(var(--primary));
+  }
+  .responsive-table tbody tr:hover > td:first-child:not([colspan]) :where(a, span, div, p) {
+    color: inherit;
+  }
+}
+/* Status pills inside a table: a fine border of their own colour, no dot. */
+.responsive-table td .badge-pill {
+  border: 1px solid currentColor;
+  border-color: color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-weight: 600;
+}
+@media (max-width: 639px) {
+  .responsive-table tbody td { padding-top: 14px; padding-bottom: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .responsive-table tbody tr, .responsive-table tbody td { transition: none; }
+}
