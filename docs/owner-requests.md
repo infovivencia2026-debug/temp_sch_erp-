@@ -297,3 +297,4 @@ Last checked: 2026-10-02.
 - 2026-11-04 Admin menu back to the admin's own screens (other roles via role switch, owner). Done (browser: 62 screens).
 - 2026-11-04 Promotion: "Promote anyway" when fees are owed (was a dead end). Done (typecheck).
 - 2026-11-04 Admissions: parent messages by WhatsApp + SMS too (were email only); welcome message at enrolment; sent-back joining can be approved again; desk notified of new online applications; re-enrol shows admission no. Done (tests).
+- 2026-11-05 Menu items given through a school-made role (K Shirisha's Attendance Officer: Take attendance, Present & absent, corrections, follow-up) bounced to Home; they now open in her own workspace. Done (browser as her: all four open at /admissions/attendance/...).
