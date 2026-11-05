@@ -8,6 +8,7 @@ import { ActionRefusal, refusalText } from './actions'
 import { AGENT_ACTIONS, actionByKind, mayPropose, proposeName, type AgentAction, type AgentProposal } from './actions_more'
 import { READ_TOOLS, type ToolResult, type ToolSpec } from './tools'
 import { MORE_TOOLS } from './tools_more'
+import { SCHOOL_TOOLS } from './tools_school'
 import type { Link } from './read'
 
 /* THE ASSISTANT THAT CAN LOOK THINGS UP AND PREPARE CHANGES.
@@ -48,6 +49,20 @@ staff, leave, the timetable, admissions or notices.
 For ANY count or total ("how many students", "how many staff", "how many
 sections") call a tool first -- school_overview for the whole school -- and
 quote its figure exactly. Never state a number no tool returned.
+
+Before you say you cannot see or do something, read your tool list again and
+try the closest tool: class_sections answers class teachers, the sections of
+a class and students per class; student_count counts students; birthdays
+finds birthdays from dates of birth; consecutive_absences finds students away
+several days in a row; fee_defaulters with a class answers "how much fee is
+pending for Grade 5" (quote its Outstanding figure). Only when no tool fits,
+or the tool refuses, say so in one sentence and name the screen to use.
+
+Class and section names: classes may be called "5", "Class 5" or "Grade 5",
+and sections may be words (BODHA, HITHA) rather than letters. Pass the
+class and section as the person said them. If a tool answers that a section
+does not exist, it lists the real ones: tell the person those names, or, if
+the question covers the whole class, call the tool once per section.
 
 The chat already draws each tool's answer as a table next to your reply, so
 summarise: the headline number, the few names that matter, what to do next.
@@ -157,7 +172,7 @@ type Emit = (o: Record<string, unknown>) => void
 /** runAgent: the model, its tool calls, and at most one proposal, reported through emit. */
 export async function runAgent(c: Ctx, message: string, conversationId: string, emit: Emit): Promise<void> {
   const roles = await assistantRoles(c)
-  const tools = [...READ_TOOLS, ...MORE_TOOLS].filter((t) => t.offer(c))
+  const tools = [...READ_TOOLS, ...MORE_TOOLS, ...SCHOOL_TOOLS].filter((t) => t.offer(c))
   const actions = AGENT_ACTIONS.filter((a) => mayPropose(c, a))
   const history = loadThread(conversationId, c.id.userId)
   const contents: Content[] = [...history, { role: 'user', parts: [{ text: message }] }]
@@ -167,23 +182,41 @@ export async function runAgent(c: Ctx, message: string, conversationId: string, 
   let proposed = false
   let text = ''
   let seq = 0
+  let retried = false
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const payload: Record<string, unknown> = {
       system_instruction: { parts: [{ text: system }] },
       contents,
-      generationConfig: { maxOutputTokens: 2048, temperature: 0.2 },
+      // A small thinking budget: thinking counts against maxOutputTokens, and a reply that thought too long came back empty.
+      generationConfig: { maxOutputTokens: 4096, temperature: 0.2, thinkingConfig: { thinkingBudget: 512 } },
     }
     // The last round has no tools, so it must answer in words.
     if (decls.length && round < MAX_ROUNDS - 1) {
       payload.tools = [{ functionDeclarations: decls }]
       payload.toolConfig = { functionCallingConfig: { mode: 'AUTO' } }
     }
-    const out = await geminiRequest(c, payload, 60_000) as { candidates?: { content?: { parts?: Part[] } }[] }
+    let out: { candidates?: { content?: { parts?: Part[] }; finishReason?: string }[] }
+    try {
+      out = await geminiRequest(c, payload, 60_000) as typeof out
+    } catch (e) {
+      /* Lookups already shown stay useful: after one, a failed follow-up call
+         ends with a short answer pointing at the tables, not an error. */
+      if (seq === 0) throw e
+      console.error('assistant agent: model failed after lookups', e)
+      text = 'The lookups above have the answer; I could not write it up just now.'
+      break
+    }
     const parts = out.candidates?.[0]?.content?.parts ?? []
     const calls = parts.filter((p) => p.functionCall)
     if (calls.length === 0) {
       text = parts.filter((p) => !p.thought).map((p) => p.text ?? '').join('').trim()
+      // An empty reply (a malformed tool call, or thinking that used the whole budget) gets one more try.
+      if (text === '' && !retried && round < MAX_ROUNDS - 1) {
+        retried = true
+        console.error('assistant agent: empty reply', out.candidates?.[0]?.finishReason)
+        continue
+      }
       break
     }
     contents.push({ role: 'model', parts })
