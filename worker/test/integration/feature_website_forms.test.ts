@@ -70,4 +70,14 @@ describe('communication.website_forms', () => {
     })
     expect(r.status).toBe(409)
   })
+
+  it('a response and then the form can be deleted', async () => {
+    const list = await api('admin', 'GET', `/comms/website-forms/${formId}/responses`)
+    const one = list.body.items[0].id
+    expect((await api('teacher', 'DELETE', `/comms/website-forms/${formId}/responses/${one}`)).status).toBe(403)
+    expect((await api('admin', 'DELETE', `/comms/website-forms/${formId}/responses/${one}`)).status).toBe(200)
+    expect((await api('admin', 'GET', `/comms/website-forms/${formId}/responses`)).body.items).toHaveLength(1)
+    expect((await api('admin', 'DELETE', `/comms/website-forms/${formId}`)).status).toBe(200)
+    expect((await call(`/api/v1/public/forms/test/${slug}`)).status).toBe(404)
+  })
 })

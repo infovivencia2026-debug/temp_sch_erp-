@@ -1,15 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, ChevronLeft, Copy, ExternalLink, FileText, Hash, Inbox,
+  Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X,
+} from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, EmptyState, ErrorState, Card, Button, Input, Textarea, Select, Field, FormNotice, Badge, Table, Td, Switch, Checkbox, SkeletonTable,
+  PageHead, PageBody, EmptyState, ErrorState, Card, Button, ConfirmButton, Input, Textarea, Select, Field, FormNotice, Badge,
+  Table, Td, Switch, SkeletonTable, Stat, CellGrid, Dialog, TAB_BAR, tabClass,
 } from '@/components/ui'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 
 /* WEBSITE FORMS (owner, 2026-11-05): forms like Google Forms for the school's
-   website (careers, contact, events and more). Build the questions here, copy
-   the embed code or the POST address to the website, and read every response
-   with its date and time. */
+   website (careers, contact, events and more). Build the questions here with
+   a live preview, put the form on the website by embed or the website's own
+   form, and read every response with its date, time and files. */
 
 type FieldType = 'text' | 'long_text' | 'email' | 'phone' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'file'
 interface FormField { key: string; label: string; type: FieldType; required: boolean; options?: string[] }
@@ -18,124 +23,140 @@ interface Form {
   is_open: boolean; created_at: string; responses?: number; unread?: number
 }
 interface Resp { id: string; data: Record<string, string>; files: { key: string; file_id: string; name: string }[]; source: string; page_url: string; is_read: boolean; created_at: string }
+type Tab = 'questions' | 'responses' | 'share'
 
-const TYPES: { value: FieldType; label: string }[] = [
-  { value: 'text', label: 'Short answer' }, { value: 'long_text', label: 'Paragraph' }, { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Mobile number' }, { value: 'number', label: 'Number' }, { value: 'date', label: 'Date' },
-  { value: 'dropdown', label: 'Dropdown' }, { value: 'checkbox', label: 'Tick box' }, { value: 'file', label: 'File upload' },
+const TYPES: { value: FieldType; label: string; icon: typeof Type }[] = [
+  { value: 'text', label: 'Short answer', icon: Type },
+  { value: 'long_text', label: 'Paragraph', icon: AlignLeft },
+  { value: 'email', label: 'Email', icon: Mail },
+  { value: 'phone', label: 'Mobile number', icon: Phone },
+  { value: 'number', label: 'Number', icon: Hash },
+  { value: 'date', label: 'Date', icon: Calendar },
+  { value: 'dropdown', label: 'Dropdown', icon: ChevronDown },
+  { value: 'checkbox', label: 'Tick box', icon: CheckSquare },
+  { value: 'file', label: 'File upload', icon: Paperclip },
 ]
-const when = (iso: string) => `${formatDate(iso.slice(0, 10))} ${new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}`
+const typeOf = (t: FieldType) => TYPES.find((x) => x.value === t)!
+const when = (iso: string) => `${formatDate(iso.slice(0, 10))}, ${new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}`
 
 export default function WebsiteForms() {
   const q = useQuery({ queryKey: ['website-forms'], queryFn: () => api.get<{ school: string; items: Form[] }>('/api/v1/comms/website-forms') })
-  const qc = useQueryClient()
   const [openId, setOpenId] = useState<string | null>(null)
-  const [tab, setTab] = useState<'responses' | 'build' | 'share'>('responses')
-  const [name, setName] = useState('')
-  const create = useMutation({
-    mutationFn: () => api.post<Form>('/api/v1/comms/website-forms', { title: name.trim() }),
-    onSuccess: (f) => { setName(''); setOpenId(f.id); setTab('build'); qc.invalidateQueries({ queryKey: ['website-forms'] }) },
-  })
+  const [tab, setTab] = useState<Tab>('responses')
+  const [creating, setCreating] = useState(false)
   const open = q.data?.items.find((f) => f.id === openId) ?? null
 
+  if (q.isError) return <ErrorState error={q.error} />
   return (
     <>
-      <PageHead eyebrow="Communication" title="Website forms" />
-      <PageBody>
-        {q.isError ? <ErrorState error={q.error} /> : q.isPending ? <SkeletonTable /> : open ? (
-          <FormDetail form={open} school={q.data.school} tab={tab} setTab={setTab} onBack={() => setOpenId(null)} />
-        ) : (
-          <>
-            <Card className="p-4 sm:p-5">
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="min-w-0 flex-1">
-                  <Field label="New form"><Input value={name} onChange={setName} placeholder="For example: Careers, Contact us, Event registration" /></Field>
-                </div>
-                <Button onClick={() => create.mutate()} pending={create.isPending} disabled={!name.trim()}>Create form</Button>
-              </div>
-              <FormNotice error={create.error} />
-            </Card>
-            {!q.data.items.length ? (
-              <EmptyState title="No forms yet" body="Create a form, add its questions, then put it on the school website." />
+      {open ? (
+        <FormDetail form={open} school={q.data!.school} tab={tab} setTab={setTab} onBack={() => setOpenId(null)} />
+      ) : (
+        <>
+          <PageHead eyebrow="Communication" title="Website forms"
+            description="Forms for the school website. Every response lands here with its date and time."
+            actions={<Button onClick={() => setCreating(true)}><Plus className="size-4" />New form</Button>} />
+          <PageBody>
+            {q.isPending ? <SkeletonTable /> : !q.data.items.length ? (
+              <EmptyState title="No forms yet" body="Create a form such as Careers or Contact us, add its questions, then put it on the school website."
+                action={<Button onClick={() => setCreating(true)}><Plus className="size-4" />New form</Button>} />
             ) : (
-              <Table head={['Form', 'Responses', 'Status', 'Created']} noExport>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {q.data.items.map((f) => (
-                  <tr key={f.id} className="cursor-pointer hover:bg-muted/40" onClick={() => { setOpenId(f.id); setTab('responses') }}>
-                    <Td className="font-semibold">{f.title}</Td>
-                    <Td className="tabular-nums">{f.responses ?? 0}{(f.unread ?? 0) > 0 && <Badge tone="primary" className="ml-2">{f.unread} new</Badge>}</Td>
-                    <Td><Badge tone={f.is_open ? 'success' : 'neutral'}>{f.is_open ? 'Open' : 'Closed'}</Badge></Td>
-                    <Td>{formatDate(f.created_at.slice(0, 10))}</Td>
-                  </tr>
+                  <button key={f.id} type="button" onClick={() => { setOpenId(f.id); setTab(f.fields.length ? 'responses' : 'questions') }}
+                    className="group text-left">
+                    <Card className="h-full p-5 transition-all group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><FileText className="size-5" /></span>
+                        <span className={cn('inline-flex items-center gap-1.5 text-[12px] font-medium', f.is_open ? 'text-success' : 'text-muted-foreground')}>
+                          <span className={cn('size-2 rounded-full', f.is_open ? 'bg-success' : 'bg-muted-foreground/50')} />{f.is_open ? 'Taking responses' : 'Closed'}
+                        </span>
+                      </div>
+                      <p className="mt-4 truncate text-[16px] font-semibold">{f.title}</p>
+                      <p className="mt-0.5 text-[13px] text-muted-foreground">{f.fields.length} {f.fields.length === 1 ? 'question' : 'questions'}</p>
+                      <div className="mt-4 flex items-center gap-2 border-t pt-3 text-[13px]">
+                        <Inbox className="size-4 text-muted-foreground" />
+                        <span className="font-medium tabular-nums">{f.responses ?? 0}</span>
+                        <span className="text-muted-foreground">responses</span>
+                        {(f.unread ?? 0) > 0 && <Badge tone="primary" className="ml-auto">{f.unread} new</Badge>}
+                      </div>
+                    </Card>
+                  </button>
                 ))}
-              </Table>
+              </div>
             )}
-          </>
-        )}
+          </PageBody>
+        </>
+      )}
+      {creating && <NewForm onClose={() => setCreating(false)} onMade={(f) => { setCreating(false); setOpenId(f.id); setTab('questions') }} />}
+    </>
+  )
+}
+
+function NewForm({ onClose, onMade }: { onClose: () => void; onMade: (f: Form) => void }) {
+  const qc = useQueryClient()
+  const [name, setName] = useState('')
+  const make = useMutation({
+    mutationFn: () => api.post<Form>('/api/v1/comms/website-forms', { title: name.trim() }),
+    onSuccess: (f) => { qc.invalidateQueries({ queryKey: ['website-forms'] }); onMade(f) },
+  })
+  return (
+    <Dialog open onClose={onClose} title="New form" size="sm"
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={() => make.mutate()} pending={make.isPending} disabled={!name.trim()}>Create</Button></>}>
+      <Field label="Form name"><Input value={name} onChange={setName} placeholder="Careers, Contact us, Event registration" /></Field>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {['Careers', 'Contact us', 'Event registration', 'Feedback'].map((s) => (
+          <button key={s} type="button" onClick={() => setName(s)} className="rounded-full border px-3 py-1 text-[13px] text-muted-foreground transition-colors hover:border-primary hover:text-primary">{s}</button>
+        ))}
+      </div>
+      <FormNotice error={make.error} />
+    </Dialog>
+  )
+}
+
+function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school: string; tab: Tab; setTab: (t: Tab) => void; onBack: () => void }) {
+  const qc = useQueryClient()
+  const toggle = useMutation({
+    mutationFn: (v: boolean) => api.put(`/api/v1/comms/website-forms/${form.id}`, { is_open: v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['website-forms'] }),
+  })
+  const del = useMutation({
+    mutationFn: () => api.del(`/api/v1/comms/website-forms/${form.id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['website-forms'] }); onBack() },
+  })
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'questions', label: 'Questions' },
+    { key: 'responses', label: `Responses${form.responses ? ` (${form.responses})` : ''}` },
+    { key: 'share', label: 'Put on website' },
+  ]
+  return (
+    <>
+      <PageHead eyebrow="Website forms" title={form.title}
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="ghost" onClick={onBack}><ChevronLeft className="size-4" />All forms</Button>
+            <Switch on={form.is_open} onChange={(v) => toggle.mutate(v)} label={form.is_open ? 'Taking responses' : 'Closed'} />
+            <ConfirmButton tone="danger" size="md" confirmLabel="Delete form" label="Delete form"
+              question={`Delete ${form.title} and all its responses? The form on the website stops working.`}
+              onConfirm={() => del.mutate()} disabled={del.isPending}><Trash2 className="size-4" /></ConfirmButton>
+          </div>
+        } />
+      <PageBody>
+        <div className={TAB_BAR} role="tablist">
+          {tabs.map((t) => (
+            <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key)} onClick={() => setTab(t.key)}>
+              {t.label}{t.key === 'responses' && (form.unread ?? 0) > 0 && <Badge tone="primary">{form.unread} new</Badge>}
+            </button>
+          ))}
+        </div>
+        <FormNotice error={toggle.error ?? del.error} />
+        {tab === 'questions' ? <Builder key={form.id} form={form} /> : tab === 'responses' ? <Responses form={form} /> : <Share form={form} school={school} />}
       </PageBody>
     </>
   )
 }
 
-function FormDetail({ form, school, tab, setTab, onBack }: {
-  form: Form; school: string; tab: 'responses' | 'build' | 'share'; setTab: (t: 'responses' | 'build' | 'share') => void; onBack: () => void
-}) {
-  return (
-    <>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" onClick={onBack}>All forms</Button>
-        <h2 className="mr-auto text-[18px] font-semibold">{form.title}</h2>
-        {(['responses', 'build', 'share'] as const).map((t) => (
-          <Button key={t} variant={tab === t ? 'primary' : 'secondary'} onClick={() => setTab(t)}>
-            {t === 'responses' ? 'Responses' : t === 'build' ? 'Questions' : 'Put on website'}
-          </Button>
-        ))}
-      </div>
-      {tab === 'responses' ? <Responses form={form} /> : tab === 'build' ? <Builder form={form} /> : <Share form={form} school={school} />}
-    </>
-  )
-}
-
-function Responses({ form }: { form: Form }) {
-  const qc = useQueryClient()
-  const q = useQuery({
-    queryKey: ['website-form-responses', form.id],
-    queryFn: () => api.get<{ form: Form; items: Resp[] }>(`/api/v1/comms/website-forms/${form.id}/responses`),
-  })
-  const seen = useMutation({
-    mutationFn: () => api.post(`/api/v1/comms/website-forms/${form.id}/responses/read`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['website-forms'] }),
-  })
-  const unread = (q.data?.items ?? []).some((r) => !r.is_read)
-  useEffect(() => { if (unread) seen.mutate() }, [unread]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (q.isError) return <ErrorState error={q.error} />
-  if (q.isPending) return <SkeletonTable />
-  const items = q.data.items
-  if (!items.length) return <EmptyState title="No responses yet" body="Responses from the website show here with the date and time they came in." />
-  // Columns: the form's questions first, then anything else a website sent.
-  const known = form.fields.map((f) => f.key)
-  const extra = [...new Set(items.flatMap((r) => [...Object.keys(r.data), ...r.files.map((x) => x.key)]))].filter((k) => !known.includes(k))
-  const cols = [...form.fields.map((f) => ({ key: f.key, label: f.label })), ...extra.map((k) => ({ key: k, label: k }))]
-  return (
-    <Table head={['Received', ...cols.map((c) => c.label), 'From']}>
-      {items.map((r) => (
-        <tr key={r.id}>
-          <Td className="whitespace-nowrap tabular-nums">{when(r.created_at)}{!r.is_read && <Badge tone="primary" className="ml-2">New</Badge>}</Td>
-          {cols.map((c) => {
-            const file = r.files.find((x) => x.key === c.key)
-            return (
-              <Td key={c.key} className="max-w-[320px] whitespace-normal">
-                {file ? <a className="text-primary underline" href={`/api/v1/files/${file.file_id}?inline=1`} target="_blank" rel="noreferrer">{file.name}</a>
-                  : r.data[c.key] === 'true' ? 'Yes' : r.data[c.key] ?? ''}
-              </Td>
-            )
-          })}
-          <Td className="text-[13px] text-muted-foreground">{r.source === 'embed' ? 'Embedded form' : 'Website POST'}</Td>
-        </tr>
-      ))}
-    </Table>
-  )
-}
+/* ---- Questions ------------------------------------------------------- */
 
 function Builder({ form }: { form: Form }) {
   const qc = useQueryClient()
@@ -144,66 +165,252 @@ function Builder({ form }: { form: Form }) {
   const [fields, setFields] = useState<FormField[]>(form.fields)
   const [submitLabel, setSubmitLabel] = useState(form.submit_label)
   const [thanks, setThanks] = useState(form.thanks_message)
-  const [isOpen, setIsOpen] = useState(form.is_open)
+  const [active, setActive] = useState(0)
+  const [savedAt, setSavedAt] = useState(0)
+  const dirty = useMemo(() => JSON.stringify([title, description, fields, submitLabel, thanks])
+    !== JSON.stringify([form.title, form.description, form.fields, form.submit_label, form.thanks_message]), [title, description, fields, submitLabel, thanks, form])
   const save = useMutation({
     mutationFn: () => api.put<Form>(`/api/v1/comms/website-forms/${form.id}`, {
-      title, description, submit_label: submitLabel, thanks_message: thanks, is_open: isOpen,
-      fields: fields.map((f) => ({ ...f, options: f.type === 'dropdown' ? f.options : undefined })),
+      title, description, submit_label: submitLabel, thanks_message: thanks,
+      fields: fields.map((f) => ({ ...f, options: f.type === 'dropdown' ? (f.options ?? []).map((o) => o.trim()).filter(Boolean) : undefined })),
     }),
-    onSuccess: (f) => { setFields(f.fields); qc.invalidateQueries({ queryKey: ['website-forms'] }) },
+    onSuccess: (f) => { setFields(f.fields); setSavedAt(Date.now()); qc.invalidateQueries({ queryKey: ['website-forms'] }) },
   })
   const upd = (i: number, p: Partial<FormField>) => setFields((l) => l.map((f, j) => (j === i ? { ...f, ...p } : f)))
-  const move = (i: number, d: -1 | 1) => setFields((l) => { const n = [...l]; const j = i + d; if (j < 0 || j >= n.length) return l; [n[i], n[j]] = [n[j], n[i]]; return n })
+  const move = (i: number, d: -1 | 1) => {
+    const j = i + d
+    if (j < 0 || j >= fields.length) return
+    setFields((l) => { const n = [...l]; [n[i], n[j]] = [n[j], n[i]]; return n })
+    setActive(j)
+  }
+  const add = (type: FieldType) => {
+    setFields((l) => [...l, { key: '', label: '', type, required: false, ...(type === 'dropdown' ? { options: [''] } : {}) }])
+    setActive(fields.length)
+  }
 
   return (
-    <div className="space-y-4">
-      <Card className="space-y-3 p-4 sm:p-5">
-        <Field label="Form name"><Input value={title} onChange={setTitle} /></Field>
-        <Field label="Description" hint="Shown under the name on the website."><Textarea value={description} onChange={setDescription} /></Field>
-        <Switch on={isOpen} onChange={setIsOpen} label={isOpen ? 'Taking responses' : 'Closed: not taking responses'} />
-      </Card>
-      {fields.map((f, i) => (
-        <Card key={i} className="space-y-3 p-4">
-          <div className="grid gap-3 sm:grid-cols-[1fr_220px]">
-            <Field label={`Question ${i + 1}`}><Input value={f.label} onChange={(v) => upd(i, { label: v })} /></Field>
-            <Field label="Type"><Select value={f.type} onChange={(v) => upd(i, { type: v as FieldType, options: v === 'dropdown' ? (f.options ?? []) : undefined })} options={TYPES} /></Field>
-          </div>
-          {f.type === 'dropdown' && (
-            <Field label="Choices" hint="One per line.">
-              <Textarea value={(f.options ?? []).join('\n')} onChange={(v) => upd(i, { options: v.split('\n') })} />
-            </Field>
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            <Checkbox checked={f.required} onChange={(v) => upd(i, { required: v })} label="Required" />
-            <span className="mr-auto" />
-            <Button size="sm" variant="ghost" onClick={() => move(i, -1)} disabled={i === 0}>Up</Button>
-            <Button size="sm" variant="ghost" onClick={() => move(i, 1)} disabled={i === fields.length - 1}>Down</Button>
-            <Button size="sm" variant="ghost" onClick={() => setFields((l) => l.filter((_, j) => j !== i))}>Remove</Button>
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="space-y-3">
+        <Card className="overflow-hidden">
+          <div className="h-1.5 bg-primary" />
+          <div className="space-y-3 p-5">
+            <Input value={title} onChange={setTitle} placeholder="Form name" srLabel="Form name" />
+            <Textarea value={description} onChange={setDescription} placeholder="A line for the visitor, for example: Apply for a role at our school." />
           </div>
         </Card>
-      ))}
-      <Button variant="secondary" onClick={() => setFields((l) => [...l, { key: '', label: '', type: 'text', required: false }])}>Add a question</Button>
-      <Card className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
-        <Field label="Button text"><Input value={submitLabel} onChange={setSubmitLabel} placeholder="Submit" /></Field>
-        <Field label="Message after sending"><Input value={thanks} onChange={setThanks} placeholder="Thank you. Your response has been received." /></Field>
-      </Card>
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => save.mutate()} pending={save.isPending}>Save form</Button>
-        <FormNotice error={save.error} ok={save.isSuccess ? 'Saved. The website shows the new questions at once.' : undefined} />
+
+        {fields.map((f, i) => {
+          const T = typeOf(f.type).icon
+          const on = active === i
+          return (
+            <Card key={i} className={cn('relative overflow-hidden transition-shadow', on && 'shadow-md ring-1 ring-primary/30')}>
+              <span className={cn('absolute inset-y-0 left-0 w-1 transition-colors', on ? 'bg-primary' : 'bg-transparent')} />
+              <div className="p-5" onFocus={() => setActive(i)} onClick={() => setActive(i)}>
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px]">
+                  <Input value={f.label} onChange={(v) => upd(i, { label: v })} placeholder={`Question ${i + 1}`} srLabel={`Question ${i + 1}`} />
+                  <Select value={f.type} onChange={(v) => upd(i, { type: v as FieldType, options: v === 'dropdown' ? (f.options?.length ? f.options : ['']) : undefined })}
+                    options={TYPES.map((t) => ({ value: t.value, label: t.label }))} />
+                </div>
+                {f.type === 'dropdown' ? (
+                  <div className="mt-3 space-y-2">
+                    {(f.options ?? []).map((o, k) => (
+                      <div key={k} className="flex items-center gap-2">
+                        <span className="w-5 text-right text-[13px] tabular-nums text-muted-foreground">{k + 1}.</span>
+                        <div className="min-w-0 flex-1"><Input value={o} onChange={(v) => upd(i, { options: (f.options ?? []).map((x, m) => (m === k ? v : x)) })} placeholder={`Choice ${k + 1}`} srLabel={`Choice ${k + 1}`} /></div>
+                        <Button size="sm" variant="ghost" onClick={() => upd(i, { options: (f.options ?? []).filter((_, m) => m !== k) })} disabled={(f.options ?? []).length <= 1}><X className="size-4" /><span className="sr-only">Remove choice</span></Button>
+                      </div>
+                    ))}
+                    <Button size="sm" variant="ghost" onClick={() => upd(i, { options: [...(f.options ?? []), ''] })}><Plus className="size-4" />Add choice</Button>
+                  </div>
+                ) : (
+                  <p className="mt-3 flex items-center gap-2 text-[13px] text-muted-foreground"><T className="size-4" />{typeOf(f.type).label}{f.type === 'file' && ': PDF, Word or an image, up to 8 MB'}</p>
+                )}
+                <div className="mt-4 flex flex-wrap items-center gap-1 border-t pt-3">
+                  <Switch on={f.required} onChange={(v) => upd(i, { required: v })} label="Required" />
+                  <span className="ml-auto" />
+                  <Button size="sm" variant="ghost" onClick={() => move(i, -1)} disabled={i === 0}><ArrowUp className="size-4" /><span className="sr-only">Move up</span></Button>
+                  <Button size="sm" variant="ghost" onClick={() => move(i, 1)} disabled={i === fields.length - 1}><ArrowDown className="size-4" /><span className="sr-only">Move down</span></Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setFields((l) => [...l.slice(0, i + 1), { ...f, key: '' }, ...l.slice(i + 1)]); setActive(i + 1) }}><Copy className="size-4" /><span className="sr-only">Copy question</span></Button>
+                  <Button size="sm" variant="ghost" onClick={() => setFields((l) => l.filter((_, j) => j !== i))}><Trash2 className="size-4" /><span className="sr-only">Remove question</span></Button>
+                </div>
+              </div>
+            </Card>
+          )
+        })}
+
+        <div className="rounded-2xl border border-dashed p-4">
+          <p className="mb-3 text-[13px] font-medium text-muted-foreground">Add a question</p>
+          <div className="flex flex-wrap gap-2">
+            {TYPES.map((t) => (
+              <button key={t.value} type="button" onClick={() => add(t.value)}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-[13px] transition-colors hover:border-primary hover:text-primary">
+                <t.icon className="size-4" />{t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Card className="grid gap-4 p-5 sm:grid-cols-2">
+          <Field label="Button text"><Input value={submitLabel} onChange={setSubmitLabel} placeholder="Submit" /></Field>
+          <Field label="Message after sending"><Input value={thanks} onChange={setThanks} placeholder="Thank you. Your response has been received." /></Field>
+        </Card>
+
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl border bg-card/90 p-3 shadow-lg backdrop-blur">
+          <span className="text-[13px] text-muted-foreground">
+            {save.isPending ? 'Saving…' : dirty ? 'Unsaved changes' : savedAt ? 'Saved. The website shows it at once.' : 'All changes saved'}
+          </span>
+          <Button className="ml-auto" onClick={() => save.mutate()} pending={save.isPending} disabled={!dirty || !title.trim()}>Save form</Button>
+          <FormNotice error={save.error} />
+        </div>
+      </div>
+
+      <div className="hidden lg:sticky lg:top-4 lg:block">
+        <p className="eyebrow mb-2">Preview</p>
+        <Preview title={title} description={description} fields={fields} submit={submitLabel || 'Submit'} />
       </div>
     </div>
   )
 }
 
-function Copy({ label, text }: { label: string; text: string }) {
-  const [done, setDone] = useState(false)
+/** How the visitor sees it: the same order and labels. */
+function Preview({ title, description, fields, submit }: { title: string; description: string; fields: FormField[]; submit: string }) {
+  const box = 'mt-1.5 h-10 w-full rounded-lg border bg-background/60'
   return (
-    <Field label={label}>
-      <div className="space-y-2">
-        <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border bg-muted/40 p-3 text-[13px]">{text}</pre>
-        <Button size="sm" variant="secondary" onClick={() => { void navigator.clipboard.writeText(text); setDone(true) }}>{done ? 'Copied' : 'Copy'}</Button>
+    <Card className="max-h-[calc(100vh-140px)] overflow-y-auto p-5">
+      <p className="text-[18px] font-semibold">{title || 'Form name'}</p>
+      {description && <p className="mt-1 whitespace-pre-line text-[13px] text-muted-foreground">{description}</p>}
+      <div className="mt-4 space-y-4">
+        {fields.map((f, i) => (
+          <div key={i}>
+            {f.type === 'checkbox' ? (
+              <p className="flex items-start gap-2 text-[14px]"><span className="mt-0.5 size-4 shrink-0 rounded border" />{f.label || 'Tick box'}{f.required && <span className="text-destructive">*</span>}</p>
+            ) : (
+              <>
+                <p className="text-[13px] font-medium">{f.label || `Question ${i + 1}`}{f.required && <span className="text-destructive"> *</span>}</p>
+                {f.type === 'long_text' ? <div className={cn(box, 'h-20')} />
+                  : f.type === 'file' ? <div className="mt-1.5 grid h-16 place-items-center rounded-lg border border-dashed text-[12px] text-muted-foreground">Choose a file or drop it here</div>
+                  : f.type === 'dropdown' ? <div className={cn(box, 'flex items-center justify-between px-3 text-[13px] text-muted-foreground')}>Select<ChevronDown className="size-4" /></div>
+                  : <div className={box} />}
+              </>
+            )}
+          </div>
+        ))}
+        {!fields.length && <p className="text-[13px] text-muted-foreground">Add a question and it appears here.</p>}
       </div>
-    </Field>
+      <div className="mt-5 inline-flex h-10 items-center rounded-lg bg-primary px-5 text-[14px] font-semibold text-primary-foreground">{submit}</div>
+    </Card>
+  )
+}
+
+/* ---- Responses ------------------------------------------------------- */
+
+function Responses({ form }: { form: Form }) {
+  const qc = useQueryClient()
+  const q = useQuery({
+    queryKey: ['website-form-responses', form.id],
+    queryFn: () => api.get<{ form: Form; items: Resp[] }>(`/api/v1/comms/website-forms/${form.id}/responses`),
+  })
+  const [openId, setOpenId] = useState<string | null>(null)
+  const seen = useMutation({
+    mutationFn: () => api.post(`/api/v1/comms/website-forms/${form.id}/responses/read`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['website-forms'] }),
+  })
+  const del = useMutation({
+    mutationFn: (rid: string) => api.del(`/api/v1/comms/website-forms/${form.id}/responses/${rid}`),
+    onSuccess: () => { setOpenId(null); qc.invalidateQueries({ queryKey: ['website-form-responses', form.id] }); qc.invalidateQueries({ queryKey: ['website-forms'] }) },
+  })
+  const items = q.data?.items ?? []
+  const unread = items.filter((r) => !r.is_read).length
+  // Marked read once shown; the New tags stay for this visit.
+  useEffect(() => { if (unread) seen.mutate() }, [unread > 0]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (q.isError) return <ErrorState error={q.error} />
+  if (q.isPending) return <SkeletonTable />
+  if (!items.length) return <EmptyState title="No responses yet" body="When someone fills this form on the website, it shows here with the date and time." />
+
+  const known = form.fields.map((f) => f.key)
+  const extra = [...new Set(items.flatMap((r) => [...Object.keys(r.data), ...r.files.map((x) => x.key)]))].filter((k) => !known.includes(k))
+  const cols = [...form.fields.map((f) => ({ key: f.key, label: f.label })), ...extra.map((k) => ({ key: k, label: k }))]
+  const shownCols = cols.slice(0, 4)
+  const week = Date.now() - 7 * 86400000
+  const open = items.find((r) => r.id === openId) ?? null
+
+  return (
+    <>
+      <CellGrid cols={3}>
+        <Stat label="Responses" value={items.length} tint />
+        <Stat label="New" value={unread} tint />
+        <Stat label="Last 7 days" value={items.filter((r) => Date.parse(r.created_at) >= week).length} tint />
+      </CellGrid>
+      <Table head={['Received', ...shownCols.map((c) => c.label), 'Files', '']}>
+        {items.map((r) => (
+          <tr key={r.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenId(r.id)}>
+            <Td className="whitespace-nowrap tabular-nums">{when(r.created_at)}{!r.is_read && <Badge tone="primary" className="ml-2">New</Badge>}</Td>
+            {shownCols.map((c) => <Td key={c.key} className="max-w-[260px] truncate">{show(r, c.key)}</Td>)}
+            <Td>{r.files.length ? <span className="inline-flex items-center gap-1 text-[13px] text-muted-foreground"><Paperclip className="size-4" />{r.files.length}</span> : null}</Td>
+            <Td className="text-right text-[13px] font-medium text-primary">Open</Td>
+          </tr>
+        ))}
+      </Table>
+      {open && (
+        <Dialog open onClose={() => setOpenId(null)} title={show(open, cols[0]?.key ?? '') || 'Response'}
+          description={`Received ${when(open.created_at)} · ${open.source === 'embed' ? 'Embedded form' : 'Website form'}`}
+          footer={<>
+            <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this response and its files?" onConfirm={() => del.mutate(open.id)}>Delete</ConfirmButton>
+            <Button variant="secondary" onClick={() => setOpenId(null)}>Close</Button>
+          </>}>
+          <dl className="divide-y">
+            {cols.map((c) => {
+              const file = open.files.find((x) => x.key === c.key)
+              return (
+                <div key={c.key} className="grid gap-1 py-3 sm:grid-cols-[180px_minmax(0,1fr)]">
+                  <dt className="text-[13px] text-muted-foreground">{c.label}</dt>
+                  <dd className="whitespace-pre-line break-words text-[14px]">
+                    {file ? (
+                      <a href={`/api/v1/files/${file.file_id}?inline=1`} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-primary transition-colors hover:bg-primary/5">
+                        <FileText className="size-4" />{file.name}<ExternalLink className="size-3.5" />
+                      </a>
+                    ) : show(open, c.key) || <span className="text-muted-foreground">Not given</span>}
+                  </dd>
+                </div>
+              )
+            })}
+          </dl>
+          <FormNotice error={del.error} />
+        </Dialog>
+      )}
+    </>
+  )
+}
+const show = (r: Resp, k: string) => { const v = r.data[k]; return v === 'true' ? 'Yes' : v === 'false' ? 'No' : v ?? '' }
+
+/* ---- Put on website ---------------------------------------------------- */
+
+function CopyBox({ text }: { text: string }) {
+  const [done, setDone] = useState(false)
+  useEffect(() => { if (!done) return; const t = setTimeout(() => setDone(false), 1800); return () => clearTimeout(t) }, [done])
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+      <pre className="min-w-0 flex-1 overflow-x-auto whitespace-pre-wrap break-all rounded-xl border bg-muted/40 px-3 py-2.5 text-[13px]">{text}</pre>
+      <Button variant={done ? 'primary' : 'secondary'} onClick={() => { void navigator.clipboard.writeText(text); setDone(true) }}>
+        <Copy className="size-4" />{done ? 'Copied' : 'Copy'}
+      </Button>
+    </div>
+  )
+}
+
+function Step({ n, title, body, children }: { n: number; title: string; body: string; children: React.ReactNode }) {
+  return (
+    <Card className="p-5">
+      <div className="flex gap-4">
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-[14px] font-semibold text-primary-foreground">{n}</span>
+        <div className="min-w-0 flex-1 space-y-3">
+          <div><p className="font-semibold">{title}</p><p className="text-[14px] text-muted-foreground">{body}</p></div>
+          {children}
+        </div>
+      </div>
+    </Card>
   )
 }
 
@@ -213,30 +420,21 @@ function Share({ form, school }: { form: Form; school: string }) {
   const post = `${origin}/api/v1/public/forms/${school}/${form.slug}`
   const embed = `<iframe src="${page}" id="xulo-form-${form.slug}" style="width:100%;min-height:600px;border:0" title="${form.title.replace(/"/g, '')}"></iframe>
 <script>addEventListener('message',function(e){if(e.data&&e.data.type==='xulo-form-height'&&e.data.form==='${form.slug}'){document.getElementById('xulo-form-${form.slug}').style.height=e.data.height+'px'}})</script>`
-  const keys = form.fields.map((f) => `  ${f.key}  (${f.label}${f.type === 'file' ? ', a file' : ''})`).join('\n')
-  const html = `<form action="${post}" method="POST" enctype="multipart/form-data">
-  ...your own inputs, each with name= one of the field names below...
-  <input type="hidden" name="_redirect" value="https://your-site/thank-you">
-  <button type="submit">Submit</button>
-</form>`
+  const keys = form.fields.map((f) => `${f.key}  =  ${f.label}${f.type === 'file' ? ' (file)' : ''}`).join('\n')
   return (
-    <div className="space-y-4">
-      <Card className="space-y-4 p-4 sm:p-5">
-        <p className="eyebrow">1. Embed (easiest)</p>
-        <p className="text-[14px] text-muted-foreground">Paste this where the form should appear, for example behind the Careers button. It shows this form and grows to fit.</p>
-        <Copy label="Embed code" text={embed} />
-        <Copy label="Or link to the form" text={page} />
-      </Card>
-      <Card className="space-y-4 p-4 sm:p-5">
-        <p className="eyebrow">2. Your website's own form</p>
-        <p className="text-[14px] text-muted-foreground">
-          Keep the website's design and send its form here. POST to this address as form data, multipart (for files) or JSON.
-          Every field sent is saved, with the date and time. Add a hidden <code>_redirect</code> to send the visitor back to a thank-you page.
-        </p>
-        <Copy label="POST address" text={post} />
-        {keys && <Copy label="Field names this form expects" text={keys} />}
-        <Copy label="Example" text={html} />
-      </Card>
+    <div className="max-w-4xl space-y-4">
+      {!form.is_open && <p className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-[14px]">This form is closed, so the website shows "not taking responses". Switch it on at the top.</p>}
+      <Step n={1} title="Embed on the website (easiest)" body="Give this to your website person. They paste it where the form should appear, for example on the Careers page. It grows to fit.">
+        <CopyBox text={embed} />
+      </Step>
+      <Step n={2} title="Or share a link" body="Put it behind a button such as Apply now, or send it on WhatsApp.">
+        <CopyBox text={page} />
+        <a href={page} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[14px] font-medium text-primary"><Link2 className="size-4" />Open the form</a>
+      </Step>
+      <Step n={3} title="Or keep the website's own form" body="The website's form can send its data here. POST to this address as form data, multipart (for files) or JSON. Every field sent is saved. Add a hidden _redirect to send the visitor to a thank-you page.">
+        <CopyBox text={post} />
+        {keys && <><p className="text-[13px] font-medium">Field names</p><CopyBox text={keys} /></>}
+      </Step>
     </div>
   )
 }

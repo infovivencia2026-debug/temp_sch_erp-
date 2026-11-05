@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Frame, GrowingTextarea, button, h1, input } from './ApplyForm'
+import { CheckCircle2, Paperclip, UploadCloud } from 'lucide-react'
 
 /* A WEBSITE FORM, as the school's website embeds it (owner, 2026-11-05):
-   /f/{school}/{form} in an iframe. Renders outside Shell and the session, and
-   posts to /api/v1/public/forms/{school}/{form} like any other website would.
-   It tells the page around it how tall it is, so the embed code can size the
-   iframe without a scrollbar. */
+   /f/{school}/{form} in an iframe. Renders outside Shell and the session, in
+   the school's colour, and posts to /api/v1/public/forms/{school}/{form} like
+   any other website would. It tells the page around it how tall it is, so
+   the embed code can size the iframe without a scrollbar. */
 
 type FieldType = 'text' | 'long_text' | 'email' | 'phone' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'file'
 interface Field { key: string; label: string; type: FieldType; required: boolean; options?: string[] }
-interface Def { school_name: string; title: string; description: string; fields: Field[]; is_open: boolean; submit_label: string; thanks_message: string }
+interface Def { school_name: string; color: string; title: string; description: string; fields: Field[]; is_open: boolean; submit_label: string; thanks_message: string }
 
-const label: React.CSSProperties = { display: 'block', fontWeight: 600, fontSize: 14, margin: '18px 0 6px' }
+const control = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-[15px] text-slate-900 outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--brand)_15%,transparent)]'
 
 export default function WebsiteForm() {
   const { school = '', form = '' } = useParams()
@@ -64,57 +64,73 @@ export default function WebsiteForm() {
   }
 
   return (
-    <div ref={box}>
-      <Frame>
-        {!def ? <p>{err || 'Loading…'}</p> : done ? (
-          <>
-            <h1 style={h1}>{def.title}</h1>
-            <p style={{ marginTop: 12 }}>{done}</p>
-          </>
-        ) : (
-          <form onSubmit={submit} noValidate>
-            <p style={{ opacity: 0.7, fontSize: 13.5, margin: 0 }}>{def.school_name}</p>
-            <h1 style={h1}>{def.title}</h1>
-            {def.description && <p style={{ margin: '8px 0 0', whiteSpace: 'pre-line' }}>{def.description}</p>}
-            {!def.is_open ? <p style={{ marginTop: 16 }}>This form is not taking responses now.</p> : (
-              <>
-                {def.fields.map((f) => (
-                  <div key={f.key}>
-                    {f.type === 'checkbox' ? (
-                      <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', margin: '18px 0 0', fontSize: 15 }}>
-                        <input type="checkbox" style={{ marginTop: 4, width: 18, height: 18 }} checked={values[f.key] === 'true'}
-                          onChange={(e) => set(f.key, e.target.checked ? 'true' : '')} />
-                        <span>{f.label}{f.required && <span style={{ color: '#b42318' }}> *</span>}</span>
-                      </label>
-                    ) : (
-                      <>
-                        <label style={label} htmlFor={`f-${f.key}`}>{f.label}{f.required && <span style={{ color: '#b42318' }}> *</span>}</label>
-                        {f.type === 'long_text' ? (
-                          <GrowingTextarea id={`f-${f.key}`} style={input} value={values[f.key] ?? ''} onChange={(e) => set(f.key, e.target.value)} />
-                        ) : f.type === 'dropdown' ? (
-                          <select id={`f-${f.key}`} style={input} value={values[f.key] ?? ''} onChange={(e) => set(f.key, e.target.value)}>
-                            <option value="">Select</option>
-                            {(f.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        ) : f.type === 'file' ? (
-                          <input id={`f-${f.key}`} type="file" style={input} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
-                            onChange={(e) => setFiles((o) => ({ ...o, [f.key]: e.target.files?.[0] ?? null }))} />
+    <div ref={box} className="min-h-full bg-slate-50 px-4 py-6 font-sans text-slate-900 sm:py-10"
+      style={{ ['--brand' as string]: def?.color || '#1e3a8a' }}>
+      <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="h-2" style={{ background: 'var(--brand)' }} />
+        <div className="p-6 sm:p-8">
+          {!def ? <p className="text-slate-600">{err || 'Loading…'}</p> : done ? (
+            <div className="py-8 text-center">
+              <CheckCircle2 className="mx-auto size-14" style={{ color: 'var(--brand)' }} />
+              <h1 className="mt-4 text-[22px] font-semibold">{def.title}</h1>
+              <p className="mt-2 text-slate-600">{done}</p>
+            </div>
+          ) : (
+            <form onSubmit={submit} noValidate>
+              <p className="text-[13px] font-medium uppercase tracking-wide text-slate-500">{def.school_name}</p>
+              <h1 className="mt-1 text-[26px] font-bold leading-tight" style={{ color: 'var(--brand)' }}>{def.title}</h1>
+              {def.description && <p className="mt-2 whitespace-pre-line text-slate-600">{def.description}</p>}
+              {!def.is_open ? <p className="mt-6 rounded-xl bg-slate-100 p-4 text-slate-700">This form is not taking responses now.</p> : (
+                <>
+                  {def.fields.some((f) => f.required) && <p className="mt-4 text-[13px] text-slate-500">Fields marked <span className="text-red-600">*</span> are required.</p>}
+                  <div className="mt-6 space-y-5">
+                    {def.fields.map((f) => (
+                      <div key={f.key}>
+                        {f.type === 'checkbox' ? (
+                          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[15px]">
+                            <input type="checkbox" className="mt-0.5 size-5 shrink-0 accent-[var(--brand)]" checked={values[f.key] === 'true'}
+                              onChange={(e) => set(f.key, e.target.checked ? 'true' : '')} />
+                            <span>{f.label}{f.required && <span className="text-red-600"> *</span>}</span>
+                          </label>
                         ) : (
-                          <input id={`f-${f.key}`} style={input} value={values[f.key] ?? ''} onChange={(e) => set(f.key, e.target.value)}
-                            type={f.type === 'phone' ? 'tel' : f.type === 'text' ? 'text' : f.type}
-                            inputMode={f.type === 'phone' ? 'numeric' : undefined} />
+                          <>
+                            <label className="mb-1.5 block text-[14px] font-semibold" htmlFor={`f-${f.key}`}>{f.label}{f.required && <span className="text-red-600"> *</span>}</label>
+                            {f.type === 'long_text' ? (
+                              <textarea id={`f-${f.key}`} rows={4} className={control} value={values[f.key] ?? ''} onChange={(e) => set(f.key, e.target.value)} />
+                            ) : f.type === 'dropdown' ? (
+                              <select id={`f-${f.key}`} className={control} value={values[f.key] ?? ''} onChange={(e) => set(f.key, e.target.value)}>
+                                <option value="">Select</option>
+                                {(f.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            ) : f.type === 'file' ? (
+                              <label htmlFor={`f-${f.key}`} className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center transition hover:border-[var(--brand)]">
+                                {files[f.key] ? <Paperclip className="size-6" style={{ color: 'var(--brand)' }} /> : <UploadCloud className="size-7 text-slate-400" />}
+                                <span className="text-[14px] font-medium">{files[f.key]?.name ?? 'Choose a file or drop it here'}</span>
+                                <span className="text-[12px] text-slate-500">PDF, Word or a clear photo (JPG, PNG, WebP), up to 8 MB</span>
+                                <input id={`f-${f.key}`} type="file" className="sr-only" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                                  onChange={(e) => setFiles((o) => ({ ...o, [f.key]: e.target.files?.[0] ?? null }))} />
+                              </label>
+                            ) : (
+                              <input id={`f-${f.key}`} className={control} value={values[f.key] ?? ''} onChange={(e) => set(f.key, e.target.value)}
+                                type={f.type === 'phone' ? 'tel' : f.type === 'text' ? 'text' : f.type}
+                                inputMode={f.type === 'phone' ? 'numeric' : undefined}
+                                placeholder={f.type === 'phone' ? '10-digit mobile number' : f.type === 'email' ? 'name@example.com' : undefined} />
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {err && <p role="alert" style={{ color: '#b42318', marginTop: 16 }}>{err}</p>}
-                <button type="submit" style={{ ...button, opacity: busy ? 0.6 : 1 }} disabled={busy}>{busy ? 'Sending…' : def.submit_label}</button>
-              </>
-            )}
-          </form>
-        )}
-      </Frame>
+                  {err && <p role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-700">{err}</p>}
+                  <button type="submit" disabled={busy}
+                    className="mt-7 w-full rounded-xl px-6 py-3.5 text-[16px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60 sm:w-auto"
+                    style={{ background: 'var(--brand)' }}>{busy ? 'Sending…' : def.submit_label}</button>
+                </>
+              )}
+            </form>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

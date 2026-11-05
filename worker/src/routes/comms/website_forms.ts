@@ -105,6 +105,29 @@ export function registerWebsiteForms(r: Router): void {
     })
   })
 
+  /* Delete a form with all its responses, or one response. Their files are
+     marked deleted, so no link to them opens again. */
+  r.del('/comms/website-forms/{id}', WRITE, async (c) => {
+    const f = await formOr404(c, c.params.id)
+    await c.db.batch([
+      c.db.prepare(`UPDATE files SET deleted_at = ? WHERE owner_type = 'website_form_response' AND owner_id IN (SELECT id FROM website_form_responses WHERE form_id = ?)`).bind(now(), f.id),
+      c.db.prepare(`DELETE FROM website_form_responses WHERE form_id = ?`).bind(f.id),
+      c.db.prepare(`DELETE FROM website_forms WHERE id = ?`).bind(f.id),
+    ])
+    return ok({ deleted: true })
+  })
+
+  r.del('/comms/website-forms/{id}/responses/{rid}', WRITE, async (c) => {
+    const f = await formOr404(c, c.params.id)
+    if (!isUUID(c.params.rid)) throw badRequest('invalid response id')
+    const res = await c.db.batch([
+      c.db.prepare(`UPDATE files SET deleted_at = ? WHERE owner_type = 'website_form_response' AND owner_id = ?`).bind(now(), c.params.rid),
+      c.db.prepare(`DELETE FROM website_form_responses WHERE id = ? AND form_id = ?`).bind(c.params.rid, f.id),
+    ])
+    if (!res[1].meta.changes) throw new HttpError(404, 'that response does not exist')
+    return ok({ deleted: true })
+  })
+
   r.post('/comms/website-forms/{id}/responses/read', READ, async (c) => {
     const f = await formOr404(c, c.params.id)
     await c.db.prepare(`UPDATE website_form_responses SET is_read = 1 WHERE form_id = ? AND is_read = 0`).bind(f.id).run()
@@ -162,7 +185,7 @@ export async function handlePublicWebsiteForms(env: Env, req: Request, path: str
     const { t, f } = found
     const fields = JSON.parse(f.fields) as FormField[]
     if (req.method === 'GET') {
-      return withCors(json({ school_name: t.inst.name, title: f.title, description: f.description ?? '', fields, is_open: f.is_open === 1,
+      return withCors(json({ school_name: t.inst.name, color: t.inst.primary_color || '#1e3a8a', title: f.title, description: f.description ?? '', fields, is_open: f.is_open === 1,
         submit_label: f.submit_label || 'Submit', thanks_message: f.thanks_message || 'Thank you. Your response has been received.' }))
     }
     if (req.method !== 'POST') return null
