@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import './assistant/assistant-chat.css'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Mic, Square, X, ArrowRight, ArrowUp, ArrowDown, Wand2, Check, Plus, FileSpreadsheet, Maximize2, Minimize2, SquarePen, RotateCcw, CloudOff } from 'lucide-react'
+import { Mic, Square, X, ArrowRight, ArrowUp, ArrowDown, Wand2, Check, Plus, FileSpreadsheet, SquarePen, RotateCcw, CloudOff } from 'lucide-react'
 import { AssistantImportWithAI } from '@/components/ai/SmartImport'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useDictation } from '@/lib/speech'
 import { useSession } from '@/lib/session'
-import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
+import { useCatalog, useResolvedRole, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
+import type { CatalogRole as ApiRole } from '@shared/api'
 import { cn } from '@/lib/utils'
 import { lockPageScroll } from '@/lib/keyboard'
 import { Button } from '@/components/ui'
@@ -224,6 +225,47 @@ interface Turn {
    the feature is live and in scope for them -- usable(f). A name that matches
    nothing they can reach returns nothing, and no button is shown, which is the
    honest outcome for "that screen exists but not for you". */
+/* WHAT AN EMPTY CHAT OFFERS, PER ROLE (owner, 2026-11-05: "content should
+   be for the role"). Keyed by catalogue feature slug, in priority order; a
+   role sees the first three it can actually open, labelled for its desk:
+   a teacher gets attendance and homework, an accountant fee collection and
+   defaulters, the front office its desk, a principal absentees and
+   collections. A chip opens the screen; nothing is shown for a screen the
+   role does not have. */
+const STARTERS: { slug: string; label: string }[] = [
+  { slug: 'take_attendance', label: 'Take attendance' },
+  { slug: 'homework_classwork', label: 'Homework' },
+  { slug: 'take_fee_payment', label: 'Collect fee' },
+  { slug: 'unpaid_fees_reminders', label: 'Defaulters' },
+  { slug: 'enquiries', label: 'Enquiries' },
+  { slug: 'front_desk', label: 'Visitors' },
+  { slug: 'parent_concerns', label: 'Parent concerns' },
+  { slug: 'student_absentees', label: 'Absentees' },
+  { slug: 'fee_dashboard', label: 'Collections' },
+  { slug: 'fee_default', label: 'Defaulters' },
+  { slug: 'marks_entry', label: 'Marks entry' },
+  { slug: 'attendance', label: 'Attendance' },
+  { slug: 'homework_assignments', label: 'Homework' },
+  { slug: 'homework_academics', label: 'Homework' },
+  { slug: 'fees', label: 'Fees' },
+  { slug: 'fees_payments', label: 'Fees' },
+  { slug: 'timetable', label: 'Timetable' },
+]
+
+function roleStarters(role: ApiRole | undefined): { to: string; label: string }[] {
+  if (!role) return []
+  const out: { to: string; label: string }[] = []
+  for (const st of STARTERS) {
+    if (out.length === 3) break
+    if (out.some((o) => o.label === st.label)) continue
+    for (const section of role.sections) {
+      const f = section.features.find((x) => x.slug === st.slug && usable(x))
+      if (f) { out.push({ to: featurePath(role.key, section.slug, f.slug), label: st.label }); break }
+    }
+  }
+  return out
+}
+
 function resolveScreen(catalog: CatalogResponse, screen?: string): ScreenLink | undefined {
   const want = screen?.trim().toLowerCase()
   if (!want) return undefined
@@ -296,14 +338,6 @@ export function AssistantTab() {
   const ai = useAiStatus()
   const markAiOff = useMarkAiOff()
   const [open, setOpen] = useOpenState(false)
-  /* Full screen, remembered on this device (a per-viewer convenience). */
-  const [full, setFullState] = useState<boolean>(() => {
-    try { return localStorage.getItem('erp.assistant.full') === '1' } catch { return false }
-  })
-  const setFull = (v: boolean) => {
-    setFullState(v)
-    try { localStorage.setItem('erp.assistant.full', v ? '1' : '0') } catch { /* private mode */ }
-  }
   /* NOT ON SETTINGS.
    *
    * The orb floats above the dock at a fixed corner, which is right over a
@@ -321,6 +355,8 @@ export function AssistantTab() {
   const onSettings = useLocation().pathname.startsWith('/settings')
   const navigate = useNavigate()
   const catalog = useCatalog()
+  const { role: myRole } = useResolvedRole()
+  const starters = useMemo(() => roleStarters(myRole), [myRole])
 
   /* Back closes the assistant rather than the app. See useOverlayHistory. */
   const closeAssistant = useCallback(() => setOpen(false), [])
@@ -1130,12 +1166,10 @@ export function AssistantTab() {
             /* vv-screen-phone: on a phone the panel is the visible screen,
                so the iOS keyboard cannot leave the page showing under it. */
             'vv-screen-phone fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden bg-card',
-            full
-              /* FULL SCREEN: the whole window, the conversation held to a
-                 readable column in the middle rather than stretched edge to
-                 edge. */
-              ? 'assistant-full [&>*:not(.assistant-corner)]:mx-auto [&>*:not(.assistant-corner)]:w-full [&>*:not(.assistant-corner)]:max-w-3xl'
-              : 'md:inset-y-0 md:left-auto md:right-0 md:w-[min(40vw,520px)] md:border-l md:shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.18)]',
+            /* HALF THE SCREEN, AT MOST (owner, 2026-11-05): on every size
+               above a phone the panel is a full-height side pane of 50vw, and
+               there is no full-screen mode. Phones keep the whole screen. */
+            'sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[50vw] sm:border-l sm:shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.18)]',
           )}
         >
           {/* NO HEADER BAR. The panel had a strip across the top -- orb, the
@@ -1159,32 +1193,18 @@ export function AssistantTab() {
               onClick={newChat}
               aria-label="New chat"
               title="New chat"
-              className="grid size-10 place-items-center rounded-full text-muted-foreground transition-colors
-                         hover:bg-accent hover:text-foreground md:size-8"
+              className="assistant-btn grid size-12 place-items-center rounded-full text-muted-foreground md:size-10"
             >
-              <SquarePen className="size-[18px] md:size-4" />
-            </button>
-            {/* Full screen, on a desk only: on a phone the panel already is. */}
-            <button
-              type="button"
-              onClick={() => setFull(!full)}
-              aria-label={full ? 'Exit full screen' : 'Full screen'}
-              aria-pressed={full}
-              title={full ? 'Exit full screen' : 'Full screen'}
-              className="hidden size-8 place-items-center rounded-full text-muted-foreground transition-colors
-                         hover:bg-accent hover:text-foreground md:grid"
-            >
-              {full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+              <SquarePen className="size-6 md:size-5" />
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close assistant"
               title="Close"
-              className="grid size-10 place-items-center rounded-full md:size-8
-                         text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="assistant-btn grid size-12 place-items-center rounded-full text-muted-foreground md:size-10"
             >
-              <X className="size-5 md:size-4" />
+              <X className="size-6 md:size-5" />
             </button>
           </div>
 
@@ -1199,7 +1219,7 @@ export function AssistantTab() {
              the keyboard is up (assistant-chat.css): there, every line of
              height belongs to the conversation. */}
           <div
-            className={cn('assistant-bigorb flex shrink-0 justify-center pb-1 pt-4', phoneOrb && turns.length > 0 && 'hidden')}
+            className={cn('assistant-bigorb flex shrink-0 justify-center pb-1 pt-4', (turns.length === 0 || phoneOrb) && 'hidden')}
           >
             {/* BIG, the owner's ask -- inside the chat, not the corner button. */}
             <AssistantOrb state={state} size={phoneOrb ? 120 : 160} typing={typingNow} subtle />
@@ -1218,7 +1238,7 @@ export function AssistantTab() {
               to be divided by a single hairline and nothing else, so the bot's
               answer carries no border and the question keeps only its soft
               wash of colour. */}
-           <div className="mx-auto w-full max-w-[600px]">
+           <div className={cn('mx-auto w-full max-w-[600px]', turns.length === 0 && 'h-full')}>
             {turns.length === 0 && !draft.trim() && (
               /* An empty panel says one quiet thing and waits. The four canned
                  starter questions that used to sit here were removed at the
@@ -1231,13 +1251,35 @@ export function AssistantTab() {
                  has a character in it -- the way a placeholder does -- so the
                  first typed word is not sharing the panel with a sentence
                  telling it what to be. */
-              <div className="flex flex-col items-center gap-3 px-6 pb-4 pt-4 text-center">
-                <p className="text-[13.5px] font-medium leading-tight">
-                  Ask about the school, or tell me what to do.
+              /* THE OWNER'S DESIGN (gemini-code, "with text"): the face centred
+                 in the empty panel, one line under it, one hint, then up to
+                 three quick actions for this role. The face moves to the top
+                 strip once the conversation starts. */
+              <div className="flex min-h-full flex-col items-center justify-center gap-2 px-4 py-6 text-center">
+                <div className="assistant-bigorb mb-3">
+                  <AssistantOrb state={state} size={phoneOrb ? 120 : 156} typing={typingNow} subtle />
+                </div>
+                <h2 className="text-[18px] font-semibold leading-tight tracking-tight sm:text-[17px]">
+                  How can I help?
+                </h2>
+                <p className="max-w-[34ch] text-[14px] leading-snug text-muted-foreground sm:text-[13px]">
+                  Ask about a student, a fee or today's attendance, or attach a spreadsheet to import.
                 </p>
-                <p className="max-w-[30ch] text-[12px] leading-snug text-muted-foreground">
-                  A student, a fee, today's attendance, where a setting lives, or attach a spreadsheet to import.
-                </p>
+                {starters.length > 0 && (
+                  <div className="mt-3 flex flex-wrap justify-center gap-2">
+                    {starters.map((st) => (
+                      <Button
+                        key={st.to}
+                        size="sm"
+                        variant="secondary"
+                        className="rounded-full"
+                        onClick={() => { navigate(st.to); setOpen(false) }}
+                      >
+                        {st.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {turns.map((turn, i) => (
