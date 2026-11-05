@@ -135,7 +135,11 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="ghost" onClick={onBack}><ChevronLeft className="size-4" />All forms</Button>
-            <Switch on={form.is_open} onChange={(v) => toggle.mutate(v)} label={form.is_open ? 'Taking responses' : 'Closed'} />
+            {/* The switch says what it does (owner, 2026-11-05: "why on off button"). */}
+            <span className="flex items-center gap-2 text-[14px] font-medium">
+              <Switch on={form.is_open} onChange={(v) => toggle.mutate(v)} label={form.is_open ? 'Taking responses' : 'Closed'} />
+              <span aria-hidden className={form.is_open ? 'text-success' : 'text-muted-foreground'}>{form.is_open ? 'Taking responses' : 'Closed'}</span>
+            </span>
             <ConfirmButton tone="danger" size="md" confirmLabel="Delete form" label="Delete form"
               question={`Delete ${form.title} and all its responses? The form on the website stops working.`}
               onConfirm={() => del.mutate()} disabled={del.isPending}><Trash2 className="size-4" /></ConfirmButton>
@@ -422,7 +426,7 @@ function Share({ form, school }: { form: Form; school: string }) {
 <script>addEventListener('message',function(e){if(e.data&&e.data.type==='xulo-form-height'&&e.data.form==='${form.slug}'){document.getElementById('xulo-form-${form.slug}').style.height=e.data.height+'px'}})</script>`
   const keys = form.fields.map((f) => `${f.key}  =  ${f.label}${f.type === 'file' ? ' (file)' : ''}`).join('\n')
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="space-y-4">
       {!form.is_open && <p className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-[14px]">This form is closed, so the website shows "not taking responses". Switch it on at the top.</p>}
       <Step n={1} title="Embed on the website (easiest)" body="Give this to your website person. They paste it where the form should appear, for example on the Careers page. It grows to fit.">
         <CopyBox text={embed} />
