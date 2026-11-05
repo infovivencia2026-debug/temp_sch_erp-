@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, FileText, LayoutGrid, MessageSquare, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, LayoutGrid, MessageSquare } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Badge, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
@@ -20,13 +20,11 @@ import { buzz } from '@/lib/haptics'
 import { useToast } from '@/components/Toast'
 import { REF_IN_TEXT } from '@/components/CopyRef'
 import type {
-  HelpArticleView, HelpCategoryOption, HelpDiagnostics, HelpRequestDetail, HelpSimilar, HelpTicket, HelpTipView, HelpFollowed,
+  HelpArticleView, HelpCategoryOption, HelpDiagnostics, HelpRequestDetail, HelpSimilar, HelpTicket, HelpFollowed,
 } from '@shared/api/feature_helpdesk'
-import type { List } from '@shared/api/contract'
 import { Redact, type RedactedImage } from './Redact'
 import { showMe } from './Spotlight'
 import { Troubleshooter } from './Troubleshooter'
-import { AssistCard } from './Assist'
 import { faqsFor } from './faqs'
 import { STAGE_KEY, STAGE_TONE, articleBlocks, shownStage } from './help-lib'
 
@@ -165,15 +163,6 @@ function Home({ articles, requests, onRequest, onReport, onAll }: {
             </Card>
           )}
 
-          {/* Tips and screen sharing stay, folded under the questions
-              (owner, 2026-11-04: FAQs first, not all this). */}
-          <details className="group">
-            <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] font-semibold text-muted-foreground">
-              <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden="true" />
-              What's new and screen sharing
-            </summary>
-            <div className="mt-3 space-y-4"><Tips /><AssistCard /></div>
-          </details>
 
           <div className="flex justify-center pb-2">
             <span data-help-anchor="help-report"><Button onClick={onReport}>{t('help.report')}</Button></span>
@@ -195,7 +184,11 @@ function Faqs() {
   const navigate = useNavigate()
   const { t } = useI18n()
   const [openQ, setOpenQ] = useState<string | null>(null)
-  const items = faqsFor(role?.key)
+  /* Only what this person can do (owner, 2026-11-05: a subject teacher was
+     shown "take attendance"). A question tied to a screen shows only when
+     that screen is in their own menu; general questions always show. */
+  const mine = screensOf(role)
+  const items = faqsFor(role?.key).filter((f) => !f.screen || f.screen === 'Profile' || mine.some((s) => s.name === f.screen))
   return (
     <section aria-labelledby="help-faqs">
       <h2 id="help-faqs" className="mb-2 text-[13px] font-semibold text-muted-foreground">Frequently asked questions</h2>
@@ -205,7 +198,7 @@ function Faqs() {
             const open = openQ === f.q
             /* Profile is the account page every person has, menu or not. */
             const screen = f.screen === 'Profile' ? { name: 'Profile', path: '/account' }
-              : f.screen ? screensOf(role).find((s) => s.name === f.screen) : undefined
+              : f.screen ? mine.find((s) => s.name === f.screen) : undefined
             return (
               <li key={f.q}>
                 <button type="button" onClick={() => setOpenQ(open ? null : f.q)} aria-expanded={open}
@@ -326,39 +319,6 @@ function ArticleRow({ a, open, onToggle }: { a: HelpArticleView; open: boolean; 
   )
 }
 
-function Tips() {
-  const { t, locale } = useI18n()
-  const qc = useQueryClient()
-  const tips = useQuery({ queryKey: ['help', 'tips', locale], queryFn: () => api.call('GET /help/tips', { query: { lang: locale } }) })
-  const desktop = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches
-  const away = useMutation({
-    mutationFn: (key: string) => api.call('POST /help/tips/{key}/dismiss', { params: { key } }),
-    onMutate: (key) => {
-      qc.setQueryData<List<HelpTipView>>(['help', 'tips', locale], (old) => old && { items: old.items.filter((x) => x.key !== key) })
-    },
-    onError: () => qc.invalidateQueries({ queryKey: ['help', 'tips'] }),
-  })
-  const items = (tips.data?.items ?? []).filter((x) => !x.device || (x.device === 'desktop') === desktop).slice(0, 3)
-  if (!items.length) return null
-  return (
-    <section aria-labelledby="help-new">
-      <h2 id="help-new" className="mb-2 text-[13px] font-semibold text-muted-foreground">{t('help.whats_new')}</h2>
-      <div className="space-y-2">
-        {items.map((x) => (
-          <div key={x.key} className="card flex items-start gap-3 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">{x.title}</p>
-              <p className="mt-0.5 text-[14px] text-muted-foreground">{x.body}</p>
-            </div>
-            <Button variant="ghost" size="sm" title={t('help.dismiss_tip')} onClick={() => away.mutate(x.key)}>
-              <X className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
 
 // --- topic ---------------------------------------------------------------------
 
