@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   BookOpen, Bus, Images, CalendarClock, CalendarDays, ClipboardCheck, Contact, FileText, Home, Layers, LayoutGrid, ListChecks, MonitorCheck, Repeat2,
   Award, Bookmark, Briefcase, ChevronDown, ChevronRight, ChevronUp, Compass, Flag, GraduationCap, Megaphone, Puzzle, Shapes, Star,
-  LogOut, Mail, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
+  LogOut, Mail, MessagesSquare, AlertCircle, HeartHandshake, History, Globe, Activity, Receipt, BarChart3, ScrollText, ClipboardList, Fingerprint, BedDouble, HeartPulse, Package, Camera, KeyRound, IdCard, Bell, Hash, MessageSquare, MessageSquareText, NotebookPen, Plane, Presentation, Settings2, UserRound, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { buzz } from '@/lib/haptics'
@@ -40,6 +40,27 @@ export function useTodaySignIns(on: boolean) {
 /* Minimal line icons (owner, 2026-10-19: "use lined minimal icons"), chosen
    from what the group or screen is called; anything unmatched gets a plain grid, never a dot. */
 const LINE_ICONS: [RegExp, LucideIcon][] = [
+  /* Specific names first (owner, 2026-11-05: "many icons are similar"), so
+     Messages, All messages, Circulars and Complaints no longer share one. */
+  [/all messages|all_messages/, MessagesSquare],
+  [/circular|notice|announce|broadcast/, Megaphone],
+  [/complaint|grievance|incident/, AlertCircle],
+  [/concern/, HeartHandshake],
+  [/interaction|log|audit|history|activity/, History],
+  [/website|form/, Globe],
+  [/class status|status/, Activity],
+  [/receipt|collection|payment/, Receipt],
+  [/report|analytic|performance|overview/, BarChart3],
+  [/certificate|transfer|tc/, ScrollText],
+  [/admission|enquir|application|lead/, ClipboardList],
+  [/biometric|punch|device|reader/, Fingerprint],
+  [/hostel|room|boarder/, BedDouble],
+  [/health|nurse|clinic|medic/, HeartPulse],
+  [/store|stock|inventory|catalogue|product/, Package],
+  [/photo|camera/, Camera],
+  [/role|permission|access|login|privacy/, KeyRound],
+  [/id card|idcard/, IdCard],
+  [/notification|alert|reminder/, Bell],
   [/home|today|dashboard|overview/, Home],
   [/timetable|calendar|schedule|period/, CalendarDays],
   [/attendance|absen|register/, ClipboardCheck],
@@ -81,8 +102,22 @@ function PillBadge({ icon: Icon }: { icon: LucideIcon }) {
   return <span className="nav-pill__badge"><Icon aria-hidden strokeWidth={2} /></span>
 }
 
-export function LineIcon({ name, size = 16 }: { name: string; size?: number }) {
-  const Icon = LINE_ICONS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? LayoutGrid
+/** One icon per screen in a group, none repeated: each takes the first of
+    its matches that the group has not used, then a spare (owner, 2026-11-05). */
+const ITEM_SPARES: LucideIcon[] = [Star, Compass, Bookmark, Flag, Shapes, Briefcase, Puzzle, Hash, LayoutGrid]
+function itemIcons(names: string[]): LucideIcon[] {
+  const used = new Set<LucideIcon>()
+  return names.map((name) => {
+    const n = name.toLowerCase()
+    const pick = LINE_ICONS.filter(([re]) => re.test(n)).map(([, I]) => I).find((I) => !used.has(I))
+      ?? ITEM_SPARES.find((I) => !used.has(I)) ?? LayoutGrid
+    used.add(pick)
+    return pick
+  })
+}
+
+export function LineIcon({ name, size = 16, icon }: { name: string; size?: number; icon?: LucideIcon }) {
+  const Icon = icon ?? LINE_ICONS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? LayoutGrid
   // On a phone .nav-line-icon goes to 24px (index.css, owner 2026-10-24).
   return <Icon aria-hidden className="nav-line-icon shrink-0" style={{ width: size, height: size }} strokeWidth={1.75} />
 }
@@ -239,13 +274,13 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
           return (
             <StaffNavGroup key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={label(name)}
               hue={hue} icon={uniqueIcon('home', usedIcons)} go={goTo(first.section, first.f)}>
-              {[...list, ...inHome].map(({ section: from, f }) => (
+              {(() => { const all = [...list, ...inHome]; const icons = itemIcons(all.map(({ f }) => `${f.slug} ${f.name}`)); return all.map(({ section: from, f }, i) => (
                 <NavLink key={f.key} data-row to={goTo(from, f)} onClick={onNavigate} title={f.summary}
                   className={({ isActive }) => staffItemClass(isActive || !!comboOf(f.slug)?.slugs.includes(here), f.live)}>
-                  <LineIcon name={`${f.slug} ${f.name}`} size={20} />
+                  <LineIcon name={`${f.slug} ${f.name}`} icon={icons[i]} size={20} />
                   <span className="truncate">{label(f.name)}</span>
                 </NavLink>
-              ))}
+              )) })()}
             </StaffNavGroup>
           )
         }
@@ -267,18 +302,18 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
           <StaffNavGroup key={`${ws.slug}.${section.slug}`} slug={`${ws.slug}.${section.slug}`} name={title}
             hue={hue} icon={uniqueIcon(`${section.slug} ${title}`, usedIcons)}
             count={list.some((x) => x.f.slug === 'concerns_from_parents') ? concerns : 0}>
-            {list.map(({ section: from, f }) => (
+            {(() => { const icons = itemIcons(list.map(({ f }) => `${f.slug} ${f.name}`)); return list.map(({ section: from, f }, i) => (
               <NavLink key={f.key} data-row to={goTo(from, f)} onClick={onNavigate} title={f.summary}
                 className={({ isActive }) => {
                   // A grouped item stays lit while one of its tabs is open.
                   const on = isActive || !!comboOf(f.slug)?.slugs.includes(here)
                   return staffItemClass(on, f.live)
                 }}>
-                <LineIcon name={`${f.slug} ${f.name}`} size={20} />
+                <LineIcon name={`${f.slug} ${f.name}`} icon={icons[i]} size={20} />
                 <span className="truncate">{label(f.name)}</span>
                 {f.slug === 'concerns_from_parents' && <Count n={concerns} />}
               </NavLink>
-            ))}
+            )) })()}
           </StaffNavGroup>
         )
       })}
