@@ -3493,149 +3493,137 @@ html .rounded-\[16px\] { border-radius: var(--radius-dialog); }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   THE ASSISTANT'S FLUID BALL (components/AssistantOrb.tsx).
+   THE ASSISTANT'S FACE (components/AssistantOrb.tsx; owner, 2026-11-05).
 
-   Five blurred blobs drifting under a glass haze, from the design the owner
-   handed over, scaled to whatever size the orb is drawn at: every length is
-   a fraction of --orb-size, so a 36px orb in a header and a 44px one over
-   the dock are the same ball. The keyframes never change with state --
-   AssistantOrb.tsx drives their playback rate -- so the only state rules
-   here are the glow, which is a transition and cannot jump. */
-.fluid-orb {
-  --orb-size: 40px;
+   Drawn at 240px inside .bot-face__art and scaled to the size it is shown
+   at with one transform, so every length below is in the drawing's own units.
+   --look-x / --look-y (set from the pointer) move the eyes fully and the head
+   a little. The face is a character, not chrome: its colours are its own. */
+.bot-face {
   position: relative;
   display: inline-block;
   flex: none;
-  border-radius: 50%;
-  overflow: hidden;
-  isolation: isolate;
-  background:
-    radial-gradient(circle at 50% 50%,
-      rgba(220, 246, 238, 0.28) 0%,
-      rgba(221, 241, 239, 0.38) 68%,
-      rgba(230, 237, 241, 0.78) 88%,
-      rgba(236, 239, 245, 0.96) 100%);
-  box-shadow:
-    inset 0 0 calc(var(--orb-size) * 0.075) rgba(255, 255, 255, 0.75),
-    inset 0 0 calc(var(--orb-size) * 0.15) rgba(190, 224, 218, 0.35),
-    0 0 calc(var(--orb-size) * 0.03) rgba(181, 201, 205, 0.18);
-  filter: saturate(1.05);
-  transition: filter 300ms ease, transform 300ms ease;
-  animation: fluid-breathe 8s ease-in-out infinite alternate;
+  --look-x: 0px;
+  --look-y: 0px;
 }
-/* The subtle ball: the same circle, the colour turned well down. */
-.fluid-orb[data-subtle] {
-  filter: saturate(0.75);
-  /* The edge barely there: the inner rim and the outer shadow that draw the
-     ball as an object go, and a faint fade into the panel takes their place. */
-  box-shadow: inset 0 0 calc(var(--orb-size) * 0.12) rgba(255, 255, 255, 0.35);
-  background:
-    radial-gradient(circle at 50% 50%,
-      rgba(224, 244, 236, 0.22) 0%,
-      rgba(228, 240, 238, 0.30) 70%,
-      rgba(236, 240, 244, 0.55) 90%,
-      rgba(240, 242, 246, 0.35) 100%);
-}
-.fluid-orb[data-subtle] .fluid-orb__blob { opacity: 0.62; }
-.fluid-orb[data-subtle] .fluid-orb__glass { opacity: 0.8; }
-/* A little yellow, very little: the lime blob warms toward a pale gold. */
-.fluid-orb[data-subtle] .fluid-orb__blob-4 {
-  background: radial-gradient(circle,
-    rgba(240, 214, 96, 0.78) 0%, rgba(232, 210, 110, 0.5) 48%, rgba(236, 220, 140, 0) 100%);
-}
-.fluid-orb__blob {
+.bot-face__art {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(calc(var(--orb-size) * 0.07));
-  will-change: transform;
+  left: 0;
+  top: 0;
+  width: 240px;
+  height: 240px;
+  transform: scale(var(--bot-scale, 1));
+  transform-origin: 0 0;
 }
-.fluid-orb__blob-1 {
-  width: 54%; height: 50%; left: 19%; top: 23%;
-  background: radial-gradient(circle at 48% 45%,
-    rgba(4, 87, 100, 1) 0%, rgba(1, 112, 124, 0.98) 38%,
-    rgba(6, 152, 157, 0.78) 68%, rgba(0, 169, 166, 0) 100%);
-  animation: fluid-teal 11s ease-in-out infinite alternate;
-}
-.fluid-orb__blob-2 {
-  width: 52%; height: 40%; left: 28%; top: 13%;
-  background: radial-gradient(circle,
-    rgba(0, 174, 183, 0.82) 0%, rgba(15, 170, 173, 0.48) 52%, rgba(40, 186, 178, 0) 100%);
-  filter: blur(calc(var(--orb-size) * 0.09));
-  animation: fluid-cyan 13s ease-in-out infinite alternate;
-}
-.fluid-orb__blob-3 {
-  width: 60%; height: 54%; right: 7%; bottom: 17%;
-  background: radial-gradient(circle at 42% 46%,
-    rgba(72, 199, 113, 0.94) 0%, rgba(86, 207, 105, 0.84) 40%,
-    rgba(119, 217, 104, 0.62) 70%, rgba(123, 221, 118, 0) 100%);
-  filter: blur(calc(var(--orb-size) * 0.08));
-  animation: fluid-green 10s ease-in-out infinite alternate;
-}
-.fluid-orb__blob-4 {
-  width: 51%; height: 42%; left: 18%; bottom: 5%;
-  background: radial-gradient(circle,
-    rgba(169, 225, 80, 0.92) 0%, rgba(148, 221, 84, 0.68) 48%, rgba(153, 219, 105, 0) 100%);
-  filter: blur(calc(var(--orb-size) * 0.092));
-  animation: fluid-lime 14s ease-in-out infinite alternate;
-}
-.fluid-orb__blob-5 {
-  width: 38%; height: 38%; right: 10%; top: 35%;
-  background: radial-gradient(circle,
-    rgba(41, 188, 132, 0.74) 0%, rgba(60, 204, 127, 0.48) 55%, rgba(70, 204, 129, 0) 100%);
-  filter: blur(calc(var(--orb-size) * 0.073));
-  animation: fluid-emerald 12s ease-in-out infinite alternate;
-}
-.fluid-orb__glass {
+.bot-face__head {
   position: absolute;
   inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: radial-gradient(circle at 48% 44%,
-    rgba(255, 255, 255, 0) 54%, rgba(225, 241, 239, 0.18) 70%,
-    rgba(238, 241, 246, 0.72) 95%, rgba(244, 246, 250, 0.92) 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 70%, #cbd5e1 100%);
   box-shadow:
-    inset calc(var(--orb-size) * 0.013) calc(var(--orb-size) * 0.013) calc(var(--orb-size) * 0.06) rgba(255, 255, 255, 0.35),
-    inset calc(var(--orb-size) * -0.017) calc(var(--orb-size) * -0.017) calc(var(--orb-size) * 0.067) rgba(196, 214, 213, 0.24);
+    inset 10px 10px 25px rgba(255, 255, 255, 0.9),
+    inset -15px -15px 35px rgba(148, 163, 184, 0.4),
+    0 15px 35px rgba(100, 116, 139, 0.25);
+  translate: calc(var(--look-x) * 0.3) calc(var(--look-y) * 0.3);
+  animation: bot-float 4s ease-in-out infinite;
+  transition: scale 300ms ease;
 }
-/* The glow is the state's other half: thinking burns, answering warms, and
-   a pointer on the ball wakes it a little. Transitions, never keyframes, so
-   nothing here can jump. */
-.fluid-orb[data-state='thinking'] { filter: saturate(1.3) brightness(1.1); }
-.fluid-orb[data-state='answering'] { filter: saturate(1.15) brightness(1.04); }
-.fluid-orb[data-awake] { transform: scale(1.06); filter: saturate(1.25) brightness(1.06); }
-@keyframes fluid-teal {
-  0%   { transform: translate(-3%, -2%) scale(1) rotate(0deg); }
-  35%  { transform: translate(5%, 3%) scale(1.08, 0.94) rotate(12deg); }
-  70%  { transform: translate(1%, 8%) scale(0.96, 1.08) rotate(-8deg); }
-  100% { transform: translate(-5%, 2%) scale(1.08) rotate(8deg); }
+.bot-face[data-subtle] .bot-face__head {
+  box-shadow:
+    inset 10px 10px 25px rgba(255, 255, 255, 0.9),
+    inset -15px -15px 35px rgba(148, 163, 184, 0.3),
+    0 10px 24px rgba(100, 116, 139, 0.14);
 }
-@keyframes fluid-cyan {
-  0%   { transform: translate(-4%, 0%) scale(1); }
-  50%  { transform: translate(7%, 7%) scale(1.12, 0.92); }
-  100% { transform: translate(0%, 12%) scale(0.95, 1.08); }
+.bot-face[data-awake] .bot-face__head { scale: 1.05; }
+.bot-face__visor {
+  position: relative;
+  width: 170px;
+  height: 120px;
+  border-radius: 60px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #1e1b4b 0%, #0f172a 100%);
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.6), 0 2px 5px rgba(255, 255, 255, 0.4);
 }
-@keyframes fluid-green {
-  0%   { transform: translate(0%, 0%) scale(1) rotate(0deg); }
-  35%  { transform: translate(-8%, -5%) scale(1.08, 0.96) rotate(-10deg); }
-  70%  { transform: translate(-3%, 7%) scale(0.94, 1.12) rotate(8deg); }
-  100% { transform: translate(4%, -2%) scale(1.07) rotate(-5deg); }
+.bot-face__visor::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 15px;
+  right: 15px;
+  height: 25px;
+  border-radius: 50%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
-@keyframes fluid-lime {
-  0%   { transform: translate(-3%, 1%) scale(1); }
-  50%  { transform: translate(10%, -7%) scale(1.14, 0.92); }
-  100% { transform: translate(1%, -11%) scale(0.98, 1.12); }
+.bot-face__eyes {
+  display: flex;
+  align-items: center;
+  gap: 35px;
+  translate: var(--look-x) var(--look-y);
+  transition: translate 80ms linear;
 }
-@keyframes fluid-emerald {
-  0%   { transform: translate(0%, -4%) scale(1); }
-  50%  { transform: translate(-12%, 7%) scale(1.15); }
-  100% { transform: translate(-5%, 13%) scale(0.95, 1.08); }
+.bot-face__eye {
+  width: 22px;
+  height: 44px;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1), height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-radius 300ms ease, background 300ms ease, transform 300ms ease, box-shadow 300ms ease;
 }
-@keyframes fluid-breathe {
-  from { transform: scale(0.995); }
-  to   { transform: scale(1.008); }
+.bot-face[data-awake] .bot-face__eye { box-shadow: 0 0 18px rgba(255, 255, 255, 1); }
+.bot-face__q {
+  position: absolute;
+  top: 12px;
+  right: 30px;
+  color: #fde047;
+  font: 700 24px/1 system-ui, sans-serif;
+  text-shadow: 0 0 8px rgba(253, 224, 71, 0.8);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+/* Listening: eyes wide open while a question is typed. */
+.bot-face[data-face='listening'] .bot-face__eye {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.9);
+}
+/* Thinking: one eye squints, the other looks up, a question mark floats. */
+.bot-face[data-face='thinking'] .bot-face__eye--l { height: 32px; transform: translateY(-4px) rotate(-15deg); }
+.bot-face[data-face='thinking'] .bot-face__eye--r { width: 20px; height: 20px; border-radius: 50%; transform: translateY(8px); }
+.bot-face[data-face='thinking'] .bot-face__q { opacity: 1; animation: bot-q 1.5s ease-in-out infinite; }
+/* Answering: the eyes bob as it speaks. */
+.bot-face[data-face='answering'] .bot-face__eye { animation: bot-talk 0.9s ease-in-out infinite; }
+.bot-face[data-face='answering'] .bot-face__eye--r { animation-delay: 0.15s; }
+/* A blink: quick, and never over the thinking squint. */
+.bot-face[data-blink]:not([data-face='thinking']) .bot-face__eye {
+  height: 4px;
+  border-radius: 2px;
+  transition-duration: 60ms;
+}
+@keyframes bot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes bot-q {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(10deg); }
+}
+@keyframes bot-talk {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.6); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fluid-orb, .fluid-orb__blob { animation: none; }
+  .bot-face__head, .bot-face__q, .bot-face__eye { animation: none !important; }
+  .bot-face__head, .bot-face__eyes { translate: none; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
