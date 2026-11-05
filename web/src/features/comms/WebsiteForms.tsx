@@ -135,10 +135,11 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="ghost" onClick={onBack}><ChevronLeft className="size-4" />All forms</Button>
-            {/* A button, not an on/off switch (owner, 2026-11-05). */}
-            <Button variant="secondary" onClick={() => toggle.mutate(!form.is_open)} disabled={toggle.isPending}>
-              {form.is_open ? 'Stop taking responses' : 'Start taking responses'}
-            </Button>
+            {/* A dropdown, not an on/off switch (owner, 2026-11-05). */}
+            <div className="w-56">
+              <Select value={form.is_open ? 'open' : 'closed'} onChange={(v) => toggle.mutate(v === 'open')}
+                options={[{ value: 'open', label: 'Taking responses' }, { value: 'closed', label: 'Closed' }]} />
+            </div>
             <ConfirmButton tone="danger" size="md" confirmLabel="Delete form" label="Delete form"
               question={`Delete ${form.title} and all its responses? The form on the website stops working.`}
               onConfirm={() => del.mutate()} disabled={del.isPending}><Trash2 className="size-4" /></ConfirmButton>
@@ -428,7 +429,7 @@ function Share({ form, school }: { form: Form; school: string }) {
   const keys = form.fields.map((f) => `${f.key}  =  ${f.label}${f.type === 'file' ? ' (file)' : ''}`).join('\n')
   return (
     <div className="space-y-4">
-      {!form.is_open && <p className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-[14px]">This form is closed, so the website shows "not taking responses". Press Start taking responses at the top.</p>}
+      {!form.is_open && <p className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-[14px]">This form is closed, so the website shows "not taking responses". Choose Taking responses at the top.</p>}
       <Step n={1} title="Embed in the website's own style" body="The questions take the website's own fonts, boxes and buttons. Paste this where the form should appear.">
         <CopyBox text={`<div data-xulo-form="${post}"></div>
 <script src="${origin}/api/v1/public/forms/embed.js" async></script>`} />
