@@ -65,8 +65,8 @@ export function registerWebsiteForms(r: Router): void {
     const rows = await c.db.prepare(`SELECT f.*, (SELECT count(*) FROM website_form_responses x WHERE x.form_id = f.id) AS responses,
         (SELECT count(*) FROM website_form_responses x WHERE x.form_id = f.id AND x.is_read = 0) AS unread
         FROM website_forms f ORDER BY f.created_at DESC`).all<FormRow & { responses: number; unread: number }>()
-    const inst = await c.db.prepare(`SELECT slug FROM institutions LIMIT 1`).first<{ slug: string }>()
-    return ok({ school: inst?.slug ?? '', items: rows.results.map((f) => ({ ...view(f), responses: f.responses, unread: f.unread })) })
+    // The school's address name, as the public route looks it up (CONTROL's institutions.slug).
+    return ok({ school: c.id.institution!.slug, items: rows.results.map((f) => ({ ...view(f), responses: f.responses, unread: f.unread })) })
   })
 
   r.post('/comms/website-forms', WRITE, async (c) => {
