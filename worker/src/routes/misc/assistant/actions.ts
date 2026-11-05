@@ -113,7 +113,7 @@ const fmtNum = (n: number) => String(n)
 // --- dispatch: the screen's own route, as the caller ------------------------------
 let router: Router | null = null
 /** Runs one of the Worker's own routes with the caller's identity; the result is its status and JSON. */
-export async function dispatch(c: Ctx, method: 'POST' | 'PUT', path: string, body: BodyInit, contentType: string): Promise<{ status: number; data: Record<string, unknown> }> {
+export async function dispatch(c: Ctx, method: 'POST' | 'PUT', path: string, body: BodyInit, contentType: string, extraHeaders?: Record<string, string>): Promise<{ status: number; data: Record<string, unknown> }> {
   router = router ?? buildRouter()
   const url = new URL('/api/v1' + path, c.url)
   const hit = router.match(method, url.pathname)
@@ -122,6 +122,7 @@ export async function dispatch(c: Ctx, method: 'POST' | 'PUT', path: string, bod
   const headers = new Headers(c.req.headers)
   headers.delete('content-length'); headers.delete('idempotency-key'); headers.delete('x-column-map')
   headers.set('content-type', contentType)
+  for (const [k, v] of Object.entries(extraHeaders ?? {})) headers.set(k, v)
   const req = new Request(url.toString(), { method, headers, body })
   const sub: Ctx = { req, env: c.env, url, params: hit.params, id: c.id, get db() { return c.db } }
   let res: Response

@@ -194,6 +194,7 @@ const IMPORT_KINDS: { value: string; label: string }[] = [
   { value: 'fee_payments', label: 'Fee payments' },
   { value: 'punches', label: 'Biometric punches' },
   { value: 'student_exits', label: 'Student exits' },
+  { value: 'payslips', label: 'Payslips' },
 ]
 
 interface Turn {

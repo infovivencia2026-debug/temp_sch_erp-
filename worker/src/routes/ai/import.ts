@@ -1,7 +1,7 @@
 import type { Ctx, Router } from '../../router'
 import { badRequest, HttpError, ok, readJSON } from '../../http'
 import { can } from '../../identity'
-import { importSpecs } from '../setup/imports'
+import { importSpecs, SHEET_FACT_PARAMS } from '../setup/imports'
 import { parseCSV } from '../setup/imports'
 import { assistantFailure, assistantRateLimit } from '../teaching/gemini'
 import { dispatch } from '../misc/assistant/actions'
@@ -24,12 +24,14 @@ import {
    POST /ai/import/preview  {kind, table, mapping, source, reviewed} -> dry run with per-row problems
    POST /ai/import/commit   same, confirmed: true      -> the real import */
 
-/** What the smart importer may prepare. Pay, payslips, exits and device punches stay on their own screens. */
+/** What the smart importer may prepare: every kind Setup > Import takes, each behind
+    the same permission. Salary structures stay on their own screen. */
 const KIND_LABEL: Record<string, string> = {
   students: 'Students', classes: 'Classes and sections', sections: 'Sections', subjects: 'Subjects', periods: 'Periods',
   holidays: 'Holidays and calendar', timetable: 'Timetable', class_subjects: 'Class subjects', allocations: 'Teacher allocations',
   attendance: 'Student attendance', staff_attendance: 'Staff attendance', marks: 'Marks', student_history: 'Student history',
   staff: 'Staff', staff_history: 'Staff history', fee_heads: 'Fee heads', fee_structures: 'Fee structures', fee_payments: 'Fee payments',
+  marks_grid: 'Marks (one column per subject)', punches: 'Biometric punches', student_exits: 'Student exits', payslips: 'Payslips',
 }
 const STUDENT_COLUMNS = ['full_name', 'admission_no', 'date_of_birth', 'gender', 'blood_group', 'medium', 'mother_tongue', 'class', 'section', 'roll_no',
   'address', 'city', 'state', 'pincode', 'prior_school', 'admission_date', 'previous_class', 'previous_year', 'father_name', 'father_phone',
@@ -39,14 +41,31 @@ const MAX_ROWS = 5000
 const MAX_BYTES = 8 << 20
 const IMAGE = /^image\/(jpeg|png|webp|heic|heif)$/
 
-function kindsFor(c: Ctx): ImportKind[] {
+/* A grid mark sheet has one column per subject. Each is offered as a
+   "subject:<name>" field; the importer reads them from the same X-Column-Map
+   entries Setup > Import sends. */
+const SUBJECT_FIELD = 'subject:'
+
+async function kindsFor(c: Ctx): Promise<ImportKind[]> {
   const out: ImportKind[] = []
   for (const [key, label] of Object.entries(KIND_LABEL)) {
     if (key === 'students') { if (can(c.id, 'students.write')) out.push({ key, label, columns: STUDENT_COLUMNS, required: ['full_name'] }); continue }
     const s = importSpecs[key]
-    if (s && can(c.id, s.perm)) out.push({ key, label, columns: s.columns, required: s.required })
+    if (!s || !can(c.id, s.perm)) continue
+    let columns = s.columns
+    if (key === 'marks_grid') {
+      const subs = await c.db.prepare(`SELECT name FROM subjects ORDER BY name`).all<{ name: string }>()
+      columns = [...s.columns, ...(subs.results ?? []).map((x) => SUBJECT_FIELD + x.name)]
+    }
+    out.push({ key, label, columns, required: s.required })
   }
   return out
+}
+
+/** Facts true of the whole sheet (marks_grid: class, year, exam, max_marks; punches, payslips: period). */
+function factParams(f: unknown): [string, string][] {
+  const x = (f && typeof f === 'object' ? f : {}) as Record<string, unknown>
+  return SHEET_FACT_PARAMS.map((k) => [k, String(x[k] ?? '').trim().slice(0, 200)] as [string, string]).filter(([, v]) => v !== '')
 }
 
 function needSchool(c: Ctx) {
@@ -80,7 +99,7 @@ async function analyze(c: Ctx): Promise<Response> {
   const bytes = new Uint8Array(await f.arrayBuffer())
   if (bytes.byteLength === 0) throw badRequest('that file was empty')
   if (bytes.byteLength > MAX_BYTES) throw badRequest('that file is larger than 8 MB')
-  const kinds = kindsFor(c)
+  const kinds = await kindsFor(c)
   if (kinds.length === 0) throw new HttpError(403, 'you do not have permission to import anything', { code: 'forbidden' })
   const forced = String(form.get('kind') ?? '').trim() || undefined
   if (forced && !kinds.some((k) => k.key === forced)) throw new HttpError(403, 'you cannot import ' + forced, { code: 'forbidden' })
@@ -127,20 +146,20 @@ async function propose(c: Ctx): Promise<Response> {
   await requireAiFeature(c.db, 'smart_import')
   const body = await readJSON<{ table?: unknown; kind?: string }>(c.req)
   const table = cleanTable(body.table)
-  const kinds = kindsFor(c)
+  const kinds = await kindsFor(c)
   const forced = body.kind && kinds.some((k) => k.key === body.kind) ? body.kind : undefined
   const llm = await llmFromEnv(c.env, 40_000)
   if (llm) await assistantRateLimit(c)
   return ok({ proposal: await proposeImport(llm, table, kinds, forced), kinds, ai: !!llm })
 }
 
-interface RunBody { kind?: string; table?: unknown; mapping?: { index?: number; field?: string | null }[]; source?: string; reviewed?: boolean; confirmed?: boolean; filename?: string }
+interface RunBody { kind?: string; facts?: Record<string, unknown>; table?: unknown; mapping?: { index?: number; field?: string | null }[]; source?: string; reviewed?: boolean; confirmed?: boolean; filename?: string }
 
 async function run(c: Ctx, commit: boolean): Promise<Response> {
   needSchool(c)
   await requireAiFeature(c.db, 'smart_import')
   const body = await readJSON<RunBody>(c.req)
-  const kind = kindsFor(c).find((k) => k.key === body.kind)
+  const kind = (await kindsFor(c)).find((k) => k.key === body.kind)
   if (!kind) throw new HttpError(403, 'you cannot import ' + (body.kind || 'that'), { code: 'forbidden' })
   const table = cleanTable(body.table)
   if (body.source === 'photo' && !body.reviewed) throw badRequest('check the table read from the photo, then tick "I have checked every row" before previewing')
@@ -158,8 +177,12 @@ async function run(c: Ctx, commit: boolean): Promise<Response> {
   const { rows, changes, sourceRows } = normaliseRows(kind, table, mapping, await schoolClasses(c))
   const csv = toImporterCSV(kind, rows)
   const qs = new URLSearchParams({ commit: String(commit), filename: (body.filename || 'ai-import').slice(0, 200) + (body.source === 'photo' ? ' (photo, reviewed)' : '') })
+  for (const [k, v] of factParams(body.facts)) qs.set(k, v)
   const path = kind.key === 'students' ? `/students/import?${qs}` : `/setup/import/${kind.key}?${qs}`
-  const r = await dispatch(c, 'POST', path, new TextEncoder().encode(csv), 'text/csv')
+  // The CSV's headers are our field names, so the column map is the identity; it is how subject columns reach the importer.
+  const fields = kind.columns.filter((f) => rows.some((x) => x[f] !== undefined))
+  const extra = fields.some((f) => f.startsWith(SUBJECT_FIELD)) ? { 'x-column-map': JSON.stringify(Object.fromEntries(fields.map((f) => [f, f]))) } : undefined
+  const r = await dispatch(c, 'POST', path, new TextEncoder().encode(csv), 'text/csv', extra)
   const err = typeof r.data.error === 'string' ? r.data.error : (r.data.error as { message?: string } | undefined)?.message
   if (r.status !== 200) throw new HttpError(r.status === 403 ? 403 : 400, err || 'the importer refused that file')
   const problems = (Array.isArray(r.data.problems) ? r.data.problems : []) as { row: number; problem?: string; data?: Record<string, string> }[]
@@ -171,13 +194,13 @@ async function run(c: Ctx, commit: boolean): Promise<Response> {
     problems: problems.slice(0, 500).map((p) => ({ ...p, source_row: sourceRows[p.row - 2] ?? null })),
     rows: commit ? undefined : rows.slice(0, 1000),
     source_rows: commit ? undefined : sourceRows.slice(0, 1000),
-    fields: kind.columns.filter((f) => rows.some((x) => x[f] !== undefined)),
+    fields,
     changes: commit ? undefined : changes.slice(0, 500),
   })
 }
 
 export function registerAIImport(r: Router): void {
-  r.get('/ai/import/kinds', 'auth', async (c) => ok({ kinds: kindsFor(c), ai: (await geminiKeySet(c.env)) }))
+  r.get('/ai/import/kinds', 'auth', async (c) => ok({ kinds: await kindsFor(c), ai: (await geminiKeySet(c.env)) }))
   r.post('/ai/import/analyze', 'auth', analyze)
   r.post('/ai/import/propose', 'auth', propose)
   r.post('/ai/import/preview', 'auth', (c) => run(c, false))
