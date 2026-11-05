@@ -5732,3 +5732,13 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
     box-shadow: 0 4px 12px hsl(var(--primary) / 0.28);
   }
 }
+
+/* Every count card keeps its own edge, the last one too (an older rule
+   stripped the last cell's border and shadow). */
+.cell-grid > .cell,
+.cell-grid > .cell:first-child,
+.cell-grid > .cell:last-child {
+  border: 1px solid hsl(var(--border) / 0.8) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 4px 20px -2px rgb(15 23 42 / 0.05) !important;
+}
