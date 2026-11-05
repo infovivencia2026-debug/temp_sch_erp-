@@ -5,6 +5,7 @@ import {
   Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X,
 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useToast } from '@/components/Toast'
 import {
   PageHead, PageBody, EmptyState, ErrorState, Card, Button, ConfirmButton, Input, Textarea, Select, Field, FormNotice, Badge,
   Table, Td, Switch, SkeletonTable, Stat, CellGrid, Dialog, TAB_BAR, tabClass,
@@ -17,7 +18,7 @@ import { cn, formatDate } from '@/lib/utils'
    form, and read every response with its date, time and files. */
 
 type FieldType = 'text' | 'long_text' | 'email' | 'phone' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'file'
-interface FormField { key: string; label: string; type: FieldType; required: boolean; options?: string[] }
+interface FormField { key: string; label: string; type: FieldType; required: boolean; options?: string[]; show_if?: { key: string; value: string } }
 interface Form {
   id: string; slug: string; title: string; description: string; fields: FormField[]; submit_label: string; thanks_message: string
   is_open: boolean; created_at: string; responses?: number; unread?: number
@@ -165,6 +166,7 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
 
 function Builder({ form }: { form: Form }) {
   const qc = useQueryClient()
+  const toast = useToast()
   const [title, setTitle] = useState(form.title)
   const [description, setDescription] = useState(form.description)
   const [fields, setFields] = useState<FormField[]>(form.fields)
@@ -179,7 +181,8 @@ function Builder({ form }: { form: Form }) {
       title, description, submit_label: submitLabel, thanks_message: thanks,
       fields: fields.map((f) => ({ ...f, options: f.type === 'dropdown' ? (f.options ?? []).map((o) => o.trim()).filter(Boolean) : undefined })),
     }),
-    onSuccess: (f) => { setFields(f.fields); setSavedAt(Date.now()); qc.invalidateQueries({ queryKey: ['website-forms'] }) },
+    onSuccess: (f) => { setFields(f.fields); setSavedAt(Date.now()); qc.invalidateQueries({ queryKey: ['website-forms'] }); toast.ok(`${f.title} saved. The website shows it now.`) },
+    onError: (e) => toast.error((e as Error).message || 'Could not save the form'),
   })
   const upd = (i: number, p: Partial<FormField>) => setFields((l) => l.map((f, j) => (j === i ? { ...f, ...p } : f)))
   const move = (i: number, d: -1 | 1) => {
@@ -230,6 +233,7 @@ function Builder({ form }: { form: Form }) {
                 ) : (
                   <p className="mt-3 flex items-center gap-2 text-[13px] text-muted-foreground"><T className="size-4" />{typeOf(f.type).label}{f.type === 'file' && ': PDF, Word or an image, up to 8 MB'}</p>
                 )}
+                <ShowIf field={f} others={fields.slice(0, i)} onChange={(v) => upd(i, { show_if: v })} />
                 <div className="mt-4 flex flex-wrap items-center gap-1 border-t pt-3">
                   <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
                     <Switch on={f.required} onChange={(v) => upd(i, { required: v })} label="Required" /><span aria-hidden>Required</span>
@@ -446,6 +450,33 @@ function Share({ form, school }: { form: Form; school: string }) {
         <CopyBox text={post} />
         {keys && <><p className="text-[13px] font-medium">Field names</p><CopyBox text={keys} /></>}
       </Step>
+    </div>
+  )
+}
+
+/* "Show only when": this question appears only when an earlier question's
+   answer is one value (for example "Please specify" when Role is Other). */
+function ShowIf({ field, others, onChange }: { field: FormField; others: FormField[]; onChange: (v: FormField['show_if']) => void }) {
+  const choosable = others.filter((o) => (o.type === 'dropdown' && (o.options ?? []).some((x) => x.trim())) || o.type === 'checkbox')
+  const [on, setOn] = useState(!!field.show_if)
+  if (!choosable.length) return null
+  const src = choosable.find((o) => (o.key || o.label) === field.show_if?.key) ?? null
+  const values = src?.type === 'checkbox' ? [{ value: 'true', label: 'Ticked' }] : (src?.options ?? []).filter((x) => x.trim()).map((x) => ({ value: x, label: x }))
+  return (
+    <div className="mt-3 rounded-xl border border-dashed p-3">
+      <label className="flex items-center gap-2 text-[13px] font-medium">
+        <Switch on={on} onChange={(v) => { setOn(v); if (!v) onChange(undefined) }} label="Show only when" />
+        <span aria-hidden>Show only when another answer is chosen</span>
+      </label>
+      {on && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <Select value={field.show_if?.key ?? ''} placeholder="Which question"
+            onChange={(k) => onChange({ key: k, value: '' })}
+            options={choosable.map((o) => ({ value: o.key || o.label, label: o.label || 'Untitled question' }))} />
+          <Select value={field.show_if?.value ?? ''} placeholder={src ? 'Is' : 'Choose a question first'}
+            onChange={(v) => onChange({ key: field.show_if!.key, value: v })} options={values} />
+        </div>
+      )}
     </div>
   )
 }

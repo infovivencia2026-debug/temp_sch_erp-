@@ -19,7 +19,8 @@ import { baseName, extOf, putObject, refuseSize, refuseUpload, sha256, uploadKey
 
 export const FIELD_TYPES = ['text', 'long_text', 'email', 'phone', 'number', 'date', 'dropdown', 'checkbox', 'file'] as const
 type FieldType = typeof FIELD_TYPES[number]
-export interface FormField { key: string; label: string; type: FieldType; required: boolean; options?: string[] }
+/** show_if: the question shows (and is checked) only when another question's answer equals value. */
+export interface FormField { key: string; label: string; type: FieldType; required: boolean; options?: string[]; show_if?: { key: string; value: string } }
 interface FormRow { id: string; slug: string; title: string; description: string | null; fields: string; submit_label: string | null; thanks_message: string | null; is_open: number; created_at: string; updated_at: string }
 
 const READ = 'institution.read', WRITE = 'institution.settings.write'
@@ -31,7 +32,7 @@ function cleanFields(raw: unknown): FormField[] {
   if (!Array.isArray(raw)) throw badRequest('fields must be a list')
   if (raw.length > 60) throw badRequest('a form can have at most 60 fields')
   const seen = new Set<string>()
-  return raw.map((f, i) => {
+  const out: FormField[] = raw.map((f, i) => {
     const o = (f ?? {}) as Record<string, unknown>
     const label = String(o.label ?? '').trim()
     if (!label) throw badRequest(`field ${i + 1} needs a question`)
@@ -44,8 +45,20 @@ function cleanFields(raw: unknown): FormField[] {
       ? (Array.isArray(o.options) ? o.options : []).map((x) => String(x).trim()).filter(Boolean).slice(0, 100)
       : undefined
     if (type === 'dropdown' && !options!.length) throw badRequest(`${label}: add at least one choice`)
-    return { key, label: label.slice(0, 200), type, required: o.required === true, ...(options ? { options } : {}) }
+    const si = o.show_if as { key?: unknown; value?: unknown } | undefined
+    const show_if = si && String(si.key ?? '').trim() && String(si.value ?? '').trim()
+      ? { key: String(si.key).trim(), value: String(si.value).trim().slice(0, 200) } : undefined
+    return { key, label: label.slice(0, 200), type, required: o.required === true, ...(options ? { options } : {}), ...(show_if ? { show_if } : {}) }
   })
+  /* A condition may name a question by its label (one not saved yet, so with
+     no key); point it at that question's key. One that names nothing is dropped. */
+  for (const f of out) {
+    if (!f.show_if) continue
+    const to = out.find((o) => o !== f && (o.key === f.show_if!.key || o.label === f.show_if!.key))
+    if (to) f.show_if.key = to.key
+    else delete f.show_if
+  }
+  return out
 }
 
 const view = (f: FormRow) => ({
@@ -206,6 +219,8 @@ export async function handlePublicWebsiteForms(env: Env, req: Request, path: str
     for (const [k, v] of Object.entries(inc.values)) { const key = fieldKeyOf(k); if (key) data[key] = v.slice(0, 5000) }
     if (Object.keys(data).length > 100) return withCors(goError(400, 'too_many_fields', 'too many fields sent'))
     for (const fd of fields) {
+      // A question hidden by its condition is not asked, so not required.
+      if (fd.show_if && (data[fd.show_if.key] ?? '').trim() !== fd.show_if.value) continue
       const v = (data[fd.key] ?? '').trim()
       const hasFile = inc.files.some((x) => x.key === fd.key)
       if (fd.type === 'file') { if (fd.required && !hasFile) problems.push(`${fd.label} is required`); continue }
@@ -290,9 +305,14 @@ function draw(box){
         else if(q.type==='file')inp=el('input',{id:id,name:q.key,type:'file',accept:'.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp'});
         else inp=el('input',{id:id,name:q.key,type:q.type==='phone'?'tel':q.type==='text'?'text':q.type});
         if(q.required)inp.required=true;w.appendChild(inp)}
+      if(q.show_if)w.setAttribute('data-show-if',JSON.stringify(q.show_if));
       f.appendChild(w)});
+    function sync(){var v={};new FormData(f).forEach(function(x,k){if(typeof x==='string')v[k]=x});
+      f.querySelectorAll('[data-show-if]').forEach(function(w){var c=JSON.parse(w.getAttribute('data-show-if')),on=(v[c.key]||'')===c.value;
+        w.style.display=on?'':'none';w.querySelectorAll('input,select,textarea').forEach(function(i){i.disabled=!on})})}
+    f.addEventListener('change',sync);f.addEventListener('input',sync);
     var msg=el('p',{'class':'xf-message',role:'status'}),btn=el('button',{type:'submit','class':'xf-submit',text:d.submit_label||'Submit'});
-    f.appendChild(msg);f.appendChild(btn);
+    f.appendChild(msg);f.appendChild(btn);sync();
     f.addEventListener('submit',function(e){e.preventDefault();
       if(f.reportValidity&&!f.reportValidity())return;
       var fd=new FormData(f);d.fields.forEach(function(q){if(q.type==='checkbox'&&!fd.has(q.key))fd.append(q.key,'false')});

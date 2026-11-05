@@ -9,7 +9,7 @@ import { CheckCircle2, Paperclip, UploadCloud } from 'lucide-react'
    the embed code can size the iframe without a scrollbar. */
 
 type FieldType = 'text' | 'long_text' | 'email' | 'phone' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'file'
-interface Field { key: string; label: string; type: FieldType; required: boolean; options?: string[] }
+interface Field { key: string; label: string; type: FieldType; required: boolean; options?: string[]; show_if?: { key: string; value: string } }
 interface Def { school_name: string; color: string; title: string; description: string; fields: Field[]; is_open: boolean; submit_label: string; thanks_message: string }
 
 const control = 'w-full rounded-lg border border-[#c5cddb] bg-white px-4 py-3.5 text-[16px] text-[#0f1b3d] outline-none transition placeholder:text-[#7a8499] focus:border-[var(--brand)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--brand)_12%,transparent)]'
@@ -48,12 +48,15 @@ export default function WebsiteForm() {
   }, [def, done, err, form])
 
   const set = (k: string, v: string) => setValues((o) => ({ ...o, [k]: v }))
+  // A question with a condition shows only when that answer is chosen.
+  const visible = (f: Field) => !f.show_if || (values[f.show_if.key] ?? '') === f.show_if.value
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!def) return
     setBusy(true); setErr('')
     const fd = new FormData()
     for (const f of def.fields) {
+      if (!visible(f)) continue
       if (f.type === 'file') { const x = files[f.key]; if (x) fd.append(f.key, x) }
       else if (f.type === 'checkbox') fd.append(f.key, values[f.key] === 'true' ? 'true' : 'false')
       else fd.append(f.key, values[f.key] ?? '')
@@ -83,7 +86,7 @@ export default function WebsiteForm() {
                             {!def.is_open ? <p className="rounded-xl bg-slate-100 p-4 text-slate-700">This form is not taking responses now.</p> : (
                 <>
                                     <div className="space-y-5">
-                    {def.fields.map((f) => (
+                    {def.fields.filter(visible).map((f) => (
                       <div key={f.key}>
                         {f.type === 'checkbox' ? (
                           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#e3e7ef] bg-[#f6f8fb] p-5 text-[16px]">
