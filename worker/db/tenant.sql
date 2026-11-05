@@ -11101,6 +11101,18 @@ CREATE TABLE IF NOT EXISTS staff_feature_audience_blocks (
   PRIMARY KEY (audience, feature_slug)
 );
 
+CREATE TABLE IF NOT EXISTS section_co_teachers (
+  section_id TEXT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (section_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS section_co_teachers_user_idx ON section_co_teachers (user_id);
+CREATE VIEW IF NOT EXISTS section_class_teachers AS
+  SELECT id AS section_id, class_teacher_id AS user_id FROM sections WHERE class_teacher_id IS NOT NULL
+  UNION
+  SELECT section_id, user_id FROM section_co_teachers;
+
 CREATE TABLE IF NOT EXISTS chapter_progress (
   institution_id TEXT NOT NULL,
   section_id TEXT NOT NULL REFERENCES sections (id) ON DELETE CASCADE,
@@ -11239,6 +11251,7 @@ INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tena
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 125, 'lesson_register_days', '8d4111a51e36e534a599c216dbb5828023ad49bee87a1f1365575b0ae0149dcf');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 126, 'lesson_register_day_status', '0a408585e4702e740353392fe8205ee492084477c8b5a20ceb7cfed5909a0ca9');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 127, 'staff_feature_audience_blocks', 'e486a0ee6e27ec04dfcbac40b196f30c58c68109699c2de58769825c774d6404');
+INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 128, 'section_co_teachers', 'f2506eca12308cc2409615b821354a80c828e148983fb7874b77f94b43aecbf9');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 129, 'chapter_progress', '4b14ffdbde0a23075f09ca0cba6ed52e237568c2f06a1fac358a54befe310cd2');
 INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('lms_admin.lms.courses', 'lms_admin', 'Every course in the school: lessons, assignments and quizzes, for any subject and section.');
 INSERT OR IGNORE INTO "permissions" ("key", "module", "description") VALUES ('institution_admin.analysis.custom_report_builder', 'institution_admin', 'Build your own report: pick the data, the columns and the filters, preview it, save it, share it with colleagues and export it.');

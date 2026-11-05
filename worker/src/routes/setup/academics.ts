@@ -2,7 +2,7 @@ import type { Router } from '../../router'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, created, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID } from '../../http'
 import { requireInstitution, instId, nullStr, ensureCampus, workingYearId, classLevelFromName, uniqueSubjectCode,
-  uniqueUsername, plural, str, todayIndia, isUniqueViolation, batch, changes } from './common'
+  uniqueUsername, plural, str, todayIndia, isUniqueViolation, batch, changes, grantRole } from './common'
 
 /* Port of the academic and fee halves of setup.go, academics_crud.go,
    sections_edit.go, exam_edit.go, fee_structure_edit.go, fee_optins.go and
@@ -383,6 +383,38 @@ export function registerAcademics(r: Router): void {
     const out: Record<string, unknown> = { section_id: sec }
     if (provisioned) out.login_created = true
     return ok(out)
+  })
+
+  /* MORE THAN ONE CLASS TEACHER (owner, 2026-11-04: a head of pre-primary
+     with every class-teacher feature in three classes, each class keeping its
+     own). The named class teacher stays on sections.class_teacher_id; these
+     are the others, and every class-teacher check reads both (the
+     section_class_teachers view). Unlike the named one, a person may be an
+     extra class teacher of several sections. */
+  r.get('/setup/sections/{id}/co-teachers', 'academics.read', async (c) => {
+    const sec = uuidParam(c.params.id)
+    const rows = await c.db.prepare(`SELECT u.id AS user_id, u.full_name FROM section_co_teachers sct JOIN users u ON u.id = sct.user_id
+        WHERE sct.section_id = ? ORDER BY u.full_name`).bind(sec).all<{ user_id: string; full_name: string }>()
+    return ok({ items: rows.results ?? [] })
+  })
+
+  r.put('/setup/sections/{id}/co-teachers', 'academics.write', async (c) => {
+    requireInstitution(c)
+    const sec = uuidParam(c.params.id)
+    const req = await readJSON<{ user_ids?: unknown }>(c.req)
+    const ids = [...new Set((Array.isArray(req.user_ids) ? req.user_ids : []).map((v) => str(v)))]
+    for (const id of ids) if (!isUUID(id)) throw badRequest('user_ids must be uuids')
+    if (!(await c.db.prepare(`SELECT 1 FROM sections WHERE id = ?`).bind(sec).first())) throw notFound('resource not found')
+    for (const id of ids) {
+      if (!(await c.db.prepare(`SELECT 1 FROM users WHERE id = ? AND institution_id = ?`).bind(id, instId(c)).first())) throw badRequest('no such staff member at this school')
+    }
+    const t = now()
+    await batch(c, [
+      c.db.prepare(`DELETE FROM section_co_teachers WHERE section_id = ?`).bind(sec),
+      ...ids.map((id) => c.db.prepare(`INSERT OR IGNORE INTO section_co_teachers (section_id, user_id, created_at) VALUES (?, ?, ?)`).bind(sec, id, t)),
+    ])
+    for (const id of ids) await grantRole(c, id, 'class_teacher')
+    return ok({ section_id: sec, user_ids: ids })
   })
 
   r.post('/setup/assign-teacher', 'academics.write', async (c) => {

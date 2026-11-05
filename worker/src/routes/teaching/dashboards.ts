@@ -77,7 +77,7 @@ async function getPrincipalDashboard(c: Ctx): Promise<PrincipalDashboard> {
             EXISTS (SELECT 1 FROM timetable_entries te WHERE te.teacher_user_id = e.user_id)
             OR EXISTS (SELECT 1 FROM section_subject_teachers sst WHERE sst.teacher_user_id = e.user_id)
             OR EXISTS (SELECT 1 FROM teacher_subjects ts WHERE ts.user_id = e.user_id)
-            OR EXISTS (SELECT 1 FROM sections se WHERE se.class_teacher_id = e.user_id))))) AS staff_teaching,
+            OR EXISTS (SELECT 1 FROM sections se WHERE se.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = e.user_id)))))) AS staff_teaching,
         (SELECT count(*) FROM sections) AS sections,
         COALESCE((SELECT ROUND(100.0 * SUM(CASE WHEN status IN ('present','late') THEN 1 ELSE 0 END) / NULLIF(count(*), 0))
                     FROM student_attendance WHERE on_date = ?1), 0) AS att_today,

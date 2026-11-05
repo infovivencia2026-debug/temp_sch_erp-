@@ -272,7 +272,7 @@ export function registerChat(r: Router): void {
       const q = inList(sc.studentIds)
       const t = await c.db.prepare(`SELECT EXISTS (SELECT 1 FROM enrollments e JOIN sections sec ON sec.id = e.section_id
           WHERE e.student_id IN ${q.sql} AND e.status = 'active'
-            AND (sec.class_teacher_id = ?
+            AND (sec.id IN (SELECT section_id FROM section_class_teachers WHERE user_id = ?)
                  OR EXISTS (SELECT 1 FROM section_subject_teachers sst WHERE sst.section_id = sec.id AND sst.teacher_user_id = ?)
                  OR EXISTS (SELECT 1 FROM timetable_entries te WHERE te.section_id = sec.id AND te.teacher_user_id = ?))) AS teaches`)
         .bind(...q.args, subject, subject, subject).first<{ teaches: number }>()
