@@ -5567,9 +5567,10 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
   }
   /* The frozen first cell of a wide table keeps a solid ground (rows
      scroll under it), so it takes the same light primary tint, opaque. */
-  .responsive-table.is-wide tbody tr:hover > td:first-child:not([colspan]),
-  .responsive-table tbody tr:hover > td:first-child:not([colspan]) {
-    background: color-mix(in srgb, hsl(var(--primary)) 5%, hsl(var(--card)));
+  /* The whole row takes one tint, frozen cells included (owner, 2026-11-05:
+     cells of one row were three different greys). */
+  .responsive-table tbody tr:hover > td {
+    background: color-mix(in srgb, hsl(var(--primary)) 6%, hsl(var(--card)));
   }
 }
 /* Status pills inside a table: a fine border of their own colour, no dot. */
@@ -5585,4 +5586,19 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
 }
 @media (prefers-reduced-motion: reduce) {
   .responsive-table tbody tr, .responsive-table tbody td { transition: none; }
+}
+
+/* NOT PALE (owner, 2026-11-05: "all tables look ugly and pale"). A table
+   stands on a white card of its own: border, soft shadow, rounded; the body
+   is the card colour, the header a firm label row. A table already inside a
+   .card keeps that card's edge and only takes the white body. */
+.responsive-table tbody { background: hsl(var(--card)); }
+.responsive-table thead th { color: hsl(var(--foreground) / 0.62); background: hsl(var(--surface-subtle)); }
+.responsive-table tbody td { color: hsl(var(--foreground)); }
+.table-frame:not(.card .table-frame) {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 20px;
+  box-shadow: 0 16px 40px -12px rgb(15 23 42 / 0.10), 0 1px 2px rgb(15 23 42 / 0.04);
+  overflow: hidden;
 }
