@@ -1137,6 +1137,8 @@ export function AssistantTab() {
         style={{ bottom: 'var(--orb-bottom, calc(var(--dock-h, 0px) + 1.25rem))' }}
       >
         <AssistantOrb state={state} size={phoneOrb ? 42 : 44} awake={hover} />
+        {/* Hover hint (owner, 2026-11-05), desk pointers only: assistant-chat.css. */}
+        <span className="assistant-tip" aria-hidden>Need help? Ask me</span>
       </button>
 
       {open && (
