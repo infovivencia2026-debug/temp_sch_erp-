@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /* The assistant's face (owner, 2026-11-05: "this is the face of the AI bot,
    change it", with eyes that follow the cursor).
@@ -12,7 +12,13 @@ import { useEffect, useRef } from 'react'
    The eyes (and, a little, the head) follow the pointer anywhere on the page.
 
    Drawn at 240px and scaled to `size`, so the 44px button over the dock and
-   the 160px face inside the chat are the same face. Reduced motion: no
+   the 160px face inside the chat are the same face.
+
+   MOODS. While idle it is not a statue (owner, 2026-11-05: "let her
+   expression change every few secs"): every 6-12 seconds it pulls a face --
+   a wink, a laugh, hearts, a sleepy blink, a curious look -- for two and a
+   half seconds, then settles back. Never while thinking, answering or being
+   typed at, where the face is saying something. Reduced motion: no
    floating, no tracking, no blinking -- the expressions alone still say it. */
 
 export type OrbState = 'idle' | 'thinking' | 'answering'
@@ -34,6 +40,22 @@ export function AssistantOrb({
   subtle?: boolean
 }) {
   const ref = useRef<HTMLSpanElement>(null)
+  const [mood, setMood] = useState<string | null>(null)
+  const resting = state === 'idle' && !typing
+
+  useEffect(() => {
+    if (!resting || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setMood(null); return }
+    const MOODS = ['wink', 'laugh', 'love', 'sleepy', 'curious', 'happy']
+    let t = 0
+    const next = () => {
+      t = window.setTimeout(() => {
+        setMood(MOODS[Math.floor(Math.random() * MOODS.length)])
+        t = window.setTimeout(() => { setMood(null); next() }, 2500)
+      }, 6000 + Math.random() * 6000)
+    }
+    next()
+    return () => clearTimeout(t)
+  }, [resting])
 
   useEffect(() => {
     const el = ref.current
@@ -74,7 +96,7 @@ export function AssistantOrb({
     }
   }, [])
 
-  const face = typing && state === 'idle' ? 'listening' : state
+  const face = typing && state === 'idle' ? 'listening' : resting && mood ? mood : state
   return (
     <span
       ref={ref}
@@ -86,9 +108,12 @@ export function AssistantOrb({
       aria-hidden="true"
     >
       <span className="bot-face__art">
+        <span className="bot-face__shadow" />
         <span className="bot-face__head">
           <span className="bot-face__visor">
             <span className="bot-face__q">?</span>
+            <span className="bot-face__tear bot-face__tear--l" />
+            <span className="bot-face__tear bot-face__tear--r" />
             <span className="bot-face__eyes">
               <span className="bot-face__eye bot-face__eye--l" />
               <span className="bot-face__eye bot-face__eye--r" />
