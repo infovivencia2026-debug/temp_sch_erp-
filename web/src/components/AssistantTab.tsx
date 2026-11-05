@@ -333,6 +333,12 @@ function linksFromText(catalog: CatalogResponse, text?: string): ScreenLink[] {
   return kept.slice(0, MAX_LINKS).map((f) => f.link)
 }
 
+/** Reduced motion: the system setting or the account's own (lib/motion.ts). */
+function reducedMotion(): boolean {
+  if (typeof document !== 'undefined' && document.documentElement.hasAttribute('data-reduce-motion')) return true
+  return typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 export function AssistantTab() {
   const session = useSession()
   /* AI off (key refused, missing, over quota): say so at once, calmly, instead of a red error after a wait. */
@@ -639,14 +645,74 @@ export function AssistantTab() {
      character is revealed per tick; the delay between ticks is the answer's
      length divided into TARGET_MS, clamped. */
   const PRINT_TARGET_MS = 1600
-  const PRINT_MIN_MS = 9
-  const PRINT_MAX_MS = 26
+  const PRINT_MIN_MS = 35
+  const PRINT_MAX_MS = 90
   // The caret keeps blinking this long after the last character lands, so the
   // answer settles rather than snapping to done.
   const CARET_LINGER_MS = 900
 
   const [printedLen, setPrintedLen] = useState(0)
   const [printingIdx, setPrintingIdx] = useState(-1)
+  // The face speaks while the answer prints, not only while it is fetched.
+  const orbState: OrbState = printingIdx >= 0 ? 'answering' : state
+
+  /* THE SEND TRANSITION (owner's design, 2026-11-05): on the first send the
+     big centred face shrinks and moves up into the small badge at the top,
+     and the line, hint and quick actions under it fade out. The badge plays
+     back from the centred face's last position (transform only), and a copy
+     of the old greeting fades away over the log. A new chat brings the
+     centred face back. Instant under reduced motion. */
+  const heroBoxRef = useRef<HTMLDivElement | null>(null)
+  const heroOrbRef = useRef<HTMLDivElement | null>(null)
+  const stripOrbRef = useRef<HTMLDivElement | null>(null)
+  const heroSnap = useRef<{ box: DOMRect; orb: DOMRect; node: HTMLElement } | null>(null)
+  const hadTurns = useRef(turns.length > 0)
+  useLayoutEffect(() => {
+    if (turns.length === 0) {
+      hadTurns.current = false
+      const box = heroBoxRef.current
+      const orb = heroOrbRef.current
+      heroSnap.current = box && orb
+        ? { box: box.getBoundingClientRect(), orb: orb.getBoundingClientRect(), node: box.cloneNode(true) as HTMLElement }
+        : null
+      return
+    }
+    if (hadTurns.current) return
+    hadTurns.current = true
+    const from = heroSnap.current
+    heroSnap.current = null
+    const badge = stripOrbRef.current
+    const panel = badge?.closest('[data-assistant-chat]') as HTMLElement | null
+    if (!from || !badge || !panel || reducedMotion() || from.orb.width === 0) return
+    const to = badge.getBoundingClientRect()
+    if (to.width === 0) return
+    const ease = 'cubic-bezier(0.16, 1, 0.3, 1)'
+    const dx = from.orb.left + from.orb.width / 2 - (to.left + to.width / 2)
+    const dy = from.orb.top + from.orb.height / 2 - (to.top + to.height / 2)
+    const k = from.orb.width / to.width
+    badge.animate(
+      [{ transform: `translate(${dx}px, ${dy}px) scale(${k})` }, { transform: 'none' }],
+      { duration: 750, easing: ease },
+    )
+    const pr = panel.getBoundingClientRect()
+    const ghost = from.node
+    const ghostOrb = ghost.querySelector('.assistant-bigorb') as HTMLElement | null
+    if (ghostOrb) ghostOrb.style.opacity = '0'
+    ghost.querySelectorAll('button').forEach((b) => b.setAttribute('tabindex', '-1'))
+    Object.assign(ghost.style, {
+      position: 'absolute', margin: '0', pointerEvents: 'none', zIndex: '5', minHeight: '0',
+      left: `${from.box.left - pr.left}px`, top: `${from.box.top - pr.top}px`,
+      width: `${from.box.width}px`, height: `${from.box.height}px`,
+    })
+    ghost.setAttribute('aria-hidden', 'true')
+    panel.appendChild(ghost)
+    const fade = ghost.animate(
+      [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-8px)' }],
+      { duration: 400, easing: ease, fill: 'forwards' },
+    )
+    fade.onfinish = () => ghost.remove()
+    fade.oncancel = () => ghost.remove()
+  })
   const [caretIdx, setCaretIdx] = useState(-1)
   /* Print each answer once, when its text first arrives. The agent adds an
      empty bubble and fills it later, so "a new turn" is not the trigger;
@@ -669,9 +735,7 @@ export function AssistantTab() {
 
     // Every answer prints -- it is how the bot shows it just wrote the reply.
     // The one exception is reduced motion, where it lands whole.
-    const reduce = typeof matchMedia !== 'undefined'
-      && matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduce) return
+    if (reducedMotion()) return
 
     const total = last.text.length
     if (total === 0) return
@@ -682,11 +746,18 @@ export function AssistantTab() {
     // One character per tick, at a realistic pace: the whole answer aims to
     // finish in about PRINT_TARGET_MS, but never faster than PRINT_MIN_MS or
     // slower than PRINT_MAX_MS per character.
-    const delay = Math.max(PRINT_MIN_MS, Math.min(PRINT_MAX_MS, Math.round(PRINT_TARGET_MS / total)))
-    let n = 0
+    /* WORD BY WORD (owner's reply design, 2026-11-05): each tick reveals the
+       next word and the space after it. */
+    const ends: number[] = []
+    const re = /\S+\s*/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(last.text))) ends.push(m.index + m[0].length)
+    if (ends.length === 0 || ends[ends.length - 1] < total) ends.push(total)
+    const delay = Math.max(PRINT_MIN_MS, Math.min(PRINT_MAX_MS, Math.round(PRINT_TARGET_MS / ends.length)))
+    let w = 0
     let lingerTimer = 0
     const timer = window.setInterval(() => {
-      n += 1
+      const n = ends[Math.min(w++, ends.length - 1)]
       setPrintedLen(n)
       if (n >= total) {
         window.clearInterval(timer)
@@ -1226,10 +1297,13 @@ export function AssistantTab() {
              the keyboard is up (assistant-chat.css): there, every line of
              height belongs to the conversation. */}
           <div
-            className={cn('assistant-bigorb assistant-dock-in flex shrink-0 justify-center pb-1 pt-4', (turns.length === 0 || phoneOrb) && 'hidden')}
+            className={cn('assistant-bigorb flex shrink-0 justify-center py-2', turns.length === 0 && 'hidden')}
           >
-            {/* BIG, the owner's ask -- inside the chat, not the corner button. */}
-            <AssistantOrb state={state} size={phoneOrb ? 120 : 160} typing={typingNow} subtle />
+            {/* A small badge once the chat has turns (owner's send design,
+               2026-11-05, over the earlier "keep it big"). */}
+            <div ref={stripOrbRef}>
+              <AssistantOrb state={orbState} size={48} typing={typingNow} subtle />
+            </div>
           </div>
 
           {/* ONE CENTRED COLUMN, NOT TWO SIDES. The owner asked for the user's
@@ -1246,7 +1320,7 @@ export function AssistantTab() {
               answer carries no border and the question keeps only its soft
               wash of colour. */}
            <div className={cn('mx-auto w-full max-w-[600px]', turns.length === 0 && 'h-full')}>
-            {turns.length === 0 && !draft.trim() && (
+            {turns.length === 0 && (
               /* An empty panel says one quiet thing and waits. The four canned
                  starter questions that used to sit here were removed at the
                  owner's request: they were generic, they were the same for
@@ -1254,17 +1328,15 @@ export function AssistantTab() {
                  times does not need to be offered "How do I collect a fee?" a
                  two-hundred-and-first. The box below is the whole invitation.
 
-                 It sits at the TOP, not centred, and goes the moment a draft
-                 has a character in it -- the way a placeholder does -- so the
-                 first typed word is not sharing the panel with a sentence
-                 telling it what to be. */
+                 It stays while a question is typed (owner, 2026-11-05: the
+                 panel went blank on the first letter); the face listens. */
               /* THE OWNER'S DESIGN (gemini-code, "with text"): the face centred
                  in the empty panel, one line under it, one hint, then up to
                  three quick actions for this role. The face moves to the top
                  strip once the conversation starts. */
-              <div className="flex min-h-full flex-col items-center justify-center gap-2 px-4 py-6 text-center">
-                <div className="assistant-bigorb mb-3">
-                  <AssistantOrb state={state} size={phoneOrb ? 120 : 156} typing={typingNow} subtle />
+              <div ref={heroBoxRef} className="flex min-h-full flex-col items-center justify-center gap-2 px-4 py-6 text-center">
+                <div ref={heroOrbRef} className="assistant-bigorb mb-3">
+                  <AssistantOrb state={orbState} size={phoneOrb ? 120 : 156} typing={typingNow} subtle />
                 </div>
                 <h2 className="text-[18px] font-semibold leading-tight tracking-tight sm:text-[17px]">
                   How can I help?
@@ -1317,7 +1389,7 @@ export function AssistantTab() {
                        reply", 2026-11-05): the question on the right in a
                        soft muted bubble, the answer on the left in a card
                        bubble with a hairline, each with its tail corner. */
-                    'assistant-bubble min-w-0 whitespace-pre-wrap text-[15px] leading-relaxed sm:text-[14.5px]',
+                    'assistant-bubble min-w-0 whitespace-pre-wrap text-[14.5px] leading-relaxed',
                     turn.role === 'user' && 'assistant-bubble-user max-w-[82%] font-medium text-foreground',
                     turn.role === 'bot' && 'assistant-bubble-bot w-full max-w-[92%] text-foreground',
                     turn.role === 'error' &&
@@ -1441,14 +1513,14 @@ export function AssistantTab() {
                           <button
                             type="button"
                             onClick={() => confirmAction(i, turn.action!)}
-                            className="flex-1 rounded-[8px] bg-[hsl(var(--brand-accent,var(--primary)))] px-3 py-1.5 text-[12.5px] font-semibold text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))] transition-opacity hover:opacity-90"
+                            className="flex-1 rounded-[10px] bg-[hsl(var(--brand-accent,var(--primary)))] px-3 py-1.5 text-[12.5px] font-semibold text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))] transition-opacity hover:opacity-90"
                           >
                             {turn.action.state === 'error' ? 'Try again' : 'Confirm'}
                           </button>
                           <button
                             type="button"
                             onClick={() => setActionState(i, { state: 'cancelled' })}
-                            className="rounded-[8px] border px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-accent"
+                            className="rounded-[10px] border bg-muted/40 px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                           >
                             Cancel
                           </button>
@@ -1515,14 +1587,14 @@ export function AssistantTab() {
                           <button
                             type="button"
                             onClick={() => commitImport(i, turn.imprt!)}
-                            className="flex-1 rounded-[8px] bg-[hsl(var(--brand-accent,var(--primary)))] px-3 py-1.5 text-[12.5px] font-semibold text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))] transition-opacity hover:opacity-90"
+                            className="flex-1 rounded-[10px] bg-[hsl(var(--brand-accent,var(--primary)))] px-3 py-1.5 text-[12.5px] font-semibold text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))] transition-opacity hover:opacity-90"
                           >
                             {turn.imprt.state === 'error' ? 'Try again' : `Import ${turn.imprt.ok} row${turn.imprt.ok === 1 ? '' : 's'}`}
                           </button>
                           <button
                             type="button"
                             onClick={() => setImportState(i, { state: 'cancelled' })}
-                            className="rounded-[8px] border px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-accent"
+                            className="rounded-[10px] border bg-muted/40 px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                           >
                             Cancel
                           </button>
