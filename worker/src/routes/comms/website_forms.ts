@@ -176,6 +176,9 @@ async function readIncoming(req: Request): Promise<Incoming> {
 const fieldKeyOf = (k: string) => k.trim().slice(0, 80)
 
 export async function handlePublicWebsiteForms(env: Env, req: Request, path: string): Promise<Response | null> {
+  if (path === '/api/v1/public/forms/embed.js' && req.method === 'GET') {
+    return new Response(EMBED_JS, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=300', ...CORS } })
+  }
   const m = /^\/api\/v1\/public\/forms\/([^/]+)\/([^/]+)$/.exec(path)
   if (!m) return null
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
@@ -258,3 +261,48 @@ export async function handlePublicWebsiteForms(env: Env, req: Request, path: str
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]!))
+
+/* THE SCRIPT EMBED (owner, 2026-11-05: "all style should be how their UI is").
+   An iframe cannot take the website's styles, so this draws the questions as
+   plain HTML inside the website's own page: its fonts, inputs and buttons
+   style them. Answers post to the same public address.
+
+     <div data-xulo-form="https://host/api/v1/public/forms/{school}/{form}"></div>
+     <script src="https://host/api/v1/public/forms/embed.js" async></script>
+
+   Every element carries an xf- class for a website that wants to style it more. */
+const EMBED_JS = `(function(){
+function el(t,a,c){var e=document.createElement(t);for(var k in a||{}){if(k==='text')e.textContent=a[k];else e.setAttribute(k,a[k])}(c||[]).forEach(function(x){e.appendChild(x)});return e}
+function draw(box){
+  var url=box.getAttribute('data-xulo-form');if(!url||box.__xf)return;box.__xf=1;
+  fetch(url).then(function(r){return r.json()}).then(function(d){
+    if(!d||!d.fields){box.textContent='This form could not be loaded.';return}
+    if(!d.is_open){box.appendChild(el('p',{'class':'xf-closed',text:'This form is not taking responses now.'}));return}
+    var f=el('form',{'class':'xf-form',novalidate:''});
+    d.fields.forEach(function(q,i){
+      var id='xf-'+q.key+'-'+Math.random().toString(36).slice(2,7),w=el('div',{'class':'xf-field xf-'+q.type});
+      var star=q.required?' *':'';
+      if(q.type==='checkbox'){var cb=el('input',{type:'checkbox',id:id,name:q.key,value:'true'});if(q.required)cb.required=true;w.appendChild(el('label',{'for':id},[cb,document.createTextNode(' '+q.label+star)]))}
+      else{
+        w.appendChild(el('label',{'for':id,text:q.label+star}));var inp;
+        if(q.type==='long_text')inp=el('textarea',{id:id,name:q.key,rows:'4'});
+        else if(q.type==='dropdown'){inp=el('select',{id:id,name:q.key},[el('option',{value:'',text:'Select'})]);(q.options||[]).forEach(function(o){inp.appendChild(el('option',{value:o,text:o}))})}
+        else if(q.type==='file')inp=el('input',{id:id,name:q.key,type:'file',accept:'.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp'});
+        else inp=el('input',{id:id,name:q.key,type:q.type==='phone'?'tel':q.type==='text'?'text':q.type});
+        if(q.required)inp.required=true;w.appendChild(inp)}
+      f.appendChild(w)});
+    var msg=el('p',{'class':'xf-message',role:'status'}),btn=el('button',{type:'submit','class':'xf-submit',text:d.submit_label||'Submit'});
+    f.appendChild(msg);f.appendChild(btn);
+    f.addEventListener('submit',function(e){e.preventDefault();
+      if(f.reportValidity&&!f.reportValidity())return;
+      var fd=new FormData(f);d.fields.forEach(function(q){if(q.type==='checkbox'&&!fd.has(q.key))fd.append(q.key,'false')});
+      fd.append('_source','embed');fd.append('_page',location.href);btn.disabled=true;msg.textContent='Sending...';
+      fetch(url,{method:'POST',body:fd}).then(function(r){return r.json().then(function(b){return{ok:r.ok,b:b}})}).then(function(x){
+        if(!x.ok)throw new Error((x.b&&x.b.error&&x.b.error.message)||'Could not send. Please try again.');
+        box.innerHTML='';box.appendChild(el('p',{'class':'xf-thanks',text:x.b.message||d.thanks_message}))
+      }).catch(function(err){msg.textContent=err.message;btn.disabled=false})});
+    box.appendChild(f)
+  }).catch(function(){box.textContent='This form could not be loaded.'})}
+function all(){var l=document.querySelectorAll('[data-xulo-form]');for(var i=0;i<l.length;i++)draw(l[i])}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',all);else all()
+})();`

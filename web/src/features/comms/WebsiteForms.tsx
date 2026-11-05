@@ -430,14 +430,18 @@ function Share({ form, school }: { form: Form; school: string }) {
   return (
     <div className="space-y-4">
       {!form.is_open && <p className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-[14px]">This form is closed, so the website shows "not taking responses". Switch it on at the top.</p>}
-      <Step n={1} title="Embed on the website (easiest)" body="Give this to your website person. They paste it where the form should appear, for example on the Careers page. It grows to fit.">
+      <Step n={1} title="Embed in the website's own style" body="The questions take the website's own fonts, boxes and buttons. Paste this where the form should appear.">
+        <CopyBox text={`<div data-xulo-form="${post}"></div>
+<script src="${origin}/api/v1/public/forms/embed.js" async></script>`} />
+      </Step>
+      <Step n={2} title="Or embed in our style" body="Give this to your website person. They paste it where the form should appear, for example on the Careers page. It grows to fit.">
         <CopyBox text={embed} />
       </Step>
-      <Step n={2} title="Or share a link" body="Put it behind a button such as Apply now, or send it on WhatsApp.">
+      <Step n={3} title="Or share a link" body="Put it behind a button such as Apply now, or send it on WhatsApp.">
         <CopyBox text={page} />
         <a href={page} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[14px] font-medium text-primary"><Link2 className="size-4" />Open the form</a>
       </Step>
-      <Step n={3} title="Or keep the website's own form" body="The website's form can send its data here. POST to this address as form data, multipart (for files) or JSON. Every field sent is saved. Add a hidden _redirect to send the visitor to a thank-you page.">
+      <Step n={4} title="Or keep the website's own form" body="The website's form can send its data here. POST to this address as form data, multipart (for files) or JSON. Every field sent is saved. Add a hidden _redirect to send the visitor to a thank-you page.">
         <CopyBox text={post} />
         {keys && <><p className="text-[13px] font-medium">Field names</p><CopyBox text={keys} /></>}
       </Step>
