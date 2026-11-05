@@ -65,13 +65,13 @@ export default function Academics() {
       />
       <PageBody>
         <Card>
-          <div className="flex gap-1 border-b px-3 pt-2">
+          <div className="flex gap-1 overflow-x-auto border-b px-3 pt-2 [scrollbar-width:none]">
             {tabs.map((t: { id: string; label: string }) => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  'rounded-t-md px-3 py-1.5 text-sm',
+                  'shrink-0 whitespace-nowrap rounded-t-md px-3 py-1.5 text-sm',
                   t.id === tabId ? tabClass(true) : 'text-muted-foreground hover:text-foreground',
                 )}
               >
