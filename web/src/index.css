@@ -3537,7 +3537,18 @@ html .rounded-\[16px\] { border-radius: var(--radius-dialog); }
     inset -15px -15px 35px rgba(148, 163, 184, 0.3),
     0 10px 24px rgba(100, 116, 139, 0.14);
 }
-.bot-face[data-awake] .bot-face__head { scale: 1.05; }
+/* Pointed at (owner's hover design, 2026-11-05): the face springs up a
+   little, its shadow deepens, and the eyes open wider and glow. */
+.bot-face__art { transition: translate 300ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.bot-face[data-awake] .bot-face__art { translate: 0 calc(-16px); }
+.bot-face[data-awake] .bot-face__head {
+  scale: 1.1;
+  box-shadow:
+    inset 10px 10px 25px rgba(255, 255, 255, 0.9),
+    inset -15px -15px 35px rgba(148, 163, 184, 0.4),
+    0 24px 44px rgba(15, 23, 42, 0.24);
+}
+.bot-face[data-awake] .bot-face__eye { scale: 1 1.15; }
 .bot-face__visor {
   position: relative;
   width: 170px;
@@ -3575,9 +3586,9 @@ html .rounded-\[16px\] { border-radius: var(--radius-dialog); }
   background: #ffffff;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
   transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1), height 300ms cubic-bezier(0.4, 0, 0.2, 1),
-    border-radius 300ms ease, background 300ms ease, transform 300ms ease, box-shadow 300ms ease;
+    border-radius 300ms ease, background 300ms ease, transform 300ms ease, box-shadow 300ms ease, scale 200ms ease;
 }
-.bot-face[data-awake] .bot-face__eye { box-shadow: 0 0 18px rgba(255, 255, 255, 1); }
+.bot-face[data-awake] .bot-face__eye { box-shadow: 0 0 22px rgba(255, 255, 255, 1); }
 .bot-face__q {
   position: absolute;
   top: 12px;
