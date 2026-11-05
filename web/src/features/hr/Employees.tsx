@@ -445,6 +445,19 @@ export default function Employees() {
           <AddStaff onDone={() => staff.refetch()} />
         )}
 
+        {/* Active and inactive at a glance, each a filter, as Student 360's
+            roll tiles are (owner, 2026-11-05). */}
+        {tab === 'staff' && (
+          <CellGrid cols={3}>
+            <Stat label="Active" value={all.filter((e) => e.status === 'active').length} hint="working here now"
+              active={expStatus === 'active'} onClick={() => setExpStatus('active')} />
+            <Stat label="Inactive" value={all.filter((e) => e.status !== 'active').length} hint="left, relieved or not yet started"
+              active={expStatus === 'inactive'} onClick={() => setExpStatus('inactive')} />
+            <Stat label="Everyone" value={all.length} hint="active and inactive"
+              active={expStatus === 'all'} onClick={() => setExpStatus('all')} />
+          </CellGrid>
+        )}
+
         {tab === 'documents' && (
         <CellGrid cols={4}>
           <Stat label="Active staff" value={all.filter((e) => e.status === 'active').length} />

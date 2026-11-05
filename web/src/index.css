@@ -5624,3 +5624,64 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
 @media (prefers-reduced-motion: reduce) {
   .responsive-table tbody tr, .responsive-table tbody td, .responsive-table tbody td a { transition: none; transform: none !important; }
 }
+
+/* COUNT CARDS, THE OWNER'S DESIGN (2026-11-05, from the Responses page:
+   "let our cards be like this"). Each figure is its own white card: soft
+   border and shadow, 18px corners, the label on top with the icon in a
+   tinted tile, a big bold number, and a lift on hover. The tint hues stay
+   (indigo, emerald, amber, sky, rose) on the icon tile only. */
+.cell-grid {
+  gap: 18px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  border-radius: 0 !important;
+}
+.cell-grid > .cell {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border) / 0.8);
+  border-radius: 18px;
+  padding: 22px 24px;
+  box-shadow: 0 4px 20px -2px rgb(15 23 42 / 0.05);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+@media (hover: hover) {
+  .cell-grid > .cell:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -4px hsl(var(--primary) / 0.12);
+    border-color: hsl(var(--primary) / 0.3);
+  }
+}
+.cell-grid > .cell p.text-\[13px\]:first-child,
+.cell-grid > .cell > div:first-child p:first-child {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+.cell-grid > .cell > div:first-child > svg,
+.cell-grid > .cell button > div:first-child > svg {
+  box-sizing: content-box;
+  width: 20px; height: 20px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgb(var(--tint) / 0.12);
+  color: rgb(var(--tint));
+}
+.cell-grid > .cell .stat {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin-top: 10px;
+}
+.dark .cell-grid > .cell { background: hsl(var(--card)) !important; }
+@media (max-width: 639px) {
+  .cell-grid { gap: 12px !important; }
+  .cell-grid > .cell { padding: 18px; }
+  .cell-grid > .cell .stat { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cell-grid > .cell { transition: none; }
+  .cell-grid > .cell:hover { transform: none; }
+}
