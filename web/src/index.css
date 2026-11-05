@@ -5565,6 +5565,12 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
   .responsive-table tbody tr:hover > td:first-child:not([colspan]) :where(a, span, div, p) {
     color: inherit;
   }
+  /* The frozen first cell of a wide table keeps a solid ground (rows
+     scroll under it), so it takes the same light primary tint, opaque. */
+  .responsive-table.is-wide tbody tr:hover > td:first-child:not([colspan]),
+  .responsive-table tbody tr:hover > td:first-child:not([colspan]) {
+    background: color-mix(in srgb, hsl(var(--primary)) 5%, hsl(var(--card)));
+  }
 }
 /* Status pills inside a table: a fine border of their own colour, no dot. */
 .responsive-table td .badge-pill {
