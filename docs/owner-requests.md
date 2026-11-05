@@ -298,3 +298,4 @@ Last checked: 2026-10-02.
 - 2026-11-04 Promotion: "Promote anyway" when fees are owed (was a dead end). Done (typecheck).
 - 2026-11-04 Admissions: parent messages by WhatsApp + SMS too (were email only); welcome message at enrolment; sent-back joining can be approved again; desk notified of new online applications; re-enrol shows admission no. Done (tests).
 - 2026-11-05 Every screen fits every device (phones 320-430, tablets, laptops incl. Dell 1366/1536, PCs, projectors, smartboards, 4K TVs), now and for new work: scripts/screen-check.cjs + CLAUDE.md rule; header fixed at 768 and 1024. In progress (browser checker: 379 screens x 15 sizes).
+- 2026-11-05 Menu items given through a school-made role (K Shirisha's Attendance Officer: Take attendance, Present & absent, corrections, follow-up) bounced to Home; they now open in her own workspace. Done (browser as her: all four open at /admissions/attendance/...).

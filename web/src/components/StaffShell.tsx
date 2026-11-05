@@ -14,7 +14,7 @@ import { buzz } from '@/lib/haptics'
 import { BentoSettings } from '@/features/bento/BentoSettings'
 import { HelpButton } from '@/features/help/HelpEntry'
 import { usePhone } from '@/lib/viewport'
-import { featurePath, type ApiSection } from '@/lib/catalog'
+import { featurePath, useCatalogIfAny, type ApiSection } from '@/lib/catalog'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -169,10 +169,16 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   const rank = (slug: string) => LAST.indexOf(slug)
   workspaces = roleKey === 'institution_admin' ? regroupAdmin(workspaces) : regroupRole(roleKey, workspaces)
   /* A screen borrowed from another role (the admin's menu carries every
-     office's screens) opens at its own role's address, as search does. */
+     office's screens) opens at its own role's address, as search does --
+     but only when this person holds that role. A screen granted through a
+     school-made role (an attendance officer given Take attendance) is filed
+     under her own workspace by the catalogue, and its own role's address
+     (/faculty/...) is one she cannot open: every such link bounced her back
+     to Home (owner, 2026-11-05, "nothing opens when she clicks"). */
+  const heldRoles = new Set((useCatalogIfAny()?.roles ?? []).map((r) => r.key))
   const goTo = (from: string, f: { key: string; slug: string }) => {
     const [r, sec] = f.key.split('.')
-    return r && sec && r !== roleKey ? featurePath(r, sec, f.slug) : featurePath(roleKey, from, f.slug)
+    return r && sec && r !== roleKey && heldRoles.has(r) ? featurePath(r, sec, f.slug) : featurePath(roleKey, from, f.slug)
   }
   const groups = workspaces.flatMap((ws) => ws.sections.map((section) => ({ ws, section })))
     .map((g, i) => ({ ...g, i }))
