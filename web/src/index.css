@@ -5520,93 +5520,107 @@ html[data-reduce-motion] .scrim.search-sheet,
 html[data-reduce-motion] .scrim.search-sheet > [role='dialog'],
 html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animation-duration: 1ms !important; animation-delay: 0ms !important; }
 
-/* TABLES, THE OWNER'S DESIGN (2026-11-05: "every table, all screens, all
-   roles, all logins"). One block for the shared Table and every other table
-   that carries .responsive-table: a quiet uppercase header, roomy rows, and
-   a hover that tints the row and draws a primary bar down its first cell.
-   Tokens only, so dark mode and a school's own colours still hold. */
-.table-frame {
-  border-radius: var(--radius-card, 20px);
+/* TABLES, THE OWNER'S DESIGN (2026-11-05, approved from table-design.html:
+   "every table should be like that but no need of dot"). One block for the
+   shared Table and every table that carries .responsive-table. Tokens only,
+   so dark mode and a school's own colours still hold.
+
+   - The table stands on a white card: soft border, soft shadow, 18px corners.
+   - Header: a firm label row, 12px bold uppercase, spaced.
+   - Rows: roomy (18px 24px); hover tints the whole row light primary, draws
+     a 3px primary bar down the first cell and turns its name primary.
+   - First cell bold; status pills rounded and bold, no dot; row buttons are
+     round pills, and Open-style links fill primary on hover.
+   - Foot: a quiet band under the rows. */
+.table-frame:not(.card .table-frame) {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.8);
+  border-radius: 18px;
+  box-shadow: 0 4px 20px -2px rgb(15 23 42 / 0.05);
+  overflow: hidden;
 }
+.responsive-table tbody { background: hsl(var(--card)); }
 .responsive-table thead th {
   padding-top: 14px;
   padding-bottom: 14px;
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: hsl(var(--muted-foreground) / 0.85);
+  color: hsl(var(--muted-foreground));
   background: hsl(var(--surface-subtle));
-  border-bottom: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
 }
-.responsive-table thead th button { text-transform: inherit; letter-spacing: inherit; }
+.responsive-table thead th button { text-transform: inherit; letter-spacing: inherit; font-weight: inherit; }
 .responsive-table tbody td {
-  padding-top: 16px;
-  padding-bottom: 16px;
+  padding-top: 18px;
+  padding-bottom: 18px;
   vertical-align: middle;
-  transition: color 0.2s ease, padding 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
 }
-.responsive-table tbody tr:not(:last-child) > td {
-  border-bottom: 1px solid hsl(var(--border) / 0.6);
-}
-/* The row's name reads first: the first cell is semibold. */
-.responsive-table tbody td:first-child:not([colspan]) { font-weight: 600; }
-.responsive-table tbody tr {
-  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+:where(.responsive-table tbody td) { color: hsl(var(--foreground)); font-size: 14px; }
+.responsive-table tbody tr:not(:last-child) > td { border-bottom: 1px solid hsl(var(--border) / 0.7); }
+.responsive-table tbody tr { cursor: default; transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.responsive-table tbody td:first-child:not([colspan]) {
+  font-weight: 700;
+  border-left: 3px solid transparent;
 }
 @media (hover: hover) {
-  .responsive-table tbody tr:hover {
-    background: hsl(var(--primary) / 0.045);
+  .responsive-table tbody tr:hover > td {
+    background: color-mix(in srgb, hsl(var(--primary)) 4%, hsl(var(--card)));
   }
   .responsive-table tbody tr:hover > td:first-child:not([colspan]) {
-    box-shadow: inset 3px 0 0 hsl(var(--primary));
+    border-left-color: hsl(var(--primary));
     color: hsl(var(--primary));
   }
-  .responsive-table tbody tr:hover > td:first-child:not([colspan]) :where(a, span, div, p) {
-    color: inherit;
-  }
-  /* The frozen first cell of a wide table keeps a solid ground (rows
-     scroll under it), so it takes the same light primary tint, opaque. */
-  /* The whole row takes one tint, frozen cells included (owner, 2026-11-05:
-     cells of one row were three different greys). */
-  .responsive-table tbody tr:hover > td {
-    background: color-mix(in srgb, hsl(var(--primary)) 6%, hsl(var(--card)));
+  .responsive-table tbody tr:hover > td:first-child:not([colspan]) :where(a, span, div, p, strong) { color: inherit; }
+  /* The row's main link (Open, View) fills primary and steps right. */
+  .responsive-table tbody tr:hover > td:last-child a:not([role=button]) {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px hsl(var(--primary) / 0.28);
   }
 }
-/* Status pills inside a table: a fine border of their own colour, no dot. */
+/* Links in the last column read as soft round buttons. */
+.responsive-table tbody td:last-child a:not([role=button]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Row buttons are round pills. */
+.responsive-table tbody td button:not([role=switch]):not([role=checkbox]) { border-radius: 999px; }
+/* Status pills: round and bold, no dot. */
 .responsive-table td .badge-pill {
-  border: 1px solid currentColor;
-  border-color: color-mix(in srgb, currentColor 30%, transparent);
-  border-radius: 8px;
-  padding: 3px 10px;
-  font-weight: 600;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
 }
+/* The foot under the rows: a quiet band. */
+.table-frame [data-table-foot] {
+  background: hsl(var(--surface-subtle));
+  border-top: 1px solid hsl(var(--border) / 0.7);
+  padding-top: 14px;
+  padding-bottom: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+/* On a phone the row's buttons scroll with the row: pinned, three of them
+   were wider than the screen and covered the names. */
 @media (max-width: 639px) {
   .responsive-table tbody td { padding-top: 14px; padding-bottom: 14px; }
+  .responsive-table tbody td:last-child:has(button, a[role=button]) { position: static; box-shadow: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .responsive-table tbody tr, .responsive-table tbody td { transition: none; }
-}
-
-/* NOT PALE (owner, 2026-11-05: "all tables look ugly and pale"). A table
-   stands on a white card of its own: border, soft shadow, rounded; the body
-   is the card colour, the header a firm label row. A table already inside a
-   .card keeps that card's edge and only takes the white body. */
-.responsive-table tbody { background: hsl(var(--card)); }
-.responsive-table thead th { color: hsl(var(--foreground) / 0.62); background: hsl(var(--surface-subtle)); }
-:where(.responsive-table tbody td) { color: hsl(var(--foreground)); }
-/* On a phone the row's buttons scroll with the row: pinned, three of them
-   were wider than the screen and covered the names (owner, 2026-11-05). */
-@media (max-width: 639px) {
-  .responsive-table tbody td:last-child:has(button, a[role=button]) {
-    position: static;
-    box-shadow: none;
-  }
-}
-.table-frame:not(.card .table-frame) {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 20px;
-  box-shadow: 0 16px 40px -12px rgb(15 23 42 / 0.10), 0 1px 2px rgb(15 23 42 / 0.04);
-  overflow: hidden;
+  .responsive-table tbody tr, .responsive-table tbody td, .responsive-table tbody td a { transition: none; transform: none !important; }
 }
