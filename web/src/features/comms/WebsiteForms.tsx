@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, ChevronLeft, Copy, ExternalLink, FileText, Hash, Inbox,
+  AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
   Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -55,7 +55,8 @@ export default function WebsiteForms() {
         <>
           <PageHead eyebrow="Communication" title="Website forms"
             description="Forms for the school website. Every response lands here with its date and time."
-            actions={<Button onClick={() => setCreating(true)}><Plus className="size-4" />New form</Button>} />
+            /* Once only (owner, 2026-11-05): with no forms the empty card has the button. */
+            actions={q.data?.items.length ? <Button onClick={() => setCreating(true)}><Plus className="size-4" />New form</Button> : undefined} />
           <PageBody>
             {q.isPending ? <SkeletonTable /> : !q.data.items.length ? (
               <EmptyState title="No forms yet" body="Create a form such as Careers or Contact us, add its questions, then put it on the school website."
@@ -354,7 +355,7 @@ function Responses({ form }: { form: Form }) {
             <Td className="whitespace-nowrap tabular-nums">{when(r.created_at)}{!r.is_read && <Badge tone="primary" className="ml-2">New</Badge>}</Td>
             {shownCols.map((c) => <Td key={c.key} className="max-w-[260px] truncate">{show(r, c.key)}</Td>)}
             <Td>{r.files.length ? <span className="inline-flex items-center gap-1 text-[13px] text-muted-foreground"><Paperclip className="size-4" />{r.files.length}</span> : null}</Td>
-            <Td className="text-right text-[13px] font-medium text-primary">Open</Td>
+            <Td className="text-right"><span className="row-open">Open<ChevronRight className="size-3.5" aria-hidden /></span></Td>
           </tr>
         ))}
       </Table>

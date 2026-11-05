@@ -5685,3 +5685,39 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
   .cell-grid > .cell { transition: none; }
   .cell-grid > .cell:hover { transform: none; }
 }
+
+/* LESS GREY (owner, 2026-11-05: "still grey grey, no proper hover"). The
+   reference is near-white: header and foot barely off white, the row hover
+   a whisper of primary over white, the frame itself white. */
+.table-frame { background: hsl(var(--card)); }
+.responsive-table thead th,
+.table-frame [data-table-foot] {
+  background: color-mix(in srgb, hsl(var(--foreground)) 1.5%, hsl(var(--card))) !important;
+}
+@media (hover: hover) {
+  .responsive-table tbody tr:hover > td {
+    background: color-mix(in srgb, hsl(var(--primary)) 3%, hsl(var(--card))) !important;
+  }
+}
+/* A row's Open: a soft primary pill that fills and steps right when the
+   row is hovered. */
+.row-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (hover: hover) {
+  .responsive-table tbody tr:hover .row-open {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px hsl(var(--primary) / 0.28);
+  }
+}
