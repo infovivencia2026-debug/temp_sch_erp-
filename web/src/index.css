@@ -3609,6 +3609,72 @@ html .rounded-\[16px\] { border-radius: var(--radius-dialog); }
   border-radius: 2px;
   transition-duration: 60ms;
 }
+.bot-face__head { z-index: 1; }
+/* A soft halo behind the head (owner, 2026-11-05: "subtle background"),
+   breathing slowly, in the brand colour so it suits every palette. */
+.bot-face__art::before {
+  content: '';
+  position: absolute;
+  inset: -22px;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsl(var(--primary) / 0.16) 0%, hsl(var(--primary) / 0.07) 45%, hsl(var(--primary) / 0) 70%);
+  animation: bot-halo 4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes bot-halo {
+  0%, 100% { transform: scale(0.92); opacity: 0.85; }
+  50% { transform: scale(1.06); opacity: 0.45; }
+}
+/* The shadow on the floor: it tightens and darkens as the head comes down,
+   in step with bot-float, so the face reads as floating, not stuck on. */
+.bot-face__shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  width: 150px;
+  height: 22px;
+  margin-left: -75px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(15, 23, 42, 0.28) 0%, rgba(15, 23, 42, 0) 70%);
+  animation: bot-shadow 4s ease-in-out infinite;
+}
+.bot-face[data-subtle] .bot-face__shadow { opacity: 0.6; }
+.bot-face__tear {
+  position: absolute;
+  top: 74px;
+  width: 8px;
+  height: 14px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: #60a5fa;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.9);
+  opacity: 0;
+}
+.bot-face__tear--l { left: 50px; }
+.bot-face__tear--r { right: 50px; }
+/* Idle moods, a few seconds each. */
+.bot-face[data-face='happy'] .bot-face__eye { height: 30px; border-radius: 15px 15px 6px 6px; }
+.bot-face[data-face='wink'] .bot-face__eye--l { height: 6px; border-radius: 3px; background: #93c5fd; transform: translateY(10px); }
+.bot-face[data-face='laugh'] .bot-face__eye {
+  width: 28px; height: 12px; border-radius: 6px; background: #fde047;
+  box-shadow: 0 0 12px rgba(253, 224, 71, 0.8); transform: translateY(10px);
+}
+.bot-face[data-face='laugh'] .bot-face__tear { opacity: 1; animation: bot-tear 0.8s ease-in infinite; }
+.bot-face[data-face='laugh'] .bot-face__tear--r { animation-delay: 0.4s; }
+.bot-face[data-face='love'] .bot-face__eye {
+  width: 30px; height: 30px; border-radius: 50%; background: #f472b6;
+  box-shadow: 0 0 15px rgba(244, 114, 182, 0.9);
+}
+.bot-face[data-face='sleepy'] .bot-face__eye { width: 26px; height: 10px; border-radius: 5px; background: #93c5fd; transform: translateY(12px); }
+.bot-face[data-face='curious'] .bot-face__eye--l { width: 30px; height: 30px; border-radius: 50%; }
+.bot-face[data-face='curious'] .bot-face__eye--r { height: 26px; transform: translateY(6px); }
+@keyframes bot-shadow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.82); opacity: 0.6; }
+}
+@keyframes bot-tear {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(26px); opacity: 0; }
+}
 @keyframes bot-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -3622,7 +3688,7 @@ html .rounded-\[16px\] { border-radius: var(--radius-dialog); }
   50% { transform: scaleY(0.6); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bot-face__head, .bot-face__q, .bot-face__eye { animation: none !important; }
+  .bot-face__head, .bot-face__q, .bot-face__eye, .bot-face__shadow, .bot-face__tear, .bot-face__art::before { animation: none !important; }
   .bot-face__head, .bot-face__eyes { translate: none; }
 }
 
