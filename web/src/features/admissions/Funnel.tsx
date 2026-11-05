@@ -505,15 +505,21 @@ function Register({
     setResult(null)
     const body = new FormData()
     body.append('file', file)
-    const res = await fetch('/api/v1/admissions/rte/import', { method: 'POST', body })
-    const json = await res.json()
+    let res: Response | null = null
+    let json: { matched?: number; rows?: number; unmatched?: string[]; error?: string | { message?: string } } = {}
+    try {
+      res = await fetch('/api/v1/admissions/rte/import', { method: 'POST', body })
+      json = await res.json().catch(() => ({}))
+    } catch { /* no connection: reported below */ }
     setImporting(false)
+    // The server sends the reason as a plain string in `error`.
+    const reason = typeof json.error === 'string' ? json.error : json.error?.message
     setResult(
-      res.ok
+      res?.ok
         ? `${json.matched} of ${json.rows} matched${
             json.unmatched?.length ? `; not found: ${json.unmatched.join(', ')}` : ''
           }`
-        : (json.error?.message ?? 'Import failed'),
+        : (reason ?? (res ? 'Import failed' : 'No connection. Try again.')),
     )
     qc.invalidateQueries({ queryKey: ['admission-register'] })
   }

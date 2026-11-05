@@ -62,9 +62,22 @@ function matchHelp(question: string, roles: string[]): { answer: string; name: s
   return best
 }
 
+/* A question that wants a figure, a name or a list out of the school's own
+   records ("how many students", "total collections this month", "class
+   teacher of grade 4") is for the agent, which can read them. The catalogue
+   lookup used to answer these with a screen description because the screen's
+   words matched (owner, 2026-11-05: "not answering properly"). "How do I" and
+   "where is" questions stay on the fast path. */
+export function asksForData(q: string): boolean {
+  const t = q.toLowerCase()
+  if (/\b(how\s+(do|can|to|should|would)\s+(i|we|you|a|the)|where\s+(do|can|is|are|to)|steps?\s+to|what\s+does)\b/.test(t)) return false
+  return /\b(how\s+many|how\s+much|who|whom|whose|which|total|count|list|top\s+\d+|today|yesterday|tomorrow|this\s+(week|month|term|year)|last\s+(week|month)|pending|outstanding|due|absent|present|birthdays?|show\s+me|tell\s+me|give\s+me)\b/.test(t)
+}
+
 async function assistantAsk(c: Ctx): Promise<Response> {
   const req = await readJSON<{ message?: string }>(c.req)
   const roles = await assistantRoles(c)
+  if (asksForData(req.message ?? '')) return ok({ answered: false })
   const m = matchHelp(req.message ?? '', roles)
   if (!m || m.score < HELP_CONFIDENT) return ok({ answered: false })
   return ok({ answered: true, answer: m.answer, screen: m.name, where: m.where })

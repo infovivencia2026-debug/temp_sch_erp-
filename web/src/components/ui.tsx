@@ -1545,7 +1545,10 @@ export function Table({
         {/* Beside the expand control, which is the other thing you can do to
             a table as a whole. Same weight, same corner, so the pair reads as
             one set of table controls rather than a new button appearing. */}
-        <div className="absolute right-11 top-1 z-20 max-sm:right-16">
+        {/* On phones the pair sits in its own row above the table: floated
+            over the header it covered the last column's label (320-430). */}
+        <div className="absolute right-2 top-1 z-20 flex items-center gap-1 max-sm:static max-sm:justify-end max-sm:gap-3 max-sm:px-2 max-sm:pb-1 max-sm:pt-1">
+        <div>
           <ColumnChooser
             labels={colLabels}
             hidden={hiddenCols}
@@ -1569,13 +1572,14 @@ export function Table({
           /* `tap-inline`: a 44px target on touch without a 44px box. Grown
              to 44 by the coarse-pointer rule, the square was taller than the
              header row and sat over the first row's last cell as well. */
-          className="tap-inline absolute right-2 top-1 z-10 grid size-8 place-items-center rounded-sm
+          className="tap-inline grid size-8 place-items-center rounded-sm
                      border border-border bg-card text-muted-foreground opacity-60
                      transition-opacity hover:text-foreground hover:opacity-100
                      focus-visible:opacity-100 group-hover/table:opacity-100"
         >
           <Maximize2 className="h-4 w-4" aria-hidden="true" />
         </button>
+        </div>
         {body}
       </div>
     )
