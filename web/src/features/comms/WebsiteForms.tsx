@@ -230,7 +230,9 @@ function Builder({ form }: { form: Form }) {
                   <p className="mt-3 flex items-center gap-2 text-[13px] text-muted-foreground"><T className="size-4" />{typeOf(f.type).label}{f.type === 'file' && ': PDF, Word or an image, up to 8 MB'}</p>
                 )}
                 <div className="mt-4 flex flex-wrap items-center gap-1 border-t pt-3">
-                  <Switch on={f.required} onChange={(v) => upd(i, { required: v })} label="Required" />
+                  <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    <Switch on={f.required} onChange={(v) => upd(i, { required: v })} label="Required" /><span aria-hidden>Required</span>
+                  </span>
                   <span className="ml-auto" />
                   <Button size="sm" variant="ghost" onClick={() => move(i, -1)} disabled={i === 0}><ArrowUp className="size-4" /><span className="sr-only">Move up</span></Button>
                   <Button size="sm" variant="ghost" onClick={() => move(i, 1)} disabled={i === fields.length - 1}><ArrowDown className="size-4" /><span className="sr-only">Move down</span></Button>
