@@ -147,3 +147,48 @@ html[data-assistant-open] body {
     width: 50vw !important;
   }
 }
+
+/* THE SEND AND THE REPLY (owner's two designs, 2026-11-05).
+   Send: the centred face hands over to the top strip, which settles in from
+   below, and each new turn rises in once (CSS animations run per mount, so a
+   re-render does not replay them). Reply: the question in a soft bubble on
+   the right, the answer in a card bubble on the left, each with a small tail
+   corner; while it is looked up, three dots wave in a matching bubble.
+   Transform and opacity only; instant under reduced motion. */
+@keyframes assistant-dock-in {
+  from { opacity: 0; transform: translate3d(0, 40%, 0) scale(1.12); }
+  to   { opacity: 1; transform: none; }
+}
+[data-assistant-chat] .assistant-dock-in {
+  animation: assistant-dock-in 600ms var(--spring-gentle) both;
+}
+[data-assistant-chat] .assistant-turn {
+  animation: m-rise 280ms var(--spring-gentle) both;
+}
+[data-assistant-chat] .assistant-bubble { padding: 12px 16px; }
+[data-assistant-chat] .assistant-bubble-user {
+  background: hsl(var(--muted));
+  border-radius: 20px 20px 4px 20px;
+}
+[data-assistant-chat] .assistant-bubble-bot,
+[data-assistant-chat] .assistant-bubble-error {
+  border-radius: 20px 20px 20px 4px;
+  padding: 14px 18px;
+}
+[data-assistant-chat] .assistant-bubble-bot {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.04);
+}
+[data-assistant-chat] .assistant-typing {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px 16px 16px 4px;
+  padding: 12px 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-assistant-chat] .assistant-dock-in,
+  [data-assistant-chat] .assistant-turn { animation: none; }
+}
+html[data-reduce-motion] [data-assistant-chat] .assistant-dock-in,
+html[data-reduce-motion] [data-assistant-chat] .assistant-turn { animation: none; }

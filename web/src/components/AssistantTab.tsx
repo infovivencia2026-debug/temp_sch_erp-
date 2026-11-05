@@ -1226,7 +1226,7 @@ export function AssistantTab() {
              the keyboard is up (assistant-chat.css): there, every line of
              height belongs to the conversation. */}
           <div
-            className={cn('assistant-bigorb flex shrink-0 justify-center pb-1 pt-4', (turns.length === 0 || phoneOrb) && 'hidden')}
+            className={cn('assistant-bigorb assistant-dock-in flex shrink-0 justify-center pb-1 pt-4', (turns.length === 0 || phoneOrb) && 'hidden')}
           >
             {/* BIG, the owner's ask -- inside the chat, not the corner button. */}
             <AssistantOrb state={state} size={phoneOrb ? 120 : 160} typing={typingNow} subtle />
@@ -1290,7 +1290,7 @@ export function AssistantTab() {
               </div>
             )}
             {turns.map((turn, i) => (
-              <div key={i} className="w-full border-b border-border py-2 first:pt-0">
+              <div key={i} className={cn('assistant-turn flex w-full py-1.5', turn.role === 'user' ? 'justify-end' : 'justify-start')}>
                 <div
                   /* EVERY BUBBLE STATES BOTH HALVES OF ITS PAIR.
 
@@ -1313,13 +1313,15 @@ export function AssistantTab() {
                     /* No box around the words: the separator line is the
                        whole division, the owner said. A question is told from
                        an answer by weight and ink alone. */
-                    'whitespace-pre-wrap rounded-[10px] px-3 py-2 text-[14.5px] leading-relaxed',
-                    /* A subtle tint, no edge: the question sits on the
-                       faintest wash of the accent, the answer on none. */
-                    turn.role === 'user' && 'bg-[hsl(var(--primary)/0.035)] font-medium text-foreground',
-                    turn.role === 'bot' && 'text-foreground/90',
+                    /* THE OWNER'S REPLY DESIGN (gemini-code, "how it should
+                       reply", 2026-11-05): the question on the right in a
+                       soft muted bubble, the answer on the left in a card
+                       bubble with a hairline, each with its tail corner. */
+                    'assistant-bubble min-w-0 whitespace-pre-wrap text-[15px] leading-relaxed sm:text-[14.5px]',
+                    turn.role === 'user' && 'assistant-bubble-user max-w-[82%] font-medium text-foreground',
+                    turn.role === 'bot' && 'assistant-bubble-bot w-full max-w-[92%] text-foreground',
                     turn.role === 'error' &&
-                      'bg-destructive text-destructive-foreground',
+                      'assistant-bubble-error max-w-[92%] bg-destructive text-destructive-foreground',
                   )}
                 >
                   {turn.steps && turn.steps.length > 0 && (
@@ -1542,8 +1544,8 @@ export function AssistantTab() {
                 pulsing dots -- so a question that was sent does not sit there
                 looking unanswered until the reply lands. */}
             {state === 'thinking' && (
-              <div className="max-w-[86%]">
-                <div className="inline-flex items-center gap-1 rounded-[12px] px-3 py-2.5 text-muted-foreground">
+              <div className="assistant-turn flex py-1.5" role="status" aria-label="Looking it up">
+                <div className="assistant-typing inline-flex items-center gap-1 text-muted-foreground">
                   <span className="assistant-dot" />
                   <span className="assistant-dot" style={{ animationDelay: '0.15s' }} />
                   <span className="assistant-dot" style={{ animationDelay: '0.3s' }} />
