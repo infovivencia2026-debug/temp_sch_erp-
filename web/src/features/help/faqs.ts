@@ -51,6 +51,11 @@ const BY_ROLE: Record<string, Faq[]> = {
     { q: 'How do I message parents?', a: ['Open Classroom communication.', 'Choose the class or a parent, write and send.'], screen: 'Classroom communication' },
     { q: 'How do I approve a student\'s leave?', a: ['Open Student leave requests.', 'Approve or reject each request.'], screen: 'Student leave requests' },
     { q: 'How do I write remarks for report cards?', a: ['Open Class teacher remarks.', 'Write a remark for each student and save.'], screen: 'Class teacher remarks' },
+    { q: 'How do I take attendance for any class?', a: ['Open Take attendance (whole school).', 'Pick the class and section, tap absentees, and save.'], screen: 'Take attendance (whole school)' },
+    { q: 'How do I follow up absent students?', a: ['Open Absentee followup.', 'Call or message each family and note what they said.'], screen: 'Absentee followup' },
+    { q: 'How do I see everything about my class?', a: ['Open Class 360. Attendance, marks, fees and remarks for the class are on one page.'], screen: 'Class 360' },
+    { q: 'How do I write an anecdotal record?', a: ['Open Anecdotal records, pick the student, write what happened and save.'], screen: 'Anecdotal records' },
+    { q: 'How do I enter CCE formative marks?', a: ['Open CCE Formative Assessment Entry, pick the class and subject, enter and save.'], screen: 'CCE Formative Assessment Entry' },
     { q: 'How do I see report cards?', a: ['Open Report cards, pick the exam and class.'], screen: 'Report cards' },
   ],
   finance: [
@@ -233,9 +238,12 @@ const BY_ROLE: Record<string, Faq[]> = {
 }
 
 /** The questions for one role: its own first, then the ones every staff
-    member or every person asks, up to 20. */
+    member or every person asks. Help filters them and keeps 20. */
 export function faqsFor(roleKey: string | undefined): Faq[] {
-  const own = (roleKey && BY_ROLE[roleKey]) || []
+  /* A school's own role (class teacher, attendance officer) is made from
+     teacher screens, so it reads the teacher questions; Help keeps only
+     the ones whose screen the person has. */
+  const own = (roleKey && (BY_ROLE[roleKey] ?? (roleKey === 'parent' || roleKey === 'student' ? [] : BY_ROLE.faculty))) || []
   const family = roleKey === 'parent' || roleKey === 'student'
-  return [...own, ...(family ? [] : STAFF), ...COMMON].slice(0, 20)
+  return [...own, ...(family ? [] : STAFF), ...COMMON]
 }

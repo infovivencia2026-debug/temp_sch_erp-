@@ -195,7 +195,7 @@ function Faqs() {
      shown "take attendance"). A question tied to a screen shows only when
      that screen is in their own menu; general questions always show. */
   const mine = screensOf(role)
-  const items = faqsFor(role?.key).filter((f) => !f.screen || f.screen === 'Profile' || mine.some((s) => s.name === f.screen))
+  const items = faqsFor(role?.key).filter((f) => !f.screen || f.screen === 'Profile' || mine.some((s) => s.name === f.screen)).slice(0, 20)
   /* Grouped by the menu section of the screen each answer opens, so the
      topics are this person's own menu headings; account and general
      questions come last. Topic pills filter when there is more than one. */
