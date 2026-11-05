@@ -76,6 +76,8 @@ export interface RunResult {
 export interface RunBody {
   kind: string; table: Table; mapping: { index: number; field: string | null }[]
   source: 'sheet' | 'photo'; reviewed: boolean; confirmed?: boolean; filename?: string
+  /** Facts about the whole sheet (marks_grid: year, exam, class, max_marks). */
+  facts?: Record<string, string>
 }
 
 export const smartImportApi = {

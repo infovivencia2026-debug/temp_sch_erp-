@@ -1,9 +1,10 @@
 import { useAiFeature } from './useAiStatus'
 import { useMemo, useRef, useState } from 'react'
 import { PickerMenu } from '@/components/PickerMenu'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Camera, FileSpreadsheet, Sparkles } from 'lucide-react'
-import { Badge, Button, Checkbox, Dialog, FormNotice } from '@/components/ui'
+import { Badge, Button, Checkbox, Dialog, Field, FormGrid, FormNotice, Input, Select } from '@/components/ui'
+import { api, type List } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { smartImportApi, type Analysis, type ColumnMap, type ImportKind, type RunResult, type Table } from './smartApi'
 
@@ -22,7 +23,8 @@ const pct = (n: number) => `${Math.round(n * 100)}%`
 const confTone = (n: number) => (n >= 0.85 ? 'success' : n >= 0.6 ? 'warning' : 'danger') as 'success' | 'warning' | 'danger'
 
 const SMART_KINDS = new Set(['students', 'classes', 'sections', 'subjects', 'periods', 'holidays', 'timetable', 'class_subjects', 'allocations',
-  'attendance', 'staff_attendance', 'marks', 'student_history', 'staff', 'staff_history', 'fee_heads', 'fee_structures', 'fee_payments'])
+  'attendance', 'staff_attendance', 'marks', 'student_history', 'staff', 'staff_history', 'fee_heads', 'fee_structures', 'fee_payments',
+  'marks_grid', 'punches', 'student_exits', 'payslips'])
 
 export function ImportWithAIButton(props: Parameters<typeof ImportWithAIButtonInner>[0]) {
   return useAiFeature('smart_import') ? <ImportWithAIButtonInner {...props} /> : null
@@ -58,6 +60,15 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
   const [reviewed, setReviewed] = useState(false)
   const [result, setResult] = useState<RunResult | null>(null)
   const [confirm, setConfirm] = useState(false)
+  // A grid mark sheet is one exam of one class in one year, out of one maximum: asked once, as on Setup > Import.
+  const [facts, setFacts] = useState({ year: '', exam: '', class: '', max_marks: '100' })
+  const grid = kind === 'marks_grid'
+  const classes = useQuery({
+    queryKey: ['classes'], enabled: grid,
+    queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/academics/classes'),
+  })
+  const factsReady = !grid || (facts.year.trim() !== '' && facts.exam.trim() !== '' && facts.class.trim() !== '' && Number(facts.max_marks) > 0)
+  const setFact = (k: keyof typeof facts) => (v: string) => setFacts((f) => ({ ...f, [k]: v }))
 
   const kindDef = kinds.find((k) => k.key === kind)
   const uncertain = useMemo(() => new Set((a?.uncertain ?? []).map(([r, c]) => `${r}:${c}`)), [a])
@@ -81,7 +92,7 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
     const res = await smartImportApi.propose(table, k)
     applyProposal(res.proposal)
   })
-  const body = () => ({ kind, table, mapping: mapping.map((m) => ({ index: m.index, field: m.field })), source: a!.source, reviewed: a!.source === 'sheet' || reviewed, filename: a!.filename })
+  const body = () => ({ kind, table, mapping: mapping.map((m) => ({ index: m.index, field: m.field })), source: a!.source, reviewed: a!.source === 'sheet' || reviewed, filename: a!.filename, ...(grid ? { facts } : {}) })
   const preview = () => run(async () => { setResult(await smartImportApi.preview(body())); setConfirm(false); setStep('preview') })
   const commit = () => run(async () => {
     setResult(await smartImportApi.commit(body()))
@@ -121,7 +132,7 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
           </>}
           {step === 'map' && <>
             <Button size="sm" variant="ghost" onClick={() => setStep(a?.source === 'photo' ? 'review' : 'pick')}>Back</Button>
-            <Button size="sm" className="ml-auto" disabled={missing.length > 0 || busy} pending={busy} onClick={preview}>Preview</Button>
+            <Button size="sm" className="ml-auto" disabled={missing.length > 0 || !factsReady || busy} pending={busy} onClick={preview}>Preview</Button>
           </>}
           {step === 'preview' && result && <>
             <Button size="sm" variant="ghost" onClick={() => setStep('map')}>Change columns</Button>
@@ -196,7 +207,7 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
                         <td className="max-w-[16rem] truncate px-3 py-2 text-muted-foreground">{table.rows.find((r) => r[m.index])?.[m.index] ?? ''}</td>
                         <td className="px-3 py-2">
                           <PickerMenu ariaLabel={`Where ${m.header} goes`} align="start" value={m.field ?? ''} onChange={(v) => setField(m.index, v)}
-                            options={[{ value: '', label: 'Skip this column' }, ...kindDef.columns.map((c) => ({ value: c, label: `${c.replace(/_/g, ' ')}${kindDef.required.includes(c) ? ' *' : ''}` }))]} />
+                            options={[{ value: '', label: 'Skip this column' }, ...kindDef.columns.map((c) => ({ value: c, label: `${c.startsWith('subject:') ? c.slice(8) + ' marks' : c.replace(/_/g, ' ')}${kindDef.required.includes(c) ? ' *' : ''}` }))]} />
                         </td>
                         <td className="px-3 py-2">{m.field ? (m.source === 'user' ? <Badge>you chose</Badge> : <Badge tone={confTone(m.confidence)}>{pct(m.confidence)}</Badge>) : null}</td>
                       </tr>
@@ -204,6 +215,26 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
                   </tbody>
                 </table>
               </div>
+              {grid && (
+                <div className="mt-3">
+                  <FormGrid>
+                    <Field label="Which year" required hint="As the school writes it, e.g. 2024-25.">
+                      <Input value={facts.year} onChange={setFact('year')} placeholder="2024-25" />
+                    </Field>
+                    <Field label="Which examination" required hint="Created if the school has never recorded it here.">
+                      <Input value={facts.exam} onChange={setFact('exam')} placeholder="Annual Examination" />
+                    </Field>
+                    <Field label="Which class" required hint="Subjects are checked against it.">
+                      <Select value={facts.class} onChange={setFact('class')} placeholder="Choose a class"
+                        options={(classes.data?.items ?? []).map((c) => ({ value: c.name, label: c.name }))} />
+                    </Field>
+                    <Field label="Out of" required hint="What every paper on this sheet is marked out of.">
+                      <Input type="number" value={facts.max_marks} onChange={setFact('max_marks')} />
+                    </Field>
+                  </FormGrid>
+                  <p className="mt-2 text-[12.5px] text-muted-foreground">Point each marks column at its subject; skip Total, Rank and Remarks.</p>
+                </div>
+              )}
               {missing.length > 0 && <p className="mt-2 text-[13px] text-destructive">Still needed: {missing.map((x) => x.replace(/_/g, ' ')).join(', ')}.</p>}
               <p className="mt-2 text-[12.5px] text-muted-foreground">Dates, class names (VI-A becomes your Grade 6, section A), phone numbers and P/A marks are tidied before the preview.</p>
             </>
