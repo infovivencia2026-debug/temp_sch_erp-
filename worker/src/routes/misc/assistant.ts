@@ -4,7 +4,7 @@ import { can } from '../../identity'
 import { badRequest, HttpError, isUUID, ok, readJSON, unauthorized } from '../../http'
 import { json } from '../../env'
 import { CATALOG_ROLES } from '../admin/static_data'
-import { importSpecs } from '../setup/imports'
+import { importSpecs, SHEET_FACT_PARAMS } from '../setup/imports'
 import { indiaToday, resolveScope, SECTION_SET_SQL } from '../students/common'
 import { assistantFailure, assistantRateLimit, callGemini, type GeminiTurn } from '../teaching/gemini'
 import { aiKey } from '../../services/ai/key'
@@ -128,8 +128,8 @@ Importing and exporting spreadsheets. Bulk import and export DO exist -- never s
 they do not. A school can upload a spreadsheet to create records in bulk (class
 lists, sections, subjects, periods, holidays, the timetable, class subjects,
 teacher allocations, marks, student and staff attendance, students, student
-history, fee heads, fee structures, fee payments, biometric punches and student
-exits), and most lists in the app can be exported. The full importer lives at
+history, fee heads, fee structures, fee payments, biometric punches, student
+exits and payslips), and most lists in the app can be exported. The full importer lives at
 Setup > Import, where each kind has a downloadable template, a dry-run that shows
 which rows are wrong before anything is written, and an Import history that can
 undo an upload.
@@ -142,7 +142,7 @@ will show a preview of what will be imported before anything is saved. You do no
 emit an action line for this; the attach-and-preview flow handles it.
 
 What still cannot be imported or changed through the assistant, and what to say
-so: staff pay and payslips, staff logins, passwords, roles and other security,
+so: staff salary structures, staff logins, passwords, roles and other security,
 and bulk deletions. For those, tell the person they must be done by someone with
 the right access on the proper setup screen.`
 
@@ -423,7 +423,8 @@ const IMPORTABLE: Record<string, string> = {
   timetable: 'Timetable', class_subjects: 'Class subjects', allocations: 'Teacher allocations', marks: 'Marks', marks_grid: 'Marks (grid)',
   attendance: 'Student attendance', staff_attendance: 'Staff attendance', students: 'Students', student_history: 'Student history',
   fee_heads: 'Fee heads', fee_structures: 'Fee structures', fee_payments: 'Fee payments', punches: 'Biometric punches',
-  // student_exits is deliberately NOT here: too close to a deletion for a bot to run.
+  // Same gate as Setup > Import: the kind's own permission, and a dry run before any commit.
+  student_exits: 'Student exits', payslips: 'Payslips',
 }
 const MAX_PROBLEMS = 20
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
@@ -449,7 +450,7 @@ async function assistantImport(c: Ctx, commit: boolean): Promise<Response> {
   const entity = String(form.get('entity') ?? '').trim()
   const label = IMPORTABLE[entity]
   if (!label) {
-    throw new HttpError(403, `the assistant cannot import ${entity === '' ? 'that' : '"' + entity + '"'}. It can import class lists, subjects, timetables, marks, attendance, students, fees and similar, but never pay, payslips or staff logins. Those must be done by someone with the right access on the setup screen.`, { code: 'forbidden' })
+    throw new HttpError(403, `the assistant cannot import ${entity === '' ? 'that' : '"' + entity + '"'}. It can import class lists, subjects, timetables, marks, attendance, students, fees and similar, but never salary structures or staff logins. Those must be done by someone with the right access on the setup screen.`, { code: 'forbidden' })
   }
   const perm = entity === 'students' ? 'students.write' : importSpecs[entity]?.perm ?? ''
   if (perm === '' || !can(c.id, perm)) throw new HttpError(403, 'missing permission: ' + perm, { code: 'forbidden' })
@@ -459,9 +460,12 @@ async function assistantImport(c: Ctx, commit: boolean): Promise<Response> {
   const raw = new Uint8Array(await f.arrayBuffer()).slice(0, 8 << 20)
   if (raw.byteLength === 0) throw badRequest('that file was empty or could not be read. Save it as CSV and try again.')
   const qs = new URLSearchParams({ commit: String(commit), filename: f.name ?? '' })
+  // Facts about the whole sheet and the column map travel as on Setup > Import (a grid mark sheet needs both).
+  for (const k of SHEET_FACT_PARAMS) { const v = String(form.get(k) ?? '').trim(); if (v !== '') qs.set(k, v.slice(0, 200)) }
+  const colMap = String(form.get('column_map') ?? '').trim()
   // The exact route the setup screen uses, as the caller: same dry run, same undoable import run.
   const path = entity === 'students' ? `/students/import?${qs}` : `/setup/import/${entity}?${qs}`
-  const r = await dispatch(c, 'POST', path, raw, 'text/csv')
+  const r = await dispatch(c, 'POST', path, raw, 'text/csv', colMap ? { 'x-column-map': colMap.slice(0, 20000) } : undefined)
   if (r.status === 400) {
     const msg = typeof r.data.error === 'string' ? r.data.error : ''
     throw badRequest(msg || (entity === 'students' ? 'that students file could not be read. Save it as CSV from the template and try again.' : 'that file could not be read.'))

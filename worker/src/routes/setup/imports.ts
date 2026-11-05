@@ -1473,6 +1473,10 @@ function columnMapFrom(c: Ctx): Record<string, string> | null {
   try { const m = JSON.parse(raw); return m && typeof m === 'object' ? (m as Record<string, string>) : null } catch { return null }
 }
 
+/** Query parameters that carry facts about the whole sheet (sheetFactsFrom),
+    forwarded unchanged by the chat importers so they read the same as Setup > Import. */
+export const SHEET_FACT_PARAMS = ['year', 'exam', 'class', 'max_marks', 'period_from', 'period_to'] as const
+
 function sheetFactsFrom(c: Ctx): SheetFacts {
   const q = c.url.searchParams
   const f: SheetFacts = { year: (q.get('year') ?? '').trim(), exam: (q.get('exam') ?? '').trim(), class: (q.get('class') ?? '').trim(),
