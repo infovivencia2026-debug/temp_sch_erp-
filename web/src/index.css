@@ -5594,7 +5594,15 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
    .card keeps that card's edge and only takes the white body. */
 .responsive-table tbody { background: hsl(var(--card)); }
 .responsive-table thead th { color: hsl(var(--foreground) / 0.62); background: hsl(var(--surface-subtle)); }
-.responsive-table tbody td { color: hsl(var(--foreground)); }
+:where(.responsive-table tbody td) { color: hsl(var(--foreground)); }
+/* On a phone the row's buttons scroll with the row: pinned, three of them
+   were wider than the screen and covered the names (owner, 2026-11-05). */
+@media (max-width: 639px) {
+  .responsive-table tbody td:last-child:has(button, a[role=button]) {
+    position: static;
+    box-shadow: none;
+  }
+}
 .table-frame:not(.card .table-frame) {
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
