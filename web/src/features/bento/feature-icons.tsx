@@ -155,6 +155,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   child_info_portal_sync: 'cloud_sync', // Child Info Portal Sync
   child_remarks: 'rate_review', // Child remarks
   circulars: 'campaign', // Circulars
+  website_forms: 'list_alt', // Website forms
   class_promotion: 'moving', // Class Promotion
   class_setup: 'meeting_room', // Class Setup
   class_teacher_remarks: 'rate_review', // Class teacher remarks
