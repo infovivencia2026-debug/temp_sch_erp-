@@ -284,6 +284,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   /* Attendance — three separate menu tiles, one screen each: Take attendance,
      Present & absent and Absentee follow-up. Each is scoped server-side, so a
      class teacher gets their sections and a read.all holder gets the school.
+  'institution_admin.communication.website_forms': screen(() => import('./comms/WebsiteForms')), // feature:communication.website_forms
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   'institution_admin.activity.school_activity': screen(() => import('./admin/SchoolActivity')), // feature:activity.school_activity

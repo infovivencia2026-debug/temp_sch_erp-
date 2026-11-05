@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 487 features. */
+/** 24 roles, 488 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -343,6 +343,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.communication.class_status', slug: 'class_status', name: 'Class Status', scope: 'institution', tier: 'core', summary: 'Every live and pinned status in the school with who posted it, its audience and how many have seen it; post as the school, approve teachers\' posts, delete or pin any post, and set the rules: on or off, approval, who may post, video and its length.' },
           { key: 'institution_admin.communication.inbox', slug: 'inbox', name: 'Inbox', scope: 'institution', tier: 'core', summary: 'Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox.' },
           { key: 'institution_admin.communication.mail_addresses', slug: 'mail_addresses', name: 'Mail addresses', scope: 'institution', tier: 'core', summary: 'The school\'s mail domain and each staff member\'s email address: give one, change it or switch it off. Mail itself stays private to its owner.' },
+          { key: 'institution_admin.communication.website_forms', slug: 'website_forms', name: 'Website forms', scope: 'institution', tier: 'core', summary: 'Build forms like Google Forms for the school website (careers, contact, events and more). Copy the embed code to the website; every response lands here with its date and time.' },
         ],
       },
       {

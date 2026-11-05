@@ -659,6 +659,39 @@
         "worker/migrations/tenant/0102_feature_parent_concerns.sql"
       ]
     },
+    "communication.website_forms": {
+      "name": "Website forms",
+      "summary": "Build forms like Google Forms for the school website (careers, contact, events and more). Copy the embed code to the website; every response lands here with its date and time.",
+      "section": "communication",
+      "sectionName": "Communication",
+      "slug": "website_forms",
+      "roles": [
+        "institution_admin"
+      ],
+      "keys": [
+        "institution_admin.communication.website_forms"
+      ],
+      "module": "comms",
+      "webDir": "comms",
+      "planModule": "communication",
+      "apiBase": "/comms/website-forms",
+      "readPerm": "institution.read",
+      "writePerm": "institution.settings.write",
+      "table": null,
+      "group": null,
+      "createdPerms": [],
+      "grants": {},
+      "grantWhere": {},
+      "addedSectionModule": false,
+      "migration": "worker/migrations/tenant/0130_feature_website_forms.sql",
+      "files": [
+        "shared/api/feature_website_forms.ts",
+        "web/src/features/comms/WebsiteForms.tsx",
+        "worker/migrations/tenant/0130_feature_website_forms.sql",
+        "worker/src/routes/comms/website_forms.ts",
+        "worker/test/integration/feature_website_forms.test.ts"
+      ]
+    },
     "help.helpdesk": {
       "name": "Helpdesk",
       "summary": "Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.",
