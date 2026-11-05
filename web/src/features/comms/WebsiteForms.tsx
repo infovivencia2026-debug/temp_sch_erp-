@@ -135,8 +135,10 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="ghost" onClick={onBack}><ChevronLeft className="size-4" />All forms</Button>
-            <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
-              <Switch on={form.is_open} onChange={(v) => toggle.mutate(v)} label={form.is_open ? 'Taking responses' : 'Closed'} />{form.is_open ? 'Taking responses' : 'Closed'}
+            {/* The switch says what it does (owner, 2026-11-05: "why on off button"). */}
+            <span className="flex items-center gap-2 text-[14px] font-medium">
+              <Switch on={form.is_open} onChange={(v) => toggle.mutate(v)} label={form.is_open ? 'Taking responses' : 'Closed'} />
+              <span aria-hidden className={form.is_open ? 'text-success' : 'text-muted-foreground'}>{form.is_open ? 'Taking responses' : 'Closed'}</span>
             </span>
             <ConfirmButton tone="danger" size="md" confirmLabel="Delete form" label="Delete form"
               question={`Delete ${form.title} and all its responses? The form on the website stops working.`}
@@ -228,9 +230,7 @@ function Builder({ form }: { form: Form }) {
                   <p className="mt-3 flex items-center gap-2 text-[13px] text-muted-foreground"><T className="size-4" />{typeOf(f.type).label}{f.type === 'file' && ': PDF, Word or an image, up to 8 MB'}</p>
                 )}
                 <div className="mt-4 flex flex-wrap items-center gap-1 border-t pt-3">
-                  <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                    <Switch on={f.required} onChange={(v) => upd(i, { required: v })} label="Required" />Required
-                  </label>
+                  <Switch on={f.required} onChange={(v) => upd(i, { required: v })} label="Required" />
                   <span className="ml-auto" />
                   <Button size="sm" variant="ghost" onClick={() => move(i, -1)} disabled={i === 0}><ArrowUp className="size-4" /><span className="sr-only">Move up</span></Button>
                   <Button size="sm" variant="ghost" onClick={() => move(i, 1)} disabled={i === fields.length - 1}><ArrowDown className="size-4" /><span className="sr-only">Move down</span></Button>
@@ -426,7 +426,7 @@ function Share({ form, school }: { form: Form; school: string }) {
 <script>addEventListener('message',function(e){if(e.data&&e.data.type==='xulo-form-height'&&e.data.form==='${form.slug}'){document.getElementById('xulo-form-${form.slug}').style.height=e.data.height+'px'}})</script>`
   const keys = form.fields.map((f) => `${f.key}  =  ${f.label}${f.type === 'file' ? ' (file)' : ''}`).join('\n')
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="space-y-4">
       {!form.is_open && <p className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-[14px]">This form is closed, so the website shows "not taking responses". Switch it on at the top.</p>}
       <Step n={1} title="Embed on the website (easiest)" body="Give this to your website person. They paste it where the form should appear, for example on the Careers page. It grows to fit.">
         <CopyBox text={embed} />
