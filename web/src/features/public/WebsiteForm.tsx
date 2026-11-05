@@ -12,7 +12,7 @@ type FieldType = 'text' | 'long_text' | 'email' | 'phone' | 'number' | 'date' | 
 interface Field { key: string; label: string; type: FieldType; required: boolean; options?: string[] }
 interface Def { school_name: string; color: string; title: string; description: string; fields: Field[]; is_open: boolean; submit_label: string; thanks_message: string }
 
-const control = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-[15px] text-slate-900 outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--brand)_15%,transparent)]'
+const control = 'w-full rounded-lg border border-[#c5cddb] bg-white px-4 py-3.5 text-[16px] text-[#0f1b3d] outline-none transition placeholder:text-[#7a8499] focus:border-[var(--brand)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--brand)_12%,transparent)]'
 
 export default function WebsiteForm() {
   const { school = '', form = '' } = useParams()
@@ -31,6 +31,11 @@ export default function WebsiteForm() {
       setDef(await r.json())
     }).catch((e: Error) => setErr(e.message))
   }, [url])
+
+  // See-through, so the form sits on the website's own page colour.
+  useEffect(() => {
+    for (const el of [document.documentElement, document.body]) el.style.background = 'transparent'
+  }, [])
 
   // The page's height, for the embed code's iframe.
   useEffect(() => {
@@ -64,37 +69,31 @@ export default function WebsiteForm() {
   }
 
   return (
-    <div ref={box} className="min-h-full bg-slate-50 px-4 py-6 font-sans text-slate-900 sm:py-10"
-      style={{ ['--brand' as string]: def?.color || '#1e3a8a' }}>
-      <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="h-2" style={{ background: 'var(--brand)' }} />
-        <div className="p-6 sm:p-8">
+    <div ref={box} className="bg-transparent p-1 text-[#0f1b3d]" 
+      style={{ ['--brand' as string]: def?.color || '#12308a', fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' }}>
+      <div>
+        <div>
           {!def ? <p className="text-slate-600">{err || 'Loading…'}</p> : done ? (
             <div className="py-8 text-center">
               <CheckCircle2 className="mx-auto size-14" style={{ color: 'var(--brand)' }} />
-              <h1 className="mt-4 text-[22px] font-semibold">{def.title}</h1>
-              <p className="mt-2 text-slate-600">{done}</p>
+              <p className="mt-3 text-[17px] font-medium text-[#0f1b3d]">{done}</p>
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
-              <p className="text-[13px] font-medium uppercase tracking-wide text-slate-500">{def.school_name}</p>
-              <h1 className="mt-1 text-[26px] font-bold leading-tight" style={{ color: 'var(--brand)' }}>{def.title}</h1>
-              {def.description && <p className="mt-2 whitespace-pre-line text-slate-600">{def.description}</p>}
-              {!def.is_open ? <p className="mt-6 rounded-xl bg-slate-100 p-4 text-slate-700">This form is not taking responses now.</p> : (
+                            {!def.is_open ? <p className="rounded-xl bg-slate-100 p-4 text-slate-700">This form is not taking responses now.</p> : (
                 <>
-                  {def.fields.some((f) => f.required) && <p className="mt-4 text-[13px] text-slate-500">Fields marked <span className="text-red-600">*</span> are required.</p>}
-                  <div className="mt-6 space-y-5">
+                                    <div className="space-y-5">
                     {def.fields.map((f) => (
                       <div key={f.key}>
                         {f.type === 'checkbox' ? (
-                          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[15px]">
+                          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#e3e7ef] bg-[#f6f8fb] p-5 text-[16px]">
                             <input type="checkbox" className="mt-0.5 size-5 shrink-0 accent-[var(--brand)]" checked={values[f.key] === 'true'}
                               onChange={(e) => set(f.key, e.target.checked ? 'true' : '')} />
                             <span>{f.label}{f.required && <span className="text-red-600"> *</span>}</span>
                           </label>
                         ) : (
                           <>
-                            <label className="mb-1.5 block text-[14px] font-semibold" htmlFor={`f-${f.key}`}>{f.label}{f.required && <span className="text-red-600"> *</span>}</label>
+                            <label className="mb-2 block text-[15px] font-semibold text-[#0f1b3d]" htmlFor={`f-${f.key}`}>{f.label}{f.required && <span className="text-red-600"> *</span>}</label>
                             {f.type === 'long_text' ? (
                               <textarea id={`f-${f.key}`} rows={4} className={control} value={values[f.key] ?? ''} onChange={(e) => set(f.key, e.target.value)} />
                             ) : f.type === 'dropdown' ? (
@@ -103,7 +102,7 @@ export default function WebsiteForm() {
                                 {(f.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
                               </select>
                             ) : f.type === 'file' ? (
-                              <label htmlFor={`f-${f.key}`} className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center transition hover:border-[var(--brand)]">
+                              <label htmlFor={`f-${f.key}`} className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-[#b8c2d4] bg-[#f6f8fb] px-4 py-7 text-center transition hover:border-[var(--brand)]">
                                 {files[f.key] ? <Paperclip className="size-6" style={{ color: 'var(--brand)' }} /> : <UploadCloud className="size-7 text-slate-400" />}
                                 <span className="text-[14px] font-medium">{files[f.key]?.name ?? 'Choose a file or drop it here'}</span>
                                 <span className="text-[12px] text-slate-500">PDF, Word or a clear photo (JPG, PNG, WebP), up to 8 MB</span>
@@ -123,7 +122,7 @@ export default function WebsiteForm() {
                   </div>
                   {err && <p role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-[14px] text-red-700">{err}</p>}
                   <button type="submit" disabled={busy}
-                    className="mt-7 w-full rounded-xl px-6 py-3.5 text-[16px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60 sm:w-auto"
+                    className="mt-8 w-full rounded-xl px-7 py-4 text-[17px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60 sm:ml-auto sm:block sm:w-auto"
                     style={{ background: 'var(--brand)' }}>{busy ? 'Sending…' : def.submit_label}</button>
                 </>
               )}
