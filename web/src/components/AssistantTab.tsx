@@ -794,6 +794,16 @@ export function AssistantTab() {
             // The screen the fast path names outright, plus any others the
             // answer mentions in prose -- deduped, in order, one button each.
             const named = resolveScreen(catalog, hit.screen)
+            /* "Open Student 360" opens it (owner, 2026-11-05: the bot "is not
+               doing anything" -- it described the screen and left the
+               opening to the reader). An ask phrased as a question still
+               gets the explanation. */
+            if (named && /^\s*(please\s+)?(open|go\s+to|take\s+me\s+to|show\s+me|launch)\b/i.test(message)) {
+              setTurns((t) => [...t, { role: 'bot', text: `Opened ${named.label}.`, links: [named] }])
+              navigate(named.to)
+              setOpen(false)
+              return
+            }
             const inText = linksFromText(catalog, hit.answer)
             const links = named && !inText.some((l) => l.to === named.to)
               ? [named, ...inText]
