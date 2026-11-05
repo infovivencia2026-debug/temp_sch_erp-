@@ -854,7 +854,11 @@ export function AssistantTab() {
         if (signal?.aborted) throw e
       }
 
-      if (!ai.ok) {
+      /* Only a missing or refused key stops the question here. "Busy" or "could
+         not reach Google" was true at the last check, perhaps minutes ago (one
+         429 in a burst of lookups set it): ask anyway, and the server says so
+         if it is still true. */
+      if (!ai.ok && (!agentMode || ai.state === 'refused' || ai.state === 'missing')) {
         setTurns((t) => [...t, {
           role: 'bot',
           notice: true,

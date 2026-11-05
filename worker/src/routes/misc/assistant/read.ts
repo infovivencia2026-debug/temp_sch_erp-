@@ -134,20 +134,35 @@ export interface SectionRef { id: string; label: string; class_id: string }
    sections (names, not people), and every tool that then reads a section's
    data does it through a scoped route. */
 export async function findSection(c: Ctx, cls: string, sec: string): Promise<{ one?: SectionRef; error?: string; classOnly?: { id: string; name: string } }> {
-  const cl = cls.trim().replace(/^(class|grade|std\.?)\s*/i, ''), s = sec.trim()
+  const strip = (x: string) => x.trim().replace(/^(class|grade|std\.?|standard)\s*/i, '').trim()
+  const cl = strip(cls), s = sec.trim().replace(/^section\s+/i, '')
   if (cl === '' && s === '') return { error: 'name the class and section' }
-  // "6A", "6-A", "6 A" in one field.
+  // "6A", "6-A", "6 A", "3 BODHA" in one field.
   let c1 = cl, s1 = s
-  if (s1 === '') { const m = /^(.+?)[\s-]*([A-Za-z])$/.exec(cl); if (m && /\d/.test(m[1])) { c1 = m[1]; s1 = m[2] } }
+  if (s1 === '') { const m = /^(.*?\d.*?)[\s-]+([A-Za-z][A-Za-z ]*)$/.exec(cl) ?? /^(\d+)([A-Za-z])$/.exec(cl); if (m) { c1 = m[1].trim(); s1 = m[2].trim() } }
+  /* Every section of the class, this year's first. Schools name classes
+     "6", "Class 6" or "Grade 6", and sections "A" or a word ("BODHA"). */
   const rows = await c.db.prepare(`
     SELECT s.id, c.id AS class_id, c.name AS class_name, s.name AS section_name FROM sections s JOIN classes c ON c.id = s.class_id
-     WHERE (lower(c.name) = lower(?1) OR lower(c.name) = lower('class ' || ?1) OR lower(replace(c.name, 'Class ', '')) = lower(?1))
-       AND (?2 = '' OR lower(s.name) = lower(?2))
-     ORDER BY c.name, s.name LIMIT 20`).bind(c1, s1).all<{ id: string; class_id: string; class_name: string; section_name: string }>()
-  const r = rows.results
-  if (r.length === 0) return { error: `no class "${cls}${sec ? ' ' + sec : ''}" in this school` }
-  if (s1 === '' && r.length > 1) return { classOnly: { id: r[0].class_id, name: r[0].class_name }, error: `class ${r[0].class_name} has ${r.length} sections; name one` }
-  return { one: { id: r[0].id, class_id: r[0].class_id, label: `${r[0].class_name} ${r[0].section_name}` } }
+     WHERE lower(c.name) IN (lower(?1), lower('class ' || ?1), lower('grade ' || ?1), lower('std ' || ?1), lower('standard ' || ?1))
+     ORDER BY (s.academic_year_id = (SELECT id FROM academic_years WHERE is_current = 1 LIMIT 1)) DESC, s.name LIMIT 60`)
+    .bind(c1).all<{ id: string; class_id: string; class_name: string; section_name: string }>()
+  const all: typeof rows.results = []
+  for (const x of rows.results) if (!all.some((y) => y.section_name.toLowerCase() === x.section_name.toLowerCase())) all.push(x)
+  if (all.length === 0) return { error: `no class "${cls}" in this school` }
+  const cname = all[0].class_name
+  const names = all.map((x) => x.section_name).join(', ')
+  const pick = (x: (typeof all)[number]) => ({ one: { id: x.id, class_id: x.class_id, label: `${x.class_name} ${x.section_name}` } })
+  if (s1 === '') {
+    if (all.length === 1) return pick(all[0])
+    return { classOnly: { id: all[0].class_id, name: cname }, error: `${cname} has ${all.length} sections: ${names}. Name one, or ask about each.` }
+  }
+  const want = s1.toLowerCase()
+  const exact = all.filter((x) => x.section_name.toLowerCase() === want)
+  if (exact.length === 1) return pick(exact[0])
+  const loose = all.filter((x) => x.section_name.toLowerCase().startsWith(want) || (want.length >= 3 && x.section_name.toLowerCase().includes(want)))
+  if (loose.length === 1) return pick(loose[0])
+  return { error: `${cname} has no section "${s1}"; its sections are ${names}. Name one, or ask about each.` }
 }
 
 export const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + 'T00:00:00Z'))
