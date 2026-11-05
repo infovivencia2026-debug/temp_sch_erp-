@@ -276,7 +276,7 @@ function Builder({ form }: { form: Form }) {
 function Preview({ title, description, fields, submit }: { title: string; description: string; fields: FormField[]; submit: string }) {
   const box = 'mt-1.5 h-10 w-full rounded-lg border bg-background/60'
   return (
-    <Card className="max-h-[calc(100vh-140px)] overflow-y-auto p-5">
+    <Card className="max-h-[calc(100dvh-140px)] overflow-y-auto p-5">
       <p className="text-[18px] font-semibold">{title || 'Form name'}</p>
       {description && <p className="mt-1 whitespace-pre-line text-[13px] text-muted-foreground">{description}</p>}
       <div className="mt-4 space-y-4">
