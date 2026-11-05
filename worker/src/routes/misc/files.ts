@@ -132,6 +132,9 @@ export function registerFiles(r: Router): void {
           if (!okRow?.ok && !(f.uploaded_by !== null && f.uploaded_by === c.id.userId)) throw gone
         }
       }
+    } else if (f.purpose === 'website_form') {
+      // A file sent with a website form (a CV, a photo): whoever reads the form's responses.
+      if (!can(c.id, 'institution.read')) throw gone
     } else if (!BROADCAST_PURPOSE.has(f.purpose)) {
       const self = f.uploaded_by !== null && f.uploaded_by === c.id.userId
       const staff = can(c.id, 'students.read.all') || can(c.id, 'hr.employees.read') || can(c.id, 'finance.fees.read') || can(c.id, 'admissions.read')

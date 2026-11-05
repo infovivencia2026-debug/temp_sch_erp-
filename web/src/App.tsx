@@ -15,6 +15,7 @@ import { SessionProvider, useSession } from '@/lib/session'
 const ApplyForm = lazy(() => import('@/features/public/ApplyForm'))
 const ChooseSchool = lazy(() => import('@/features/public/ChooseSchool'))
 const EnquireForm = lazy(() => import('@/features/public/EnquireForm'))
+const WebsiteForm = lazy(() => import('@/features/public/WebsiteForm'))
 const AccountPage = lazy(() => import('@/features/shared/Profile'))
 /* Lazy like every feature screen: Settings pulls the whole settings window
    module behind it, which nobody needs until they open Settings. */
@@ -631,7 +632,7 @@ export function AppRoutes({ location }: { location?: string }) {
    session; neither has anything to say to a parent filling in one form.
 */
 function isPublicPath(pathname: string) {
-  return pathname.startsWith('/admissions/apply/') || pathname.startsWith('/admissions/enquire/') || pathname === '/start'
+  return pathname.startsWith('/admissions/apply/') || pathname.startsWith('/admissions/enquire/') || pathname.startsWith('/f/') || pathname === '/start'
 }
 
 /* Nothing to draw: it exists so the poll lives inside the providers and dies
@@ -745,6 +746,7 @@ export default function App() {
           <Routes>
             <Route path="/admissions/apply/:slug" element={<Suspense fallback={null}><ApplyForm /></Suspense>} />
             <Route path="/admissions/enquire/:slug" element={<Suspense fallback={null}><EnquireForm /></Suspense>} />
+            <Route path="/f/:school/:form" element={<Suspense fallback={null}><WebsiteForm /></Suspense>} />
             <Route path="/start" element={<Suspense fallback={null}><ChooseSchool /></Suspense>} />
           </Routes>
         </BrowserRouter>

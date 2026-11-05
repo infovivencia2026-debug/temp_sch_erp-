@@ -107,7 +107,7 @@ export const LIVE_AREAS: Record<string, LiveArea> = {
       'assignment', 'learning', 'todo', 'quiz', 'classroom', 'textbook', 'university', 'note', 'student'],
   },
   admissions: {
-    tables: /^(admission[a-z_]*|application[a-z_]*|enquir[a-z_]+|crm_[a-z_]+|visitor[a-z_]*|import_run[a-z_]*|child_info_[a-z_]+)$/,
+    tables: /^(admission[a-z_]*|application[a-z_]*|enquir[a-z_]+|crm_[a-z_]+|visitor[a-z_]*|website_form[a-z_]*|import_run[a-z_]*|child_info_[a-z_]+)$/,
     words: [...PEOPLE, 'application', 'enquir', 'lead', 'funnel', 'campaign', 'crm', 'appointment', 'visitor',
       'blocklist', 'open-day', 'waitlist', 'prospectus', 'public-', 'import', 'child-info', 'pending', 'interaction'],
   },
