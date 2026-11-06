@@ -22,7 +22,7 @@ import { usePhone } from '@/lib/viewport'
 type View = ConnectState | 'all'
 const VIEWS: { key: View; label: string }[] = [{ key: 'open', label: 'Open' }, { key: 'resolved', label: 'Resolved' }, { key: 'all', label: 'All' }]
 const MATCH_LABEL: Record<ConnectMatch, string> = { exact: 'Is exactly', starts: 'Starts with', contains: 'Contains' }
-const PAUSED = 'Sending is paused: the recipient guard is on, so replies wait in the queue and are not delivered.'
+const PAUSED = 'Sending is paused: the recipient guard is on, so replies and auto-replies are blocked and will not be sent later.'
 
 const KIND_LABEL: Record<string, string> = {
   image: 'Photo', video: 'Video', audio: 'Voice note', document: 'Document', sticker: 'Sticker', location: 'Location', reaction: 'Reaction',
@@ -84,8 +84,10 @@ export default function YajurConnect() {
               </button>
             ))}
           </div>
-          <Switch on={mine} onChange={setMine} label="Only chats assigned to me" />
-          <span className="text-[14px] text-muted-foreground">Assigned to me</span>
+          <label className="flex shrink-0 items-center gap-2">
+            <Switch on={mine} onChange={setMine} label="Only chats assigned to me" />
+            <span className="whitespace-nowrap text-[14px] text-muted-foreground">Assigned to me</span>
+          </label>
         </div>
         <div className={cn('space-y-3', openId && 'lg:grid lg:h-[82dvh] lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-4 lg:space-y-0 lg:overflow-hidden')}>
           {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : items.length === 0 ? (
