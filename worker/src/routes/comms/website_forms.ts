@@ -218,7 +218,10 @@ export async function handlePublicWebsiteForms(env: Env, req: Request, path: str
     const data: Record<string, string> = {}
     for (const [k, v] of Object.entries(inc.values)) { const key = fieldKeyOf(k); if (key) data[key] = v.slice(0, 5000) }
     if (Object.keys(data).length > 100) return withCors(goError(400, 'too_many_fields', 'too many fields sent'))
-    for (const fd of fields) {
+    /* A website's own form (a direct POST) has its own questions and checks
+       them itself; its names need not match ours (Yajur careers, 2026-11-06),
+       so only our embedded form is held to our questions. */
+    for (const fd of source === 'embed' ? fields : []) {
       // A question hidden by its condition is not asked, so not required.
       if (fd.show_if && (data[fd.show_if.key] ?? '').trim() !== fd.show_if.value) continue
       const v = (data[fd.key] ?? '').trim()

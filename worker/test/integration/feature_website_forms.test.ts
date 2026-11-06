@@ -34,7 +34,7 @@ describe('communication.website_forms', () => {
   })
 
   it('the embed posts multipart with a file; required answers are checked', async () => {
-    const bad = new FormData(); bad.append('full_name', 'Ravi')
+    const bad = new FormData(); bad.append('full_name', 'Ravi'); bad.append('_source', 'embed')
     expect((await call(`/api/v1/public/forms/test/${slug}`, { method: 'POST', body: bad })).status).toBe(400)
     const fd = new FormData()
     fd.append('role', 'Teacher'); fd.append('full_name', 'Ravi Kumar'); fd.append('mobile_number', '9876543210'); fd.append('_source', 'embed')
