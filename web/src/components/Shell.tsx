@@ -1051,7 +1051,7 @@ export function Shell({
               />
               <Anchored open anchor={switcherRef} width="trigger" gap={4} maxHeight={560}
                 role="menu"
-                className="rounded-lg border bg-popover py-1 shadow-[var(--lift-float)]"
+                className="role-pop rounded-[20px] border bg-popover p-2 shadow-[var(--lift-float)]"
               >
                 {/* Bounded, because "View every role" turns thirteen rows
                     into twenty-odd and the menu then runs off the bottom of
@@ -1060,7 +1060,7 @@ export function Shell({
                     which is the same reason the student Actions menu uses it.
                     The footer stays outside: the one row somebody opens this
                     menu to reach must not be the row that scrolled away. */}
-                <ScrollBox className="max-h-[min(60dvh,24rem)] overflow-y-auto overscroll-contain">
+                <ScrollBox className="flex max-h-[min(60dvh,24rem)] flex-col gap-0.5 overflow-y-auto overscroll-contain p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {catalog.roles.map((r) => (
                   <button
                     key={r.key}
@@ -1070,22 +1070,19 @@ export function Shell({
                       setNavOpen(false)
                       navigate(`/${r.key}`)
                     }}
+                    data-active={r.key === role?.key ? '' : undefined}
                     className={cn(
-                      'flex w-full items-center gap-2 px-3 py-2 text-left text-[calc(14px*var(--font-scale,1))]',
-                      'transition-colors',
-                      // Same rule as the rail: the check says which one, so
-                      // the row does not also have to be a filled card.
-                      r.key === role?.key
-                        ? 'font-medium text-foreground hover:bg-surface-hover'
-                        : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
+                      /* Owner's spring-pop menu (2026-11-06): rows lift on hover, the icon pops, the check slides in. */
+                      'role-pop__item flex w-full items-center gap-3.5 rounded-xl px-3.5 py-3 text-left text-[calc(14px*var(--font-scale,1))] max-sm:min-h-12',
+                      r.key === role?.key ? 'bg-surface-hover font-semibold text-foreground' : 'font-medium text-secondary-foreground',
                     )}
                   >
                     {/* The role's own face, so a list of six workspaces is
                         six different rows rather than six lines of text
                         (owner, 2026-10-08). */}
-                    <RoleGlyph roleKey={r.key} />
+                    <span className="role-pop__icon grid shrink-0 place-items-center"><RoleGlyph roleKey={r.key} /></span>
                     <span className="truncate">{r.name}</span>
-                    {r.key === role?.key && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
+                    <Check className="role-pop__check ml-auto h-4 w-4 shrink-0" strokeWidth={2.5} />
                   </button>
                 ))}
                 </ScrollBox>
