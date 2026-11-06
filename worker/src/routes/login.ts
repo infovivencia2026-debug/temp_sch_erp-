@@ -305,6 +305,8 @@ async function extraRows(env: Env, identifier: string, onlySchool?: string): Pro
   return out
 }
 
+const PERSONAL_MAIL = /^(gmail|googlemail|yahoo|ymail|rocketmail|hotmail|outlook|live|msn|icloud|me|mac|aol|rediffmail|rediff|protonmail|proton|zoho|zohomail|gmx|mail|yandex|inbox)\.[a-z.]+$/i
+
 async function authenticate(env: Env, identifier: string, password: string, onlySchool?: string | null):
   Promise<{ ok: true; c: Candidate } | { ok: false; outcome: 'no_account' | 'wrong_password' | 'school_paused' | 'ambiguous' }> {
   /* "<number>.<CODE>" no longer signs anyone in (owner, 2026-10-26: "Block it
@@ -319,12 +321,10 @@ async function authenticate(env: Env, identifier: string, password: string, only
   let rows = [...idx.results]
   /* Owner, 2026-11-06: "no one should be able to login using their personal
      mail, only phone number or school email". A school account signs in with
-     an email only when its domain is a school's own (mail_domains); gmail and
-     the like answer as an unknown name. Vendor staff are not school accounts. */
-  if (identifier.includes('@')) {
-    const domain = identifier.slice(identifier.lastIndexOf('@') + 1).toLowerCase()
-    const md = await env.CONTROL.prepare('SELECT 1 FROM mail_domains WHERE lower(domain) = ?').bind(domain).first().catch(() => null)
-    if (!md) rows = rows.filter((r) => r.institution_id === null)
+     an email unless it is from a personal mail provider (gmail and the like),
+     which answers as an unknown name. Vendor staff are not school accounts. */
+  if (identifier.includes('@') && PERSONAL_MAIL.test(identifier.slice(identifier.lastIndexOf('@') + 1))) {
+    rows = rows.filter((r) => r.institution_id === null)
   }
   if (onlySchool !== null) rows.push(...await extraRows(env, identifier, onlySchool))
   const seen = new Set<string>()
