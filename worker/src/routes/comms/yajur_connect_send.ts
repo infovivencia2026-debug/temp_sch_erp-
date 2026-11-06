@@ -53,8 +53,8 @@ export function registerYajurConnectSend(r: Router): void {
             WHERE en.student_id = s.id AND en.status = 'active' ORDER BY en.enrolled_on DESC LIMIT 1) AS class_section
         FROM guardians g LEFT JOIN student_guardians sg ON sg.guardian_id = g.id LEFT JOIN students s ON s.id = sg.student_id
         WHERE trim(coalesce(g.phone, '')) <> '' AND (g.full_name LIKE ?1 ESCAPE '\\' OR s.first_name || ' ' || coalesce(s.last_name, '') LIKE ?1 ESCAPE '\\'
-          OR s.admission_no LIKE ?1 ESCAPE '\\'${digits.length >= 4 ? ` OR replace(replace(g.phone, ' ', ''), '-', '') LIKE ?2` : ''})
-        ORDER BY g.full_name, s.first_name LIMIT 30`).bind(l, `%${digits}%`)
+          OR s.admission_no LIKE ?1 ESCAPE '\\' OR (?2 <> '' AND replace(replace(g.phone, ' ', ''), '-', '') LIKE ?2))
+        ORDER BY g.full_name, s.first_name LIMIT 30`).bind(l, digits.length >= 4 ? `%${digits}%` : '')
       .all<Omit<ConnectPerson, 'opted_out'>>()
     const opts = new Set((await c.db.prepare(`SELECT contact FROM message_opt_outs WHERE scope = 'all'`).all<{ contact: string }>()).results.map((x) => x.contact))
     return { items: rows.results.map((p) => ({ ...p, opted_out: opts.has(normaliseRecipient(p.phone)) })) }
