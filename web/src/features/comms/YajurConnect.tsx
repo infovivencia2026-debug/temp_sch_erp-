@@ -4,9 +4,10 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api'
 import type { ConnectConversation, ConnectMatch, ConnectMessage, ConnectState, ConnectThread } from '@shared/api/feature_yajur_connect'
 import {
-  PageHead, PageBody, Badge, Button, Card, ConfirmButton, Dialog, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select,
-  Switch, Textarea, SEG_BAR, segClass,
+  PageHead, PageBody, Badge, Button, Card, ConfirmButton, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select,
+  Switch, Textarea, SEG_BAR, TAB_BAR, segClass, tabClass,
 } from '@/components/ui'
+import { CampaignsTab, ScheduledTab, SendTab } from './YajurConnectSend'
 import { ChatThread, type ChatMessage } from '@/components/Chat'
 import { ConversationPane, PersonAvatar } from '@/components/ChatScreen'
 import { cn, formatDateTime } from '@/lib/utils'
@@ -17,12 +18,18 @@ import { usePhone } from '@/lib/viewport'
    chat on the right (the whole screen on a phone), and beside the chat the
    family the number belongs to. A reply goes into the school's message queue;
    while the recipient guard is on it waits there and is not delivered, and
-   the screen says so. */
+   the screen says so. The Send, Campaigns, Scheduled and Auto-replies tabs
+   are for holders of comms.connect.write. */
 
 type View = ConnectState | 'all'
 const VIEWS: { key: View; label: string }[] = [{ key: 'open', label: 'Open' }, { key: 'resolved', label: 'Resolved' }, { key: 'all', label: 'All' }]
 const MATCH_LABEL: Record<ConnectMatch, string> = { exact: 'Is exactly', starts: 'Starts with', contains: 'Contains' }
-const PAUSED = 'Sending is paused: the recipient guard is on, so replies and auto-replies are blocked and will not be sent later.'
+const PAUSED = 'Sending is paused: the recipient guard is on, so replies, auto-replies and broadcasts are blocked and will not be sent later.'
+type Tab = 'chats' | 'send' | 'campaigns' | 'scheduled' | 'rules'
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'chats', label: 'Chats' }, { key: 'send', label: 'Send' }, { key: 'campaigns', label: 'Campaigns' }, { key: 'scheduled', label: 'Scheduled' },
+  { key: 'rules', label: 'Auto-replies' },
+]
 
 const KIND_LABEL: Record<string, string> = {
   image: 'Photo', video: 'Video', audio: 'Voice note', document: 'Document', sticker: 'Sticker', location: 'Location', reaction: 'Reaction',
@@ -48,16 +55,22 @@ const when = (iso: string | null) => {
 export default function YajurConnect() {
   const [params, setParams] = useSearchParams()
   const openId = params.get('c')
+  const tabParam = params.get('tab') as Tab | null
   const setOpenId = (id: string | null) => {
     const next = new URLSearchParams(params)
-    if (id) next.set('c', id)
+    if (id) { next.set('c', id); next.delete('tab') }
     else next.delete('c')
     setParams(next, { replace: !id })
+  }
+  const setTab = (t: Tab) => {
+    const next = new URLSearchParams(params)
+    if (t === 'chats') next.delete('tab')
+    else next.set('tab', t)
+    setParams(next, { replace: true })
   }
   const [view, setView] = useState<View>('open')
   const [q, setQ] = useState('')
   const [mine, setMine] = useState(false)
-  const [rulesOpen, setRulesOpen] = useState(false)
   const query = { state: view, q: q.trim() || undefined, mine: mine ? ('1' as const) : undefined }
   const list = useQuery({
     queryKey: ['connect', 'list', query],
@@ -65,16 +78,36 @@ export default function YajurConnect() {
     refetchInterval: 15_000,
   })
   const items = list.data?.items ?? []
+  const canWrite = !!list.data?.can_write
+  const tab: Tab = canWrite && tabParam && TABS.some((t) => t.key === tabParam) ? tabParam : 'chats'
 
   return (
     <>
-      <PageHead
-        eyebrow="Communication"
-        title="Yajur Connect"
-        actions={list.data?.can_write ? <Button variant="secondary" onClick={() => setRulesOpen(true)}>Auto-replies</Button> : undefined}
-      />
+      <PageHead eyebrow="Communication" title="Yajur Connect" />
       <PageBody>
         {list.data?.guard_on && <p className="mb-3 text-[14px] text-muted-foreground">{PAUSED}</p>}
+        {canWrite && (
+          <div className={cn(TAB_BAR, 'mb-4 flex-nowrap overflow-x-auto')} role="tablist">
+            {TABS.map((t) => (
+              <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key)} onClick={() => setTab(t.key)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {tab === 'send' ? <SendTab onOpenChat={setOpenId} />
+          : tab === 'campaigns' ? <CampaignsTab />
+          : tab === 'scheduled' ? <ScheduledTab />
+          : tab === 'rules' ? <AutoReplies />
+          : chats()}
+      </PageBody>
+    </>
+  )
+
+  /* Called, not mounted: a component defined here would remount the search box on every render. */
+  function chats() {
+    return (
+      <>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="min-w-0 sm:w-72"><Input value={q} onChange={setQ} placeholder="Name, number, label or words" /></div>
           <div className={SEG_BAR} role="tablist">
@@ -102,12 +135,11 @@ export default function YajurConnect() {
               {items.map((c) => <Row key={c.id} c={c} active={c.id === openId} onOpen={() => setOpenId(c.id)} />)}
             </ul>
           )}
-          {openId && <Thread id={openId} canWrite={!!list.data?.can_write} onClose={() => setOpenId(null)} />}
+          {openId && <Thread id={openId} canWrite={canWrite} onClose={() => setOpenId(null)} />}
         </div>
-      </PageBody>
-      {rulesOpen && <AutoReplies onClose={() => setRulesOpen(false)} />}
-    </>
-  )
+      </>
+    )
+  }
 }
 
 function Row({ c, active, onOpen }: { c: ConnectConversation; active: boolean; onOpen: () => void }) {
@@ -288,7 +320,7 @@ function Info({ thread, canWrite, onSaved }: { thread: ConnectThread; canWrite: 
   )
 }
 
-function AutoReplies({ onClose }: { onClose: () => void }) {
+function AutoReplies() {
   const qc = useQueryClient()
   const rules = useQuery({ queryKey: ['connect', 'rules'], queryFn: () => api.call('GET /comms/yajur-connect/autoreplies') })
   const [match, setMatch] = useState<ConnectMatch>('contains')
@@ -308,13 +340,9 @@ function AutoReplies({ onClose }: { onClose: () => void }) {
     onSuccess: done,
   })
   return (
-    <Dialog
-      onClose={onClose}
-      title="Auto-replies"
-      description="When a parent's message matches a keyword, this reply is queued at once. The first match in the list is used."
-      size="lg"
-    >
-      <div className="space-y-4">
+    <Card>
+      <div className="space-y-4 p-4">
+        <p className="text-[14px] text-muted-foreground">When a parent's message matches a keyword, this reply is queued at once. The first match in the list is used.</p>
         {rules.isLoading ? <Loading /> : rules.error ? <ErrorState error={rules.error} /> : (rules.data?.items ?? []).length === 0 ? (
           <p className="text-[14px] text-muted-foreground">No auto-replies yet.</p>
         ) : (
@@ -346,6 +374,6 @@ function AutoReplies({ onClose }: { onClose: () => void }) {
         <FormNotice error={add.error} />
         <Button disabled={!keyword.trim() || !text.trim()} pending={add.isPending} onClick={() => add.mutate()}>Add auto-reply</Button>
       </div>
-    </Dialog>
+    </Card>
   )
 }
