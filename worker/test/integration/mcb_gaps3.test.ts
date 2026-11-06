@@ -45,7 +45,7 @@ describe('leave application windows', () => {
     // A window that wraps the year end and contains today.
     const from = mmdd(isoDay(-3)), to = mmdd(isoDay(3))
     expect((await api('admin', 'POST', '/hr/leave-policy', { ...base, types: [{ leave_type_id: typeId, window_from: from, window_to: to }] })).status).toBe(200)
-    const yes = await api('teacher', 'POST', '/workflow/leave', { leave_type_id: typeId, from_date: isoDay(20), to_date: isoDay(21), reason: 'family' })
+    const yes = await api('teacher', 'POST', '/workflow/leave', { leave_type_id: typeId, from_date: isoDay(20), to_date: isoDay(20), reason: 'family' })
     expect(yes.status).toBe(201)
     // Cleared: any time again.
     expect((await api('admin', 'POST', '/hr/leave-policy', { ...base, types: [{ leave_type_id: typeId, window_from: '', window_to: '' }] })).status).toBe(200)

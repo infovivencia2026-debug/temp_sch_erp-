@@ -27,7 +27,7 @@ describe('leave self service', () => {
     const r = await api('teacher', 'GET', '/hr/leave-types?for=mine')
     expect(r.status).toBe(200)
     expect(r.body.items.map((t: { id: string }) => t.id)).toEqual([given])
-    expect(r.body.items[0].remaining).toBe(9)
+    expect(r.body.items[0].remaining).toBeUndefined() // Yajur: staff are not shown days left
     const all = await api('admin', 'GET', '/hr/leave-types?applies_to=staff')
     expect(all.body.items.map((t: { id: string }) => t.id)).toContain(other)
   })
@@ -45,14 +45,14 @@ describe('leave self service', () => {
   })
 
   it('edits a pending request, and refuses once it is decided', async () => {
-    const sent = await api('teacher', 'POST', '/workflow/leave', { leave_type_id: given, from_date: isoDay(20), to_date: isoDay(20), reason: 'Before edit' })
+    const sent = await api('teacher', 'POST', '/workflow/leave', { leave_type_id: given, from_date: isoDay(45), to_date: isoDay(45), reason: 'Before edit' })
     expect(sent.status).toBe(201)
     const id = sent.body.id as string
-    const ed = await api('teacher', 'PATCH', '/workflow/leave/' + id, { from_date: isoDay(20), to_date: isoDay(21), reason: 'After edit' })
+    const ed = await api('teacher', 'PATCH', '/workflow/leave/' + id, { from_date: isoDay(45), to_date: isoDay(46), reason: 'After edit' })
     expect(ed.status).toBe(200)
     const row = await T().prepare('SELECT reason, to_date, days FROM leave_requests WHERE id = ?').bind(id).first<{ reason: string; to_date: string; days: string }>()
     expect(row!.reason).toBe('After edit')
-    expect(row!.to_date).toBe(isoDay(21))
+    expect(row!.to_date).toBe(isoDay(46))
     expect(row!.days).toBe('2')
     // Somebody else cannot edit it.
     expect((await api('admin', 'PATCH', '/workflow/leave/' + id, { reason: 'Not mine' })).status).toBe(404)
