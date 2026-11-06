@@ -1798,6 +1798,19 @@ async function applyForLeave(c: Ctx): Promise<Response> {
         FROM leave_balances lb JOIN leave_types lt ON lt.id = lb.leave_type_id
         JOIN academic_years ay ON ay.id = lb.academic_year_id AND ? BETWEEN ay.starts_on AND ay.ends_on
         WHERE lb.employee_id = ? AND lb.leave_type_id = ? LIMIT 1`).bind(from, employeeId, leaveType).first<{ left: number; name: string }>()
+    /* ONE PAID LEAVE A MONTH (owner, 2026-11-06: "only 1 leave per month, more
+       than one is LOP"). SL and PL together; pending and approved both count.
+       The extra days are not filed as paid leave: they stay absent, which is LOP. */
+    const month = from.slice(0, 7)
+    const used = await c.db.prepare(`SELECT COALESCE(SUM(CAST(days AS REAL)), 0) AS d FROM leave_requests
+        WHERE employee_id = ? AND leave_type_id IS NOT NULL AND kind = 'leave' AND status IN ('pending', 'approved')
+          AND substr(from_date, 1, 7) = ?`).bind(employeeId, month).first<{ d: number }>()
+    const usedN = Number(used?.d ?? 0)
+    if (from.slice(0, 7) !== to.slice(0, 7) || usedN + days > 1 + 1e-9) {
+      throw new HttpError(422, usedN >= 1
+        ? 'one paid leave a month is already used this month; any more days are loss of pay'
+        : `only ${1 - usedN} day of paid leave is allowed this month; the rest is loss of pay`, { code: 'leave_month_limit' })
+    }
     if (bal && days > Number(bal.left) + 1e-9) {
       throw new HttpError(422, Number(bal.left) > 0
         ? `only ${Number(bal.left)} day(s) of ${bal.name} left, and this asks for ${days}`
