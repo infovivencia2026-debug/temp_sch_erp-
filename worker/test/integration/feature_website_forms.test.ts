@@ -88,7 +88,7 @@ describe('communication.website_forms', () => {
       { label: 'Please specify', type: 'text', required: true, show_if: { key: 'Role', value: 'Other' } },
     ] })
     expect(u.body.fields[1].show_if).toEqual({ key: 'role', value: 'Other' })
-    const post = (b: unknown) => call(`/api/v1/public/forms/test/${f.body.slug}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) })
+    const post = (b: unknown) => call(`/api/v1/public/forms/test/${f.body.slug}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...(b as object), _source: 'embed' }) })
     expect((await post({ role: 'Teacher' })).status).toBe(201)
     expect((await post({ role: 'Other' })).status).toBe(400)
     expect((await post({ role: 'Other', please_specify: 'Librarian' })).status).toBe(201)
