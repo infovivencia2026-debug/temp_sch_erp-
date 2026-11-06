@@ -334,8 +334,8 @@ export function registerStaff(r: Router) {
            AND CAST(lb.entitled AS REAL) > 0
          ORDER BY lt.name`).bind(emp.id).all<Record<string, unknown>>()
       if (held.results.length) {
-        return ok({ source: 'balances', items: held.results.map((v) => ({ id: v.id, code: v.code, name: v.name,
-          entitled: Number(v.entitled), remaining: Math.max(0, Number(v.entitled) - Number(v.taken)) })) })
+        // Yajur (owner, 2026-11-06): staff are not shown how many days are left.
+        return ok({ source: 'balances', items: held.results.map((v) => ({ id: v.id, code: v.code, name: v.name })) })
       }
       const year = todayIST().slice(0, 4)
       const elig = await c.db.prepare(`
@@ -346,9 +346,7 @@ export function registerStaff(r: Router) {
          WHERE lt.applies_to = 'staff'
            AND (pr.applies_to_gender IS NULL OR pr.applies_to_gender = '' OR lower(pr.applies_to_gender) = lower(COALESCE(?, pr.applies_to_gender)))
          ORDER BY lt.name`).bind(emp.id, year, emp.gender).all<Record<string, unknown>>()
-      return ok({ source: 'policy', items: elig.results.map((v) => omitNull({ id: v.id, code: v.code, name: v.name,
-        entitled: v.annual_quota === null ? null : Number(v.annual_quota),
-        remaining: v.annual_quota === null ? null : Math.max(0, Number(v.annual_quota) - Number(v.taken)) })) })
+      return ok({ source: 'policy', items: elig.results.map((v) => omitNull({ id: v.id, code: v.code, name: v.name })) })
     }
     const rows = await c.db.prepare(`SELECT id, code, name, applies_to, annual_quota, is_paid, carry_forward FROM leave_types WHERE (? = '' OR applies_to = ?) ORDER BY applies_to, name`)
       .bind(applies, applies).all<Record<string, unknown>>()

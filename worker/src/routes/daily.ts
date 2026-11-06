@@ -1058,7 +1058,7 @@ function registerMeGroup(r: Router) {
       return ok(out)
     }
     out.employee_code = emp.employee_code
-    const [slips, att, bals, late] = await Promise.all([
+    const [slips, att, , late] = await Promise.all([
       c.db.prepare(`
         SELECT pr.period_month, pr.period_year, ps.paid_days, ps.lop_days, ps.gross_paise, ps.deduction_paise, ps.net_paise, ps.breakup,
                pr.locked_at IS NOT NULL AS locked
@@ -1083,7 +1083,8 @@ function registerMeGroup(r: Router) {
     })
     out.payslips = payslips
     out.attendance = { present: num(att?.present), absent: num(att?.absent), late: num(att?.late), on_leave: num(att?.on_leave), days_marked: num(att?.marked) }
-    out.leave_balances = bals.results.map((b) => ({ leave_type: b.leave_type, entitled: String(b.entitled), used: String(b.taken), remaining: String(b.remaining) }))
+    /* Yajur (owner, 2026-11-06): staff do not see their leave left until the school says so. */
+    out.leave_balances = []
     const lateN = num(late?.n)
     out.late_this_month = lateN
     const reasons: Array<{ text: string }> = []
@@ -1785,6 +1786,24 @@ async function applyForLeave(c: Ctx): Promise<Response> {
 
   // Trigger leave_requests_obey_policy (migrations/00031_hr_lifecycle.sql).
   if (kind === 'staff' && leaveType) await checkLeavePolicy(c, leaveType, employeeId, from, days, !!req.is_half_day)
+
+  /* NO LEAVE PAST THE BALANCE (owner, 2026-11-06: "after 6 sl they cant keep
+     that sl for leave ... after pl is finished they cant apply"). Days already
+     approved are in taken; days still pending count too, so two requests
+     cannot both spend the last day. A person with no balance row is left alone. */
+  if (kind === 'staff' && leaveType && requestKind === 'leave') {
+    const bal = await c.db.prepare(`SELECT CAST(lb.entitled AS REAL) - CAST(lb.taken AS REAL)
+          - COALESCE((SELECT SUM(CAST(r.days AS REAL)) FROM leave_requests r WHERE r.employee_id = lb.employee_id
+                AND r.leave_type_id = lb.leave_type_id AND r.status = 'pending'), 0) AS left, lt.name
+        FROM leave_balances lb JOIN leave_types lt ON lt.id = lb.leave_type_id
+        JOIN academic_years ay ON ay.id = lb.academic_year_id AND ? BETWEEN ay.starts_on AND ay.ends_on
+        WHERE lb.employee_id = ? AND lb.leave_type_id = ? LIMIT 1`).bind(from, employeeId, leaveType).first<{ left: number; name: string }>()
+    if (bal && days > Number(bal.left) + 1e-9) {
+      throw new HttpError(422, Number(bal.left) > 0
+        ? `only ${Number(bal.left)} day(s) of ${bal.name} left, and this asks for ${days}`
+        : `no ${bal.name} left this year, so it cannot be applied for`, { code: 'leave_balance_exhausted' })
+    }
+  }
 
   const newId = uuid()
   const stmts: D1PreparedStatement[] = [
