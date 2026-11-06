@@ -295,6 +295,8 @@ const FEATURE_UNLOCKS: Record<string, string[]> = {
   enter_marks: ['academics.marks.write'],
   homework: ['academics.homework.write'],
   homework_assignments: ['academics.homework.write'],
+  /* Substitutions given on its own opened an empty page (Yajur, 2026-11-06): the board reads and writes the timetable. */
+  substitutions: ['academics.timetable.read', 'academics.timetable.write'],
 }
 const featureSlug = (key: string) => key.slice(key.lastIndexOf('.') + 1)
 
