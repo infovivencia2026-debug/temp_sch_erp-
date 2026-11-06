@@ -56,6 +56,11 @@ export const SCHEDULES: Schedule[] = [
     only: async (db) => !!(await db.prepare(`SELECT 1 AS x FROM message_digest_items WHERE bundled_at IS NULL LIMIT 1`).first().catch(() => null)),
     payload: (i) => ({ institution_id: i!.id }) },
   { name: 'message_plans', spec: '*/15 * * * *', kind: 'message:plans', perInstitution: true, payload: env0 },
+  // Yajur Connect schedules (services/wa_send.ts): queue the broadcasts that have come due. Claimed per run, so a run queues once.
+  { name: 'connect_schedules', spec: '* * * * *', kind: 'connect:schedules', perInstitution: true,
+    only: async (db) => !!(await db.prepare(`SELECT 1 AS x FROM wa_schedules WHERE active = 1 AND next_run_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now') LIMIT 1`)
+      .first().catch(() => null)),
+    payload: env0 },
   { name: 'report_digest_daily', spec: '0 7 * * *', kind: 'report:digest_daily', perInstitution: true, payload: env0 },
   { name: 'report_digest_weekly', spec: '0 7 * * 1', kind: 'report:digest_weekly', perInstitution: true, payload: env0 },
   // AI briefs (services/ai/briefs.ts): the principal's morning brief at 07:00, weekly parent notes on Saturday morning.

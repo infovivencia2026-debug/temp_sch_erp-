@@ -5,6 +5,7 @@ import { jobSchool } from './schools'
 import { sendReportDigest } from './report-digest'
 import { dispatchMessages } from '../messaging'
 import { runMessagePlans } from '../message_rules'
+import { runDueSchedules } from '../wa_send'
 
 /* The jobs that hand work to the messaging feature (Go's queue.Messaging):
    draining message_log, the reminder plans and the report digests.
@@ -20,6 +21,10 @@ registerJob<{ limit?: number }>('message:dispatch', async (env, job) => {
 registerJob('message:plans', async (env, job) => {
   const { inst, db } = await jobSchool(env, job)
   await runMessagePlans(env, inst.id, db)
+})
+registerJob('connect:schedules', async (env, job) => {
+  const { inst, db } = await jobSchool(env, job)
+  await runDueSchedules({ env, db, inst: inst.id })
 })
 registerJob('report:digest_daily', async (env, job) => {
   const { inst, db } = await jobSchool(env, job)
