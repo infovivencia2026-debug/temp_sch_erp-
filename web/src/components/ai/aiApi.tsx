@@ -33,7 +33,7 @@ export interface Brief {
 
 /** Per-school AI switches (settings, group AI); worker/src/services/ai/llm.ts AI_FEATURES. */
 export type AiFeature = 'smart_import' | 'write_messages' | 'notice_draft' | 'notice_translate' | 'student_summary' | 'parent_weekly'
-  | 'lms_quiz_draft' | 'admissions_draft' | 'remarks_draft' | 'leave_reply_draft' | 'fee_reminder_draft' | 'principal_brief' | 'early_warnings'
+  | 'lms_quiz_draft' | 'admissions_draft' | 'remarks_draft' | 'leave_reply_draft' | 'fee_reminder_draft' | 'principal_brief' | 'early_warnings' | 'assistant_bot'
 export type AiState = 'ok' | 'refused' | 'quota' | 'unreachable' | 'missing'
 
 export const aiApi = {

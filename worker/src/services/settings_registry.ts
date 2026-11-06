@@ -84,6 +84,7 @@ const SETTINGS: D[] = [
   { key: 'ai.fee_reminder_draft', group: 'ai', label: 'Fee reminders with AI', help: 'Off: no AI drafting in message templates for fee reminders.', type: 'bool', builtin: true, editors: 'both', notify: true, store: cfg('ai', 'fee_reminder_draft') },
   { key: 'ai.principal_brief', group: 'ai', label: 'Principal morning brief (AI)', help: 'Off: the AI morning brief is not written or shown.', type: 'bool', builtin: true, editors: 'both', notify: true, store: cfg('ai', 'principal_brief') },
   { key: 'ai.early_warnings', group: 'ai', label: 'AI wording on early warnings', help: 'Off: warnings still come from the rules, without the AI explanation.', type: 'bool', builtin: true, editors: 'both', notify: true, store: cfg('ai', 'early_warnings') },
+  { key: 'ai.assistant_bot', group: 'ai', label: 'Show the assistant bot', help: 'Off: the round assistant button is hidden for everyone.', type: 'bool', builtin: true, editors: 'seller', notify: true, store: cfg('ai', 'assistant_bot') },
   { key: 'ai.parent_weekly_sms', group: 'ai', label: 'Weekly SMS to parents', help: 'A short weekly note on each child by SMS.', type: 'bool', builtin: false, editors: 'both', notify: true, store: cfg('ai', 'parent_weekly_sms') },
   { key: 'ai.parent_weekly_email', group: 'ai', label: 'Weekly e-mail to parents', help: 'A short weekly note on each child by e-mail.', type: 'bool', builtin: false, editors: 'both', notify: true, store: cfg('ai', 'parent_weekly_email') },
   // Admissions

@@ -55,7 +55,7 @@ export interface AiSettings {
 
 /** The AI features a school can switch off one by one (settings registry, group 'ai'). */
 export const AI_FEATURES = ['smart_import', 'write_messages', 'notice_draft', 'notice_translate', 'student_summary', 'parent_weekly',
-  'lms_quiz_draft', 'admissions_draft', 'remarks_draft', 'leave_reply_draft', 'fee_reminder_draft', 'principal_brief', 'early_warnings'] as const
+  'lms_quiz_draft', 'admissions_draft', 'remarks_draft', 'leave_reply_draft', 'fee_reminder_draft', 'principal_brief', 'early_warnings', 'assistant_bot'] as const
 export type AiFeature = typeof AI_FEATURES[number]
 
 /** Throws 403 ai_feature_off when the school switched this AI feature (or all AI) off. */

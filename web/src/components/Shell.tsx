@@ -1,3 +1,4 @@
+import { useAiFeature } from '@/components/ai/useAiStatus'
 import { Anchored } from './AnchoredPanel'
 import { GlassIconButton } from '@/components/ui'
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
@@ -19,6 +20,7 @@ import { useOfflineWarm } from '@/lib/offline-warm'
 /* Both are corner furniture, not the screen: the assistant (with its markdown,
    speech and import code) and the once-per-person tour load after the shell
    has painted, in their own chunks. */
+const AssistantTab = lazy(() => import('@/components/AssistantTab').then((m) => ({ default: m.AssistantTab })))
 const FirstRunTour = lazy(() => import('./FirstRunTour'))
 
 /* True once the first screen has had its chance: a few seconds after mount and
@@ -267,6 +269,7 @@ export function Shell({
       so the shell still stands up in a test that only wants the chrome. */
   renderAt?: (path: string) => ReactNode
 }) {
+  const botOn = useAiFeature('assistant_bot')
   /* Where the last press landed, for the iOS-style launch: Settings grows out
      of the button that opened it (owner, 2026-10-08). See bento-theme.css. */
   useEffect(() => {
@@ -1531,7 +1534,7 @@ export function Shell({
               <main> so it stays put while a long register scrolls. */}
           {/* The assistant is back: its service now runs in-process on Gemini
              (internal/api/assistant_chat.go), so the corner tab returns. */}
-          {/* Yajur: assistant hidden for this school. */}
+          {later && botOn && <Suspense fallback={null}><AssistantTab /></Suspense>}
           {/* Mounted here for the same reason as the tab: what is queued was
               queued on a screen the person has usually already left, so it
               cannot live on that screen. */}
