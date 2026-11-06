@@ -109,6 +109,18 @@ export async function linkReaderUsersByName(db: D1Database, inst: string, device
       const words = k.split(' ')
       if (words.length >= 2) hits = keyed.filter((s) => words.every((w) => s.words.has(w)))
     }
+    /* "J,SRILEKHA" on the reader is "JUPAKA SRILEKHA" in the office: every
+       full word matches, and each single-letter initial starts one of the
+       remaining words. Only a single such person counts. */
+    if (hits.length === 0) {
+      const raw = u.name.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean)
+      const full = raw.filter((w) => w.length > 1), inits = raw.filter((w) => w.length === 1)
+      if (full.length && inits.length) hits = keyed.filter((s) => {
+        if (!full.every((w) => s.words.has(w))) return false
+        const rest = [...s.words].filter((w) => !full.includes(w))
+        return inits.every((i) => rest.some((w) => w.startsWith(i)))
+      })
+    }
     if (hits.length !== 1 || taken.has(hits[0].id)) continue
     taken.add(hits[0].id)
     links.push({ emp: hits[0].id, pin: u.pin })
