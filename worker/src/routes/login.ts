@@ -316,7 +316,16 @@ async function authenticate(env: Env, identifier: string, password: string, only
   const idx = await env.CONTROL.prepare(
     `SELECT DISTINCT institution_id, user_id FROM login_index WHERE value = ? ${onlySchool ? 'AND institution_id = ?' : onlySchool === null ? 'AND institution_id IS NULL' : ''} LIMIT ?`)
     .bind(...(onlySchool ? [identifier, onlySchool, MAX_CANDIDATES] : [identifier, MAX_CANDIDATES])).all<{ institution_id: string | null; user_id: string }>()
-  const rows = [...idx.results]
+  let rows = [...idx.results]
+  /* Owner, 2026-11-06: "no one should be able to login using their personal
+     mail, only phone number or school email". A school account signs in with
+     an email only when its domain is a school's own (mail_domains); gmail and
+     the like answer as an unknown name. Vendor staff are not school accounts. */
+  if (identifier.includes('@')) {
+    const domain = identifier.slice(identifier.lastIndexOf('@') + 1).toLowerCase()
+    const md = await env.CONTROL.prepare('SELECT 1 FROM mail_domains WHERE lower(domain) = ?').bind(domain).first().catch(() => null)
+    if (!md) rows = rows.filter((r) => r.institution_id === null)
+  }
   if (onlySchool !== null) rows.push(...await extraRows(env, identifier, onlySchool))
   const seen = new Set<string>()
   const candidates: Candidate[] = []
