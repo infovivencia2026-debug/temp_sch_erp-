@@ -287,6 +287,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   'institution_admin.communication.website_forms': screen(() => import('./comms/WebsiteForms')), // feature:communication.website_forms
+  'institution_admin.communication.yajur_connect': screen(() => import('./comms/YajurConnect')), // feature:communication.yajur_connect
   'institution_admin.activity.school_activity': screen(() => import('./admin/SchoolActivity')), // feature:activity.school_activity
   /* Same register, wider reach. Which sections it offers is decided by the
      permission the feature carries, not by the screen: with

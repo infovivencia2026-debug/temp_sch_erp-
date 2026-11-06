@@ -41,6 +41,7 @@ import { registerParentConcerns } from './comms/parent_concerns' // feature:comm
 import { registerConcernsFromParents } from './comms/concerns_from_parents' // feature:communication.concerns_from_parents
 import { registerSchoolActivity } from './admin/school_activity' // feature:activity.school_activity
 import { registerWebsiteForms } from './comms/website_forms' // feature:communication.website_forms
+import { registerYajurConnect } from './comms/yajur_connect' // feature:communication.yajur_connect
 
 /* Every ported domain registers here, one module per Go handler group.
    Routes match in registration order, so within a module literal paths
@@ -89,5 +90,6 @@ export function buildRouter(): Router {
   registerConcernsFromParents(r) // feature:communication.concerns_from_parents
   registerSchoolActivity(r) // feature:activity.school_activity
   registerWebsiteForms(r) // feature:communication.website_forms
+  registerYajurConnect(r) // feature:communication.yajur_connect
   return r
 }

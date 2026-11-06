@@ -80,6 +80,7 @@ export const FEATURE_ROUTES: Record<string, string[]> = {
   'communication.mail_addresses': ['/comms/mail-addresses'], // feature:communication.mail_addresses
   'activity.school_activity': ['/admin/activity'], // feature:activity.school_activity
   'communication.website_forms': ['/comms/website-forms'], // feature:communication.website_forms
+  'communication.yajur_connect': ['/comms/yajur-connect'], // feature:communication.yajur_connect
 }
 
 export interface Override { enabled: boolean; ends_at: string | null; note: string; updated_at: string }

@@ -692,6 +692,51 @@
         "worker/test/integration/feature_website_forms.test.ts"
       ]
     },
+    "communication.yajur_connect": {
+      "name": "Yajur Connect",
+      "summary": "WhatsApp chats with parents in one place. Read what parents send, reply inside the 24-hour window or with an approved template after it, assign a chat to a colleague, label it, resolve it, and set keyword auto-replies.",
+      "section": "communication",
+      "sectionName": "Communication",
+      "slug": "yajur_connect",
+      "roles": [
+        "institution_admin"
+      ],
+      "keys": [
+        "institution_admin.communication.yajur_connect"
+      ],
+      "module": "comms",
+      "webDir": "comms",
+      "planModule": "communication",
+      "apiBase": "/comms/yajur-connect",
+      "readPerm": "comms.connect.read",
+      "writePerm": "comms.connect.write",
+      "table": null,
+      "group": null,
+      "createdPerms": [],
+      "grants": {
+        "institution_admin": [
+          "comms.connect.read",
+          "comms.connect.write"
+        ]
+      },
+      "grantWhere": {
+        "institution_admin comms.connect.read": [
+          "static_data"
+        ],
+        "institution_admin comms.connect.write": [
+          "static_data"
+        ]
+      },
+      "addedSectionModule": false,
+      "migration": "worker/migrations/tenant/0131_feature_yajur_connect.sql",
+      "files": [
+        "shared/api/feature_yajur_connect.ts",
+        "web/src/features/comms/YajurConnect.tsx",
+        "worker/migrations/tenant/0131_feature_yajur_connect.sql",
+        "worker/src/routes/comms/yajur_connect.ts",
+        "worker/test/integration/feature_yajur_connect.test.ts"
+      ]
+    },
     "help.helpdesk": {
       "name": "Helpdesk",
       "summary": "Requests for help from families and staff of this school. Answer them here, or pass one to XULO support with a summary that names no child.",

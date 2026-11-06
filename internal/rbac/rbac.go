@@ -150,14 +150,16 @@ const (
 	SelfAttendanceRead = "self.attendance.read"
 	SelfFeesRead       = "self.fees.read"
 	SelfWalletRead     = "self.wallet.read"
-	StatusPost         = "status.post"        // feature:communication.class_status
-	StatusManage       = "status.manage"      // feature:communication.class_status
-	StatusPostSchool   = "status.post_school" // feature:communication.class_status
-	HelpDeskRead       = "help.desk.read"     // feature:help.helpdesk
-	HelpDeskWrite      = "help.desk.write"    // feature:help.helpdesk
-	CommsMailRead      = "comms.mail.read"    // feature:communication.inbox
-	CommsMailWrite     = "comms.mail.write"   // feature:communication.inbox
-	CommsMailManage    = "comms.mail.manage"  // feature:communication.mail_addresses
+	StatusPost         = "status.post"         // feature:communication.class_status
+	StatusManage       = "status.manage"       // feature:communication.class_status
+	StatusPostSchool   = "status.post_school"  // feature:communication.class_status
+	HelpDeskRead       = "help.desk.read"      // feature:help.helpdesk
+	HelpDeskWrite      = "help.desk.write"     // feature:help.helpdesk
+	CommsMailRead      = "comms.mail.read"     // feature:communication.inbox
+	CommsMailWrite     = "comms.mail.write"    // feature:communication.inbox
+	CommsMailManage    = "comms.mail.manage"   // feature:communication.mail_addresses
+	CommsConnectRead   = "comms.connect.read"  // feature:communication.yajur_connect
+	CommsConnectWrite  = "comms.connect.write" // feature:communication.yajur_connect
 )
 
 // Permission is a seedable row.
@@ -270,6 +272,8 @@ var All = []Permission{
 	{CommsMailRead, "comms", "View Inbox"},                                                                      // feature:communication.inbox
 	{CommsMailWrite, "comms", "Manage Inbox"},                                                                   // feature:communication.inbox
 	{CommsMailManage, "comms", "View Mail addresses"},                                                           // feature:communication.mail_addresses
+	{CommsConnectRead, "comms", "View Yajur Connect"},                                                           // feature:communication.yajur_connect
+	{CommsConnectWrite, "comms", "Manage Yajur Connect"},                                                        // feature:communication.yajur_connect
 }
 
 // Role is a seeded system role and the keys it grants.

@@ -468,6 +468,16 @@ var Groups = []Group{
 		ScopeNote: "The whole school.",
 	},
 	// feature:communication.mail_addresses end
+	// feature:communication.yajur_connect begin
+	{
+		Key: "communication_yajur_connect", Name: "Yajur Connect", Band: BandOptional,
+		Blurb:     "WhatsApp chats with parents in one place. Read what parents send, reply inside the 24-hour window or with an approved template after it, assign a chat to a c...",
+		View:      []string{CommsConnectRead},
+		Manage:    []string{CommsConnectWrite},
+		Scopes:    fixed("institution"),
+		ScopeNote: "The whole school.",
+	},
+	// feature:communication.yajur_connect end
 }
 
 // GroupByKey looks a group up by key.

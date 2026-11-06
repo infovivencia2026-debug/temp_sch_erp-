@@ -5,6 +5,7 @@ import { applyStatus } from '../../services/messaging'
 import { isStartKeyword, isStopKeyword, recordOptOut } from '../../services/delivery'
 import { normaliseRecipient } from '../admin/msg_guard'
 import type { Institution } from '../../tenant'
+import { recordInbound, type WaInboundMessage } from '../../services/wa_connect'
 
 /* Delivery receipts from the providers, on /api/v1/public/webhooks/*. No
    session: each provider proves itself its own way.
@@ -81,7 +82,7 @@ export async function whatsappWebhook(env: Env, req: Request, url: URL): Promise
   const sig = (req.headers.get('x-hub-signature-256') ?? '').replace(/^sha256=/, '')
   const want = hex(await hmac(enc.encode(appSecret), body))
   if (!sig || !safeEqual(sig.toLowerCase(), want)) return json({ error: 'bad signature' }, 401)
-  let payload: { entry?: { changes?: { value?: { statuses?: WaStatus[]; messages?: WaInbound[] } }[] }[] }
+  let payload: { entry?: { changes?: { value?: WaValue }[] }[] }
   try { payload = JSON.parse(body) } catch { return json({ error: 'malformed JSON' }, 400) }
   let applied = 0, unmatched = 0
   for (const e of payload.entry ?? []) for (const ch of e.changes ?? []) for (const st of ch.value?.statuses ?? []) {
@@ -100,10 +101,61 @@ export async function whatsappWebhook(env: Env, req: Request, url: URL): Promise
     const stop = isStopKeyword(text), start = !stop && isStartKeyword(text)
     if ((stop || start) && msg.from) optOuts += await applyStopReply(env, msg.from, 'whatsapp', stop)
   }
-  return json({ ok: true, applied, unmatched, opt_outs: optOuts })
+  let stored = 0
+  for (const e of payload.entry ?? []) for (const ch of e.changes ?? []) {
+    const v = ch.value
+    if (v?.messages?.length) stored += await storeInbound(env, v)
+  }
+  return json({ ok: true, applied, unmatched, opt_outs: optOuts, stored })
 }
 
 interface WaInbound { from?: string; text?: { body?: string }; button?: { text?: string; payload?: string }; interactive?: { button_reply?: { title?: string } } }
+interface WaValue {
+  metadata?: { phone_number_id?: string }
+  contacts?: { wa_id?: string; profile?: { name?: string } }[]
+  statuses?: WaStatus[]
+  messages?: (WaInbound & WaInboundMessage)[]
+}
+
+/** Yajur Connect: keep what parents send. The school is the one whose WhatsApp
+    settings hold the receiving phone number id; failing that, like a STOP reply,
+    every school that has messaged the sender in the last 180 days. A school
+    whose database is not migrated yet is skipped. Returns rows stored. */
+async function storeInbound(env: Env, v: WaValue): Promise<number> {
+  const pnid = (v.metadata?.phone_number_id ?? '').trim()
+  const schools = (await env.CONTROL.prepare(`SELECT * FROM institutions LIMIT 2000`).all<Institution>().catch(() => ({ results: [] as Institution[] }))).results
+  const since = new Date(Date.now() - 180 * 86_400_000).toISOString()
+  const byNumber: Institution[] = [], recent = new Map<Institution, Set<string>>()
+  for (const inst of schools) {
+    try {
+      const db = tenantDb(env, inst)
+      if (pnid) {
+        const hit = await db.prepare(`SELECT 1 AS x FROM integrations WHERE provider = 'whatsapp' AND kind = 'messaging' AND institution_id IS NOT NULL
+            AND json_extract(config, '$.phone_number_id') = ? LIMIT 1`).bind(pnid).first()
+        if (hit) { byNumber.push(inst); continue }
+      }
+      for (const m of v.messages ?? []) {
+        if (!m.from) continue
+        const hit = await db.prepare(`SELECT 1 AS x FROM message_log WHERE channel = 'whatsapp' AND queued_at > ?
+            AND substr(replace(replace(replace(recipient,'+',''),' ',''),'-',''), -10) = ? LIMIT 1`).bind(since, last10(m.from)).first()
+        if (hit) { const s = recent.get(inst) ?? new Set<string>(); s.add(m.from); recent.set(inst, s) }
+      }
+    } catch (e) { console.warn('connect: school lookup', inst.id, e) }
+  }
+  const nameOf = (wa?: string) => v.contacts?.find((c) => c.wa_id === wa)?.profile?.name ?? null
+  let n = 0
+  const targets: [Institution, (from?: string) => boolean][] = byNumber.length
+    ? byNumber.map((i) => [i, () => true])
+    : [...recent].map(([i, froms]) => [i, (f?: string) => !!f && froms.has(f)])
+  for (const [inst, takes] of targets) {
+    const db = tenantDb(env, inst)
+    for (const m of v.messages ?? []) {
+      if (!takes(m.from)) continue
+      try { if (await recordInbound(env, db, inst.id, m, nameOf(m.from))) n++ } catch (e) { console.warn('connect: inbound not stored', inst.id, e) }
+    }
+  }
+  return n
+}
 
 const last10 = (v: string) => v.replace(/[^0-9]/g, '').slice(-10)
 

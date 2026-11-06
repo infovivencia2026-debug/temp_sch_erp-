@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 488 features.
+// Roles is the catalog: 24 roles, 489 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -391,6 +391,7 @@ var Roles = []Role{
 					{Key: "institution_admin.communication.inbox", Slug: "inbox", Name: "Inbox", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Your own school email address. Read what arrives, reply, write new mail and keep it in folders. Only you can open your mailbox."},
 					{Key: "institution_admin.communication.mail_addresses", Slug: "mail_addresses", Name: "Mail addresses", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's mail domain and each staff member's email address: give one, change it or switch it off. Mail itself stays private to its owner."},
 					{Key: "institution_admin.communication.website_forms", Slug: "website_forms", Name: "Website forms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Build forms like Google Forms for the school website (careers, contact, events and more). Copy the embed code to the website; every response lands here with its date and time."},
+					{Key: "institution_admin.communication.yajur_connect", Slug: "yajur_connect", Name: "Yajur Connect", Scope: Scope("institution"), Tier: Tier("core"), Summary: "WhatsApp chats with parents in one place. Read what parents send, reply inside the 24-hour window or with an approved template after it, assign a chat to a colleague, label it, resolve it, and set keyword auto-replies."},
 				},
 			},
 			{

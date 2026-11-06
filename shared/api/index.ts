@@ -43,6 +43,7 @@ import type { ParentConcernsApi } from './feature_parent_concerns' // feature:co
 import type { ConcernsFromParentsApi } from './feature_concerns_from_parents' // feature:communication.concerns_from_parents
 import type { SchoolActivityApi } from './feature_school_activity' // feature:activity.school_activity
 import type { WebsiteFormsApi } from './feature_website_forms' // feature:communication.website_forms
+import type { YajurConnectApi } from './feature_yajur_connect' // feature:communication.yajur_connect
 
 export interface Api extends SessionApi, CatalogApi, StudentsApi, AttendanceApi, TimetableApi, FeesApi, ExamsApi,
-  StaffApi, NotificationsApi, MessagesApi, DashboardsApi, BootstrapApi, ClassStatusApi, HelpdeskApi, YearEndPayoutApi, SubjectOverviewApi, SubjectMeetingsApi, InboxApi, MailAddressesApi, ParentConcernsApi, ConcernsFromParentsApi, SchoolActivityApi, WebsiteFormsApi {}
+  StaffApi, NotificationsApi, MessagesApi, DashboardsApi, BootstrapApi, ClassStatusApi, HelpdeskApi, YearEndPayoutApi, SubjectOverviewApi, SubjectMeetingsApi, InboxApi, MailAddressesApi, ParentConcernsApi, ConcernsFromParentsApi, SchoolActivityApi, WebsiteFormsApi, YajurConnectApi {}
