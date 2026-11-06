@@ -435,7 +435,7 @@ export function StaffProfileCard({ name, sub, photoId, onNavigate }: {
   name: string; sub?: string | null; photoId?: string; onNavigate?: () => void
 }) {
   return (
-    <div className="flex min-w-0 items-center justify-between gap-2 rounded-[14px] border bg-surface-subtle py-2.5 pl-3 pr-2">
+    <div className="profile-pill flex min-w-0 items-center justify-between gap-2 rounded-[14px] border bg-surface-subtle py-2.5 pl-3 pr-2">
       <Link to="/account" data-help-anchor="account" onClick={onNavigate}
         title="My profile"
         /* Reads as a button (owner, 2026-10-28: "idk that is clickable"): it
@@ -456,6 +456,7 @@ export function StaffProfileCard({ name, sub, photoId, onNavigate }: {
         <HelpButton className={FOOT_ICON} iconClassName="h-5 w-5 max-sm:h-6 max-sm:w-6" />
         <div className="staff-foot-settings foot-icon-wrap"><BentoSettings placement="rail" /></div>
         <a href="/logout" onClick={() => buzz('warn')} aria-label="Sign out" title="Sign out"
+          data-pill-logout
           className={FOOT_ICON}>
           <LogOut aria-hidden className="h-5 w-5 max-sm:h-6 max-sm:w-6" />
         </a>

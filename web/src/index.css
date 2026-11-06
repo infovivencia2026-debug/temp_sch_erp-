@@ -5774,3 +5774,21 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
 .role-pop__check { opacity: 0; transform: scale(.5) translateX(-10px); transition: opacity .4s, transform .4s cubic-bezier(.175,.885,.32,1.275); }
 .role-pop__item[data-active] .role-pop__check { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .role-pop__item, .role-pop__icon, .role-pop__check { transition: none; } .role-pop__item:hover, .role-pop__item:hover .role-pop__icon { transform: none; } }
+
+/* PROFILE PILL (owner's design, 2026-11-06): on a computer or tablet the whole
+   card lifts with a deeper shadow; each icon gets a soft round hover and pops;
+   Sign out turns red. Phones keep the plain card (no hover there). */
+@media (min-width: 640px) and (hover: hover) {
+  .profile-pill {
+    border-radius: 999px !important;
+    background: color-mix(in oklab, var(--card) 95%, transparent);
+    box-shadow: 0 10px 25px -5px rgb(0 0 0 / .08), 0 4px 10px -5px rgb(0 0 0 / .04);
+    transition: box-shadow .3s ease, transform .3s ease;
+  }
+  .profile-pill:hover { box-shadow: 0 14px 30px -5px rgb(0 0 0 / .12); transform: translateY(-2px); }
+  .profile-pill a, .profile-pill button { border-radius: 999px !important; transition: background-color .2s cubic-bezier(.4,0,.2,1), color .2s; }
+  .profile-pill > div a:hover, .profile-pill > div button:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) !important; color: var(--foreground) !important; }
+  .profile-pill > div a svg, .profile-pill > div button svg { transition: transform .2s ease; }
+  .profile-pill > div a:hover svg, .profile-pill > div button:hover svg { transform: scale(1.1); }
+  .profile-pill [data-pill-logout]:hover { background: #fee2e2 !important; color: #dc2626 !important; }
+}
