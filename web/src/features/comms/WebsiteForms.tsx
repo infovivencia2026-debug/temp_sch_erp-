@@ -342,7 +342,10 @@ function Responses({ form }: { form: Form }) {
   const known = form.fields.map((f) => f.key)
   const extra = [...new Set(items.flatMap((r) => [...Object.keys(r.data), ...r.files.map((x) => x.key)]))].filter((k) => !known.includes(k))
   const cols = [...form.fields.map((f) => ({ key: f.key, label: f.label })), ...extra.map((k) => ({ key: k, label: k }))]
-  const shownCols = cols.slice(0, 4)
+  /* Answers posted by a website's own form carry its own names (Yajur careers,
+     2026-11-06): show only the columns somebody actually filled. */
+  const filled = (r: Resp, k: string) => !!show(r, k) || r.files.some((x) => x.key === k)
+  const shownCols = cols.filter((c) => items.some((r) => filled(r, c.key))).slice(0, 4)
   const week = Date.now() - 7 * 86400000
   const open = items.find((r) => r.id === openId) ?? null
 
@@ -364,14 +367,14 @@ function Responses({ form }: { form: Form }) {
         ))}
       </Table>
       {open && (
-        <Dialog open onClose={() => setOpenId(null)} title={show(open, cols[0]?.key ?? '') || 'Response'}
+        <Dialog open onClose={() => setOpenId(null)} title={show(open, 'Name') || show(open, shownCols[0]?.key ?? '') || 'Response'}
           description={`Received ${when(open.created_at)} · ${open.source === 'embed' ? 'Embedded form' : 'Website form'}`}
           footer={<>
             <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this response and its files?" onConfirm={() => del.mutate(open.id)}>Delete</ConfirmButton>
             <Button variant="secondary" onClick={() => setOpenId(null)}>Close</Button>
           </>}>
           <dl className="divide-y">
-            {cols.map((c) => {
+            {cols.filter((c) => open.source === 'embed' || filled(open, c.key)).map((c) => {
               const file = open.files.find((x) => x.key === c.key)
               return (
                 <div key={c.key} className="grid gap-1 py-3 sm:grid-cols-[180px_minmax(0,1fr)]">
