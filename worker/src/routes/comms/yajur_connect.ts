@@ -15,6 +15,7 @@ import { HttpError, badRequest, isUUID, like, now, readJSON, uuid } from '../../
 import { loadGuard, permits } from '../admin/msg_guard'
 import { MessagingError, queueMessage, scopeOf } from '../../services/messaging'
 import { CONNECT_SOURCE, queueChatText, recordOutbound } from '../../services/wa_connect'
+import { connectLabel } from '../../services/wa_send'
 import { registerYajurConnectSend } from './yajur_connect_send'
 import { registerYajurConnectLog } from './yajur_connect_log'
 import type {
@@ -59,15 +60,15 @@ async function convOr404(c: Ctx): Promise<ConvRow> {
 
 interface MsgRow {
   id: string; direction: 'in' | 'out'; kind: string; text: string | null; media_id: string | null; media_mime: string | null; media_name: string | null
-  reply_to_wa_id: string | null; wa_id: string | null; status: string | null; log_status: string | null; log_error: string | null
+  reply_to_wa_id: string | null; wa_id: string | null; status: string | null; log_status: string | null; log_error: string | null; log_send_after: string | null; log_sent_at: string | null
   sent_by_name: string | null; auto_reply_id: string | null; at: string
 }
 const viewMsg = (m: MsgRow): ConnectMessage => ({
   id: m.id, direction: m.direction, kind: m.kind, text: m.text, media_id: m.media_id, media_mime: m.media_mime, media_name: m.media_name,
-  reply_to_wa_id: m.reply_to_wa_id, wa_id: m.wa_id, status: m.log_status ?? m.status ?? '', error: m.log_error,
+  reply_to_wa_id: m.reply_to_wa_id, wa_id: m.wa_id, status: m.log_status ?? m.status ?? '', error: m.log_error, send_after: m.log_send_after ?? null, sent_at: m.log_sent_at ?? null,
   sent_by_name: m.sent_by_name, auto_reply: !!m.auto_reply_id, at: m.at,
 })
-const MSG_SELECT = `SELECT m.*, ml.status AS log_status, ml.error AS log_error, u.full_name AS sent_by_name
+const MSG_SELECT = `SELECT m.*, ml.status AS log_status, ml.error AS log_error, ml.send_after AS log_send_after, ml.sent_at AS log_sent_at, u.full_name AS sent_by_name
   FROM wa_messages m LEFT JOIN message_log ml ON ml.id = m.message_log_id LEFT JOIN users u ON u.id = m.sent_by`
 
 const windowEnds = (lastIn: string | null) => (lastIn ? Date.parse(lastIn) + WINDOW_MS : 0)
@@ -77,10 +78,14 @@ async function guardHolds(c: Ctx, phone: string): Promise<boolean> {
   return !permits(await loadGuard(c), 'whatsapp', '+' + phone)[0]
 }
 
+async function testNumbers(c: Ctx): Promise<number> {
+  return [...(await loadGuard(c)).allowed].filter((k) => k.startsWith('phone:')).length
+}
+
 async function templates(c: Ctx): Promise<ConnectTemplate[]> {
   const r = await c.db.prepare(`SELECT code, wa_template_name FROM message_templates WHERE channel = 'whatsapp' AND is_active = 1
-      AND trim(coalesce(wa_template_name, '')) <> '' ORDER BY code`).all<{ code: string; wa_template_name: string }>()
-  return r.results.map((t) => ({ code: t.code, name: t.wa_template_name }))
+      AND trim(coalesce(wa_template_name, '')) <> '' AND substr(code, 1, 8) = 'connect_' ORDER BY code`).all<{ code: string; wa_template_name: string }>()
+  return r.results.map((t) => ({ code: t.code, name: connectLabel(t.code) }))
 }
 
 async function contactOf(c: Ctx, conv: ConvRow): Promise<ConnectContact> {
@@ -160,7 +165,7 @@ export function registerYajurConnect(r: Router): void {
     const rows = await c.db.prepare(`${CONV_SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
         ORDER BY coalesce(c.last_message_at, c.created_at) DESC LIMIT 300`).bind(...args).all<ConvRow>()
     const g = await loadGuard(c)
-    return { items: rows.results.map(viewConv), guard_on: g.mode !== 'everyone' && !g.unguarded.has('whatsapp'), can_write: can(c.id, WRITE) }
+    return { items: rows.results.map(viewConv), guard_on: g.mode !== 'everyone' && !g.unguarded.has('whatsapp'), test_numbers: [...g.allowed].filter((k) => k.startsWith('phone:')).length, can_write: can(c.id, WRITE) }
   })
 
   r.typed('GET /comms/yajur-connect/staff', READ, async (c) => {
@@ -208,7 +213,7 @@ export function registerYajurConnect(r: Router): void {
       conversation: viewConv({ ...conv, unread: can(c.id, WRITE) ? 0 : conv.unread }),
       messages: rows.results.reverse().map(viewMsg),
       contact: await contactOf(c, conv),
-      sending: { paused: await guardHolds(c, conv.phone), window_open: ends > Date.now(), window_ends_at: ends ? new Date(ends).toISOString() : null },
+      sending: { paused: await guardHolds(c, conv.phone), test_numbers: await testNumbers(c), window_open: ends > Date.now(), window_ends_at: ends ? new Date(ends).toISOString() : null },
       templates: await templates(c),
     }
   })

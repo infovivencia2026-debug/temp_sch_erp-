@@ -57,6 +57,7 @@ describe('communication.yajur_connect header picture', () => {
 
     // The sent picture still passes the send screens' check.
     const { cleanImage } = await import('../../src/services/wa_send')
-    expect(cleanImage(up.body.url)).toBe(up.body.url)
+    const pictured = { code: 'connect_x', name: 'X', body: '', fields: [], has_image_header: true }
+    expect(cleanImage(pictured, up.body.url)).toBe(up.body.url)
   })
 })

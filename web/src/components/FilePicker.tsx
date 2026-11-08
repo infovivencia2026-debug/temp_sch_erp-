@@ -212,9 +212,12 @@ export default function FilePicker({
             <Paperclip className="h-3.5 w-3.5" />
             {label}
           </Button>
-          <span className="text-[12.5px] text-muted-foreground">
-            {hint ?? 'Any document, image, recording or archive, up to 64 MB.'}
-          </span>
+          {/* The general hint only for the general upload; a caller that restricts the type says its own limits. */}
+          {(hint || !accept) && (
+            <span className="text-[12.5px] text-muted-foreground">
+              {hint ?? 'Any document, image, recording or archive, up to 64 MB.'}
+            </span>
+          )}
         </div>
       )}
       {progress !== null && (

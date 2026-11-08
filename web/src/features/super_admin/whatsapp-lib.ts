@@ -52,6 +52,8 @@ export interface WhatsAppTemplate {
   /** Ordered: position i is the approved template's body parameter {{i+1}}. */
   wa_params: string[]
   is_active: boolean
+  /** Approved with a picture header; only then can Yajur Connect attach a picture. */
+  has_image_header: boolean
   built_in: boolean
   /** False means this template cannot be sent on WhatsApp at all. */
   mapped: boolean
@@ -178,6 +180,7 @@ export function useSaveWhatsAppTemplate() {
       wa_language: string
       wa_params: string[]
       is_active: boolean
+      has_image_header: boolean
     }
   >((body) => api.put(`${BASE}/whatsapp/templates`, body))
 }

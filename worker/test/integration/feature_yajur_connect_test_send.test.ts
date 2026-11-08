@@ -7,7 +7,7 @@ import { seed, api, as, E, IDS } from './fixture'
 const db = () => E.TENANT_TEST
 const graphCalls: string[] = []
 const realFetch = globalThis.fetch
-const CODE = 'connect.testsend'
+const CODE = 'connect_testsend'
 const ALLOWED = '+919000000077'
 
 describe('communication.yajur_connect test send', () => {
@@ -55,5 +55,26 @@ describe('communication.yajur_connect test send', () => {
     const log = await db().prepare(`SELECT recipient, body, student_id FROM message_log WHERE source_kind = 'connect_test'`).all<{ recipient: string; body: string; student_id: string | null }>()
     expect(log.results).toHaveLength(1)
     expect(log.results[0]).toMatchObject({ recipient: ALLOWED, student_id: null, body: 'Dear Test, about Test of Test: Checking the wording.' })
+  })
+  it('refuses a header picture for a template without one (400); the template list says which have one', async () => {
+    const t = await api('admin', 'GET', '/comms/yajur-connect/send/templates')
+    expect(t.body.items.find((x: { code: string }) => x.code === CODE).has_image_header).toBe(false)
+    expect(typeof t.body.school_name).toBe('string')
+    const img = { header_image_url: 'https://cdn.test/a.jpg' }
+    expect((await api('admin', 'POST', '/comms/yajur-connect/send/test', { ...body(ALLOWED), ...img })).status).toBe(400)
+    expect((await api('admin', 'POST', '/comms/yajur-connect/send', { guardian_id: IDS.guardian, template_code: CODE, values: { note: 'x' }, ...img })).status).toBe(400)
+    expect((await api('admin', 'POST', '/comms/yajur-connect/send/preview', {
+      name: 'x', template_code: CODE, values: { note: 'x' }, audience: { scope: 'school', ids: [], relation: 'both' }, ...img })).status).toBe(400)
+  })
+
+  it('never uses a typed value for a field filled per recipient', async () => {
+    const r = await api('admin', 'POST', '/comms/yajur-connect/send/test', { ...body(ALLOWED), values: { note: 'Second.', parent_name: '12/11/2026', student_name: 'x', class: 'y' } })
+    expect(r.status).toBe(201)
+    const row = await db().prepare(`SELECT body FROM message_log WHERE id = ?`).bind(r.body.message_log_id).first<{ body: string }>()
+    expect(row!.body).toBe('Dear Test, about Test of Test: Second.')
+    const p = await api('admin', 'POST', '/comms/yajur-connect/send/preview', {
+      name: 'x', template_code: CODE, values: { note: 'Hi', parent_name: '12/11/2026' }, audience: { scope: 'school', ids: [], relation: 'both' } })
+    expect(p.status).toBe(200)
+    expect(p.body.sample ?? '').not.toContain('12/11/2026')
   })
 })

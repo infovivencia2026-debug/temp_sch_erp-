@@ -8,7 +8,7 @@ import { dispatchMessages } from '../../src/services/messaging'
 const db = () => E.TENANT_TEST
 const graphCalls: string[] = []
 const realFetch = globalThis.fetch
-const CODE = 'connect.staff_notice'
+const CODE = 'connect_staff_notice'
 const DEPT = '00000000-0000-4000-8000-0000000005d1'
 const OTHER = '00000000-0000-4000-8000-0000000005d2'
 const aud = { scope: 'departments', ids: [DEPT], relation: 'both' }

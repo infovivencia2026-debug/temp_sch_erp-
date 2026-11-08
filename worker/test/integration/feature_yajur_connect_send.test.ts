@@ -10,7 +10,7 @@ import { runDueSchedules } from '../../src/services/wa_send'
 const db = () => E.TENANT_TEST
 const graphCalls: string[] = []
 const realFetch = globalThis.fetch
-const CODE = 'connect.notice'
+const CODE = 'connect_notice'
 const audience = { scope: 'school', ids: [], relation: 'both' }
 const body = (extra: Record<string, unknown> = {}) => ({ name: 'Sports day', template_code: CODE, values: { note: 'Sports day for {{student_name}} is on Friday.' }, audience, ...extra })
 
@@ -29,8 +29,8 @@ describe('communication.yajur_connect sending', () => {
     await db().prepare(`INSERT INTO integrations (institution_id, provider, kind, config, enabled) VALUES (?, 'whatsapp', 'messaging', ?, 1)
         ON CONFLICT (institution_id, provider) DO UPDATE SET config = excluded.config, enabled = 1`)
       .bind(IDS.school, JSON.stringify({ endpoint: 'https://gateway.invalid/send', auth_header: 'X-Test: 1' })).run()
-    await db().prepare(`INSERT INTO message_templates (id, institution_id, code, channel, body, wa_template_name, wa_language, wa_params, is_active)
-        VALUES (?, ?, ?, 'whatsapp', ?, 'connect_notice', 'en', '["parent_name","student_name","class","note"]', 1)`)
+    await db().prepare(`INSERT INTO message_templates (id, institution_id, code, channel, body, wa_template_name, wa_language, wa_params, is_active, has_image_header)
+        VALUES (?, ?, ?, 'whatsapp', ?, 'connect_notice', 'en', '["parent_name","student_name","class","note"]', 1, 1)`)
       .bind(crypto.randomUUID(), IDS.school, CODE, 'Dear {{parent_name}}, about {{student_name}} of {{class}}: {{note}}').run()
     // The second family replied STOP.
     await db().prepare(`INSERT INTO message_opt_outs (institution_id, contact, scope, source, created_at) VALUES (?, 'phone:919000000002', 'all', 'stop_reply', ?)`)

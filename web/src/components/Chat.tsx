@@ -62,6 +62,29 @@ export interface ChatMessage {
      and people pressed Send twice. */
   pending?: boolean
   failed?: boolean
+  /** A server-side delivery state, drawn the WhatsApp way: clock while it
+      waits, one tick sent, two grey delivered, two blue read, a red mark when
+      it failed (its reason in delivery_note, shown on tap). For a waiting
+      message delivery_note is the hold, e.g. "Sends at 7:00 AM". */
+  delivery?: 'waiting' | 'sent' | 'delivered' | 'read' | 'failed'
+  delivery_note?: string
+}
+
+function DeliveryMark({ state, note }: { state: NonNullable<ChatMessage['delivery']>; note?: string }) {
+  const [open, setOpen] = useState(false)
+  if (state === 'waiting') return <><Clock className="h-[14px] w-[14px]" aria-label="Waiting to send" />{note && <span>{note}</span>}</>
+  if (state === 'sent') return <Check className="h-[15px] w-[15px]" aria-label="Sent" />
+  if (state === 'delivered') return <CheckCheck className="h-[15px] w-[15px]" aria-label="Delivered" />
+  if (state === 'read') return <CheckCheck className="h-[15px] w-[15px] text-[#4d7afe]" aria-label="Read" />
+  return (
+    <span className="inline-flex items-center gap-[4px]">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label="Not delivered: show why"
+        className="-m-2 grid h-8 w-8 place-items-center">
+        <span className="grid h-[15px] w-[15px] place-items-center rounded-full bg-destructive text-[11px] font-bold leading-none text-destructive-foreground">!</span>
+      </button>
+      {open && <span className="text-destructive">{note || 'Not delivered'}</span>}
+    </span>
+  )
 }
 
 /** One size for every composer-like bar (chat, comments, assistant, replies):
@@ -734,7 +757,7 @@ export function ChatThread({
                     <p className="chat-meta mt-[4px] flex items-center justify-end gap-[4px] leading-none">
                       {m.edited && !m.deleted && <span className="italic">edited</span>}
                       <span>{timeOf(m.at)}</span>
-                      {m.mine &&
+                      {m.mine && m.delivery && !m.pending && !m.failed ? <DeliveryMark state={m.delivery} note={m.delivery_note} /> : m.mine &&
                         (m.failed ? (
                           <span className="font-semibold text-destructive">not sent</span>
                         ) : m.pending ? (

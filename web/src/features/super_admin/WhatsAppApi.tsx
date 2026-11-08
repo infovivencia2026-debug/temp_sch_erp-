@@ -538,6 +538,7 @@ function MappingForm({ template }: { template: WhatsAppTemplate }) {
   const [lang, setLang] = useState(template.wa_language || 'en')
   const [params, setParams] = useState(template.wa_params.join(', '))
   const [active, setActive] = useState(template.is_active)
+  const [picture, setPicture] = useState(template.has_image_header)
 
   return (
     <Card>
@@ -558,6 +559,7 @@ function MappingForm({ template }: { template: WhatsAppTemplate }) {
                   .map((x) => x.trim())
                   .filter(Boolean),
                 is_active: active,
+                has_image_header: picture,
               })
             }
           >
@@ -604,6 +606,9 @@ function MappingForm({ template }: { template: WhatsAppTemplate }) {
           </Field>
           <Field label="In use" hint="Off leaves the mapping stored but stops this template being sent.">
             <Checkbox checked={active} onChange={setActive} label="Use this template" />
+          </Field>
+          <Field label="Picture header" hint="Tick only if Meta approved this template with an image header. Yajur Connect offers a picture only then.">
+            <Checkbox checked={picture} onChange={setPicture} label="Approved with a picture header" />
           </Field>
         </FormGrid>
       </div>

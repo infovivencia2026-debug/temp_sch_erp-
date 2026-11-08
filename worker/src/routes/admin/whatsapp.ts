@@ -55,7 +55,7 @@ async function readSettings(c: Ctx): Promise<Record<string, unknown>> {
 }
 
 async function listTemplates(c: Ctx): Promise<Response> {
-  const rows = await c.db.prepare(`SELECT code, body, wa_template_name, wa_language, wa_params, is_active FROM message_templates
+  const rows = await c.db.prepare(`SELECT code, body, wa_template_name, wa_language, wa_params, is_active, coalesce(has_image_header, 0) AS has_image_header FROM message_templates
       WHERE channel = 'whatsapp' ORDER BY code`).all<Row>()
   const seen = new Set<string>()
   const items = rows.results.map((v) => {
@@ -63,11 +63,11 @@ async function listTemplates(c: Ctx): Promise<Response> {
     const params = parseJSON<unknown>(v.wa_params, [])
     const name = str(v.wa_template_name)
     return { code: String(v.code), body: String(v.body), placeholders: templatePlaceholders(String(v.body)), wa_template_name: name, wa_language: str(v.wa_language),
-      wa_params: Array.isArray(params) ? params : [], is_active: !!v.is_active, built_in: false, mapped: name.trim() !== '' }
+      wa_params: Array.isArray(params) ? params : [], is_active: !!v.is_active, has_image_header: v.has_image_header === 1, built_in: false, mapped: name.trim() !== '' }
   })
   for (const [code, t] of Object.entries(BUILTIN_TEMPLATES)) {
     if (seen.has(code)) continue
-    items.push({ code, body: t.body, placeholders: templatePlaceholders(t.body), wa_template_name: '', wa_language: '', wa_params: [], is_active: true, built_in: true, mapped: false })
+    items.push({ code, body: t.body, placeholders: templatePlaceholders(t.body), wa_template_name: '', wa_language: '', wa_params: [], is_active: true, has_image_header: false, built_in: true, mapped: false })
   }
   items.sort((a, b) => (a.mapped === b.mapped ? (a.code < b.code ? -1 : a.code > b.code ? 1 : 0) : a.mapped ? 1 : -1))
   return ok({ items })
@@ -232,7 +232,7 @@ export function registerWhatsApp(r: Router): void {
 
   r.put('/admin/whatsapp/templates', CONFIG, async (c) => {
     const inst = institutionId(c)
-    const req = await readJSON<{ code?: string; body?: string; wa_template_name?: string; wa_language?: string; wa_params?: string[] | null; is_active?: boolean }>(c.req)
+    const req = await readJSON<{ code?: string; body?: string; wa_template_name?: string; wa_language?: string; wa_params?: string[] | null; is_active?: boolean; has_image_header?: boolean }>(c.req)
     const code = str(req.code).trim()
     if (code === '') throw badRequest('a template code is required')
     const name = str(req.wa_template_name).trim()
@@ -251,11 +251,11 @@ export function registerWhatsApp(r: Router): void {
     const params = Array.isArray(req.wa_params) ? req.wa_params : []
     const known = new Set(templatePlaceholders(body))
     for (const p of params) if (!known.has(p)) throw badRequest(`the mapping names ${JSON.stringify(p)}, which this template's body does not use`)
-    await c.db.prepare(`INSERT INTO message_templates (id, institution_id, code, channel, body, wa_template_name, wa_language, wa_params, is_active)
-        VALUES (?, ?, ?, 'whatsapp', ?, ?, ?, ?, ?)
+    await c.db.prepare(`INSERT INTO message_templates (id, institution_id, code, channel, body, wa_template_name, wa_language, wa_params, is_active, has_image_header)
+        VALUES (?, ?, ?, 'whatsapp', ?, ?, ?, ?, ?, ?)
         ON CONFLICT (institution_id, code, channel) DO UPDATE SET body = excluded.body, wa_template_name = excluded.wa_template_name,
-          wa_language = excluded.wa_language, wa_params = excluded.wa_params, is_active = excluded.is_active`)
-      .bind(uuid(), inst, code, body, name || null, lang || null, JSON.stringify(params), req.is_active ? 1 : 0).run()
+          wa_language = excluded.wa_language, wa_params = excluded.wa_params, is_active = excluded.is_active, has_image_header = excluded.has_image_header`)
+      .bind(uuid(), inst, code, body, name || null, lang || null, JSON.stringify(params), req.is_active ? 1 : 0, req.has_image_header === true ? 1 : 0).run()
     return listTemplates(c)
   })
 

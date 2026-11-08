@@ -37,7 +37,7 @@ async function scheduleView(c: Ctx, r: ScheduleRow) {
 
 export function registerYajurConnectSend(r: Router): void {
   registerWaHeaderImage(r, WRITE)
-  r.typed('GET /comms/yajur-connect/send/templates', WRITE, async (c) => ({ items: await sendTemplates(c.db) }))
+  r.typed('GET /comms/yajur-connect/send/templates', WRITE, async (c) => ({ items: await sendTemplates(c.db), school_name: c.id.institution?.name ?? '' }))
 
   r.typed('GET /comms/yajur-connect/send/audiences', WRITE, async (c) => {
     const cls = await c.db.prepare(`SELECT id, name FROM classes ORDER BY level, name`).all<{ id: string; name: string }>()
@@ -71,7 +71,7 @@ export function registerYajurConnectSend(r: Router): void {
     if (b.student_id != null && !isUUID(b.student_id)) throw badRequest('invalid student id')
     const t = await templateOr400(c.db, String(b.template_code ?? ''))
     const values = cleanValues(t, b.values)
-    const image = cleanImage(b.header_image_url)
+    const image = cleanImage(t, b.header_image_url)
     const g = await c.db.prepare(`SELECT g.id, g.full_name, g.phone, s.id AS student_id, trim(s.first_name || ' ' || coalesce(s.last_name, '')) AS student_name,
           (SELECT cl.name || ' ' || se.name FROM enrollments en JOIN classes cl ON cl.id = en.class_id JOIN sections se ON se.id = en.section_id
             WHERE en.student_id = s.id AND en.status = 'active' ORDER BY en.enrolled_on DESC LIMIT 1) AS class
@@ -91,14 +91,14 @@ export function registerYajurConnectSend(r: Router): void {
     }).catch(notQueued)
     const body = res.id ? (await c.db.prepare(`SELECT body FROM message_log WHERE id = ?`).bind(res.id).first<{ body: string | null }>())?.body : null
     const out = await recordOutbound(c.db, c.id.institution!.id, conv, 'template', body || t.code, res.id, { user: c.id.userId })
-    const m = await c.db.prepare(`SELECT m.*, ml.status AS log_status, ml.error AS log_error, u.full_name AS sent_by_name
+    const m = await c.db.prepare(`SELECT m.*, ml.status AS log_status, ml.error AS log_error, ml.send_after, ml.sent_at, u.full_name AS sent_by_name
         FROM wa_messages m LEFT JOIN message_log ml ON ml.id = m.message_log_id LEFT JOIN users u ON u.id = m.sent_by WHERE m.id = ?`).bind(out.id)
-      .first<{ id: string; direction: 'in' | 'out'; kind: string; text: string | null; status: string | null; log_status: string | null; log_error: string | null; sent_by_name: string | null; at: string }>()
+      .first<{ id: string; direction: 'in' | 'out'; kind: string; text: string | null; status: string | null; log_status: string | null; log_error: string | null; send_after: string | null; sent_at: string | null; sent_by_name: string | null; at: string }>()
     return reply({
       conversation_id: conv,
       message: {
         id: m!.id, direction: m!.direction, kind: m!.kind, text: m!.text, media_id: null, media_mime: null, media_name: null, reply_to_wa_id: null, wa_id: null,
-        status: m!.log_status ?? m!.status ?? '', error: m!.log_error, sent_by_name: m!.sent_by_name, auto_reply: false, at: m!.at,
+        status: m!.log_status ?? m!.status ?? '', error: m!.log_error, send_after: m!.send_after, sent_at: m!.sent_at, sent_by_name: m!.sent_by_name, auto_reply: false, at: m!.at,
       },
     }, 201)
   })
@@ -118,7 +118,7 @@ export function registerYajurConnectSend(r: Router): void {
     if (!on) throw badRequest('that number is not on the test list')
     const t = await templateOr400(c.db, String(b.template_code ?? ''))
     const values = cleanValues(t, b.values)
-    const image = cleanImage(b.header_image_url)
+    const image = cleanImage(t, b.header_image_url)
     const vars = fillValues(values, t.fields, { parent_name: 'Test', student_name: 'Test', class: 'Test' })
     const res = await queueMessage(scopeOf(c), {
       channel: 'whatsapp', template_code: t.code, vars, recipient: '+' + phone, student_id: null, exact_channel: true,

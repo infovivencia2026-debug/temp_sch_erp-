@@ -25,7 +25,14 @@ import { usePhone } from '@/lib/viewport'
 type View = ConnectState | 'all'
 const VIEWS: { key: View; label: string }[] = [{ key: 'open', label: 'Open' }, { key: 'resolved', label: 'Resolved' }, { key: 'all', label: 'All' }]
 const MATCH_LABEL: Record<ConnectMatch, string> = { exact: 'Is exactly', starts: 'Starts with', contains: 'Contains' }
-const PAUSED = 'Sending is paused: the recipient guard is on, so replies, auto-replies and broadcasts are blocked and will not be sent later.'
+const PAUSED = 'Sending is paused: the recipient guard is on and the test list is empty, so replies, auto-replies and broadcasts are blocked and will not be sent later.'
+const NOT_ON_LIST = 'Test mode: this number is not on the test list, so messages to it are blocked.'
+/** The guard line: none when everyone receives, test mode when the list has numbers, paused when it is empty. */
+function guardLine(on: boolean, n: number): string {
+  if (!on) return ''
+  if (n === 0) return PAUSED
+  return `Test mode: only the ${n} ${n === 1 ? 'number' : 'numbers'} on the test list receive messages; everyone else is blocked.`
+}
 type Tab = 'chats' | 'send' | 'campaigns' | 'scheduled' | 'log' | 'rules'
 const TABS: { key: Tab; label: string }[] = [
   { key: 'chats', label: 'Chats' }, { key: 'send', label: 'Send' }, { key: 'campaigns', label: 'Campaigns' }, { key: 'scheduled', label: 'Scheduled' },
@@ -45,7 +52,18 @@ function bodyOf(m: ConnectMessage): string {
   if (m.kind === 'location') return `[Location] ${m.text ?? ''}`.trim()
   return m.text ?? ''
 }
-const STATUS_NOTE: Record<string, string> = { queued: 'Queued', suppressed: 'Held by the recipient guard', failed: 'Not delivered', sent: 'Sent', delivered: 'Delivered', read: 'Read' }
+/** message_log status to the bubble's WhatsApp-style mark. */
+const DELIVERY: Record<string, NonNullable<ChatMessage['delivery']>> = {
+  queued: 'waiting', scheduled: 'waiting', held: 'waiting', sending: 'waiting', sent: 'sent', delivered: 'delivered', read: 'read', failed: 'failed', suppressed: 'failed', blocked: 'failed',
+}
+const istTime = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' }).toUpperCase()
+function deliveryOf(m: ConnectMessage): Pick<ChatMessage, 'delivery' | 'delivery_note'> {
+  if (m.direction !== 'out') return {}
+  const d = DELIVERY[m.status] ?? 'waiting'
+  if (d === 'waiting') return { delivery: d, delivery_note: m.send_after && Date.parse(m.send_after) > Date.now() ? `Sends at ${istTime(m.send_after)}` : undefined }
+  if (d === 'failed') return { delivery: d, delivery_note: m.error || (m.status === 'suppressed' ? 'Held by the recipient guard' : 'Not delivered') }
+  return { delivery: d }
+}
 
 const when = (iso: string | null) => {
   if (!iso) return ''
@@ -88,7 +106,7 @@ export default function YajurConnect() {
     <>
       <PageHead eyebrow="Communication" title="Yajur Connect" />
       <PageBody>
-        {list.data?.guard_on && <p className="mb-3 text-[14px] text-muted-foreground">{PAUSED}</p>}
+        {list.data && guardLine(list.data.guard_on, list.data.test_numbers) && <p className="mb-3 text-[14px] text-muted-foreground">{guardLine(list.data.guard_on, list.data.test_numbers)}</p>}
         {list.data && (
           <div className={cn(TAB_BAR, 'mb-4 flex-nowrap overflow-x-auto')} role="tablist">
             {tabs.map((t) => (
@@ -201,11 +219,11 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
   const title = d?.conversation.name ?? ''
   const messages: ChatMessage[] = (d?.messages ?? []).map((m) => ({
     id: m.id,
-    body: bodyOf(m) + (m.direction === 'out' && STATUS_NOTE[m.status] ? `\n${STATUS_NOTE[m.status]}${m.error && m.status !== 'queued' ? ': ' + m.error : ''}` : ''),
-    at: m.at,
+    body: bodyOf(m),
+    at: (m.direction === 'out' && m.sent_at) || m.at,
+    ...deliveryOf(m),
     mine: m.direction === 'out',
     sender: m.direction === 'out' ? (m.auto_reply ? 'Auto-reply' : m.sent_by_name ?? undefined) : undefined,
-    failed: m.status === 'failed',
   }))
 
   return (
@@ -219,7 +237,7 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
       {t.isLoading ? <Loading /> : t.error ? <ErrorState error={t.error} /> : d && (
         <>
           {details && <Info thread={d} canWrite={canWrite} onSaved={refresh} />}
-          {d.sending.paused && <p className="shrink-0 border-b px-4 py-2 text-[14px] text-muted-foreground">{PAUSED}</p>}
+          {d.sending.paused && <p className="shrink-0 border-b px-4 py-2 text-[14px] text-muted-foreground">{d.sending.test_numbers > 0 ? NOT_ON_LIST : PAUSED}</p>}
           <ChatThread
             messages={messages}
             peerName={title}

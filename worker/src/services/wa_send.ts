@@ -23,10 +23,13 @@ const MAX_IDS = 90
 
 // ---- templates --------------------------------------------------------------
 
+/** Only templates made for Yajur Connect (code connect_*) are offered there; the ERP's system templates keep their own mappings. */
+export const connectLabel = (code: string) => code.replace(/^connect_/, '').replace(/_/g, ' ').replace(/^./, (x) => x.toUpperCase())
+
 export async function sendTemplates(db: D1Database): Promise<ConnectSendTemplate[]> {
-  const r = await db.prepare(`SELECT code, wa_template_name, body FROM message_templates WHERE channel = 'whatsapp' AND is_active = 1
-      AND trim(coalesce(wa_template_name, '')) <> '' ORDER BY code`).all<{ code: string; wa_template_name: string; body: string | null }>()
-  return r.results.map((t) => ({ code: t.code, name: t.wa_template_name, body: t.body ?? '', fields: templatePlaceholders(t.body ?? '').filter((f) => f !== 'school_name') }))
+  const r = await db.prepare(`SELECT code, wa_template_name, body, coalesce(has_image_header, 0) AS has_image_header FROM message_templates WHERE channel = 'whatsapp' AND is_active = 1
+      AND trim(coalesce(wa_template_name, '')) <> '' AND substr(code, 1, 8) = 'connect_' ORDER BY code`).all<{ code: string; wa_template_name: string; body: string | null; has_image_header: number }>()
+  return r.results.map((t) => ({ code: t.code, name: connectLabel(t.code), body: t.body ?? '', fields: templatePlaceholders(t.body ?? '').filter((f) => f !== 'school_name'), has_image_header: t.has_image_header === 1 }))
 }
 
 export async function templateOr400(db: D1Database, code: string): Promise<ConnectSendTemplate> {
@@ -43,15 +46,17 @@ export function cleanValues(t: ConnectSendTemplate, raw: unknown): Record<string
   for (const f of t.fields) {
     const v = String(src[f] ?? '').trim()
     if (v.length > 1000) throw badRequest(`the value for ${f} is at most 1000 characters`)
-    if (!v && !AUTO.has(f)) throw badRequest(`fill the template field ${f}`)
+    if (AUTO.has(f)) continue // filled per recipient; a typed value is never used
+    if (!v) throw badRequest(`fill the template field ${f}`)
     if (v) out[f] = v
   }
   return out
 }
 
-export function cleanImage(raw: unknown): string | null {
+export function cleanImage(t: ConnectSendTemplate, raw: unknown): string | null {
   const u = String(raw ?? '').trim()
   if (!u) return null
+  if (!t.has_image_header) throw badRequest('this template has no picture header, so it cannot carry a picture')
   if (u.length > 500 || !/^https:\/\/[^\s]+$/i.test(u)) throw badRequest('the header image must be an https:// link to the picture')
   return u
 }
@@ -170,7 +175,7 @@ export async function cleanBroadcast(db: D1Database, b: Partial<ConnectBroadcast
   if (!name) throw badRequest('give the campaign a name')
   if (name.length > 100) throw badRequest('a campaign name is at most 100 characters')
   const template = await templateOr400(db, String(b.template_code ?? ''))
-  return { name, template, values: cleanValues(template, b.values), image: cleanImage(b.header_image_url), audience: cleanAudience(b.audience) }
+  return { name, template, values: cleanValues(template, b.values), image: cleanImage(template, b.header_image_url), audience: cleanAudience(b.audience) }
 }
 
 export async function previewBroadcast(db: D1Database, b: CleanBroadcast): Promise<ConnectPreview> {

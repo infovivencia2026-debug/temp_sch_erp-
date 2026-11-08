@@ -130,4 +130,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 130, name: 'feature_website_forms', checksum: '77e4d848c90f6328a416ef632f9c8900678b1cf64d73b2c36bb9811815a4b966' },
   { version: 131, name: 'feature_yajur_connect', checksum: '95d4cf5a9bb0b7407b74e6c39cb4b45165b7b3929c195136ad469b86c3520d4a' },
   { version: 132, name: 'yajur_connect_send', checksum: '6570137fafe3de27480ee9e6aef7f4e664ce9ba281b60efcc02f48d9dea40eff' },
+  { version: 133, name: 'template_image_header', checksum: '3ac7051807c3824a5fd09fd958644c6fb753dd3453cbf1e0d2ad957f27b41d63' },
 ]

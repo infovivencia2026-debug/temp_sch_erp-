@@ -39,6 +39,10 @@ export interface ConnectMessage {
   /** received for inbound; for outbound the queue's status (queued, sent, delivered, read, failed, suppressed). */
   status: string
   error: string | null
+  /** Held until this time (quiet hours); null when it can go now. */
+  send_after: string | null
+  /** When the provider took it; null until then. */
+  sent_at: string | null
   sent_by_name: string | null
   auto_reply: boolean
   at: string
@@ -54,6 +58,8 @@ export interface ConnectTemplate { code: string; name: string }
 export interface ConnectSending {
   /** The recipient guard holds messages to this number: replies queue but are not delivered. */
   paused: boolean
+  /** Phone numbers on the test list (see ConnectList.test_numbers). */
+  test_numbers: number
   window_open: boolean
   window_ends_at: string | null
 }
@@ -66,7 +72,13 @@ export interface ConnectThread {
   templates: ConnectTemplate[]
 }
 
-export interface ConnectList { items: ConnectConversation[]; guard_on: boolean; can_write: boolean }
+export interface ConnectList {
+  items: ConnectConversation[]
+  guard_on: boolean
+  /** Phone numbers on the recipient allowlist; with guard_on, only these receive (none: nothing is sent). */
+  test_numbers: number
+  can_write: boolean
+}
 export interface ConnectStaff { id: string; name: string }
 
 export interface ConnectAutoReply {
@@ -89,6 +101,8 @@ export interface ConnectSendTemplate {
   body: string
   /** The {{fields}} to fill, in order (school_name is filled by the queue). */
   fields: string[]
+  /** Approved with a picture header; only then can a header picture be sent. */
+  has_image_header: boolean
 }
 /** Merge tokens a value may hold; each recipient gets their own. A field with one of these names is filled per recipient when left empty. */
 export const CONNECT_MERGE_TOKENS = ['parent_name', 'student_name', 'class'] as const
@@ -196,7 +210,7 @@ export interface YajurConnectApi {
   'POST /comms/yajur-connect/autoreplies': { body: ConnectAutoReplyBody; res: ConnectAutoReply }
   'PUT /comms/yajur-connect/autoreplies/{id}': { body: Partial<ConnectAutoReplyBody>; res: ConnectAutoReply }
   'DELETE /comms/yajur-connect/autoreplies/{id}': { res: Ok }
-  'GET /comms/yajur-connect/send/templates': { res: List<ConnectSendTemplate> }
+  'GET /comms/yajur-connect/send/templates': { res: List<ConnectSendTemplate> & { school_name: string } }
   'GET /comms/yajur-connect/send/audiences': { res: ConnectAudienceOptions }
   'GET /comms/yajur-connect/send/people': { query: { q: string }; res: List<ConnectPerson> }
   'POST /comms/yajur-connect/send': { body: ConnectNewBody; res: ConnectNewResult }
