@@ -8,6 +8,7 @@ import {
   Switch, Textarea, SEG_BAR, TAB_BAR, segClass, tabClass,
 } from '@/components/ui'
 import { CampaignsTab, ScheduledTab, SendTab } from './YajurConnectSend'
+import { LogTab } from './YajurConnectLog'
 import { ChatThread, type ChatMessage } from '@/components/Chat'
 import { ConversationPane, PersonAvatar } from '@/components/ChatScreen'
 import { cn, formatDateTime } from '@/lib/utils'
@@ -25,10 +26,10 @@ type View = ConnectState | 'all'
 const VIEWS: { key: View; label: string }[] = [{ key: 'open', label: 'Open' }, { key: 'resolved', label: 'Resolved' }, { key: 'all', label: 'All' }]
 const MATCH_LABEL: Record<ConnectMatch, string> = { exact: 'Is exactly', starts: 'Starts with', contains: 'Contains' }
 const PAUSED = 'Sending is paused: the recipient guard is on, so replies, auto-replies and broadcasts are blocked and will not be sent later.'
-type Tab = 'chats' | 'send' | 'campaigns' | 'scheduled' | 'rules'
+type Tab = 'chats' | 'send' | 'campaigns' | 'scheduled' | 'log' | 'rules'
 const TABS: { key: Tab; label: string }[] = [
   { key: 'chats', label: 'Chats' }, { key: 'send', label: 'Send' }, { key: 'campaigns', label: 'Campaigns' }, { key: 'scheduled', label: 'Scheduled' },
-  { key: 'rules', label: 'Auto-replies' },
+  { key: 'log', label: 'Log' }, { key: 'rules', label: 'Auto-replies' },
 ]
 
 const KIND_LABEL: Record<string, string> = {
@@ -79,16 +80,18 @@ export default function YajurConnect() {
   })
   const items = list.data?.items ?? []
   const canWrite = !!list.data?.can_write
-  const tab: Tab = canWrite && tabParam && TABS.some((t) => t.key === tabParam) ? tabParam : 'chats'
+  // Readers get the chats and the log; the sending tabs are for comms.connect.write.
+  const tabs = canWrite ? TABS : TABS.filter((t) => t.key === 'chats' || t.key === 'log')
+  const tab: Tab = tabParam && tabs.some((t) => t.key === tabParam) ? tabParam : 'chats'
 
   return (
     <>
       <PageHead eyebrow="Communication" title="Yajur Connect" />
       <PageBody>
         {list.data?.guard_on && <p className="mb-3 text-[14px] text-muted-foreground">{PAUSED}</p>}
-        {canWrite && (
+        {list.data && (
           <div className={cn(TAB_BAR, 'mb-4 flex-nowrap overflow-x-auto')} role="tablist">
-            {TABS.map((t) => (
+            {tabs.map((t) => (
               <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key)} onClick={() => setTab(t.key)}>
                 {t.label}
               </button>
@@ -98,6 +101,7 @@ export default function YajurConnect() {
         {tab === 'send' ? <SendTab onOpenChat={setOpenId} />
           : tab === 'campaigns' ? <CampaignsTab />
           : tab === 'scheduled' ? <ScheduledTab />
+          : tab === 'log' ? <LogTab />
           : tab === 'rules' ? <AutoReplies />
           : chats()}
       </PageBody>

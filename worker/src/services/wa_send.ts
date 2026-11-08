@@ -15,7 +15,7 @@ import type {
 } from '@shared/api/feature_yajur_connect'
 
 export const CAMPAIGN_SOURCE = 'wa_campaign'
-const MERGE = ['parent_name', 'student_name', 'class']
+const MERGE = ['parent_name', 'student_name', 'class', 'staff_name']
 const AUTO = new Set([...MERGE, 'school_name'])
 const RELATIONS: ConnectRelation[] = ['father', 'mother', 'both']
 const REPEATS: ConnectRepeat[] = ['once', 'daily', 'weekly', 'monthly']
@@ -56,14 +56,15 @@ export function cleanImage(raw: unknown): string | null {
   return u
 }
 
-export interface Recipient { guardian_id: string; parent_name: string; phone: string; student_id: string | null; student_name: string; class: string }
+/** A parent (guardian_id set) or a staff member (employee_id set; parent_name is the staff name, so parent templates still read). */
+export interface Recipient { guardian_id: string | null; employee_id?: string | null; parent_name: string; staff_name?: string; phone: string; student_id: string | null; student_name: string; class: string }
 
 /** The template's variables for one recipient: merge tokens filled inside every value, empty token fields filled outright. */
-export function fillValues(values: Record<string, string>, fields: string[], r: Pick<Recipient, 'parent_name' | 'student_name' | 'class'>): Record<string, string> {
-  const tokens: Record<string, string> = { parent_name: r.parent_name || 'Parent', student_name: r.student_name, class: r.class }
+export function fillValues(values: Record<string, string>, fields: string[], r: Pick<Recipient, 'parent_name' | 'student_name' | 'class' | 'staff_name'>): Record<string, string> {
+  const tokens: Record<string, string> = { parent_name: r.parent_name || 'Parent', student_name: r.student_name, class: r.class, staff_name: r.staff_name || r.parent_name || 'Staff' }
   const vars: Record<string, string> = { ...tokens }
   for (const f of fields) {
-    if (values[f] !== undefined) vars[f] = values[f].replace(/\{\{\s*(parent_name|student_name|class)\s*\}\}/gi, (_, k: string) => tokens[k.toLowerCase()])
+    if (values[f] !== undefined) vars[f] = values[f].replace(/\{\{\s*(parent_name|student_name|class|staff_name)\s*\}\}/gi, (_, k: string) => tokens[k.toLowerCase()])
   }
   return vars
 }
@@ -79,19 +80,26 @@ export function renderGeneric(t: ConnectSendTemplate, values: Record<string, str
 
 export function cleanAudience(raw: unknown): ConnectAudience {
   const a = (raw ?? {}) as Partial<ConnectAudience>
-  if (!['school', 'classes', 'sections'].includes(String(a.scope))) throw badRequest('audience must be the whole school, classes or sections')
-  if (!RELATIONS.includes(a.relation as ConnectRelation)) throw badRequest('send to the father, the mother or both')
-  const ids = a.scope === 'school' ? [] : Array.isArray(a.ids) ? [...new Set(a.ids.map(String))] : []
-  if (a.scope !== 'school' && ids.length === 0) throw badRequest(`choose at least one ${a.scope === 'classes' ? 'class' : 'section'}`)
+  if (!['school', 'classes', 'sections', 'staff', 'departments'].includes(String(a.scope))) throw badRequest('audience must be the whole school, classes, sections, all staff or departments')
+  const staff = a.scope === 'staff' || a.scope === 'departments'
+  if (!staff && !RELATIONS.includes(a.relation as ConnectRelation)) throw badRequest('send to the father, the mother or both')
+  const all = a.scope === 'school' || a.scope === 'staff'
+  const ids = all ? [] : Array.isArray(a.ids) ? [...new Set(a.ids.map(String))] : []
+  if (!all && ids.length === 0) throw badRequest(`choose at least one ${a.scope === 'classes' ? 'class' : a.scope === 'sections' ? 'section' : 'department'}`)
   if (ids.length > MAX_IDS) throw badRequest(`choose at most ${MAX_IDS}`)
-  if (ids.some((x) => !isUUID(x))) throw badRequest('invalid class or section id')
-  return { scope: a.scope as ConnectAudience['scope'], ids, relation: a.relation as ConnectRelation }
+  if (ids.some((x) => !isUUID(x))) throw badRequest('invalid class, section or department id')
+  return { scope: a.scope as ConnectAudience['scope'], ids, relation: staff ? 'both' : a.relation as ConnectRelation }
 }
 
 export async function audienceLabel(db: D1Database, a: ConnectAudience): Promise<string> {
+  if (a.scope === 'staff') return 'All staff'
+  const ph = a.ids.map(() => '?').join(',')
+  if (a.scope === 'departments') {
+    const d = (await db.prepare(`SELECT name AS n FROM departments WHERE id IN (${ph}) ORDER BY name`).bind(...a.ids).all<{ n: string }>()).results.map((r) => r.n)
+    return `Staff: ${d.join(', ') || 'No department'}`
+  }
   const who = a.relation === 'both' ? 'parents' : a.relation === 'father' ? 'fathers' : 'mothers'
   if (a.scope === 'school') return `Whole school, ${who}`
-  const ph = a.ids.map(() => '?').join(',')
   const sql = a.scope === 'classes' ? `SELECT name AS n FROM classes WHERE id IN (${ph}) ORDER BY level, name`
     : `SELECT cl.name || ' ' || se.name AS n FROM sections se JOIN classes cl ON cl.id = se.class_id WHERE se.id IN (${ph}) ORDER BY cl.level, cl.name, se.name`
   const names = (await db.prepare(sql).bind(...a.ids).all<{ n: string }>()).results.map((r) => r.n)
@@ -105,6 +113,7 @@ async function optOutSet(db: D1Database): Promise<Set<string>> {
 
 /** Everyone the audience reaches: one row per number and child, opted-out and unreadable numbers counted apart. */
 export async function resolveAudience(db: D1Database, a: ConnectAudience): Promise<{ list: Recipient[]; opted_out: number; no_phone: number }> {
+  if (a.scope === 'staff' || a.scope === 'departments') return resolveStaff(db, a)
   const where = [`s.status = 'active'`, `en.status = 'active'`], args: unknown[] = []
   if (a.scope === 'classes') { where.push(`en.class_id IN (${a.ids.map(() => '?').join(',')})`); args.push(...a.ids) }
   if (a.scope === 'sections') { where.push(`en.section_id IN (${a.ids.map(() => '?').join(',')})`); args.push(...a.ids) }
@@ -127,6 +136,27 @@ export async function resolveAudience(db: D1Database, a: ConnectAudience): Promi
     seen.add(key)
     if (opts.has(normaliseRecipient('+' + phone))) { opted++; continue }
     list.push({ ...r, phone })
+  }
+  return { list, opted_out: opted, no_phone: noPhone }
+}
+
+/** Active staff with their own phone from the staff records; one message per number. */
+async function resolveStaff(db: D1Database, a: ConnectAudience): Promise<{ list: Recipient[]; opted_out: number; no_phone: number }> {
+  const dept = a.scope === 'departments' ? `AND e.department_id IN (${a.ids.map(() => '?').join(',')})` : ''
+  const rows = await db.prepare(`SELECT e.id AS employee_id, trim(e.first_name || ' ' || coalesce(e.last_name, '')) AS name, e.phone, coalesce(d.name, '') AS dept
+      FROM employees e LEFT JOIN departments d ON d.id = e.department_id WHERE e.status = 'active' ${dept} ORDER BY e.first_name, e.last_name`)
+    .bind(...(dept ? a.ids : [])).all<{ employee_id: string; name: string; phone: string | null; dept: string }>()
+  const opts = await optOutSet(db)
+  const seen = new Set<string>()
+  const list: Recipient[] = []
+  let opted = 0, noPhone = 0
+  for (const r of rows.results) {
+    const phone = normalisePhone(r.phone ?? '')
+    if (!phone) { noPhone++; continue }
+    if (seen.has(phone)) continue
+    seen.add(phone)
+    if (opts.has(normaliseRecipient('+' + phone))) { opted++; continue }
+    list.push({ guardian_id: null, employee_id: r.employee_id, parent_name: r.name, staff_name: r.name, phone, student_id: null, student_name: '', class: r.dept })
   }
   return { list, opted_out: opted, no_phone: noPhone }
 }

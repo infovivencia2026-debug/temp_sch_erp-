@@ -42,7 +42,9 @@ export function registerYajurConnectSend(r: Router): void {
     const cls = await c.db.prepare(`SELECT id, name FROM classes ORDER BY level, name`).all<{ id: string; name: string }>()
     const secs = await c.db.prepare(`SELECT se.id, se.name, se.class_id FROM sections se JOIN academic_years ay ON ay.id = se.academic_year_id
         WHERE ay.is_current = 1 ORDER BY se.name`).all<{ id: string; name: string; class_id: string }>()
-    return { classes: cls.results.map((k) => ({ id: k.id, name: k.name, sections: secs.results.filter((s) => s.class_id === k.id).map((s) => ({ id: s.id, name: s.name })) })) }
+    const depts = await c.db.prepare(`SELECT id, name FROM departments ORDER BY name`).all<{ id: string; name: string }>()
+    return { classes: cls.results.map((k) => ({ id: k.id, name: k.name, sections: secs.results.filter((s) => s.class_id === k.id).map((s) => ({ id: s.id, name: s.name })) })),
+      departments: depts.results }
   })
 
   r.typed('GET /comms/yajur-connect/send/people', WRITE, async (c) => {

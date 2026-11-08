@@ -15,8 +15,8 @@ import FilePicker, { type UploadedFile } from '@/components/FilePicker'
    the Send, Campaigns and Scheduled tabs. Every message is only queued; while
    the recipient guard is on, the queue blocks it and the screen above says so. */
 
-const MERGE_FIELDS = ['parent_name', 'student_name', 'class']
-const FIELD_LABEL: Record<string, string> = { parent_name: "Parent's name", student_name: "Student's name", class: 'Class' }
+const MERGE_FIELDS = ['parent_name', 'student_name', 'class', 'staff_name']
+const FIELD_LABEL: Record<string, string> = { parent_name: "Parent's name", student_name: "Student's name", class: 'Class', staff_name: "Staff member's name" }
 const fieldLabel = (f: string) => FIELD_LABEL[f] ?? f.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
 const RELATIONS: { value: ConnectRelation; label: string }[] = [
   { value: 'both', label: 'Both parents' }, { value: 'father', label: 'Fathers' }, { value: 'mother', label: 'Mothers' },
@@ -24,11 +24,14 @@ const RELATIONS: { value: ConnectRelation; label: string }[] = [
 const REPEATS: { value: ConnectRepeat; label: string }[] = [
   { value: 'once', label: 'Once' }, { value: 'daily', label: 'Every day' }, { value: 'weekly', label: 'Every week' }, { value: 'monthly', label: 'Every month' },
 ]
+const SCOPE_LABEL: Record<ConnectAudience['scope'], string> = {
+  school: 'Whole school', classes: 'Classes', sections: 'Sections', staff: 'All staff', departments: 'Departments',
+}
 const repeatLabel = (r: ConnectRepeat) => REPEATS.find((x) => x.value === r)?.label ?? r
 export const STATUS_LABEL: Record<ConnectRecipientStatus, string> = {
   queued: 'Queued', sent: 'Sent', delivered: 'Delivered', read: 'Read', failed: 'Failed', blocked: 'Blocked',
 }
-const STATUS_TONE: Record<ConnectRecipientStatus, 'neutral' | 'success' | 'danger' | 'primary' | 'warning' | 'info'> = {
+export const STATUS_TONE: Record<ConnectRecipientStatus, 'neutral' | 'success' | 'danger' | 'primary' | 'warning' | 'info'> = {
   queued: 'neutral', sent: 'info', delivered: 'primary', read: 'success', failed: 'danger', blocked: 'warning',
 }
 
@@ -58,7 +61,7 @@ function Compose({ templates, code, setCode, values, setValues, image, setImage 
       </Field>
       {t && t.fields.map((f) => (
         <Field key={f} label={fieldLabel(f)}
-          hint={MERGE_FIELDS.includes(f) ? "Leave empty to use each parent's own" : 'You can use {{parent_name}}, {{student_name}} and {{class}}'}>
+          hint={MERGE_FIELDS.includes(f) ? "Leave empty to use each recipient's own" : 'You can use {{parent_name}}, {{staff_name}}, {{student_name}} and {{class}}'}>
           <Input value={values[f] ?? ''} onChange={(v) => setValues({ ...values, [f]: v })} />
         </Field>
       ))}
@@ -173,14 +176,15 @@ function Broadcast({ templates }: { templates: ConnectSendTemplate[] }) {
   const [scope, setScope] = useState<ConnectAudience['scope']>('school')
   const [ids, setIds] = useState<string[]>([])
   const [relation, setRelation] = useState<ConnectRelation>('both')
+  const staff = scope === 'staff' || scope === 'departments'
   const [later, setLater] = useState(false)
   const [runAt, setRunAt] = useState('')
   const [repeat, setRepeat] = useState<ConnectRepeat>('once')
   const [done, setDone] = useState('')
   const opts = useQuery({ queryKey: ['connect', 'audiences'], queryFn: () => api.call('GET /comms/yajur-connect/send/audiences'), staleTime: 300_000 })
   const t = templates.find((x) => x.code === code)
-  const body: ConnectBroadcastBody = { name: name.trim(), template_code: code, values, header_image_url: image.trim() || null, audience: { scope, ids: scope === 'school' ? [] : ids, relation } }
-  const ready = !!body.name && !missing(t, values) && (scope === 'school' || ids.length > 0)
+  const body: ConnectBroadcastBody = { name: name.trim(), template_code: code, values, header_image_url: image.trim() || null, audience: { scope, ids: scope === 'school' || scope === 'staff' ? [] : ids, relation } }
+  const ready = !!body.name && !missing(t, values) && (scope === 'school' || scope === 'staff' || ids.length > 0)
   const [key, setKey] = useState('')
   const json = JSON.stringify(body)
   useEffect(() => { const h = setTimeout(() => setKey(json), 400); return () => clearTimeout(h) }, [json])
@@ -200,6 +204,7 @@ function Broadcast({ templates }: { templates: ConnectSendTemplate[] }) {
   })
   const choices = useMemo(() => {
     const cls = opts.data?.classes ?? []
+    if (scope === 'departments') return (opts.data?.departments ?? []).map((d) => ({ id: d.id, label: d.name }))
     return scope === 'classes' ? cls.map((c) => ({ id: c.id, label: c.name }))
       : cls.flatMap((c) => c.sections.map((s) => ({ id: s.id, label: `${c.name} ${s.name}` })))
   }, [opts.data, scope])
@@ -215,14 +220,18 @@ function Broadcast({ templates }: { templates: ConnectSendTemplate[] }) {
         <div className="space-y-3">
           <Field label="Send to">
             <div className={SEG_BAR} role="tablist">
-              {(['school', 'classes', 'sections'] as const).map((s) => (
-                <button key={s} type="button" role="tab" aria-selected={scope === s} className={segClass(scope === s)} onClick={() => { setScope(s); setIds([]) }}>
-                  {s === 'school' ? 'Whole school' : s === 'classes' ? 'Classes' : 'Sections'}
-                </button>
-              ))}
+              <button type="button" role="tab" aria-selected={!staff} className={segClass(!staff)} onClick={() => { setScope('school'); setIds([]) }}>Parents</button>
+              <button type="button" role="tab" aria-selected={staff} className={segClass(staff)} onClick={() => { setScope('staff'); setIds([]) }}>Staff</button>
             </div>
           </Field>
-          {scope !== 'school' && (
+          <div className={SEG_BAR} role="tablist">
+            {(staff ? (['staff', 'departments'] as const) : (['school', 'classes', 'sections'] as const)).map((s) => (
+              <button key={s} type="button" role="tab" aria-selected={scope === s} className={segClass(scope === s)} onClick={() => { setScope(s); setIds([]) }}>
+                {SCOPE_LABEL[s]}
+              </button>
+            ))}
+          </div>
+          {scope !== 'school' && scope !== 'staff' && (
             opts.isLoading ? <Loading shape="inline" /> : opts.error ? <ErrorState error={opts.error} /> : (
               <div className="grid max-h-60 grid-cols-1 gap-1 overflow-y-auto rounded-md border p-2 min-[400px]:grid-cols-2">
                 {choices.map((c) => (
@@ -231,7 +240,7 @@ function Broadcast({ templates }: { templates: ConnectSendTemplate[] }) {
               </div>
             )
           )}
-          <Field label="Parents"><Select value={relation} onChange={(v) => setRelation(v as ConnectRelation)} options={RELATIONS} /></Field>
+          {!staff && <Field label="Parents"><Select value={relation} onChange={(v) => setRelation(v as ConnectRelation)} options={RELATIONS} /></Field>}
           <Field label="When">
             <div className={SEG_BAR} role="tablist">
               <button type="button" role="tab" aria-selected={!later} className={segClass(!later)} onClick={() => setLater(false)}>Now</button>

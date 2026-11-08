@@ -94,8 +94,9 @@ export interface ConnectSendTemplate {
 export const CONNECT_MERGE_TOKENS = ['parent_name', 'student_name', 'class'] as const
 
 export type ConnectRelation = 'father' | 'mother' | 'both'
-export interface ConnectAudience { scope: 'school' | 'classes' | 'sections'; ids: string[]; relation: ConnectRelation }
-export interface ConnectAudienceOptions { classes: { id: string; name: string; sections: { id: string; name: string }[] }[] }
+/** Parents (school, classes, sections) or staff (staff = all, departments = chosen). relation applies to parents only. */
+export interface ConnectAudience { scope: 'school' | 'classes' | 'sections' | 'staff' | 'departments'; ids: string[]; relation: ConnectRelation }
+export interface ConnectAudienceOptions { classes: { id: string; name: string; sections: { id: string; name: string }[] }[]; departments: { id: string; name: string }[] }
 
 /** A parent (and one child) found by name, number or admission number. */
 export interface ConnectPerson {
@@ -176,6 +177,13 @@ export interface ConnectSchedule {
   audience_label: string
 }
 
+/** One WhatsApp message from message_log, for the Log tab. name: the parent or staff member whose number it is. */
+export interface ConnectLogItem {
+  id: string; recipient: string; name: string | null; template_code: string | null; status: ConnectRecipientStatus
+  error: string | null; queued_at: string; sent_at: string | null
+}
+export interface ConnectLogList { items: ConnectLogItem[]; total: number; page: number; page_size: number }
+
 export interface YajurConnectApi {
   'GET /comms/yajur-connect': { query?: { q?: string; state?: ConnectState | 'all'; mine?: '1' }; res: ConnectList }
   'GET /comms/yajur-connect/staff': { res: List<ConnectStaff> }
@@ -195,6 +203,7 @@ export interface YajurConnectApi {
   'POST /comms/yajur-connect/schedules': { body: ConnectScheduleBody; res: ConnectSchedule }
   'PUT /comms/yajur-connect/schedules/{id}': { body: { active: boolean }; res: ConnectSchedule }
   'DELETE /comms/yajur-connect/schedules/{id}': { res: Ok }
+  'GET /comms/yajur-connect/log': { query?: { status?: ConnectRecipientStatus; from?: string; to?: string; q?: string; page?: string }; res: ConnectLogList }
   'GET /comms/yajur-connect/{id}': { res: ConnectThread }
   'PUT /comms/yajur-connect/{id}': { body: { assigned_to?: string | null; labels?: string[]; state?: ConnectState }; res: ConnectConversation }
   'POST /comms/yajur-connect/{id}/reply': { body: { text?: string; template_code?: string }; res: ConnectMessage }
