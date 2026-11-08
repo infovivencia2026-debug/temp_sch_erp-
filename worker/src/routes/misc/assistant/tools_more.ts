@@ -14,7 +14,7 @@ type Feature = { slug: string; name: string; summary?: string; in_scope?: boolea
 type Section = { slug: string; name: string; features: Feature[] }
 
 /** Words of a name, lower case, for a loose match ("open attendance"). */
-const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w.length > 1 && !['the', 'my', 'open', 'screen', 'page', 'go', 'to'].includes(w))
+const words = (s: string) => s.toLowerCase().replace(/([a-z])(\d)/g, '$1 $2').replace(/(\d)([a-z])/g, '$1 $2').replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w.length > 1 && !['the', 'my', 'open', 'screen', 'page', 'go', 'to'].includes(w))
 
 const openScreen: ToolSpec = {
   name: 'open_screen', label: 'Finding the screen',
@@ -37,6 +37,10 @@ const openScreen: ToolSpec = {
       seen.add(to)
       const name = words(f.name), about = words(f.summary ?? ''), sec = words(s.name)
       let score = 0
+      // A name typed without its spaces ('student360', 'feereceipts') still finds it.
+      const flatName = name.join(''), flatWant = want.join('')
+      if (flatName === flatWant) score += 10
+      else if (flatWant.length > 3 && flatName.includes(flatWant)) score += 5
       for (const w of want) score += name.includes(w) ? 3 : sec.includes(w) ? 1 : about.includes(w) ? 1 : 0
       if (score > 0) hits.push({ score, name: f.name, section: s.name, to })
     }
