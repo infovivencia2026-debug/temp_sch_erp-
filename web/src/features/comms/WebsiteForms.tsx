@@ -348,9 +348,15 @@ function Responses({ form }: { form: Form }) {
   const shownCols = cols.filter((c) => items.some((r) => filled(r, c.key))).slice(0, 4)
   const week = Date.now() - 7 * 86400000
   const open = items.find((r) => r.id === openId) ?? null
+  const rowsOf = (r: Resp): [string, string][] => cols.filter((c) => filled(r, c.key)).map((c) => [c.label, r.files.find((x) => x.key === c.key)?.name ?? show(r, c.key)])
+  const exportAll = () => {
+    const use = cols.filter((c) => items.some((r) => filled(r, c.key)))
+    saveCsv(form.title + ' responses', [['Received', ...use.map((c) => c.label)], ...items.map((r) => [when(r.created_at), ...use.map((c) => r.files.find((x) => x.key === c.key)?.name ?? show(r, c.key))])])
+  }
 
   return (
     <>
+      <div className="flex justify-end"><Button variant="secondary" onClick={exportAll}>Export all (Excel)</Button></div>
       <CellGrid cols={3}>
         <Stat label="Responses" value={items.length} tint />
         <Stat label="New" value={unread} tint />
@@ -371,6 +377,8 @@ function Responses({ form }: { form: Form }) {
           description={`Received ${when(open.created_at)} · ${open.source === 'embed' ? 'Embedded form' : 'Website form'}`}
           footer={<>
             <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this response and its files?" onConfirm={() => del.mutate(open.id)}>Delete</ConfirmButton>
+            <Button variant="secondary" onClick={() => { const rs = rowsOf(open); saveCsv((show(open, 'Name') || 'response') + ' ' + open.created_at.slice(0, 10), [['Question', 'Answer'], ['Received', when(open.created_at)], ...rs]) }}>Excel</Button>
+            <Button variant="secondary" onClick={() => printResponse(show(open, 'Name') || form.title, when(open.created_at), rowsOf(open))}>Print / PDF</Button>
             <Button variant="secondary" onClick={() => setOpenId(null)}>Close</Button>
           </>}>
           <dl className="divide-y">
@@ -482,4 +490,18 @@ function ShowIf({ field, others, onChange }: { field: FormField; others: FormFie
       )}
     </div>
   )
+}
+
+/* Export (owner, 2026-11-08: "for each one let them export the details"). CSV opens in Excel. */
+const csvCell = (v: string) => '"' + String(v ?? '').replace(/"/g, '""') + '"'
+function saveCsv(name: string, rows: string[][]) {
+  const blob = new Blob(['\ufeff' + rows.map((r) => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name.replace(/[^\w .-]+/g, '_') + '.csv'
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+}
+function printResponse(title: string, received: string, rows: [string, string][]) {
+  const w = window.open('', '_blank'); if (!w) return
+  const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string))
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><style>body{font:14px system-ui,sans-serif;margin:32px;color:#111}h1{font-size:20px;margin:0 0 4px}p{color:#555;margin:0 0 18px}table{border-collapse:collapse;width:100%}td{border:1px solid #ddd;padding:8px 10px;vertical-align:top;white-space:pre-line}td:first-child{width:34%;color:#555;background:#fafafa}</style><h1>${esc(title)}</h1><p>Received ${esc(received)}</p><table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table><script>onload=()=>print()</script>`)
+  w.document.close()
 }
