@@ -14,7 +14,7 @@ type Feature = { slug: string; name: string; summary?: string; in_scope?: boolea
 type Section = { slug: string; name: string; features: Feature[] }
 
 /** Words of a name, lower case, for a loose match ("open attendance"). */
-const words = (s: string) => s.toLowerCase().replace(/([a-z])(\d)/g, '$1 $2').replace(/(\d)([a-z])/g, '$1 $2').replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w.length > 1 && !['the', 'my', 'open', 'screen', 'page', 'go', 'to'].includes(w))
+const words = (s: string) => s.toLowerCase().replace(/([a-z])(\d)/g, '$1 $2').replace(/(\d)([a-z])/g, '$1 $2').replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w.length > 1 && !['the', 'my', 'open', 'screen', 'page', 'go', 'to', 'how', 'do', 'where', 'is', 'can', 'see', 'show', 'me', 'what', 'are', 'for', 'and', 'of', 'in', 'with', 'want', 'find', 'need', 'please', 'it', 'an', 'on', 'there', 'get'].includes(w))
 
 const openScreen: ToolSpec = {
   name: 'open_screen', label: 'Finding the screen',

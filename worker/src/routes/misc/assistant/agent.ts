@@ -202,9 +202,21 @@ export async function runAgent(c: Ctx, message: string, conversationId: string, 
     } catch (e) {
       /* Lookups already shown stay useful: after one, a failed follow-up call
          ends with a short answer pointing at the tables, not an error. */
-      if (seq === 0) throw e
+      if (seq === 0) {
+        // The model is down or out of quota: still point at the right screen, found by name.
+        const finder = tools.find((t) => t.name === 'open_screen')
+        const found = finder ? await finder.run(c, { name: message }).catch(() => null) as { links?: Link[] } | null : null
+        if (!found?.links?.length) throw e
+        console.error('assistant agent: model failed, answered by screen search', e)
+        links.push(...found.links)
+        text = `Open ${found.links[0].label} with the button below.${found.links.length > 1 ? ` Also related: ${found.links.slice(1, 4).map((l) => l.label).join(', ')}.` : ''}`
+        break
+      }
       console.error('assistant agent: model failed after lookups', e)
-      text = 'The lookups above have the answer; I could not write it up just now.'
+      // Say what was found in plain words, not a dead end (Yajur, 2026-11-08).
+      text = links.length
+        ? `Open ${links[0].label} with the button below.${links.length > 1 ? ` Also related: ${links.slice(1, 4).map((l) => l.label).join(', ')}.` : ''}`
+        : 'The answer is in the table above.'
       break
     }
     const parts = out.candidates?.[0]?.content?.parts ?? []
