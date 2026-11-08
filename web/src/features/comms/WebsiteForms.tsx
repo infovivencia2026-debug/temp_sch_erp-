@@ -330,7 +330,8 @@ function Responses({ form }: { form: Form }) {
     mutationFn: (rid: string) => api.del(`/api/v1/comms/website-forms/${form.id}/responses/${rid}`),
     onSuccess: () => { setOpenId(null); qc.invalidateQueries({ queryKey: ['website-form-responses', form.id] }); qc.invalidateQueries({ queryKey: ['website-forms'] }) },
   })
-  const items = q.data?.items ?? []
+  /* An application brought over from the old careers page keeps the date it was first sent (its "Submitted" answer). */
+  const items = [...(q.data?.items ?? [])].map((r) => ({ ...r, created_at: sentAt(r) })).sort((a, b) => b.created_at.localeCompare(a.created_at))
   const unread = items.filter((r) => !r.is_read).length
   // Marked read once shown; the New tags stay for this visit.
   useEffect(() => { if (unread) seen.mutate() }, [unread > 0]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -389,8 +390,8 @@ function Responses({ form }: { form: Form }) {
         const used = new Set<string>(['full_name', 'role_you_are_interested_in', 'Name', 'name', 'post', 'Post / subject'])
         const groups: [string, RegExp][] = [
           ['Contact information', /phone|mobile|email|address|city|town|state|place|emergency/i],
-          ['Qualifications', /qualif|academ|year|institution|subject|marks|digital/i],
           ['Experience and salary', /experience|job|gap|salary|notice|benefit|fresher/i],
+          ['Qualifications', /qualif|academ|year|institution|subject|marks|digital/i],
         ]
         const sections = groups.map(([t, re]) => {
           const list = rows.filter((c) => !used.has(c.key) && re.test(c.key + ' ' + c.label))
@@ -585,4 +586,13 @@ function printResponse(title: string, received: string, rows: [string, string][]
   const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string))
   w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><style>body{font:14px system-ui,sans-serif;margin:32px;color:#111}h1{font-size:20px;margin:0 0 4px}p{color:#555;margin:0 0 18px}table{border-collapse:collapse;width:100%}td{border:1px solid #ddd;padding:8px 10px;vertical-align:top;white-space:pre-line}td:first-child{width:34%;color:#555;background:#fafafa}</style><h1>${esc(title)}</h1><p>Received ${esc(received)}</p><table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table><script>onload=()=>print()</script>`)
   w.document.close()
+}
+const MON: Record<string, string> = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' }
+/** "07-Oct-2026 14:39" (India time) from the old careers page, else when it reached us. */
+function sentAt(r: Resp): string {
+  const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/.exec((r.data.Submitted ?? '').trim())
+  const mo = m && MON[m[2].toLowerCase()]
+  if (!m || !mo) return r.created_at
+  const d = new Date(`${m[3]}-${mo}-${m[1].padStart(2, '0')}T${(m[4] ?? '00').padStart(2, '0')}:${m[5] ?? '00'}:00+05:30`)
+  return Number.isNaN(d.getTime()) ? r.created_at : d.toISOString()
 }
