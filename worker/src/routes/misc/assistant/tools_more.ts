@@ -45,7 +45,8 @@ const openScreen: ToolSpec = {
       if (score > 0) hits.push({ score, name: f.name, section: s.name, to })
     }
     hits.sort((x, y) => y.score - x.score)
-    const top = hits.slice(0, 5)
+    const named = new Set<string>()
+    const top = hits.filter((h) => !named.has(h.name.toLowerCase()) && named.add(h.name.toLowerCase())).slice(0, 5)
     if (top.length === 0) return { data: { found: 0, note: 'no screen by that name is open to this person' } }
     const links: Link[] = top.map((h) => ({ label: h.name, to: h.to }))
     return { ...table('Screens', top.map((h) => ({ name: h.name, section: h.section })), [['name', 'Screen'], ['section', 'Under']], (r) => top.find((h) => h.name === r.name)?.to ?? null), links }
