@@ -339,24 +339,32 @@ function Responses({ form }: { form: Form }) {
   if (q.isPending) return <SkeletonTable />
   if (!items.length) return <EmptyState title="No responses yet" body="When someone fills this form on the website, it shows here with the date and time." />
 
+  /* OLD AND NEW NAMES, ONE QUESTION (owner, 2026-11-08: "map them old and new").
+     The school's own careers page posts its own names (Name, Phone, post ...);
+     each is shown under the matching question of this form. */
   const known = form.fields.map((f) => f.key)
-  const extra = [...new Set(items.flatMap((r) => [...Object.keys(r.data), ...r.files.map((x) => x.key)]))].filter((k) => !known.includes(k))
+  const aliasOf = (k: string) => known.find((f) => (ALIASES[f] ?? []).includes(k))
+  const val = (r: Resp, k: string) => show(r, k) || (ALIASES[k] ?? []).map((a) => show(r, a)).find(Boolean) || ''
+  const fileOf = (r: Resp, k: string) => r.files.find((x) => x.key === k) ?? r.files.find((x) => (ALIASES[k] ?? []).includes(x.key))
+  const extra = [...new Set(items.flatMap((r) => [...Object.keys(r.data), ...r.files.map((x) => x.key)]))].filter((k) => !known.includes(k) && !aliasOf(k))
   const cols = [...form.fields.map((f) => ({ key: f.key, label: f.label })), ...extra.map((k) => ({ key: k, label: k }))]
-  /* Answers posted by a website's own form carry its own names (Yajur careers,
-     2026-11-06): show only the columns somebody actually filled. */
-  const filled = (r: Resp, k: string) => !!show(r, k) || r.files.some((x) => x.key === k)
+  const filled = (r: Resp, k: string) => !!val(r, k) || !!fileOf(r, k)
   const shownCols = cols.filter((c) => items.some((r) => filled(r, c.key))).slice(0, 4)
   const week = Date.now() - 7 * 86400000
   const open = items.find((r) => r.id === openId) ?? null
-  const rowsOf = (r: Resp): [string, string][] => cols.filter((c) => filled(r, c.key)).map((c) => [c.label, r.files.find((x) => x.key === c.key)?.name ?? show(r, c.key)])
-  const exportAll = () => {
+  const cell = (r: Resp, k: string) => fileOf(r, k)?.name ?? val(r, k)
+  const rowsOf = (r: Resp): [string, string][] => cols.filter((c) => filled(r, c.key)).map((c) => [c.label, cell(r, c.key)])
+  const allRows = () => {
     const use = cols.filter((c) => items.some((r) => filled(r, c.key)))
-    saveCsv(form.title + ' responses', [['Received', ...use.map((c) => c.label)], ...items.map((r) => [when(r.created_at), ...use.map((c) => r.files.find((x) => x.key === c.key)?.name ?? show(r, c.key))])])
+    return [['Received', ...use.map((c) => c.label)], ...items.map((r) => [when(r.created_at), ...use.map((c) => cell(r, c.key))])]
   }
 
   return (
     <>
-      <div className="flex justify-end"><Button variant="secondary" onClick={exportAll}>Export all (Excel)</Button></div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="secondary" onClick={() => saveExcel(form.title + ' responses', allRows())}>Export Excel</Button>
+        <Button variant="secondary" onClick={() => saveCsv(form.title + ' responses', allRows())}>Export CSV</Button>
+      </div>
       <CellGrid cols={3}>
         <Stat label="Responses" value={items.length} tint />
         <Stat label="New" value={unread} tint />
@@ -366,46 +374,113 @@ function Responses({ form }: { form: Form }) {
         {items.map((r) => (
           <tr key={r.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenId(r.id)}>
             <Td className="whitespace-nowrap tabular-nums">{when(r.created_at)}{!r.is_read && <Badge tone="primary" className="ml-2">New</Badge>}</Td>
-            {shownCols.map((c) => <Td key={c.key} className="max-w-[260px] truncate">{show(r, c.key)}</Td>)}
+            {shownCols.map((c) => <Td key={c.key} className="max-w-[260px] truncate">{cell(r, c.key)}</Td>)}
             <Td>{r.files.length ? <span className="inline-flex items-center gap-1 text-[13px] text-muted-foreground"><Paperclip className="size-4" />{r.files.length}</span> : null}</Td>
             <Td className="text-right"><span className="row-open">Open<ChevronRight className="size-3.5" aria-hidden /></span></Td>
           </tr>
         ))}
       </Table>
-      {open && (
-        <Dialog open onClose={() => setOpenId(null)} title={show(open, 'Name') || show(open, shownCols[0]?.key ?? '') || 'Response'}
-          description={`Received ${when(open.created_at)} · ${open.source === 'embed' ? 'Embedded form' : 'Website form'}`}
-          footer={<>
-            <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this response and its files?" onConfirm={() => del.mutate(open.id)}>Delete</ConfirmButton>
-            <Button variant="secondary" onClick={() => { const rs = rowsOf(open); saveCsv((show(open, 'Name') || 'response') + ' ' + open.created_at.slice(0, 10), [['Question', 'Answer'], ['Received', when(open.created_at)], ...rs]) }}>Excel</Button>
-            <Button variant="secondary" onClick={() => printResponse(show(open, 'Name') || form.title, when(open.created_at), rowsOf(open))}>Print / PDF</Button>
-            <Button variant="secondary" onClick={() => setOpenId(null)}>Close</Button>
-          </>}>
-          <dl className="divide-y">
-            {cols.filter((c) => open.source === 'embed' || filled(open, c.key)).map((c) => {
-              const file = open.files.find((x) => x.key === c.key)
-              return (
-                <div key={c.key} className="grid gap-1 py-3 sm:grid-cols-[180px_minmax(0,1fr)]">
-                  <dt className="text-[13px] text-muted-foreground">{c.label}</dt>
-                  <dd className="whitespace-pre-line break-words text-[14px]">
-                    {file ? (
-                      <a href={`/api/v1/files/${file.file_id}?inline=1`} target="_blank" rel="noreferrer"
-                        className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-primary transition-colors hover:bg-primary/5">
-                        <FileText className="size-4" />{file.name}<ExternalLink className="size-3.5" />
-                      </a>
-                    ) : show(open, c.key) || <span className="text-muted-foreground">Not given</span>}
-                  </dd>
+      {open && (() => {
+        /* The owner's response card (2026-11-08): who and what for on top, the
+           answers in titled cards, files as attachments; Delete and Export. */
+        const rows = cols.filter((c) => (open.source === 'embed' || filled(open, c.key)) && !fileOf(open, c.key))
+        const name = val(open, 'full_name') || val(open, 'Name') || val(open, 'name')
+        const role = val(open, 'role_you_are_interested_in') || val(open, 'post')
+        const used = new Set<string>(['full_name', 'role_you_are_interested_in', 'Name', 'name', 'post', 'Post / subject'])
+        const groups: [string, RegExp][] = [
+          ['Contact information', /phone|mobile|email|address|city|town|state|place|emergency/i],
+          ['Qualifications', /qualif|academ|year|institution|subject|marks|digital/i],
+          ['Experience and salary', /experience|job|gap|salary|notice|benefit|fresher/i],
+        ]
+        const sections = groups.map(([t, re]) => {
+          const list = rows.filter((c) => !used.has(c.key) && re.test(c.key + ' ' + c.label))
+          list.forEach((c) => used.add(c.key)); return { t, list }
+        })
+        sections.push({ t: 'Other details', list: rows.filter((c) => !used.has(c.key)) })
+        const initials = (name || 'R').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+        const fname = (name || 'response') + ' ' + open.created_at.slice(0, 10)
+        const table = (): string[][] => [['Question', 'Answer'], ['Submitted', when(open.created_at)], ...rowsOf(open)]
+        const files = cols.map((c) => ({ c, f: fileOf(open, c.key) })).filter((x) => x.f)
+        return (
+          <Dialog open onClose={() => setOpenId(null)} title={name || 'Response'}
+            description={`${open.source === 'embed' ? 'Embedded form' : 'Website form'} · Submitted ${when(open.created_at)}`}
+            footer={<>
+              <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this response and its files?" onConfirm={() => del.mutate(open.id)}><Trash2 className="size-4" aria-hidden />Delete</ConfirmButton>
+              <span className="flex-1" />
+              <Button variant="secondary" onClick={() => saveExcel(fname, table())}>Excel</Button>
+              <Button variant="secondary" onClick={() => printResponse(name || form.title, when(open.created_at), rowsOf(open))}>PDF</Button>
+              <Button variant="secondary" onClick={() => saveCsv(fname, table())}>CSV</Button>
+              <Button variant="secondary" onClick={() => setOpenId(null)}>Close</Button>
+            </>}>
+            <div className="flex flex-col gap-4 rounded-2xl bg-muted/40 p-3 sm:p-4">
+              <div className="flex items-center gap-4 rounded-2xl border bg-card p-4">
+                <div className="grid size-14 shrink-0 place-items-center rounded-[14px] bg-primary/10 text-[20px] font-bold text-primary">{initials}</div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-[18px] font-bold text-foreground">{name || 'Response'}</h3>
+                  {role && <p className="text-[13.5px] text-muted-foreground">Applied for <strong className="text-foreground">{role}</strong></p>}
                 </div>
-              )
-            })}
-          </dl>
-          <FormNotice error={del.error} />
-        </Dialog>
-      )}
+              </div>
+              {sections.filter((s) => s.list.length).map((s) => (
+                <div key={s.t} className="rounded-2xl border bg-card p-4">
+                  <div className="mb-3 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">{s.t}</div>
+                  <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                    {s.list.map((c) => {
+                      const v = val(open, c.key)
+                      return (
+                        <div key={c.key} className={cn('min-w-0', (v.length > 40 || /address|experience|reference|other/i.test(c.label)) && 'sm:col-span-2')}>
+                          <div className="mb-1 text-[12.5px] font-medium text-muted-foreground">{c.label}</div>
+                          <div className="whitespace-pre-line break-words text-[14.5px] font-semibold text-foreground">{v || <span className="font-normal text-muted-foreground">Not given</span>}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+              {files.length > 0 && (
+                <div className="rounded-2xl border bg-card p-4">
+                  <div className="mb-3 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Uploaded documents</div>
+                  <div className="flex flex-col gap-2">
+                    {files.map(({ c, f }) => (
+                      <div key={c.key} className="flex items-center justify-between gap-3 rounded-xl border border-dashed bg-muted/40 px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-primary/10 text-[11px] font-bold uppercase text-primary">{(f!.name.split('.').pop() || 'file').slice(0, 4)}</div>
+                          <div className="min-w-0"><div className="truncate text-[14px] font-semibold">{f!.name}</div><div className="truncate text-[12px] text-muted-foreground">{c.label}</div></div>
+                        </div>
+                        <a href={`/api/v1/files/${f!.file_id}?inline=1`} target="_blank" rel="noreferrer" className="row-open shrink-0">View<ExternalLink className="size-3.5" aria-hidden /></a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <FormNotice error={del.error} />
+          </Dialog>
+        )
+      })()}
     </>
   )
 }
 const show = (r: Resp, k: string) => { const v = r.data[k]; return v === 'true' ? 'Yes' : v === 'false' ? 'No' : v ?? '' }
+/* The careers page's own names for this form's questions (old row labels, then its field names). */
+const ALIASES: Record<string, string[]> = {
+  role_you_are_interested_in: ['Post / subject', 'post'],
+  full_name: ['Name', 'name'],
+  mobile_number: ['Phone', 'phone'],
+  email_address: ['Email', 'email'],
+  your_resume_cv_pdf_word_or_a_clear_photo: ['resume', 'Resume'],
+  current_address: ['Temporary address', 'tempAddress'],
+  permanent_address: ['Permanent address', 'permAddress'],
+  current_in_hand_salary_per_month: ['Current net salary', 'netSalary'],
+  current_gross_salary_per_month: ['Current gross salary', 'grossSalary'],
+  expected_monthly_salary: ['Minimum expected salary', 'expectedSalary'],
+  notice_period_e_g_1_month: ['Notice period', 'noticePeriod'],
+  other_benefits_e_g_pf_transport: ['Other benefits', 'otherBenefits'],
+  gaps_between_jobs_if_any: ['Gap reasons', 'gapReason'],
+  languages_known_for_each_read_write_spea: ['Languages (R/W/S/U)', 'languages'],
+  work_experience_most_recent_first_from_t: ['Prior experience', 'jobs'],
+  photo_recent_and_clear_jpg_png_or_webp_u: ['photo', 'Photo'],
+  professional_references_name_designation: ['references'],
+}
 
 /* ---- Put on website ---------------------------------------------------- */
 
@@ -497,6 +572,12 @@ const csvCell = (v: string) => '"' + String(v ?? '').replace(/"/g, '""') + '"'
 function saveCsv(name: string, rows: string[][]) {
   const blob = new Blob(['\ufeff' + rows.map((r) => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name.replace(/[^\w .-]+/g, '_') + '.csv'
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+}
+function saveExcel(name: string, rows: string[][]) {
+  const esc = (v: string) => String(v ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string))
+  const html = '<html><head><meta charset="utf-8"></head><body><table border="1">' + rows.map((r, i) => '<tr>' + r.map((c) => (i ? '<td>' : '<th>') + esc(c) + (i ? '</td>' : '</th>')).join('') + '</tr>').join('') + '</table></body></html>'
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type: 'application/vnd.ms-excel' })); a.download = name.replace(/[^\w .-]+/g, '_') + '.xls'
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 function printResponse(title: string, received: string, rows: [string, string][]) {
