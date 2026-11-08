@@ -80,7 +80,7 @@ export default {
       if (device) return device
       const busTracker = await handleBusTrackerDevice(env, req, url)
       if (busTracker) return busTracker
-      const pub = await handlePublic(env, req, url)
+      const pub = await handlePublic(env, req, url, ectx)
       if (pub) return pub
       const hit = router.match(m, pathname)
       if (hit) {

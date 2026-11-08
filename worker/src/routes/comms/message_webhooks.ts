@@ -66,7 +66,25 @@ async function apply(env: Env, inst: string, msgId: string, status: Status, prov
 
 interface WaStatus { id?: string; status?: string; timestamp?: string; biz_opaque_callback_data?: string; errors?: { code?: number; title?: string; message?: string; error_data?: { details?: string } }[] }
 
-export async function whatsappWebhook(env: Env, req: Request, url: URL): Promise<Response> {
+/** WA_FORWARD_URL: every POST from Meta is passed on, byte for byte with its
+    signature, to another receiver (Yajur Connect) that checks the same app
+    secret. Runs in the background; never changes what Meta is told. */
+export async function forwardWhatsapp(env: Env, raw: ArrayBuffer, headers: Headers): Promise<void> {
+  const to = secret(env, 'WA_FORWARD_URL')
+  if (!to) return
+  const h: Record<string, string> = { 'content-type': headers.get('content-type') ?? 'application/json' }
+  const sig = headers.get('x-hub-signature-256')
+  if (sig) h['x-hub-signature-256'] = sig
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(to, { method: 'POST', headers: h, body: raw, signal: AbortSignal.timeout(10_000) })
+      console.log('wa forward', attempt, res.status)
+      if (res.ok || (res.status >= 400 && res.status < 500)) return
+    } catch (e) { console.warn('wa forward failed', attempt, e instanceof Error ? e.message : String(e)) }
+  }
+}
+
+export async function whatsappWebhook(env: Env, req: Request, url: URL, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
   if (req.method === 'GET') {
     const token = secret(env, 'WHATSAPP_VERIFY_TOKEN')
     const q = url.searchParams
@@ -76,9 +94,12 @@ export async function whatsappWebhook(env: Env, req: Request, url: URL): Promise
     return json({ error: 'verification failed' }, 403)
   }
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
+  const raw = await req.arrayBuffer()
+  const fwd = forwardWhatsapp(env, raw, req.headers).catch((e) => console.warn('wa forward', e instanceof Error ? e.message : String(e)))
+  if (ctx) ctx.waitUntil(fwd)
   const appSecret = secret(env, 'WHATSAPP_APP_SECRET')
   if (!appSecret) return json({ error: 'WhatsApp webhooks are not configured on this server (WHATSAPP_APP_SECRET)' }, 503)
-  const body = await req.text()
+  const body = new TextDecoder().decode(raw)
   const sig = (req.headers.get('x-hub-signature-256') ?? '').replace(/^sha256=/, '')
   const want = hex(await hmac(enc.encode(appSecret), body))
   if (!sig || !safeEqual(sig.toLowerCase(), want)) return json({ error: 'bad signature' }, 401)
@@ -88,11 +109,14 @@ export async function whatsappWebhook(env: Env, req: Request, url: URL): Promise
   for (const e of payload.entry ?? []) for (const ch of e.changes ?? []) for (const st of ch.value?.statuses ?? []) {
     const ref = REF.exec(st.biz_opaque_callback_data ?? '')
     const status = ({ sent: 'sent', delivered: 'delivered', read: 'read', failed: 'failed' } as Record<string, Status>)[st.status ?? '']
-    if (!ref || !status) { unmatched++; continue }
+    if (!status) { unmatched++; continue }
+    // No ref echoed: find the ERP's own row by its wamid (message_log.provider_msg_id).
+    const found = ref ? [ref[1], ref[2]] : st.id ? await byWamid(env, st.id) : null
+    if (!found) { unmatched++; continue }
     const at = st.timestamp && /^\d+$/.test(st.timestamp) ? new Date(Number(st.timestamp) * 1000).toISOString() : new Date().toISOString()
     const err = st.errors?.[0]
     const detail = err ? `whatsapp ${err.code ?? ''}: ${err.title ?? err.message ?? ''}${err.error_data?.details ? ' - ' + err.error_data.details : ''}`.trim() : null
-    if (await apply(env, ref[1].toLowerCase(), ref[2].toLowerCase(), status, 'whatsapp:cloud', detail, at, st.id)) applied++
+    if (await apply(env, found[0].toLowerCase(), found[1].toLowerCase(), status, 'whatsapp:cloud', detail, at, st.id)) applied++
     else unmatched++
   }
   let optOuts = 0
@@ -107,6 +131,18 @@ export async function whatsappWebhook(env: Env, req: Request, url: URL): Promise
     if (v?.messages?.length) stored += await storeInbound(env, v)
   }
   return json({ ok: true, applied, unmatched, opt_outs: optOuts, stored })
+}
+
+/** [school, message] for a WhatsApp message id this ERP sent, or null. */
+async function byWamid(env: Env, wamid: string): Promise<[string, string] | null> {
+  const schools = (await env.CONTROL.prepare(`SELECT * FROM institutions LIMIT 2000`).all<Institution>().catch(() => ({ results: [] as Institution[] }))).results
+  for (const inst of schools) {
+    try {
+      const m = await tenantDb(env, inst).prepare(`SELECT id FROM message_log WHERE provider_msg_id = ? AND channel = 'whatsapp' LIMIT 1`).bind(wamid).first<{ id: string }>()
+      if (m) return [inst.id, m.id]
+    } catch { /* not migrated */ }
+  }
+  return null
 }
 
 interface WaInbound { from?: string; text?: { body?: string }; button?: { text?: string; payload?: string }; interactive?: { button_reply?: { title?: string } } }
@@ -282,10 +318,10 @@ export async function smsWebhook(env: Env, req: Request, url: URL, inst: string,
 const SMS_PATH = new RegExp(`^/api/v1/public/webhooks/sms/(${UUIDISH})/([0-9a-f]{32})$`, 'i')
 
 /** /api/v1/public/webhooks/*; null for anything else. */
-export async function handleMessageWebhooks(env: Env, req: Request, url: URL, p: string): Promise<Response | null> {
+export async function handleMessageWebhooks(env: Env, req: Request, url: URL, p: string, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response | null> {
   if (!p.startsWith('/api/v1/public/webhooks/')) return null
   try {
-    if (p === '/api/v1/public/webhooks/whatsapp') return await whatsappWebhook(env, req, url)
+    if (p === '/api/v1/public/webhooks/whatsapp') return await whatsappWebhook(env, req, url, ctx)
     if (p === '/api/v1/public/webhooks/email') return await emailWebhook(env, req)
     const sms = SMS_PATH.exec(p)
     if (sms && (req.method === 'GET' || req.method === 'POST')) return await smsWebhook(env, req, url, sms[1].toLowerCase(), sms[2].toLowerCase())

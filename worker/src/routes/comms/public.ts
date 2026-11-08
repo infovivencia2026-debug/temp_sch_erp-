@@ -14,14 +14,14 @@ import { handlePublicWebsiteForms } from './website_forms'
  * null for any other request. Wire it in index.ts before router.match:
  *   const pub = await handlePublic(env, req, url); if (pub) return pub
  */
-export async function handlePublic(env: Env, req: Request, url: URL): Promise<Response | null> {
+export async function handlePublic(env: Env, req: Request, url: URL, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response | null> {
   const p = url.pathname.replace(/\/$/, '')
   if (!p.startsWith('/api/v1/public/')) return null
   const img = await servePublicWaImage(env, req, p)
   if (img) return img
   const gw = await handleSMSGatewayPublic(env, req, p)
   if (gw) return gw
-  const hook = await handleMessageWebhooks(env, req, url, p)
+  const hook = await handleMessageWebhooks(env, req, url, p, ctx)
   if (hook) return hook
   if (p === '/api/v1/public/message-test' && req.method === 'POST') {
     try { return await sendPublicTestMessage(env, req) } catch (err) { return publicErrorResponse(err) }
