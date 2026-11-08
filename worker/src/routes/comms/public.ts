@@ -3,6 +3,7 @@ import { handleMessageWebhooks } from './message_webhooks'
 import { handleSMSGatewayPublic } from './sms_gateway_public'
 import { sendPublicTestMessage } from './message_test'
 import { publicErrorResponse } from './public_common'
+import { servePublicWaImage } from './wa_header_image'
 import { handlePublicAdmissionForms } from '../admissions/public_forms'
 import { handlePublicEnquiry } from '../admissions/enquiry_links'
 import { handlePublicWebsiteForms } from './website_forms'
@@ -16,6 +17,8 @@ import { handlePublicWebsiteForms } from './website_forms'
 export async function handlePublic(env: Env, req: Request, url: URL): Promise<Response | null> {
   const p = url.pathname.replace(/\/$/, '')
   if (!p.startsWith('/api/v1/public/')) return null
+  const img = await servePublicWaImage(env, req, p)
+  if (img) return img
   const gw = await handleSMSGatewayPublic(env, req, p)
   if (gw) return gw
   const hook = await handleMessageWebhooks(env, req, url, p)

@@ -9,6 +9,7 @@ import {
   SEG_BAR, segClass,
 } from '@/components/ui'
 import { cn, formatDateTime } from '@/lib/utils'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 
 /* Yajur Connect sending (worker/src/routes/comms/yajur_connect_send.ts):
    the Send, Campaigns and Scheduled tabs. Every message is only queued; while
@@ -46,6 +47,7 @@ function Compose({ templates, code, setCode, values, setValues, image, setImage 
   image: string; setImage: (v: string) => void
 }) {
   const t = templates.find((x) => x.code === code)
+  const [file, setFile] = useState<UploadedFile | null>(null)
   if (templates.length === 0) {
     return <p className="text-[14px] text-muted-foreground">No approved WhatsApp template is mapped yet. Add one under Communication, Message channels, Wording.</p>
   }
@@ -61,8 +63,9 @@ function Compose({ templates, code, setCode, values, setValues, image, setImage 
         </Field>
       ))}
       {t && (
-        <Field label="Header picture (optional)" hint="An https:// link to the image. Only for a template approved with a picture header.">
-          <Input value={image} onChange={setImage} placeholder="https://" />
+        <Field label="Header picture (optional)" hint="JPEG or PNG, up to 5 MB. Only for a template approved with a picture header.">
+          <FilePicker value={file && file.url === image ? file : null} onChange={(f) => { setFile(f); setImage(f?.url ?? '') }}
+            endpoint="/api/v1/comms/yajur-connect/send/image" accept="image/jpeg,image/png" label="Choose a picture" />
         </Field>
       )}
     </div>
@@ -320,7 +323,7 @@ function CampaignDetail({ id, onClose }: { id: string; onClose: () => void }) {
             <dt className="text-muted-foreground">Template</dt><dd className="min-w-0 truncate">{c.template_name ?? c.template_code}</dd>
             <dt className="text-muted-foreground">Audience</dt><dd className="min-w-0">{c.audience_label}</dd>
             <dt className="text-muted-foreground">Queued</dt><dd>{c.recipient_count}{c.opted_out ? `, ${c.opted_out} opted out and left out` : ''}</dd>
-            {c.header_image_url && <><dt className="text-muted-foreground">Picture</dt><dd className="min-w-0 truncate">{c.header_image_url}</dd></>}
+            {c.header_image_url && <><dt className="text-muted-foreground">Picture</dt><dd className="min-w-0"><img src={c.header_image_url} alt="" loading="lazy" decoding="async" className="h-14 w-14 rounded border object-cover" /></dd></>}
           </dl>
           <p className="whitespace-pre-wrap break-words rounded-md border bg-muted/40 p-3">{c.rendered}</p>
           <Counts c={c} />

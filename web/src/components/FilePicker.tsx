@@ -41,12 +41,18 @@ export default function FilePicker({
   purpose = 'attachment',
   label = 'Attach a file',
   hint,
+  endpoint = '/api/v1/files',
+  accept,
 }: {
   value: UploadedFile | null
   onChange: (f: UploadedFile | null) => void
   purpose?: string
   label?: string
   hint?: string
+  /** Where the multipart POST goes; another route may sign or restrict the upload. */
+  endpoint?: string
+  /** The file input's accept list, e.g. 'image/jpeg,image/png'. */
+  accept?: string
 }) {
   const input = useRef<HTMLInputElement>(null)
   const [progress, setProgress] = useState<number | null>(null)
@@ -91,7 +97,7 @@ export default function FilePicker({
     body.append('purpose', purpose)
 
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', '/api/v1/files')
+    xhr.open('POST', endpoint)
     // Same-origin session cookie. No token is minted for uploads: the endpoint
     // is behind the ordinary session middleware like every other call.
     xhr.withCredentials = true
@@ -124,7 +130,11 @@ export default function FilePicker({
   if (value) {
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2">
-        <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        {value.content_type.startsWith('image/') ? (
+          <img src={value.url} alt="" loading="lazy" decoding="async" className="h-14 w-14 shrink-0 rounded border object-cover" />
+        ) : (
+          <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        )}
         <span className="min-w-0 flex-1 truncate text-[13px]">{value.name}</span>
         <span className="text-[12.5px] tabular-nums text-muted-foreground">
           {human(value.size_bytes)}
@@ -142,6 +152,7 @@ export default function FilePicker({
       <input
         ref={input}
         type="file"
+        accept={accept}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0]

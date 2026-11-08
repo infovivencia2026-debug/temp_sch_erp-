@@ -12,6 +12,7 @@ import {
   CAMPAIGN_SELECT, CAMPAIGN_SOURCE, audienceLabel, campaignCounts, cleanBroadcast, cleanImage, cleanRepeat, cleanValues, fillValues, previewBroadcast,
   recipientStatus, runBroadcast, sendTemplates, templateOr400, viewCampaign, viewSchedule, type CampaignRow, type ScheduleRow,
 } from '../../services/wa_send'
+import { registerWaHeaderImage } from './wa_header_image'
 import type { ConnectBroadcastBody, ConnectNewBody, ConnectPerson, ConnectScheduleBody } from '@shared/api/feature_yajur_connect'
 
 const WRITE = 'comms.connect.write'
@@ -34,6 +35,7 @@ async function scheduleView(c: Ctx, r: ScheduleRow) {
 }
 
 export function registerYajurConnectSend(r: Router): void {
+  registerWaHeaderImage(r, WRITE)
   r.typed('GET /comms/yajur-connect/send/templates', WRITE, async (c) => ({ items: await sendTemplates(c.db) }))
 
   r.typed('GET /comms/yajur-connect/send/audiences', WRITE, async (c) => {
