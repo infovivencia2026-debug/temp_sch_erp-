@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { CalendarPlus } from 'lucide-react'
+import { CalendarPlus, PlayCircle } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
-import { Button, Card, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
+import { Button, Card, Dialog, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
 import DayTimeline from '@/components/DayTimeline'
 import { useSession } from '@/lib/session'
@@ -73,6 +73,9 @@ type Row =
       cover?: string }
   | { kind: 'break'; key: string; start: number; end: number; label: string; span: string }
 
+/* The teacher walk-through videos, kept as Yajur files (purpose general). */
+const HOW_TO_VIDEO = { subject: '7e1f0a00-0000-4000-8000-00000000a001', class: '7e1f0a00-0000-4000-8000-00000000a002' }
+
 export default function TodaysClasses() {
   const weekday = todayWeekday()
   const navigate = useNavigate()
@@ -123,6 +126,11 @@ export default function TodaysClasses() {
   const [viewing, setViewing] = useState<string | null>(null)
   // The leave screen this person holds, wherever their role files it.
   const leaveSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'leave_self_service'))
+  // How-it-works videos (Yajur, 2026-11-08): class teachers get the class teacher one.
+  const [video, setVideo] = useState(false)
+  const ctSections = useQuery({ queryKey: ['sections', 'class_teacher'], queryFn: () => api.get<List<{ id: string }>>('/api/v1/academics/sections?mine=class_teacher') })
+  const isClassTeacher = (ctSections.data?.items?.length ?? 0) > 0
+  const videoId = isClassTeacher ? HOW_TO_VIDEO.class : HOW_TO_VIDEO.subject
   const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
   const { linkFor } = useNotificationActions()
 
@@ -318,6 +326,24 @@ export default function TodaysClasses() {
               <CalendarPlus className="h-4 w-4" /> Apply
             </Button>
           </Card>
+        )}
+        {/* Watch how it works, right below Apply for leave (Yajur, 2026-11-08). */}
+        <Card className="flex min-w-0 flex-row items-center justify-between gap-3 px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="text-[16px] font-bold">Watch how it works</h2>
+            <p className="text-[13px] text-muted-foreground">
+              {isClassTeacher ? 'A short video of everything a class teacher can do here.' : 'A short video of everything a teacher can do here.'}
+            </p>
+          </div>
+          <Button variant="secondary" className="shrink-0" onClick={() => setVideo(true)}>
+            <PlayCircle className="h-4 w-4" /> Watch
+          </Button>
+        </Card>
+        {video && (
+          <Dialog onClose={() => setVideo(false)} title={isClassTeacher ? 'Class teacher: how it works' : 'Teacher: how it works'} size="xl">
+            <video className="aspect-video w-full rounded-xl bg-black" src={`/api/v1/files/${videoId}?inline=1`}
+              controls autoPlay playsInline preload="metadata" />
+          </Dialog>
         )}
         </div>
       </div>
