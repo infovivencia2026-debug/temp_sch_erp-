@@ -113,6 +113,11 @@ export interface ConnectPerson {
 export interface ConnectNewBody { guardian_id: string; student_id?: string | null; template_code: string; values: Record<string, string>; header_image_url?: string | null }
 export interface ConnectNewResult { conversation_id: string; message: ConnectMessage }
 
+/** A test send to a number on the school's recipient allowlist; no student is involved. */
+export interface ConnectTestNumber { id: string; label: string; phone: string }
+export interface ConnectTestBody { phone: string; template_code: string; values: Record<string, string>; header_image_url?: string | null }
+export interface ConnectTestResult { message_log_id: string | null; status: string }
+
 export interface ConnectBroadcastBody {
   name: string
   template_code: string
@@ -195,6 +200,8 @@ export interface YajurConnectApi {
   'GET /comms/yajur-connect/send/audiences': { res: ConnectAudienceOptions }
   'GET /comms/yajur-connect/send/people': { query: { q: string }; res: List<ConnectPerson> }
   'POST /comms/yajur-connect/send': { body: ConnectNewBody; res: ConnectNewResult }
+  'GET /comms/yajur-connect/send/test-numbers': { res: List<ConnectTestNumber> }
+  'POST /comms/yajur-connect/send/test': { body: ConnectTestBody; res: ConnectTestResult }
   'POST /comms/yajur-connect/send/preview': { body: ConnectBroadcastBody; res: ConnectPreview }
   'GET /comms/yajur-connect/campaigns': { res: List<ConnectCampaign> }
   'POST /comms/yajur-connect/campaigns': { body: ConnectBroadcastBody; res: ConnectCampaign }

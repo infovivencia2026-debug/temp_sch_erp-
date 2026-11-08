@@ -79,7 +79,7 @@ const missing = (t: ConnectSendTemplate | undefined, values: Record<string, stri
   !t || t.fields.some((f) => !MERGE_FIELDS.includes(f) && !(values[f] ?? '').trim())
 
 export function SendTab({ onOpenChat }: { onOpenChat: (id: string) => void }) {
-  const [mode, setMode] = useState<'one' | 'many'>('one')
+  const [mode, setMode] = useState<'one' | 'many' | 'test'>('one')
   const templates = useQuery({ queryKey: ['connect', 'send-templates'], queryFn: () => api.call('GET /comms/yajur-connect/send/templates'), staleTime: 60_000 })
   if (templates.isLoading) return <Loading />
   if (templates.error) return <ErrorState error={templates.error} />
@@ -89,8 +89,9 @@ export function SendTab({ onOpenChat }: { onOpenChat: (id: string) => void }) {
       <div className={SEG_BAR} role="tablist">
         <button type="button" role="tab" aria-selected={mode === 'one'} className={segClass(mode === 'one')} onClick={() => setMode('one')}>One parent</button>
         <button type="button" role="tab" aria-selected={mode === 'many'} className={segClass(mode === 'many')} onClick={() => setMode('many')}>Broadcast</button>
+        <button type="button" role="tab" aria-selected={mode === 'test'} className={segClass(mode === 'test')} onClick={() => setMode('test')}>Test</button>
       </div>
-      {mode === 'one' ? <OneParent templates={list} onOpenChat={onOpenChat} /> : <Broadcast templates={list} />}
+      {mode === 'one' ? <OneParent templates={list} onOpenChat={onOpenChat} /> : mode === 'many' ? <Broadcast templates={list} /> : <TestSend templates={list} />}
     </div>
   )
 }
@@ -162,6 +163,47 @@ function OneParent({ templates, onOpenChat }: { templates: ConnectSendTemplate[]
         ) : who && (
           <Button disabled={missing(t, values)} pending={send.isPending} onClick={() => send.mutate()}>Queue message</Button>
         )}
+      </div>
+    </Card>
+  )
+}
+
+const TEST_WHO = { parent_name: 'Test', student_name: 'Test', class: 'Test' }
+
+/** One template to a number on the school's test list; no student is involved. */
+function TestSend({ templates }: { templates: ConnectSendTemplate[] }) {
+  const [phone, setPhone] = useState('')
+  const [code, setCode] = useState('')
+  const [values, setValues] = useState<Record<string, string>>({})
+  const [image, setImage] = useState('')
+  const numbers = useQuery({ queryKey: ['connect', 'test-numbers'], queryFn: () => api.call('GET /comms/yajur-connect/send/test-numbers'), staleTime: 60_000 })
+  const t = templates.find((x) => x.code === code)
+  const send = useMutation({
+    mutationFn: () => api.call('POST /comms/yajur-connect/send/test', { body: { phone, template_code: code, values, header_image_url: image.trim() || null } }),
+  })
+  if (numbers.isLoading) return <Loading />
+  if (numbers.error) return <ErrorState error={numbers.error} />
+  const items = numbers.data?.items ?? []
+  if (items.length === 0) {
+    return <Card><EmptyState title="No test numbers." body="Add your number to the test list under Communication → Message channels → WhatsApp." /></Card>
+  }
+  const preview = t ? fill(t, values, TEST_WHO) : ''
+  return (
+    <Card>
+      <div className="space-y-4 p-4">
+        <Field label="Send to">
+          <Select value={phone} onChange={(v) => { setPhone(v); send.reset() }} placeholder="Choose a test number"
+            options={items.map((x) => ({ value: x.phone, label: x.label ? `${x.label} · ${x.phone}` : x.phone }))} />
+        </Field>
+        <Compose templates={templates} code={code} setCode={(v) => { setCode(v); send.reset() }} values={values} setValues={setValues} image={image} setImage={setImage} />
+        {preview && (
+          <div>
+            <div className="mb-1 text-[13px] text-muted-foreground">Preview</div>
+            <p className="whitespace-pre-wrap break-words rounded-md border bg-muted/40 p-3 text-[14px]">{preview}</p>
+          </div>
+        )}
+        <FormNotice error={send.error} ok={send.data ? 'Test queued.' : undefined} />
+        <Button disabled={!phone || missing(t, values)} pending={send.isPending} onClick={() => send.mutate()}>Send test</Button>
       </div>
     </Card>
   )

@@ -13,10 +13,11 @@ import {
   recipientStatus, runBroadcast, sendTemplates, templateOr400, viewCampaign, viewSchedule, type CampaignRow, type ScheduleRow,
 } from '../../services/wa_send'
 import { registerWaHeaderImage } from './wa_header_image'
-import type { ConnectBroadcastBody, ConnectNewBody, ConnectPerson, ConnectScheduleBody } from '@shared/api/feature_yajur_connect'
+import type { ConnectBroadcastBody, ConnectNewBody, ConnectPerson, ConnectScheduleBody, ConnectTestBody } from '@shared/api/feature_yajur_connect'
 
 const WRITE = 'comms.connect.write'
 export const NEW_SOURCE = 'wa_connect_new'
+export const TEST_SOURCE = 'connect_test'
 
 const notQueued = (e: unknown): never => {
   if (e instanceof MessagingError) throw new HttpError(409, e.message, { code: e.code })
@@ -100,6 +101,31 @@ export function registerYajurConnectSend(r: Router): void {
         status: m!.log_status ?? m!.status ?? '', error: m!.log_error, sent_by_name: m!.sent_by_name, auto_reply: false, at: m!.at,
       },
     }, 201)
+  })
+
+  // Test sends: only to a phone on messaging_allowed_recipients, re-checked here; dispatch still applies the guard.
+  r.typed('GET /comms/yajur-connect/send/test-numbers', WRITE, async (c) => {
+    const rows = await c.db.prepare(`SELECT id, raw, normalised, coalesce(label, '') AS label FROM messaging_allowed_recipients WHERE kind = 'phone' ORDER BY label, normalised`)
+      .all<{ id: string; raw: string; normalised: string; label: string }>()
+    return { items: rows.results.map((x) => ({ id: x.id, label: x.label, phone: '+' + x.normalised })) }
+  })
+
+  r.typed('POST /comms/yajur-connect/send/test', WRITE, async (c) => {
+    const b = await readJSON<Partial<ConnectTestBody>>(c.req)
+    const phone = normalisePhone(String(b.phone ?? ''))
+    if (!phone) throw badRequest('choose a number from the test list')
+    const on = await c.db.prepare(`SELECT 1 AS x FROM messaging_allowed_recipients WHERE kind = 'phone' AND normalised = ?`).bind(phone).first()
+    if (!on) throw badRequest('that number is not on the test list')
+    const t = await templateOr400(c.db, String(b.template_code ?? ''))
+    const values = cleanValues(t, b.values)
+    const image = cleanImage(b.header_image_url)
+    const vars = fillValues(values, t.fields, { parent_name: 'Test', student_name: 'Test', class: 'Test' })
+    const res = await queueMessage(scopeOf(c), {
+      channel: 'whatsapp', template_code: t.code, vars, recipient: '+' + phone, student_id: null, exact_channel: true,
+      source_kind: TEST_SOURCE, source_id: null, occurrence_key: uuid(), media: image ? { kind: 'image', url: image } : null,
+    }).catch(notQueued)
+    const st = res.id ? (await c.db.prepare(`SELECT status FROM message_log WHERE id = ?`).bind(res.id).first<{ status: string }>())?.status : null
+    return reply({ message_log_id: res.id ?? null, status: st ?? 'queued' }, 201)
   })
 
   r.typed('POST /comms/yajur-connect/send/preview', WRITE, async (c) => {
