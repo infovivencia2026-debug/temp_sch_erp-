@@ -12,7 +12,6 @@ import { LogTab } from './YajurConnectLog'
 import { ChatThread, type ChatMessage } from '@/components/Chat'
 import { ConversationPane, PersonAvatar } from '@/components/ChatScreen'
 import { cn, formatDateTime } from '@/lib/utils'
-import { usePhone } from '@/lib/viewport'
 
 /* Yajur Connect: the school's WhatsApp chats with parents
    (worker/src/routes/comms/yajur_connect.ts). The list on the left, the open
@@ -199,8 +198,8 @@ function Row({ c, active, onOpen }: { c: ConnectConversation; active: boolean; o
 
 function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onClose: () => void }) {
   const qc = useQueryClient()
-  const phone = usePhone()
-  const [details, setDetails] = useState(!phone)
+  // Details closed to begin with (owner, 2026-11-09): the chat first.
+  const [details, setDetails] = useState(false)
   const t = useQuery({
     queryKey: ['connect', 'thread', id],
     queryFn: async () => {

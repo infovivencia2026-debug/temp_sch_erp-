@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowDown, Check, CheckCheck, Clock, Download, FileText,
   Copy, Mic, Paperclip, Pause, Play, Reply, Search, Send, Square, Trash2, X,
@@ -76,7 +77,7 @@ function DeliveryMark({ state, note }: { state: NonNullable<ChatMessage['deliver
   if (state === 'delivered') return <CheckCheck className="h-[15px] w-[15px]" aria-label="Delivered" />
   if (state === 'read') return <CheckCheck className="h-[15px] w-[15px] text-[#4d7afe]" aria-label="Read" />
   return (
-    <span className="inline-flex min-w-0 flex-wrap items-center justify-end gap-[4px] text-destructive">
+    <span className="inline-flex min-w-0 flex-wrap items-center justify-end gap-[4px] rounded-md bg-white px-1.5 py-0.5 text-destructive">
       <span aria-hidden className="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-full bg-destructive text-[11px] font-bold leading-none text-destructive-foreground">!</span>
       <span className="font-semibold">not sent</span>
       {note && <span className="break-words leading-snug">{note}</span>}
@@ -629,7 +630,7 @@ export function ChatThread({
       <div
         ref={scroller}
         onScroll={onScroll}
-        className={cn('chat-paper flex-1 overflow-auto px-3 py-3 sm:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', height)}
+        className={cn('chat-paper flex-1 overflow-auto px-3 pb-3 pt-14 sm:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', height)}
       >
         {hasMore && !loading && !needle && (
           <div className="mb-2 flex justify-center">
@@ -761,7 +762,7 @@ export function ChatThread({
                       <span>{timeOf(m.at)}</span>
                       {m.mine && m.delivery && !m.pending && !m.failed ? <DeliveryMark state={m.delivery} note={m.delivery_note} /> : m.mine &&
                         (m.failed ? (
-                          <span className="font-semibold text-destructive">not sent</span>
+                          <span className="rounded-md bg-white px-1.5 py-0.5 font-semibold text-destructive">not sent</span>
                         ) : m.pending ? (
                           <Clock className="h-[14px] w-[14px]" aria-label="Sending" />
                         ) : m.read_at ? (
@@ -1578,7 +1579,8 @@ function MessageActions({
     }
   }
 
-  return (
+  return createPortal(
+    // On document.body, so the scrim covers the top bar too (owner, 2026-11-09).
     <div className="fixed inset-0 z-[130]" role="dialog" aria-modal="true">
       {/* The thread, still there and plainly out of focus. */}
       <button
@@ -1643,7 +1645,8 @@ function MessageActions({
           />
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
