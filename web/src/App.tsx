@@ -42,6 +42,7 @@ import { useActivityTracker, useScreenBeacon } from '@/lib/activity'
 import { ToastHost } from './components/Toast'
 import ReauthPrompt from '@/components/ReauthPrompt'
 import NeedsAttention from '@/components/NeedsAttention'
+import HomeExact from '@/features/principal/HomeExact'
 import { I18nProvider } from '@/lib/i18n'
 import { bootedOffline, rememberBootQueries } from '@/lib/offline-boot'
 import { onSent } from '@/lib/outbox'
@@ -389,7 +390,11 @@ function FeatureRoute() {
        * second visit to any screen, and every visit for anyone who has been
        * in the product for a minute) shows no loading state whatsoever. */}
       <Suspense fallback={<SkeletonPage />}>
-        {homeLanding && (
+        {/* The administrator's home, exactly as the owner drew it (2026-11-09). */}
+        {homeLanding && feature.key === 'institution_admin.home.dashboard' && (
+          <PageBody><HomeExact /></PageBody>
+        )}
+        {homeLanding && feature.key !== 'institution_admin.home.dashboard' && (
           <PageBody width={timetableHome ? 'full' : undefined}>
             <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={timetableHome || feature.key === 'student.home.my_day'} noAttention={timetableHome} />
           </PageBody>
