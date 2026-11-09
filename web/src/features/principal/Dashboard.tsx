@@ -174,6 +174,8 @@ export default function PrincipalDashboard() {
           </CellGrid>
         </Card>
 
+        <HomeStats />
+
         <Card>
           <CardHeader title="Attendance, last 30 days" description="Percentage present or late" />
           <div className="h-64 p-4">
@@ -198,5 +200,63 @@ export default function PrincipalDashboard() {
         <SetupProgress />
       </PageBody>
     </>
+  )
+}
+
+/* STATS (owner's dashboard design, 2026-11-09): plain, like a report. Fees by
+   month, this month's attendance class by class, students by stage. */
+interface HomeStatsData { fees: { month: string; rupees: number }[]; classes: { name: string; percent: number }[]; stages: { name: string; students: number }[] }
+function HomeStats() {
+  const q = useQuery({ queryKey: ['home-stats'], queryFn: () => api.get<HomeStatsData>('/api/v1/home/stats'), staleTime: 5 * 60_000 })
+  if (!q.data) return null
+  const { fees, classes, stages } = q.data
+  const fmax = Math.max(1, ...fees.map((f) => f.rupees))
+  const total = stages.reduce((a, s) => a + s.students, 0)
+  const lakh = (r: number) => (r >= 100000 ? `${(r / 100000).toFixed(1)}L` : r >= 1000 ? `${Math.round(r / 1000)}k` : String(r))
+  const mon = (m: string) => new Date(m + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'short' })
+  return (
+    <section className="home-stats grid gap-4 lg:grid-cols-[1.3fr_1fr_1fr]">
+      <Card>
+        <CardHeader title="Fees collected by month" description="Receipts banked, ₹" />
+        <div className="flex h-44 items-end gap-3 border-b px-5 pb-0 pt-2">
+          {fees.map((f, i) => (
+            <div key={f.month} className="group flex h-full flex-1 flex-col items-center justify-end gap-1.5" title={`${mon(f.month)}: ${formatPaise(f.rupees * 100)}`}>
+              <span className="text-[11.5px] font-semibold tabular-nums">{lakh(f.rupees)}</span>
+              <i className={'block w-full max-w-[26px] rounded-t transition-colors ' + (i === fees.length - 1 ? 'bg-primary' : 'bg-primary/25 group-hover:bg-primary')}
+                style={{ height: `${Math.max(2, (f.rupees / fmax) * 100)}%` }} />
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-3 px-5 pb-4 pt-2">{fees.map((f) => <span key={f.month} className="flex-1 text-center text-[11.5px] text-muted-foreground">{mon(f.month)}</span>)}</div>
+      </Card>
+      <Card>
+        <CardHeader title="Attendance by class" description="This month" />
+        <div className="flex flex-col gap-3 px-5 pb-5">
+          {classes.length === 0 && <p className="text-[13px] text-muted-foreground">No attendance marked this month yet.</p>}
+          {classes.map((c) => (
+            <div key={c.name} className="grid grid-cols-[72px_1fr_40px] items-center gap-2.5 text-[13px]">
+              <span className="truncate text-muted-foreground">{c.name}</span>
+              <span className="h-1.5 overflow-hidden rounded bg-muted"><i className="block h-full rounded bg-primary" style={{ width: `${c.percent}%` }} /></span>
+              <b className="text-right font-semibold tabular-nums">{c.percent}%</b>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card>
+        <CardHeader title="Students by stage" description="On the roll this year" />
+        <table className="mx-5 mb-4 w-[calc(100%-2.5rem)] text-[13.5px]">
+          <tbody>
+            {stages.map((s) => (
+              <tr key={s.name} className="border-b">
+                <td className="py-2.5">{s.name}</td>
+                <td className="w-14 py-2.5 text-right text-[12px] text-muted-foreground tabular-nums">{total ? Math.round((s.students / total) * 100) : 0}%</td>
+                <td className="w-14 py-2.5 text-right font-semibold tabular-nums">{s.students}</td>
+              </tr>
+            ))}
+            <tr><td className="py-2.5 font-bold">Total</td><td /><td className="py-2.5 text-right font-bold tabular-nums">{total}</td></tr>
+          </tbody>
+        </table>
+      </Card>
+    </section>
   )
 }

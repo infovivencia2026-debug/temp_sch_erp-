@@ -321,13 +321,6 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   )
 }
 
-/* In the school's timezone, not the browser's: a header read on a laptop set
-   to UTC showed 04:31 for a 10:01 sign-in. */
-function clock(iso: string | null | undefined, timeZone: string | undefined): string | null {
-  if (!iso) return null
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone })
-}
 
 /** The one bar across the workspace: greeting and date, search, who is signed in. */
 /* `dashboard`: the greeting, name and sign-in times show on the dashboard
@@ -342,9 +335,8 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
   const first = fullName.split(/\s+/)[0]
   const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const d = signIns.data
-  const firstAt = clock(d?.first_sign_in_at, d?.timezone)
-  const lastAt = clock(d?.last_activity_at, d?.timezone)
-  const times = firstAt && lastAt ? `First ${firstAt} · Last ${lastAt}` : lastAt ? `Last ${lastAt}` : null
+  /* No first and last sign-in times in the header (owner, 2026-11-09). */
+  const times: string | null = null
   /* ON A PHONE, THE OWNER'S HEADER (Yajur, 2026-10-24,
      docs/owner-designs/2026-10-24-teacher-home-phone.html): avatar and bell on
      the top row beside the menu, then the greeting, the full name large, the

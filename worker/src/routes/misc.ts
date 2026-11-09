@@ -4,6 +4,7 @@ import { registerShell } from './misc/shell'
 import { registerChat } from './misc/chat'
 import { registerFiles } from './misc/files'
 import { registerAssistant } from './misc/assistant'
+import { registerHomeStats } from './misc/home_stats'
 
 /* The loose authenticated routes of internal/api/api.go: /profile and its
    MFA and device routes, the shell's ref-data / working-year / date-ranges /
@@ -16,4 +17,5 @@ export function registerMisc(r: Router): void {
   registerChat(r)
   registerFiles(r)
   registerAssistant(r)
+  registerHomeStats(r)
 }
