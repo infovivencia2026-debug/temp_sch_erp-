@@ -476,7 +476,6 @@ function ChapterPlanner() {
                 value={draft}
                 onChange={setDraft}
                 rows={5}
-                placeholder={'Knowing our numbers\nWhole numbers\nPlaying with numbers'}
               />
             </Field>
             <FormNotice error={save.error} />

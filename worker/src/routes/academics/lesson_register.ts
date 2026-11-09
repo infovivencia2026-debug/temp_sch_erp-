@@ -55,11 +55,14 @@ async function getOptions(c: Ctx) {
     .bind(year.id, all ? 1 : 0, c.id.userId)
     .all<{ section_id: string; class_name: string; section: string; class_subject_id: string; subject: string; teacher_user_id: string | null; teacher: string | null }>()
   const sections = new Map<string, { id: string; class_name: string; section: string }>()
-  const subjects = new Map<string, { section_id: string; class_subject_id: string; subject: string }>()
+  const subjects = new Map<string, { section_id: string; class_subject_id: string; subject: string; teacher_ids: string[] }>()
   const teachers = new Map<string, { id: string; name: string }>()
   for (const v of rows.results) {
     sections.set(v.section_id, { id: v.section_id, class_name: v.class_name, section: v.section })
-    subjects.set(`${v.section_id}|${v.class_subject_id}`, { section_id: v.section_id, class_subject_id: v.class_subject_id, subject: v.subject })
+    const k = `${v.section_id}|${v.class_subject_id}`
+    const sub = subjects.get(k) ?? { section_id: v.section_id, class_subject_id: v.class_subject_id, subject: v.subject, teacher_ids: [] }
+    if (v.teacher_user_id && !sub.teacher_ids.includes(v.teacher_user_id)) sub.teacher_ids.push(v.teacher_user_id)
+    subjects.set(k, sub)
     if (all && v.teacher_user_id && v.teacher) teachers.set(v.teacher_user_id, { id: v.teacher_user_id, name: v.teacher })
   }
   const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true })

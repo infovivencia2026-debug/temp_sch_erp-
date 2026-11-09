@@ -12,15 +12,22 @@ import ChapterPlan from './ChapterPlan'
 
 interface Options {
   sections: { id: string; class_name: string; section: string }[]
-  subjects: { section_id: string; class_subject_id: string; subject: string }[]
+  subjects: { section_id: string; class_subject_id: string; subject: string; teacher_ids?: string[] }[]
+  teachers?: { id: string; name: string }[]
+  sees_all?: boolean
 }
 
 export default function LessonRegister() {
   const opts = useQuery({ queryKey: ['lesson-register-options'], queryFn: () => api.get<Options>('/api/v1/academics/lesson-register/options') })
+  const [teacher, setTeacher] = useState('')
   const [section, setSection] = useState('')
   const [subject, setSubject] = useState('')
   const o = opts.data
-  const subjects = useMemo(() => (o?.subjects ?? []).filter((s) => s.section_id === section), [o, section])
+  // Admin and principal can narrow everything to one teacher's classes.
+  const mine = useMemo(() => (o?.subjects ?? []).filter((s) => !teacher || (s.teacher_ids ?? []).includes(teacher)), [o, teacher])
+  const sections = useMemo(() => (o?.sections ?? []).filter((s) => mine.some((m) => m.section_id === s.id)), [o, mine])
+  const subjects = useMemo(() => mine.filter((s) => s.section_id === section), [mine, section])
+  const showTeacher = !!o?.sees_all && (o?.teachers?.length ?? 0) > 0
   // A class with one subject (a teacher's usual case) needs no second choice.
   useEffect(() => { if (subjects.length === 1) setSubject(subjects[0].class_subject_id) }, [subjects])
 
@@ -31,10 +38,16 @@ export default function LessonRegister() {
       <PageHead eyebrow="Academics" title="Lesson plan" />
       <PageBody>
         <Card className="p-4 sm:p-5">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className={`grid gap-4 ${showTeacher ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+            {showTeacher && (
+              <Field label="Teacher">
+                <Select value={teacher} onChange={(v) => { setTeacher(v); setSection(''); setSubject('') }} placeholder="All teachers"
+                  options={[{ value: '', label: 'All teachers' }, ...(o?.teachers ?? []).map((t) => ({ value: t.id, label: t.name }))]} />
+              </Field>
+            )}
             <Field label="Class and section">
               <Select value={section} onChange={(v) => { setSection(v); setSubject('') }} placeholder="Choose a class"
-                options={(o?.sections ?? []).map((s) => ({ value: s.id, label: `${s.class_name} - ${s.section}` }))} />
+                options={sections.map((s) => ({ value: s.id, label: `${s.class_name} - ${s.section}` }))} />
             </Field>
             <Field label="Subject">
               <Select value={subject} onChange={setSubject} placeholder={section ? 'Choose a subject' : 'Choose a class first'}
