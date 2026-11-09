@@ -738,7 +738,7 @@ export function ChatThread({
                       !first && 'chat-run',
                       m.failed && 'ring-1 ring-destructive',
                       // Not sent: a white bubble with a red edge, as the owner's design (2026-11-09).
-                      right && m.delivery === 'failed' && '!bg-none !bg-white !text-foreground ring-[1.5px] ring-[#fda29b] [&_.chat-meta]:!text-muted-foreground',
+                      right && m.delivery === 'failed' && '!bg-none !bg-white !text-foreground !border-[1.5px] !border-solid !border-[#fda29b] [&_.chat-meta]:!text-muted-foreground',
                       m.pending && 'opacity-80',
                     )}
                   >
@@ -938,7 +938,7 @@ export function ChatThread({
             </p>
           )}
           {composerTools && <div className="mb-1.5">{composerTools(draft, setDraft)}</div>}
-          <form
+          <form data-chat-form
             className="flex items-center gap-1.5"
             onSubmit={(e) => {
               e.preventDefault()

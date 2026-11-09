@@ -5817,3 +5817,6 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 .home-hero .tint-grid > div{background:rgba(246,248,255,.80)!important;background-image:none!important;border:1px solid rgba(214,220,240,.9)!important}
 .home-hero .tint-grid > div::before,.home-hero .tint-grid > div::after{display:none!important}
 .dark .home-hero .tint-grid > div{background:color-mix(in oklab,hsl(var(--card)) 82%,transparent)!important}
+
+/* The assistant button floats bottom-right: keep the chat send button clear of it (owner, 2026-11-09). */
+[data-chat-form] { padding-inline-end: 60px; }
