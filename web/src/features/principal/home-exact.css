@@ -112,10 +112,9 @@
 .hx-stats .hx-panel{display:flex;flex-direction:column}
 .hx-stats .hx-bars{flex:1;height:auto;min-height:170px;border-bottom:0;padding-bottom:0}
 /* moving hero colours */
-.hx-blob.b1{animation:hxDrift1 14s ease-in-out infinite alternate}
-.hx-blob.b2{animation:hxDrift2 18s ease-in-out infinite alternate}
-.hx-blob.b3{animation:hxDrift3 16s ease-in-out infinite alternate}
-@keyframes hxDrift1{0%{transform:translate(0,0) scale(1);filter:blur(38px) hue-rotate(0deg)}100%{transform:translate(-140px,90px) scale(1.15);filter:blur(38px) hue-rotate(40deg)}}
-@keyframes hxDrift2{0%{transform:translate(0,0) scale(1);filter:blur(38px) hue-rotate(0deg)}100%{transform:translate(-200px,40px) scale(.9);filter:blur(38px) hue-rotate(-35deg)}}
-@keyframes hxDrift3{0%{transform:translate(0,0) scale(1);filter:blur(38px) hue-rotate(0deg)}100%{transform:translate(-120px,-90px) scale(1.2);filter:blur(38px) hue-rotate(50deg)}}
-@media (prefers-reduced-motion:reduce){.hx-blob{animation:none!important}}
+.hx-blob.b1{animation:hxDrift1 6s ease-in-out infinite alternate}
+.hx-blob.b2{animation:hxDrift2 7s ease-in-out infinite alternate}
+.hx-blob.b3{animation:hxDrift3 5s ease-in-out infinite alternate}
+@keyframes hxDrift1{0%{transform:translate(0,0) scale(1);filter:blur(38px) hue-rotate(0deg)}100%{transform:translate(-260px,140px) scale(1.25);filter:blur(38px) hue-rotate(90deg)}}
+@keyframes hxDrift2{0%{transform:translate(0,0) scale(1);filter:blur(38px) hue-rotate(0deg)}100%{transform:translate(-320px,60px) scale(.85);filter:blur(38px) hue-rotate(-80deg)}}
+@keyframes hxDrift3{0%{transform:translate(0,0) scale(1);filter:blur(38px) hue-rotate(0deg)}100%{transform:translate(-220px,-120px) scale(1.3);filter:blur(38px) hue-rotate(100deg)}}
