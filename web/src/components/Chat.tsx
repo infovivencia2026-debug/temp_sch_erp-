@@ -71,16 +71,22 @@ export interface ChatMessage {
   delivery_note?: string
 }
 
+/** A provider error, cut to its first plain sentence. */
+function shortReason(note: string): string {
+  const s = note.replace(/^whatsapp:\s*/i, '').replace(/\s*\[trace[^\]]*\]/g, '').split(/\.\s|\(code/)[0].trim()
+  return (s.length > 120 ? s.slice(0, 117) + '...' : s).replace(/^./, (c) => c.toUpperCase())
+}
+
 function DeliveryMark({ state, note }: { state: NonNullable<ChatMessage['delivery']>; note?: string }) {
   if (state === 'waiting') return <><Clock className="h-[14px] w-[14px]" aria-label="Waiting to send" />{note && <span>{note}</span>}</>
   if (state === 'sent') return <Check className="h-[15px] w-[15px]" aria-label="Sent" />
   if (state === 'delivered') return <CheckCheck className="h-[15px] w-[15px]" aria-label="Delivered" />
   if (state === 'read') return <CheckCheck className="h-[15px] w-[15px] text-[#4d7afe]" aria-label="Read" />
+  // Not sent: a small red mark, as WhatsApp shows it; the reason sits under the message (owner, 2026-11-09).
   return (
-    <span className="inline-flex min-w-0 flex-wrap items-center justify-end gap-[4px] rounded-md bg-white px-1.5 py-0.5 text-destructive">
+    <span className="inline-flex shrink-0 items-center gap-[4px] whitespace-nowrap font-semibold">
       <span aria-hidden className="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-full bg-destructive text-[11px] font-bold leading-none text-destructive-foreground">!</span>
-      <span className="font-semibold">not sent</span>
-      {note && <span className="break-words leading-snug">{note}</span>}
+      Not sent
     </span>
   )
 }
@@ -757,12 +763,15 @@ export function ChatThread({
                     )}
                     {/* The time in the bubble's own corner, as every chat app
                         draws it: a one-word message and its time share a line. */}
-                    <p className="chat-meta mt-[4px] flex items-center justify-end gap-[4px] leading-none">
+                    {m.mine && m.delivery === 'failed' && m.delivery_note && (
+                      <p className="mt-1 rounded-md bg-black/15 px-2 py-1 text-[12.5px] leading-snug" title={m.delivery_note}>{shortReason(m.delivery_note)}</p>
+                    )}
+                    <p className="chat-meta mt-[4px] flex items-center justify-end gap-[4px] whitespace-nowrap leading-none">
                       {m.edited && !m.deleted && <span className="italic">edited</span>}
                       <span>{timeOf(m.at)}</span>
                       {m.mine && m.delivery && !m.pending && !m.failed ? <DeliveryMark state={m.delivery} note={m.delivery_note} /> : m.mine &&
                         (m.failed ? (
-                          <span className="rounded-md bg-white px-1.5 py-0.5 font-semibold text-destructive">not sent</span>
+                          <span className="font-semibold">Not sent</span>
                         ) : m.pending ? (
                           <Clock className="h-[14px] w-[14px]" aria-label="Sending" />
                         ) : m.read_at ? (

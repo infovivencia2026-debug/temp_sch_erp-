@@ -276,8 +276,8 @@ function TemplatePicker({ thread, pending, onSend, error }: { thread: ConnectThr
     )
   }
   return (
-    <div className="space-y-2">
-      <p className="text-[14px] text-muted-foreground">More than 24 hours since the parent last wrote. Send an approved template instead.</p>
+    <div className="space-y-2 pb-1 sm:pe-16">
+      <p className="text-[14px] text-muted-foreground">The parent has not written in 24 hours, so WhatsApp only allows an approved template.</p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="min-w-0 flex-1">
           <Select value={code} onChange={setCode} placeholder="Choose a template" options={thread.templates.map((t) => ({ value: t.code, label: t.name }))} />
