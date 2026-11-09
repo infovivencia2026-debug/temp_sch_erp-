@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
+import { Select } from '@/components/ui'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
 import { useCan, useSession } from '@/lib/session'
 import SetupProgress from './SetupProgress'
@@ -85,7 +86,9 @@ export default function HomeExact() {
   }, [dashKeys, catalog])
   const kq = useQuery({ queryKey: ['principal-dashboard', 'period=' + range], queryFn: () => api.get<Kpis>('/api/v1/principal/dashboard?period=' + range) })
   const tq = useQuery({ queryKey: ['attendance-trend'], queryFn: () => api.get<{ items: Trend[] }>('/api/v1/principal/attendance-trend') })
-  const sq = useQuery({ queryKey: ['home-stats'], queryFn: () => api.get<Stats>('/api/v1/home/stats'), staleTime: 5 * 60_000 })
+  const [statMonth, setStatMonth] = useState(() => new Date().toISOString().slice(0, 7))
+  const monthChoices = Array.from({ length: 12 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); return d.toISOString().slice(0, 7) })
+  const sq = useQuery({ queryKey: ['home-stats', statMonth], queryFn: () => api.get<Stats>('/api/v1/home/stats?month=' + statMonth), staleTime: 5 * 60_000 })
 
   function hrefFor(target?: string) {
     if (!target) return null
@@ -241,7 +244,9 @@ export default function HomeExact() {
 
       {/* STATS */}
       {stats && (<>
-        <div className="hx-head"><h2>Stats</h2></div>
+        <div className="hx-head"><h2>Stats</h2>
+          <div style={{ minWidth: 180 }}><Select value={statMonth} onChange={setStatMonth} options={monthChoices.map((m) => ({ value: m, label: new Date(m + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) }))} /></div>
+        </div>
         <section className="hx-stats">
           {canMoney && (
             <div className="hx-panel">
@@ -252,9 +257,9 @@ export default function HomeExact() {
             </div>
           )}
           <div className="hx-panel">
-            <h2 className="h">Attendance by class, this month</h2>
+            <h2 className="h">Attendance by class, {mon(statMonth)}</h2>
             <div className="hx-hb">
-              {stats.classes.length === 0 && <p className="hx-note" style={{ textAlign: 'left' }}>No attendance marked this month yet.</p>}
+              {stats.classes.length === 0 && <p className="hx-note" style={{ textAlign: 'left' }}>No attendance marked in {mon(statMonth)}.</p>}
               {stats.classes.map((c) => <div className="r" key={c.name}><span>{c.name}</span><div className="t"><i style={{ width: grown ? `${c.percent}%` : 0 }} /></div><b>{c.percent}%</b></div>)}
             </div>
           </div>
