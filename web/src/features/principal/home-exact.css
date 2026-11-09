@@ -95,3 +95,12 @@
 .hx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 @media (max-width:1000px){.hx-kpis,.hx-today{grid-template-columns:repeat(2,1fr)}.hx-grid2,.hx-stats{grid-template-columns:1fr}}
 @media (max-width:560px){.hx-hero{padding:22px 18px}.hx-item{grid-template-columns:auto 1fr}.hx-item .go{grid-column:1/-1;justify-content:center}}
+
+.hx-done{margin-top:10px;font-size:13px;color:var(--hx-green)}
+.hx-item .go:disabled{opacity:.75;cursor:default}
+.hx-shortcuts{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.hx-shortcuts .sc{display:inline-flex;align-items:center;overflow:hidden;border:1px solid var(--hx-line);border-radius:12px;background:#fff;box-shadow:var(--hx-shadow)}
+.hx-shortcuts .sc button{padding:9px 14px;font-size:13.5px;font-weight:600;transition:background .15s}
+.hx-shortcuts .sc button:hover{background:var(--hx-primary-soft);color:var(--hx-primary)}
+.hx-shortcuts .sc .x{border-left:1px solid var(--hx-line);padding:9px 10px;color:var(--hx-muted)}
+.hx-shortcuts .sc .x:hover{color:var(--hx-red);background:var(--hx-red-soft)}

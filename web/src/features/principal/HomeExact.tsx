@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
@@ -61,7 +62,27 @@ export default function HomeExact() {
   const [grown, setGrown] = useState(false)
   useEffect(() => { const t = setTimeout(() => setGrown(true), 150); return () => clearTimeout(t) }, [])
 
-  const att = useQuery({ queryKey: ['attention'], queryFn: () => api.get<Attention>('/api/v1/attention') })
+  const att = useQuery({ queryKey: ['attention'], queryFn: () => api.get<Attention>('/api/v1/attention'), staleTime: 120_000, refetchOnWindowFocus: true })
+  /* Kept from the old home: remind the class teachers about unmarked registers. */
+  const canChase = useCan()('academics.attendance.read.all')
+  const [nudged, setNudged] = useState('')
+  const nudge = useMutation({
+    mutationFn: () => api.post<{ sections: number; notified: number; sections_without_a_class_teacher: string[] }>('/api/v1/attendance/nudge', {}),
+    onSuccess: (r) => {
+      const un = r.sections_without_a_class_teacher
+      setNudged(`${r.notified} ${r.notified === 1 ? 'teacher' : 'teachers'} reminded about ${r.sections} unmarked ${r.sections === 1 ? 'register' : 'registers'}.` +
+        (un.length ? ` ${un.join(', ')} ${un.length === 1 ? 'has' : 'have'} no class teacher, so nobody could be told.` : ''))
+    },
+  })
+  /* Kept from the old home: the screens somebody pinned to the dashboard. */
+  const dashKeys = useShortcuts()
+  const shortcuts = useMemo(() => {
+    const byKey = new Map<string, { key: string; name: string; href: string }>()
+    for (const r of catalog.roles) for (const sec of r.sections) for (const f of sec.features) {
+      if (f.in_scope && f.live) byKey.set(f.key, { key: f.key, name: f.name, href: `/${r.key}/${sec.slug}/${f.slug}` })
+    }
+    return dashKeys.map((k) => byKey.get(k)).filter((x): x is NonNullable<typeof x> => !!x)
+  }, [dashKeys, catalog])
   const kq = useQuery({ queryKey: ['principal-dashboard', 'period=' + range], queryFn: () => api.get<Kpis>('/api/v1/principal/dashboard?period=' + range) })
   const tq = useQuery({ queryKey: ['attendance-trend'], queryFn: () => api.get<{ items: Trend[] }>('/api/v1/principal/attendance-trend') })
   const sq = useQuery({ queryKey: ['home-stats'], queryFn: () => api.get<Stats>('/api/v1/home/stats'), staleTime: 5 * 60_000 })
@@ -168,12 +189,16 @@ export default function HomeExact() {
             <h2>Needs your attention {shown.length > 0 && <span className="hx-count">{shown.length}</span>}</h2>
             <div className="hx-seg">{([['all', 'All'], ['high', 'Urgent'], ['mid', 'Soon']] as const).map(([v, l]) => <button key={v} type="button" className={filter === v ? 'on' : ''} onClick={() => setFilter(v)}>{l}</button>)}</div>
           </div>
+          {nudged && <p className="hx-done">{nudged}</p>}
           <div className="hx-list">
             {shown.map((i) => (
               <div key={i.key} className={`hx-item sev-${sev(i)} ${open === i.key ? 'open' : ''}`} onClick={() => setOpen(open === i.key ? null : i.key)}>
                 <span className="ic"><Icon d={itemIcon(i.key)} /></span>
                 <div className="min"><h3>{i.headline}{sev(i) === 'high' && <span className="pill">Urgent</span>}</h3>{i.detail && <p>{i.detail}</p>}</div>
-                {i.href && <button type="button" className="go" onClick={(e) => { e.stopPropagation(); go(i.href) }}>{i.action} →</button>}
+                {i.key === 'attendance.unmarked' && canChase
+                  ? <button type="button" className="go" disabled={nudge.isPending || nudge.isSuccess} onClick={(e) => { e.stopPropagation(); nudge.mutate() }}>
+                      {nudge.isPending ? 'Reminding…' : nudge.isSuccess ? 'Reminded ✓' : 'Remind the class teachers →'}</button>
+                  : i.href && <button type="button" className="go" onClick={(e) => { e.stopPropagation(); go(i.href) }}>{i.action} →</button>}
                 {i.detail && <div className="more">{i.detail}</div>}
               </div>
             ))}
@@ -199,6 +224,20 @@ export default function HomeExact() {
           )}
         </div>
       </section>
+
+      {shortcuts.length > 0 && (
+        <section>
+          <div className="hx-head"><h2>Your shortcuts</h2></div>
+          <div className="hx-shortcuts">
+            {shortcuts.map((sc) => (
+              <span key={sc.key} className="sc">
+                <button type="button" onClick={() => navigate(sc.href)}>{sc.name}</button>
+                <button type="button" className="x" aria-label={`Take ${sc.name} off the dashboard`} title="Take off the dashboard" onClick={() => removeFromDashboard(sc.key)}>×</button>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* STATS */}
       {stats && (<>
