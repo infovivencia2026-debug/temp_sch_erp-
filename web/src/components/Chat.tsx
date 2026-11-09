@@ -64,25 +64,22 @@ export interface ChatMessage {
   failed?: boolean
   /** A server-side delivery state, drawn the WhatsApp way: clock while it
       waits, one tick sent, two grey delivered, two blue read, a red mark when
-      it failed (its reason in delivery_note, shown on tap). For a waiting
+      it failed, with "not sent" and its reason (delivery_note). For a waiting
       message delivery_note is the hold, e.g. "Sends at 7:00 AM". */
   delivery?: 'waiting' | 'sent' | 'delivered' | 'read' | 'failed'
   delivery_note?: string
 }
 
 function DeliveryMark({ state, note }: { state: NonNullable<ChatMessage['delivery']>; note?: string }) {
-  const [open, setOpen] = useState(false)
   if (state === 'waiting') return <><Clock className="h-[14px] w-[14px]" aria-label="Waiting to send" />{note && <span>{note}</span>}</>
   if (state === 'sent') return <Check className="h-[15px] w-[15px]" aria-label="Sent" />
   if (state === 'delivered') return <CheckCheck className="h-[15px] w-[15px]" aria-label="Delivered" />
   if (state === 'read') return <CheckCheck className="h-[15px] w-[15px] text-[#4d7afe]" aria-label="Read" />
   return (
-    <span className="inline-flex items-center gap-[4px]">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label="Not delivered: show why"
-        className="-m-2 grid h-8 w-8 place-items-center">
-        <span className="grid h-[15px] w-[15px] place-items-center rounded-full bg-destructive text-[11px] font-bold leading-none text-destructive-foreground">!</span>
-      </button>
-      {open && <span className="text-destructive">{note || 'Not delivered'}</span>}
+    <span className="inline-flex min-w-0 flex-wrap items-center justify-end gap-[4px] text-destructive">
+      <span aria-hidden className="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-full bg-destructive text-[11px] font-bold leading-none text-destructive-foreground">!</span>
+      <span className="font-semibold">not sent</span>
+      {note && <span className="break-words leading-snug">{note}</span>}
     </span>
   )
 }
@@ -124,6 +121,8 @@ export function ChatThread({
   onSeen,
   onEdit,
   onUnsend,
+  onRetryDelivery,
+  onDiscardDelivery,
   peerName,
   peerPhoto,
 }: {
@@ -146,6 +145,9 @@ export function ChatThread({
   /** Change or withdraw one of the caller's own messages, within the window. */
   onEdit?: (id: string, body: string) => Promise<unknown> | void
   onUnsend?: (id: string) => Promise<unknown> | void
+  /** For a message whose server-side delivery failed (delivery 'failed'): send it again, or remove it. */
+  onRetryDelivery?: (id: string) => void
+  onDiscardDelivery?: (id: string) => void
   /** Which conversation this is, on the live bus: shows "typing…" from the
       other party and signals our own typing to them. Omit for no live. */
   live?: TypingTarget
@@ -770,6 +772,12 @@ export function ChatThread({
                     </p>
                     </div>
                     </div>
+                    {m.mine && m.delivery === 'failed' && !m.failed && (onRetryDelivery || onDiscardDelivery) && (
+                      <p className="mt-1 flex gap-3 text-[12px] font-semibold">
+                        {onRetryDelivery && <button type="button" className="min-h-8 text-primary" onClick={() => onRetryDelivery(m.id)}>Retry</button>}
+                        {onDiscardDelivery && <button type="button" className="min-h-8 text-muted-foreground" onClick={() => onDiscardDelivery(m.id)}>Discard</button>}
+                      </p>
+                    )}
                     {m.failed && (
                       <p className="mt-1 flex gap-3 text-[12px] font-semibold">
                         <button type="button" className="text-primary" onClick={() => retry(m)}>Retry</button>

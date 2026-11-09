@@ -860,6 +860,10 @@ export function ambiguousSendError(e: Error): boolean {
   const n = (e as { name?: string }).name ?? ''
   return n === 'TimeoutError' || n === 'AbortError' || /timed? ?out|socket hang up|connection (reset|closed)|network connection was lost/i.test(e.message)
 }
+/** Meta's template and parameter errors (1320xx): the same send fails the same way, so it is failed at once, not retried. */
+export function templateSendError(e: Error): boolean {
+  return e instanceof PermanentSendError && /\(code 1320\d\d\b/.test(e.message)
+}
 /** Providers that make a repeated send of one row a no-op (Resend's Idempotency-Key). */
 const idempotentProvider = (p: Provider) => p.name === 'email:resend' || p.channel === 'in_app'
 
@@ -981,7 +985,7 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
       // With a rung left on the ladder, a refusal that cannot change (not set up, no address,
       // no credit) or a second transient failure moves on to it rather than waiting hours.
       const hasLadder = !!row.ladder && row.ladder !== '[]'
-      const giveUp = !retry || (hasLadder && (sendErr instanceof MessagingError || sendErr instanceof PermanentSendError || Number(row.attempts) + 1 >= 2))
+      const giveUp = !retry || templateSendError(sendErr) || (hasLadder && (sendErr instanceof MessagingError || sendErr instanceof PermanentSendError || Number(row.attempts) + 1 >= 2))
       if (giveUp) {
         const t = new Date().toISOString()
         await db.prepare(`UPDATE message_log SET status = 'failed', error = ?, attempts = attempts + 1, provider = ?, send_after = ?, failed_at = ? WHERE id = ?`)

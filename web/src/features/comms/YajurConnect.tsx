@@ -215,6 +215,12 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
     mutationFn: (body: { text?: string; template_code?: string }) => api.call('POST /comms/yajur-connect/{id}/reply', { params: { id }, body }),
     onSuccess: refresh,
   })
+  const fix = useMutation({
+    mutationFn: (v: { mid: string; discard: boolean }): Promise<unknown> => v.discard
+      ? api.call('DELETE /comms/yajur-connect/{id}/messages/{mid}', { params: { id, mid: v.mid } })
+      : api.call('POST /comms/yajur-connect/{id}/messages/{mid}/retry', { params: { id, mid: v.mid } }),
+    onSuccess: refresh,
+  })
   const d = t.data
   const title = d?.conversation.name ?? ''
   const messages: ChatMessage[] = (d?.messages ?? []).map((m) => ({
@@ -249,8 +255,10 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
             cannotSendNote={canWrite ? <TemplatePicker thread={d} pending={send.isPending} onSend={(code) => send.mutate({ template_code: code })} error={send.error} />
               : 'You can read this chat. Replying needs the Manage Yajur Connect permission.'}
             onSend={(m) => send.mutateAsync({ text: m.body })}
+            onRetryDelivery={canWrite ? (mid) => fix.mutate({ mid, discard: false }) : undefined}
+            onDiscardDelivery={canWrite ? (mid) => fix.mutate({ mid, discard: true }) : undefined}
             sending={send.isPending}
-            error={send.error}
+            error={send.error ?? fix.error}
           />
         </>
       )}

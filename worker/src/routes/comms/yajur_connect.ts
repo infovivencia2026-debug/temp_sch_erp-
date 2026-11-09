@@ -13,7 +13,7 @@ import { reply } from '../../router'
 import { can } from '../../identity'
 import { HttpError, badRequest, isUUID, like, now, readJSON, uuid } from '../../http'
 import { loadGuard, permits } from '../admin/msg_guard'
-import { MessagingError, queueMessage, scopeOf } from '../../services/messaging'
+import { MessagingError, kickDispatch, queueMessage, scopeOf } from '../../services/messaging'
 import { CONNECT_SOURCE, queueChatText, recordOutbound } from '../../services/wa_connect'
 import { connectLabel } from '../../services/wa_send'
 import { registerYajurConnectSend } from './yajur_connect_send'
@@ -252,6 +252,28 @@ export function registerYajurConnect(r: Router): void {
     await c.db.prepare(`UPDATE wa_conversations SET assigned_to = ?, labels = ?, state = ?, updated_at = ? WHERE id = ?`)
       .bind(assigned, JSON.stringify(labels), state, now(), conv.id).run()
     return viewConv((await c.db.prepare(`${CONV_SELECT} WHERE c.id = ?`).bind(conv.id).first<ConvRow>())!)
+  })
+
+  /** A message the queue failed: back into the queue as it was (the guard and opt-outs apply again), or off the chat. */
+  async function failedOr404(c: Ctx): Promise<{ id: string; message_log_id: string | null; log_status: string | null }> {
+    const conv = await convOr404(c)
+    if (!isUUID(c.params.mid)) throw badRequest('invalid message id')
+    const m = await c.db.prepare(`SELECT m.id, m.message_log_id, ml.status AS log_status FROM wa_messages m LEFT JOIN message_log ml ON ml.id = m.message_log_id
+        WHERE m.id = ? AND m.conversation_id = ? AND m.direction = 'out'`).bind(c.params.mid, conv.id).first<{ id: string; message_log_id: string | null; log_status: string | null }>()
+    if (!m) throw new HttpError(404, 'that message does not exist')
+    if (m.log_status !== 'failed' && m.log_status !== 'suppressed') throw new HttpError(409, 'only a message that was not sent can be retried or discarded')
+    return m
+  }
+  r.typed('POST /comms/yajur-connect/{id}/messages/{mid}/retry', WRITE, async (c) => {
+    const m = await failedOr404(c)
+    await c.db.prepare(`UPDATE message_log SET status = 'queued', error = NULL, attempts = 0, send_after = NULL, failed_at = NULL WHERE id = ?`).bind(m.message_log_id).run()
+    await kickDispatch(c.env, c.id.institution!.id)
+    return viewMsg((await c.db.prepare(`${MSG_SELECT} WHERE m.id = ?`).bind(m.id).first<MsgRow>())!)
+  })
+  r.typed('DELETE /comms/yajur-connect/{id}/messages/{mid}', WRITE, async (c) => {
+    const m = await failedOr404(c)
+    await c.db.prepare(`DELETE FROM wa_messages WHERE id = ?`).bind(m.id).run()
+    return { ok: true as const }
   })
 
   r.typed('POST /comms/yajur-connect/{id}/reply', WRITE, async (c) => {

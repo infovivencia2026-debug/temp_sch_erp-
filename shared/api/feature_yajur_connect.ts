@@ -228,4 +228,6 @@ export interface YajurConnectApi {
   'GET /comms/yajur-connect/{id}': { res: ConnectThread }
   'PUT /comms/yajur-connect/{id}': { body: { assigned_to?: string | null; labels?: string[]; state?: ConnectState }; res: ConnectConversation }
   'POST /comms/yajur-connect/{id}/reply': { body: { text?: string; template_code?: string }; res: ConnectMessage }
+  'POST /comms/yajur-connect/{id}/messages/{mid}/retry': { res: ConnectMessage }
+  'DELETE /comms/yajur-connect/{id}/messages/{mid}': { res: { ok: true } }
 }

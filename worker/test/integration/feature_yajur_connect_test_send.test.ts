@@ -77,4 +77,14 @@ describe('communication.yajur_connect test send', () => {
     expect(p.status).toBe(200)
     expect(p.body.sample ?? '').not.toContain('12/11/2026')
   })
+  it('Meta template errors (1320xx) are permanent; retry and discard refuse what they cannot touch', async () => {
+    const { explainMetaError, templateSendError } = await import('../../src/services/messaging')
+    expect(templateSendError(explainMetaError(400, JSON.stringify({ error: { message: 'bad params', code: 132000 } })))).toBe(true)
+    expect(templateSendError(explainMetaError(400, JSON.stringify({ error: { message: 'bad number', code: 131026 } })))).toBe(false)
+    expect(templateSendError(explainMetaError(429, JSON.stringify({ error: { message: 'slow down', code: 130429 } })))).toBe(false)
+    const none = '00000000-0000-4000-8000-0000000000ee'
+    expect((await api('teacher', 'POST', `/comms/yajur-connect/${none}/messages/${none}/retry`)).status).toBe(403)
+    expect((await api('teacher', 'DELETE', `/comms/yajur-connect/${none}/messages/${none}`)).status).toBe(403)
+    expect((await api('admin', 'POST', `/comms/yajur-connect/${none}/messages/${none}/retry`)).status).toBe(404)
+  })
 })
