@@ -72,6 +72,9 @@ interface WaStatus { id?: string; status?: string; timestamp?: string; biz_opaqu
 export async function forwardWhatsapp(env: Env, raw: ArrayBuffer, headers: Headers): Promise<void> {
   const to = secret(env, 'WA_FORWARD_URL')
   if (!to) return
+  // Connect relays Meta's POSTs here marked x-yajur-relay; sending those back
+  // would bounce every message between the two forever.
+  if (headers.get('x-yajur-relay')) return
   const h: Record<string, string> = { 'content-type': headers.get('content-type') ?? 'application/json' }
   const sig = headers.get('x-hub-signature-256')
   if (sig) h['x-hub-signature-256'] = sig
