@@ -766,7 +766,7 @@ export function ChatThread({
                     {m.mine && m.delivery === 'failed' && m.delivery_note && (
                       <p className="mt-1 rounded-md bg-black/15 px-2 py-1 text-[12.5px] leading-snug" title={m.delivery_note}>{shortReason(m.delivery_note)}</p>
                     )}
-                    <p className="chat-meta mt-[4px] flex items-center justify-end gap-[4px] whitespace-nowrap leading-none">
+                    <p className="chat-meta mt-[4px] flex items-center justify-end gap-[2px] whitespace-nowrap leading-none">
                       {m.edited && !m.deleted && <span className="italic">edited</span>}
                       <span>{timeOf(m.at)}</span>
                       {m.mine && m.delivery && !m.pending && !m.failed ? <DeliveryMark state={m.delivery} note={m.delivery_note} /> : m.mine &&
