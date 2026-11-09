@@ -5820,3 +5820,11 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 
 /* The assistant button floats bottom-right: keep the chat send button clear of it (owner, 2026-11-09). */
 [data-chat-form] { padding-inline-end: 60px; }
+
+/* The assistant's face bounces when touched (owner, 2026-11-09). Two names so
+   every tap restarts the bounce. */
+@keyframes bot-poke-a { 0%{transform:scale(1)} 35%{transform:scale(.9)} 70%{transform:scale(1.06)} 100%{transform:scale(1)} }
+@keyframes bot-poke-b { 0%{transform:scale(1)} 35%{transform:scale(.9)} 70%{transform:scale(1.06)} 100%{transform:scale(1)} }
+.bot-face[data-poke='0'] .bot-face__head{animation:bot-poke-a .45s cubic-bezier(.34,1.56,.64,1)}
+.bot-face[data-poke='1'] .bot-face__head{animation:bot-poke-b .45s cubic-bezier(.34,1.56,.64,1)}
+@media (prefers-reduced-motion: reduce){.bot-face[data-poke] .bot-face__head{animation:none}}

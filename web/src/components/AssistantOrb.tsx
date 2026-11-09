@@ -42,6 +42,22 @@ export function AssistantOrb({
   const ref = useRef<HTMLSpanElement>(null)
   const [mood, setMood] = useState<string | null>(null)
   const resting = state === 'idle' && !typing
+  /* A TOUCH CHANGES THE FACE (owner, 2026-11-09: "let the expression change
+     when I touch here"). Each tap pulls a different face for a moment and the
+     head gives a little bounce. */
+  const [poke, setPoke] = useState<{ face: string; n: number } | null>(null)
+  const pokeT = useRef(0)
+  useEffect(() => () => clearTimeout(pokeT.current), [])
+  const onPoke = () => {
+    if (state !== 'idle') return
+    const FACES = ['laugh', 'love', 'wink', 'happy', 'curious', 'sleepy']
+    setPoke((p) => {
+      const pool = FACES.filter((f) => f !== p?.face)
+      return { face: pool[Math.floor(Math.random() * pool.length)], n: (p?.n ?? 0) + 1 }
+    })
+    clearTimeout(pokeT.current)
+    pokeT.current = window.setTimeout(() => setPoke(null), 1800)
+  }
 
   useEffect(() => {
     if (!resting || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setMood(null); return }
@@ -96,7 +112,7 @@ export function AssistantOrb({
     }
   }, [])
 
-  const face = typing && state === 'idle' ? 'listening' : resting && mood ? mood : state
+  const face = poke && state === 'idle' ? poke.face : typing && state === 'idle' ? 'listening' : resting && mood ? mood : state
   return (
     <span
       ref={ref}
@@ -104,7 +120,9 @@ export function AssistantOrb({
       data-face={face}
       data-awake={awake || typing ? '' : undefined}
       data-subtle={subtle ? '' : undefined}
-      style={{ width: size, height: size, ['--bot-scale' as string]: String(size / 240) }}
+      data-poke={poke ? String(poke.n % 2) : undefined}
+      onPointerDown={onPoke}
+      style={{ width: size, height: size, ['--bot-scale' as string]: String(size / 240), pointerEvents: 'auto', cursor: state === 'idle' ? 'pointer' : undefined }}
       aria-hidden="true"
     >
       <span className="bot-face__art">
