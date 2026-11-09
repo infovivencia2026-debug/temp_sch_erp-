@@ -82,7 +82,8 @@ function DeliveryMark({ state, note }: { state: NonNullable<ChatMessage['deliver
   if (state === 'sent') return <Check className="h-[15px] w-[15px]" aria-label="Sent" />
   if (state === 'delivered') return <CheckCheck className="h-[15px] w-[15px]" aria-label="Delivered" />
   if (state === 'read') return <CheckCheck className="h-[15px] w-[15px] text-[#4d7afe]" aria-label="Read" />
-  // Not sent: a small red mark, as WhatsApp shows it; the reason sits under the message (owner, 2026-11-09).
+  // Not sent: the reason line in the bubble already says so; the mark is only for a failure with no reason.
+  if (note) return null
   return (
     <span className="inline-flex shrink-0 items-center gap-[4px] whitespace-nowrap font-semibold">
       <span aria-hidden className="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-full bg-destructive text-[11px] font-bold leading-none text-destructive-foreground">!</span>
@@ -736,6 +737,8 @@ export function ChatThread({
                       right ? 'chat-mine' : 'chat-theirs',
                       !first && 'chat-run',
                       m.failed && 'ring-1 ring-destructive',
+                      // Not sent: a white bubble with a red edge, as the owner's design (2026-11-09).
+                      right && m.delivery === 'failed' && '!bg-none !bg-white !text-foreground ring-[1.5px] ring-[#fda29b] [&_.chat-meta]:!text-muted-foreground',
                       m.pending && 'opacity-80',
                     )}
                   >
@@ -764,7 +767,7 @@ export function ChatThread({
                     {/* The time in the bubble's own corner, as every chat app
                         draws it: a one-word message and its time share a line. */}
                     {m.mine && m.delivery === 'failed' && m.delivery_note && (
-                      <p className="mt-1 rounded-md bg-black/15 px-2 py-1 text-[12.5px] leading-snug" title={m.delivery_note}>{shortReason(m.delivery_note)}</p>
+                      <p className="mt-1 flex items-start gap-1.5 text-[12.5px] leading-snug text-destructive" title={m.delivery_note}><span aria-hidden className="mt-px grid h-[15px] w-[15px] shrink-0 place-items-center rounded-full bg-destructive text-[10px] font-bold text-white">!</span>Not sent: {shortReason(m.delivery_note)}</p>
                     )}
                     <p className="chat-meta mt-[4px] flex items-center justify-end gap-[2px] whitespace-nowrap leading-none">
                       {m.edited && !m.deleted && <span className="italic">edited</span>}

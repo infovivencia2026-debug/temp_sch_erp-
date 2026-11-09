@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
+import { Info as InfoIcon } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { ConnectConversation, ConnectMatch, ConnectMessage, ConnectState, ConnectThread } from '@shared/api/feature_yajur_connect'
 import {
-  PageHead, PageBody, Badge, Button, Card, ConfirmButton, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select,
+  PageHead, PageBody, Button, Card, ConfirmButton, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select,
   Switch, Textarea, SEG_BAR, TAB_BAR, segClass, tabClass,
 } from '@/components/ui'
 import { CampaignsTab, ScheduledTab, SendTab } from './YajurConnectSend'
@@ -137,38 +138,44 @@ export default function YajurConnect() {
 
   /* Called, not mounted: a component defined here would remount the search box on every render. */
   function chats() {
+    /* As the owner's design (2026-11-09): the list in its own card with its search and filters,
+       the chat beside it, both filling the screen below the tabs. */
     return (
-      <>
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="min-w-0 sm:w-72"><Input value={q} onChange={setQ} placeholder="Name, number, label or words" /></div>
-          <div className={SEG_BAR} role="tablist">
-            {VIEWS.map((v) => (
-              <button key={v.key} type="button" role="tab" aria-selected={view === v.key} className={segClass(view === v.key)} onClick={() => setView(v.key)}>
-                {v.label}
-              </button>
-            ))}
+      <div ref={gridRef} style={{ '--chat-h': `${chatH}px` } as CSSProperties}
+        className="space-y-3 lg:grid lg:h-[var(--chat-h)] lg:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] lg:gap-4 lg:space-y-0">
+        <section className={cn('card flex min-h-0 flex-col overflow-hidden', openId && 'max-lg:hidden')}>
+          <div className="space-y-2.5 px-4 pb-2 pt-4">
+            <h2 className="text-[20px] font-bold">Chats</h2>
+            <Input value={q} onChange={setQ} placeholder="Search name, number or words" />
+            <div className={cn(SEG_BAR, 'w-full')} role="tablist">
+              {VIEWS.map((v) => (
+                <button key={v.key} type="button" role="tab" aria-selected={view === v.key} className={cn(segClass(view === v.key), 'flex-1')} onClick={() => setView(v.key)}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-2">
+              <Switch on={mine} onChange={setMine} label="Only chats assigned to me" />
+              <span className="text-[13px] text-muted-foreground">Assigned to me</span>
+            </label>
           </div>
-          <label className="flex shrink-0 items-center gap-2">
-            <Switch on={mine} onChange={setMine} label="Only chats assigned to me" />
-            <span className="whitespace-nowrap text-[14px] text-muted-foreground">Assigned to me</span>
-          </label>
-        </div>
-        <div ref={gridRef} style={{ '--chat-h': `${chatH}px` } as CSSProperties} className={cn('space-y-3', openId && 'lg:grid lg:h-[var(--chat-h)] lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-4 lg:space-y-0 lg:overflow-hidden')}>
-          {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : items.length === 0 ? (
-            <Card>
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+            {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : items.length === 0 ? (
               <EmptyState
                 title={q || mine ? 'No chat matches.' : view === 'resolved' ? 'No resolved chats.' : 'No WhatsApp chats yet.'}
                 body={q || mine ? 'Clear the search or the Assigned to me switch.' : 'A chat appears here when a parent writes to the school on WhatsApp.'}
               />
-            </Card>
-          ) : (
-            <ul className="space-y-2 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
-              {items.map((c) => <Row key={c.id} c={c} active={c.id === openId} onOpen={() => setOpenId(c.id)} />)}
-            </ul>
-          )}
-          {openId && <Thread id={openId} canWrite={canWrite} onClose={() => setOpenId(null)} />}
-        </div>
-      </>
+            ) : (
+              <ul className="space-y-0.5">
+                {items.map((c) => <Row key={c.id} c={c} active={c.id === openId} onOpen={() => setOpenId(c.id)} />)}
+              </ul>
+            )}
+          </div>
+        </section>
+        {openId ? <Thread id={openId} canWrite={canWrite} onClose={() => setOpenId(null)} /> : (
+          <div className="card hidden min-h-0 place-items-center text-[14px] text-muted-foreground lg:grid">Pick a chat to read it.</div>
+        )}
+      </div>
     )
   }
 }
@@ -180,24 +187,24 @@ function Row({ c, active, onOpen }: { c: ConnectConversation; active: boolean; o
         type="button"
         onClick={onOpen}
         aria-current={active ? 'true' : undefined}
-        className={cn('card flex min-h-[64px] w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:border-primary/50', active && 'border-primary')}
+        className={cn('flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors hover:bg-muted/60', active && 'bg-primary/10 hover:bg-primary/10')}
       >
         <PersonAvatar name={c.name} size={44} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className={cn('min-w-0 flex-1 truncate text-[16px] sm:text-[15px]', c.unread ? 'font-bold' : 'font-semibold')}>{c.name}</span>
-            <span className="shrink-0 text-[12px] text-muted-foreground">{when(c.last_message_at)}</span>
+            <span className={cn('min-w-0 flex-1 truncate text-[15px]', c.unread ? 'font-bold' : 'font-semibold')}>{c.name}</span>
+            <span className={cn('shrink-0 text-[12px]', c.unread ? 'font-semibold text-[#12b76a]' : 'text-muted-foreground')}>{when(c.last_message_at)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="min-w-0 flex-1 truncate text-[14px] text-muted-foreground">{c.last_preview ?? ''}</span>
-            {c.unread > 0 && <Badge tone="primary">{String(c.unread)}</Badge>}
+            <span className="min-w-0 flex-1 truncate text-[13.5px] text-muted-foreground">{c.last_preview ?? ''}</span>
+            {c.unread > 0 && <span className="grid min-w-[20px] place-items-center rounded-full bg-[#12b76a] px-1.5 text-[11px] font-bold leading-[18px] text-white">{c.unread}</span>}
           </div>
           {(c.student_name || c.labels.length > 0 || c.assigned_name || c.state === 'resolved') && (
             <div className="mt-1 flex flex-wrap gap-1">
-              {c.student_name && c.student_name !== c.name && <Badge>{c.student_name}</Badge>}
-              {c.labels.map((l) => <Badge key={l} tone="info">{l}</Badge>)}
-              {c.assigned_name && <Badge>{c.assigned_name}</Badge>}
-              {c.state === 'resolved' && <Badge tone="success">Resolved</Badge>}
+              {c.student_name && c.student_name !== c.name && <span className="rounded-full bg-primary/10 px-2 text-[11.5px] text-primary">{c.student_name}</span>}
+              {c.labels.map((l) => <span key={l} className="rounded-full bg-primary/10 px-2 text-[11.5px] text-primary">{l}</span>)}
+              {c.assigned_name && <span className="rounded-full bg-muted px-2 text-[11.5px] text-muted-foreground">{c.assigned_name}</span>}
+              {c.state === 'resolved' && <span className="rounded-full bg-[#12b76a]/15 px-2 text-[11.5px] text-[#067647]">Resolved</span>}
             </div>
           )}
         </div>
@@ -247,7 +254,7 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
       title={title || 'Chat'}
       subtitle={d ? `+${d.conversation.phone}${d.conversation.student_name ? ' · ' + d.conversation.student_name : ''}` : undefined}
       onBack={onClose}
-      actions={<Button variant="ghost" size="sm" onClick={() => setDetails((v) => !v)} ariaExpanded={details}>{details ? 'Hide details' : 'Details'}</Button>}
+      actions={<button type="button" title={details ? 'Hide details' : 'Details'} aria-label={details ? 'Hide details' : 'Details'} aria-expanded={details} onClick={() => setDetails((v) => !v)} className={cn('grid h-9 w-9 place-items-center rounded-full transition-colors', details ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/70')}><InfoIcon className="h-[18px] w-[18px]" /></button>}
     >
       {t.isLoading ? <Loading /> : t.error ? <ErrorState error={t.error} /> : d && (
         <>
@@ -307,7 +314,7 @@ function TemplatePicker({ thread, pending, onSend, error }: { thread: ConnectThr
         <Button disabled={!ready} pending={pending} onClick={() => onSend(code, Object.fromEntries(blanks.map((p) => [p, value(p).trim()])))}>Send template</Button>
       </div>
       {tpl && blanks.length > 0 && (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-3">
           {blanks.map((p) => (
             <Field key={p} label={label(p)} required>
               <Input value={value(p)} onChange={(v) => setVars((o) => ({ ...o, [p]: v }))} />
