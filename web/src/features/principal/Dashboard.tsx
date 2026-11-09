@@ -158,7 +158,7 @@ export default function PrincipalDashboard() {
         {/* Early warnings and the morning brief are retired (owner, 2026-10-03). */}
 
         <Card>
-          <CardHeader title="Needs attention" description="Items waiting on a decision" />
+          <CardHeader title="At a glance" description="Waiting on a decision" />
           <CellGrid cols={4}>
             <Stat label="Pending approvals" value={k.pending_leave} hint="Leave requests" period={asOf} />
             {canSeeMoney && (

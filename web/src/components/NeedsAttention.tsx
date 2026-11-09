@@ -485,6 +485,36 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
           overview alone in a boundary, the shortcuts and the alerts drew
           first and were then pushed half a screen down when the overview's
           code arrived. Now the rest waits for it, under a skeleton. */}
+      {/* THE OWNER'S ORDER (2026-11-09 design): what needs doing right under
+          Today, with the day's common jobs beside it; the figures follow. */}
+      {afterToday && !attentionFirst && (() => {
+        const quick = [
+          ['Add student', 'student_admission admissions students'],
+          ['Collect fee', 'fee_collection collect'],
+          ['Send notice', 'circulars notices announcements'],
+          ['Mark attendance', 'student_absentees attendance'],
+        ].map(([label, target]) => ({ label, href: hrefFor(target) })).filter((q) => q.href)
+        return (
+          <div className="home-act grid items-start gap-5 lg:grid-cols-[1.4fr_1fr]">
+            <div className="min-w-0">{items.length > 0 ? attentionBlock : (
+              <section className="rounded-2xl border bg-card p-5 text-[14px] text-muted-foreground shadow-[var(--elev-1)]">Nothing needs your attention right now.</section>)}</div>
+            {quick.length > 0 && (
+              <section className="rounded-2xl border bg-card p-5 shadow-[var(--elev-1)] lg:mt-3">
+                <h2 className="text-[16px] font-bold tracking-[-0.01em]">Quick actions</h2>
+                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                  {quick.map((q) => (
+                    <button key={q.label} type="button" onClick={() => navigate(q.href!)}
+                      className="rounded-xl border bg-card px-3 py-3 text-left text-[13.5px] font-semibold transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary">
+                      {q.label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )
+      })()}
+
       <Suspense fallback={<Loading shape="cards" rows={3} />}>
       {afterToday && <section className="home-overview"><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}
 
@@ -529,7 +559,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
         </section>
       )}
 
-      {!attentionFirst && attentionBlock}
+      {!attentionFirst && !afterToday && attentionBlock}
       </Suspense>
     </div>
   )
