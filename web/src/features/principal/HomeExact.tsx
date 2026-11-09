@@ -103,6 +103,16 @@ export default function HomeExact() {
     for (const o of catalog.roles) { if (o.key !== role?.key) { const t = search(o); if (t) return t } }
     return null
   }
+  /* EXACT SCREENS (owner, 2026-11-09: "cards open another page, not where it
+     should"). Each card names its screen by catalogue key; only a person who
+     does not have that screen falls back to the nearest one they do have. */
+  function byKey(key: string) {
+    for (const r of catalog.roles) for (const sec of r.sections) for (const f of sec.features) {
+      if (f.key === key && f.live && f.in_scope) return `/${r.key}/${sec.slug}/${f.slug}`
+    }
+    return null
+  }
+  const open = (key: string, fallback: string) => { const h = byKey(key) ?? hrefFor(fallback); if (h) navigate(h) }
   const go = (t?: string) => { const h = t?.startsWith('/') ? t : hrefFor(t); if (h) navigate(h) }
 
   const items = att.data?.items ?? []
@@ -113,8 +123,12 @@ export default function HomeExact() {
   const trend = tq.data?.items ?? []
   const stats = sq.data
 
-  const quick = [['Add student', 'student_admission admissions students', '＋'], ['Collect fee', 'fee_collection collect', '₹'], ['Send notice', 'circulars notices', '✉'], ['Mark attendance', 'student_absentees attendance', '✓']]
-    .map(([label, t, ic]) => ({ label, href: hrefFor(t), ic })).filter((q) => q.href)
+  const quick = [
+    ['Add student', 'institution_admin.students.student_360', 'student_360', '＋'],
+    ['Collect fee', 'institution_admin.standard.fee_collection', 'fee_collection', '₹'],
+    ['Send notice', 'institution_admin.communication.circulars', 'circulars', '✉'],
+    ['Mark attendance', 'institution_admin.academics.student_absentees', 'student_absentees', '✓'],
+  ].map(([label, key, fb, ic]) => ({ label, href: byKey(key) ?? hrefFor(fb), ic })).filter((q) => q.href)
 
   // the 30-day line
   const W = 800, H = 240, P = 24
@@ -157,26 +171,26 @@ export default function HomeExact() {
         <div className="hx-seg">{RANGES.map(([v, l]) => <button key={v} type="button" className={range === v ? 'on' : ''} onClick={() => setRange(v)}>{l}</button>)}</div>
       </div>
       <section className="hx-kpis">
-        <div className="hx-kpi" onClick={() => go('student_360 students')}>
+        <div className="hx-kpi" onClick={() => open('institution_admin.students.student_360', 'student_360')}>
           <div className="top"><span className="lbl">Students</span><span className="ic" style={{ background: '#eef0ff', color: '#4f46e5' }}><Icon d={I.users} /></span></div>
           <div className="num">{k?.students ?? '–'}</div>
           <div className="meta">{k?.sections ?? 0} sections</div>
           <div className="bar"><span style={{ width: grown ? '81%' : 0 }} /></div>
         </div>
-        <div className="hx-kpi" onClick={() => go('staff_360 staff')}>
+        <div className="hx-kpi" onClick={() => open('hr.records.staff_records', 'staff_records')}>
           <div className="top"><span className="lbl">Staff</span><span className="ic" style={{ background: '#e9f8fd', color: '#0891b2' }}><Icon d={I.staff} /></span></div>
           <div className="num">{k?.staff ?? '–'}</div>
           <div className="meta">{k?.staff_teaching ?? 0} teaching · {k?.staff_non_teaching ?? 0} non-teaching</div>
           <div className="bar"><span style={{ width: grown && k?.staff ? `${Math.round((k.staff_teaching / k.staff) * 100)}%` : 0 }} /></div>
         </div>
-        <div className="hx-kpi" onClick={() => go('student_absentees attendance')}>
+        <div className="hx-kpi" onClick={() => open('institution_admin.academics.student_absentees', 'student_absentees')}>
           <div className="top"><span className="lbl">Attendance</span><span className="ic" style={{ background: '#ecfdf3', color: '#16a34a' }}><Icon d={I.check} /></span></div>
           <div className="num">{k?.attendance_range_pct != null ? `${Math.round(k.attendance_range_pct)}%` : '–'}</div>
           <div className="meta">{k?.attendance_today_pct != null ? `Today ${Math.round(k.attendance_today_pct)}%` : 'Today not marked yet'}</div>
           <svg className="spark" viewBox="0 0 120 34" preserveAspectRatio="none"><path d={trend.slice(-9).map((t, i, a) => `${i ? 'L' : 'M'}${(i * 120) / Math.max(1, a.length - 1)} ${32 - (t.pct / 100) * 30}`).join(' ')} fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" /></svg>
         </div>
         {canMoney && (
-          <div className="hx-kpi" onClick={() => go('fee_collection collect')}>
+          <div className="hx-kpi" onClick={() => open('institution_admin.fees.fee_dashboard', 'fee_dashboard')}>
             <div className="top"><span className="lbl">Fees banked</span><span className="ic" style={{ background: '#fff7e6', color: '#d97706' }}><Icon d={I.rupee} /></span></div>
             <div className="num">{k ? rupees(k.collected_paise) : '–'}</div>
             <div className="meta">{k && <><span style={{ color: 'var(--hx-red)', fontWeight: 700 }}>{rupees(k.outstanding_paise)}</span> still unpaid</>}</div>
@@ -213,10 +227,10 @@ export default function HomeExact() {
           <div className="hx-panel">
             <h2 className="h">At a glance</h2>
             <div className="hx-mini">
-              <div className="m" onClick={() => go('leave')}><div className="k">Leave requests</div><div className="v">{k?.pending_leave ?? 0}</div><div className="s">waiting approval</div></div>
-              <div className="m" onClick={() => go('applications')}><div className="k">Applications</div><div className="v">{k?.open_applications ?? 0}</div><div className="s">open</div></div>
-              <div className="m" onClick={() => go('timetable')}><div className="k">Unassigned subjects</div><div className="v" style={{ color: 'var(--hx-amber)' }}>{k?.unassigned_subjects ?? 0}</div><div className="s">no teacher</div></div>
-              {canMoney && <div className="m" onClick={() => go('defaulters dues')}><div className="k">Fee defaulters</div><div className="v" style={{ color: 'var(--hx-red)' }}>{k?.defaulters ?? 0}</div><div className="s">past due</div></div>}
+              <div className="m" onClick={() => open('hr.leave.leave', 'leave')}><div className="k">Leave requests</div><div className="v">{k?.pending_leave ?? 0}</div><div className="s">waiting approval</div></div>
+              <div className="m" onClick={() => open('institution_admin.admissions.admissions_pipeline', 'admissions_pipeline')}><div className="k">Applications</div><div className="v">{k?.open_applications ?? 0}</div><div className="s">open</div></div>
+              <div className="m" onClick={() => open('institution_admin.academics.teacher_assignment', 'teacher_assignment')}><div className="k">Unassigned subjects</div><div className="v" style={{ color: 'var(--hx-amber)' }}>{k?.unassigned_subjects ?? 0}</div><div className="s">no teacher</div></div>
+              {canMoney && <div className="m" onClick={() => open('institution_admin.fees.fee_default', 'fee_default')}><div className="k">Fee defaulters</div><div className="v" style={{ color: 'var(--hx-red)' }}>{k?.defaulters ?? 0}</div><div className="s">past due</div></div>}
             </div>
           </div>
           {quick.length > 0 && (
