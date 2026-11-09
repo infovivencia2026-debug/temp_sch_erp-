@@ -71,7 +71,16 @@ export default function YajurConnect() {
   const gridRef = useRef<HTMLDivElement>(null)
   const [chatH, setChatH] = useState(600)
   useEffect(() => {
-    const fit = () => { const el = gridRef.current; if (el) setChatH(Math.max(380, Math.round(window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - 16))) }
+    const fit = () => {
+      const el = gridRef.current
+      if (!el) return
+      // The page scrolls inside the shell, not the window: measure from the top of that scroller as if unscrolled.
+      let sc: HTMLElement | null = el.parentElement
+      while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement
+      const scTop = sc ? sc.getBoundingClientRect().top : 0, scrolled = sc ? sc.scrollTop : window.scrollY
+      const top = el.getBoundingClientRect().top - scTop + scrolled + scTop
+      setChatH(Math.max(380, Math.round(window.innerHeight - top - 16)))
+    }
     fit(); window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
   }, [openId])
