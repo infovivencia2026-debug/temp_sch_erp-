@@ -11,6 +11,7 @@ import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
 import { formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
+import { useActiveRole } from '@/lib/catalog'
 
 /* The homework diary, from both ends.
 
@@ -143,7 +144,11 @@ function Diary({ canPublish }: { canPublish: boolean }) {
   const [composing, setComposing] = useState(false)
   /* Everything set for the teacher's sections by default; their own is one press away. */
   const [onlyMine, setOnlyMine] = useState(false)
-  const mine = canPublish && onlyMine
+  // Subject teachers see only their own work; class teachers and the office choose (Yajur, 2026-11-09).
+  const activeRole = useActiveRole()
+  const ct = useQuery({ queryKey: ['sections', 'class_teacher'], queryFn: () => api.get<List<{ id: string }>>('/api/v1/academics/sections?mine=class_teacher'), enabled: activeRole.key === 'faculty' })
+  const subjectTeacher = activeRole.key === 'faculty' && ct.isSuccess && (ct.data?.items?.length ?? 0) === 0
+  const mine = canPublish && (onlyMine || subjectTeacher)
 
   const from = weekOf
   const week = Array.from({ length: 7 }, (_, i) => addDays(from, i))
@@ -193,7 +198,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
       />
       <PageBody>
         {composing && <Compose canPublish={canPublish} onClose={() => setComposing(false)} />}
-        {canPublish && (
+        {canPublish && !subjectTeacher && (
           <div className="flex items-center justify-end">
             <span className="flex overflow-hidden rounded-sm border">
               <Button size="sm" variant={mine ? 'primary' : 'ghost'} onClick={() => setOnlyMine(true)} title="Only the work you set yourself">Set by me</Button>
