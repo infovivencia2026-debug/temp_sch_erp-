@@ -20,7 +20,7 @@ html[data-assistant-open] body {
 /* The composer sits on the home indicator's safe area when the keyboard is
    down, and directly on the keyboard when it is up. */
 [data-assistant-chat] .assistant-composer {
-  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
 }
 [data-assistant-chat][data-kb] .assistant-composer {
   padding-bottom: 0.5rem;
