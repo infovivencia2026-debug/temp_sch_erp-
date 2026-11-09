@@ -375,7 +375,7 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
       <div className="min-w-0">
         {dashboard && <>{/* The account's name first, then the greeting and the date (Yajur, 2026-10-21). */}
         <p className="truncate text-[calc(16px*var(--font-scale,1))] font-bold leading-tight">{fullName || first}</p>
-        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}</p></>}
+        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}{times && <span className="tabular-nums"> · {times}</span>}</p></>}
         {!dashboard && <div id="staff-crumb" className="min-w-0" />}
       </div>
       <div className="col-span-2 row-start-2 min-w-0 xl:col-span-1 xl:col-start-2 xl:row-start-1">
@@ -385,8 +385,6 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
         {/* No avatar or staff ID here (owner, 2026-10-30): the profile in the panel's foot is enough. */}
         {/* Focus | Work before the sign-in times, in its own pill look (owner, 2026-10-30); phones, tablets and 1024 laptops keep it in the panel. */}
         <div className="shrink-0 max-xl:hidden"><LayoutSwitch bar /></div>
-        {/* From xl (1280) up only: on a tablet the bar has no room and the times ran under the bell. */}
-        {dashboard && times && <p className="shrink-0 whitespace-nowrap max-xl:hidden text-[calc(12px*var(--font-scale,1))] text-muted-foreground tabular-nums">{times}</p>}
         {extra}
         <Notifications />
       </div>
