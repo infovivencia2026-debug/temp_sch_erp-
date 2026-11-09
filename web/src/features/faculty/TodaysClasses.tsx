@@ -3,6 +3,7 @@ import { CalendarPlus, PlayCircle } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { Button, Card, Dialog, Loading, ErrorState, EmptyState, PageBody } from '@/components/ui'
 import { PersonAvatar } from '@/components/ChatScreen'
 import DayTimeline from '@/components/DayTimeline'
@@ -132,6 +133,16 @@ export default function TodaysClasses() {
   const isClassTeacher = (ctSections.data?.items?.length ?? 0) > 0
   const videoId = isClassTeacher ? HOW_TO_VIDEO.class : HOW_TO_VIDEO.subject
   const leavePath = leaveSection ? featurePath(activeRole.key, leaveSection.slug, 'leave_self_service') : null
+  // My tasks at a glance, overdue first (owner, 2026-11-09).
+  const tasksSection = activeRole.sections?.find((s) => s.features.some((f) => f.slug === 'my_tasks'))
+  const tasksPath = tasksSection ? featurePath(activeRole.key, tasksSection.slug, 'my_tasks') : null
+  const myTasks = useQuery({
+    queryKey: ['staff-tasks', 'mine-summary'],
+    queryFn: () => api.get<{ summary: { open: number; in_progress: number; review: number; overdue: number } }>('/api/v1/hr/tasks?for=mine'),
+    enabled: !!tasksPath,
+  })
+  const ts = myTasks.data?.summary
+  const tasksOpen = ts ? ts.open + ts.in_progress : 0
   const { linkFor } = useNotificationActions()
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />
@@ -325,6 +336,19 @@ export default function TodaysClasses() {
             <Button className="shrink-0" onClick={() => navigate(`${leavePath}?apply=1`)}>
               <CalendarPlus className="h-4 w-4" /> Apply
             </Button>
+          </Card>
+        )}
+        {tasksPath && ts && (tasksOpen > 0 || ts.overdue > 0 || ts.review > 0) && (
+          <Card className={cn('flex min-w-0 flex-row items-center justify-between gap-3 px-5 py-4', ts.overdue > 0 && 'ring-1 ring-[hsl(var(--sys-red)/0.45)]')}>
+            <div className="min-w-0">
+              <h2 className="text-[16px] font-bold">
+                {ts.overdue > 0 ? <span className="text-[hsl(var(--sys-red-ink))]">Tasks overdue: {ts.overdue}</span> : `My tasks: ${tasksOpen} to do`}
+              </h2>
+              <p className="text-[13px] text-muted-foreground">
+                {[tasksOpen ? `${tasksOpen} to do` : '', ts.review ? `${ts.review} waiting for review` : ''].filter(Boolean).join(' · ') || 'All caught up.'}
+              </p>
+            </div>
+            <Button variant="secondary" className="shrink-0" onClick={() => navigate(tasksPath)}>Open</Button>
           </Card>
         )}
         {/* Watch how it works, right below Apply for leave (Yajur, 2026-11-08). */}

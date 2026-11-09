@@ -125,6 +125,47 @@ function DueChip({ t }: { t: Task }) {
   )
 }
 
+/** Whole days past the due date, at least one. */
+const daysLate = (due: string) => Math.max(1, Math.round((Date.parse(today()) - Date.parse(due)) / 86_400_000))
+
+/* Assigned -> Working -> Review -> Done, with when each step happened and how
+   long it took (owner, 2026-11-09). The last time each step was reached counts,
+   so a task sent back and handed in again shows its latest hand-in. */
+function TaskProgress({ t }: { t: TaskDetail }) {
+  const last = (kinds: string[]) => [...t.updates].reverse().find((u) => kinds.includes(u.kind))?.created_at
+  const steps = [
+    { label: 'Assigned', at: last(['created']) ?? t.created_at },
+    { label: 'Working', at: last(['started']) },
+    ...(t.reviewed ? [{ label: 'Review', at: last(['submitted']) }] : []),
+    { label: 'Done', at: t.status === 'done' ? (last(['accepted']) ?? t.done_at) : undefined },
+  ]
+  const reached = t.status === 'done' ? steps.length - 1
+    : t.status === 'review' ? steps.findIndex((s) => s.label === 'Review')
+    : t.status === 'in_progress' ? 1 : 0
+  const took = (a?: string, b?: string) => {
+    if (!a || !b) return null
+    const h = (Date.parse(b) - Date.parse(a)) / 3_600_000
+    return h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : h < 48 ? `${Math.round(h)} h` : `${Math.round(h / 24)} days`
+  }
+  const when = (at: string) => new Date(at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+  return (
+    <ol className="grid gap-1" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label="Progress">
+      {steps.map((s, i) => {
+        const done = i <= reached && t.status !== 'cancelled'
+        const prev = steps.slice(0, i).reverse().find((p) => p.at)?.at
+        return (
+          <li key={s.label} className="min-w-0">
+            <span className={cn('block h-1.5 rounded-full', done ? (t.overdue ? 'bg-[hsl(var(--sys-red))]' : i === reached && t.status !== 'done' ? 'bg-[hsl(var(--sys-blue))]' : 'bg-[hsl(var(--sys-green))]') : 'bg-muted')} />
+            <span className={cn('mt-1.5 block text-[12.5px] font-semibold', !done && 'text-muted-foreground')}>{s.label}</span>
+            <span className="block truncate text-[11.5px] text-muted-foreground">{s.at && done ? when(s.at) : '-'}</span>
+            {i > 0 && done && took(prev, s.at) && <span className="block text-[11px] text-muted-foreground">took {took(prev, s.at)}</span>}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('')
 
 function TaskCard({ t, onOpen, draggable, own }: { t: Task; onOpen: () => void; draggable: boolean; own?: boolean }) {
@@ -135,8 +176,15 @@ function TaskCard({ t, onOpen, draggable, own }: { t: Task; onOpen: () => void; 
       draggable={draggable}
       onDragStart={(e) => { e.dataTransfer.setData('text/task', t.id); e.dataTransfer.effectAllowed = 'move' }}
       className={cn('task-card block w-full rounded-[var(--radius-control)] bg-card p-3 text-left shadow-[var(--elev-1)] transition-shadow hover:shadow-[var(--elev-2)]',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', t.priority === 'high' && 'border-s-[3px] border-[hsl(var(--sys-red))]')}
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', t.priority === 'high' && 'border-s-[3px] border-[hsl(var(--sys-red))]',
+        // Late work stands out on the board (owner, 2026-11-09).
+        t.overdue && 'bg-[hsl(var(--sys-red)/0.06)] ring-1 ring-[hsl(var(--sys-red)/0.45)]')}
     >
+      {t.overdue && t.due_on && (
+        <span className="mb-1.5 inline-flex rounded-full bg-[hsl(var(--sys-red))] px-2 py-px text-[11px] font-semibold text-white">
+          {daysLate(t.due_on)} {daysLate(t.due_on) === 1 ? 'day' : 'days'} late
+        </span>
+      )}
       <span className="flex items-start gap-2">
         <span className="min-w-0 flex-1 text-[13.5px] font-medium leading-snug">{t.title}</span>
         {t.priority === 'high' && <Badge tone="danger">High</Badge>}
@@ -180,7 +228,10 @@ function Board({ items, onOpen, onMove, own }: { items: Task[]; onOpen: (id: str
       >
         <header className="flex items-baseline justify-between px-1 pt-1">
           <h3 className="text-[13px] font-semibold">{s.label}</h3>
-          <span className="text-[12px] tabular-nums text-muted-foreground">{list.length}</span>
+          <span className="flex items-center gap-1.5 text-[12px] tabular-nums text-muted-foreground">
+            {list.some((t) => t.overdue) && <span className="rounded-full bg-[hsl(var(--sys-red))] px-1.5 text-[11px] font-semibold text-white" title="Overdue">{list.filter((t) => t.overdue).length} late</span>}
+            {list.length}
+          </span>
         </header>
         {list.length === 0
           ? <p className="px-1 pb-2 text-[12px] text-muted-foreground">{s.hint}</p>
@@ -293,6 +344,8 @@ function TaskDialog({ id, onClose, move, own }: { id: string; onClose: () => voi
               <FormNotice error={del.error} />
             </div>
           )}
+
+          <TaskProgress t={t} />
 
           {actions.length > 0 && !editing && (
             <div className="space-y-2 rounded-[var(--radius-control)] bg-muted/50 p-3">
@@ -583,28 +636,58 @@ function useSettledText(v: string, ms = 350) {
 }
 
 function Report() {
-  interface Row { employee_id: string; full_name: string; employee_code: string; department?: string; open: number; review: number; overdue: number; done: number; next_due?: string }
+  interface Row { employee_id: string; full_name: string; employee_code: string; department?: string; open: number; review: number; overdue: number; done: number; next_due?: string; on_time?: number; avg_days?: number }
   const q = useQuery({ queryKey: ['staff-tasks', 'report'], queryFn: () => api.get<{ items: Row[] }>('/api/v1/hr/tasks/report') })
   if (q.isLoading) return <Loading />
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
+  const n = (v: unknown) => Number(v ?? 0)
+  const sum = (k: keyof Row) => rows.reduce((a, r) => a + n(r[k]), 0)
+  const done = sum('done'), onTime = sum('on_time')
+  const timed = rows.filter((r) => r.avg_days !== undefined && r.avg_days !== null)
+  const avg = timed.length ? timed.reduce((a, r) => a + n(r.avg_days) * n(r.done), 0) / Math.max(1, timed.reduce((a, r) => a + n(r.done), 0)) : null
+  const widest = Math.max(1, ...rows.map((r) => n(r.open) + n(r.review) + n(r.done)))
+  const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '-')
   return (
-    <Card>
-      <CardHeader title="Who has what" description="Most overdue first." />
-      <Table head={['Person', 'Department', { label: 'Open', align: 'right' }, { label: 'For review', align: 'right' }, { label: 'Overdue', align: 'right' }, { label: 'Done', align: 'right' }, 'Next due']} empty={!rows.length} emptyLabel="No tasks have been handed out yet.">
-        {rows.map((r) => (
-          <tr key={r.employee_id}>
-            <Td className="font-medium">{r.full_name}<span className="block font-mono text-[11.5px] font-normal text-muted-foreground">{r.employee_code}</span></Td>
-            <Td className="text-muted-foreground">{r.department ?? '-'}</Td>
-            <Td className="text-right tabular-nums">{r.open}</Td>
-            <Td className="text-right tabular-nums">{r.review ?? 0}</Td>
-            <Td className={cn('text-right tabular-nums', Number(r.overdue) > 0 && 'font-medium text-destructive')}>{r.overdue}</Td>
-            <Td className="text-right tabular-nums">{r.done}</Td>
-            <Td className="text-muted-foreground">{r.next_due ? formatDate(r.next_due) : '-'}</Td>
-          </tr>
-        ))}
-      </Table>
-    </Card>
+    <div className="space-y-4">
+      {/* The whole school at a glance (owner, 2026-11-09). */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Open now" value={sum('open') + sum('review')} />
+        <Stat label="Overdue" value={sum('overdue')} />
+        <Stat label="Done on time" value={pct(onTime, done)} hint={done ? `${onTime} of ${done} finished by the due date` : undefined} />
+        <Stat label="Average days to finish" value={avg === null ? '-' : avg.toFixed(1)} />
+      </div>
+      <Card>
+        <CardHeader title="Who has what" description="Most overdue first. The bar: done on time, done late, open, overdue." />
+        <Table head={['Person', 'Department', 'Load', { label: 'Open', align: 'right' }, { label: 'For review', align: 'right' }, { label: 'Overdue', align: 'right' }, { label: 'Done', align: 'right' }, { label: 'On time', align: 'right' }, { label: 'Avg days', align: 'right' }, 'Next due']} empty={!rows.length} emptyLabel="No tasks have been handed out yet.">
+          {rows.map((r) => {
+            const late = n(r.done) - n(r.on_time), openOk = Math.max(0, n(r.open) + n(r.review) - n(r.overdue))
+            const seg = (v: number, cls: string, label: string) => v > 0 && <span title={`${label}: ${v}`} className={cn('h-full', cls)} style={{ width: `${(v / widest) * 100}%` }} />
+            return (
+              <tr key={r.employee_id}>
+                <Td className="font-medium">{r.full_name}<span className="block font-mono text-[11.5px] font-normal text-muted-foreground">{r.employee_code}</span></Td>
+                <Td className="text-muted-foreground">{r.department ?? '-'}</Td>
+                <Td className="min-w-[120px]">
+                  <span className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted" aria-label={`${r.done} done, ${r.open} open, ${r.overdue} overdue`}>
+                    {seg(n(r.on_time), 'bg-[hsl(var(--sys-green))]', 'Done on time')}
+                    {seg(late, 'bg-[hsl(var(--sys-orange))]', 'Done late')}
+                    {seg(openOk, 'bg-[hsl(var(--sys-blue))]', 'Open')}
+                    {seg(n(r.overdue), 'bg-[hsl(var(--sys-red))]', 'Overdue')}
+                  </span>
+                </Td>
+                <Td className="text-right tabular-nums">{r.open}</Td>
+                <Td className="text-right tabular-nums">{r.review ?? 0}</Td>
+                <Td className={cn('text-right tabular-nums', n(r.overdue) > 0 && 'font-medium text-destructive')}>{r.overdue}</Td>
+                <Td className="text-right tabular-nums">{r.done}</Td>
+                <Td className="text-right tabular-nums">{pct(n(r.on_time), n(r.done))}</Td>
+                <Td className="text-right tabular-nums">{r.avg_days ?? '-'}</Td>
+                <Td className="text-muted-foreground">{r.next_due ? formatDate(r.next_due) : '-'}</Td>
+              </tr>
+            )
+          })}
+        </Table>
+      </Card>
+    </div>
   )
 }
 

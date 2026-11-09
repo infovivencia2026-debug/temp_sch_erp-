@@ -296,7 +296,9 @@ export function registerStaffTasks(r: Router): void {
              SUM(CASE WHEN t.status = 'review' THEN 1 ELSE 0 END) AS review,
              SUM(CASE WHEN t.status IN ('open', 'in_progress', 'review') AND t.due_on IS NOT NULL AND t.due_on < ? THEN 1 ELSE 0 END) AS overdue,
              SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) AS done,
-             MIN(CASE WHEN t.status IN ('open', 'in_progress') THEN t.due_on END) AS next_due
+             MIN(CASE WHEN t.status IN ('open', 'in_progress') THEN t.due_on END) AS next_due,
+             SUM(CASE WHEN t.status = 'done' AND (t.due_on IS NULL OR substr(t.done_at, 1, 10) <= t.due_on) THEN 1 ELSE 0 END) AS on_time,
+             ROUND(AVG(CASE WHEN t.status = 'done' AND t.done_at IS NOT NULL THEN julianday(t.done_at) - julianday(t.created_at) END), 1) AS avg_days
         FROM employees e JOIN staff_tasks t ON t.assigned_to = e.id LEFT JOIN departments d ON d.id = e.department_id
        GROUP BY e.id ORDER BY overdue DESC, open DESC, full_name`).bind(t).all<Record<string, unknown>>()
     return ok({ items: rows.results.map(omitNull) })
