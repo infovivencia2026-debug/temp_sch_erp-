@@ -26,12 +26,6 @@ const VIEWS: { key: View; label: string }[] = [{ key: 'open', label: 'Open' }, {
 const MATCH_LABEL: Record<ConnectMatch, string> = { exact: 'Is exactly', starts: 'Starts with', contains: 'Contains' }
 const PAUSED = 'Sending is paused: the recipient guard is on and the test list is empty, so replies, auto-replies and broadcasts are blocked and will not be sent later.'
 const NOT_ON_LIST = 'Test mode: this number is not on the test list, so messages to it are blocked.'
-/** The guard line: none when everyone receives, test mode when the list has numbers, paused when it is empty. */
-function guardLine(on: boolean, n: number): string {
-  if (!on) return ''
-  if (n === 0) return PAUSED
-  return `Test mode: only the ${n} ${n === 1 ? 'number' : 'numbers'} on the test list receive messages; everyone else is blocked.`
-}
 type Tab = 'chats' | 'send' | 'campaigns' | 'scheduled' | 'log' | 'rules'
 const TABS: { key: Tab; label: string }[] = [
   { key: 'chats', label: 'Chats' }, { key: 'send', label: 'Send' }, { key: 'campaigns', label: 'Campaigns' }, { key: 'scheduled', label: 'Scheduled' },
@@ -105,7 +99,6 @@ export default function YajurConnect() {
     <>
       <PageHead eyebrow="Communication" title="Yajur Connect" />
       <PageBody>
-        {list.data && guardLine(list.data.guard_on, list.data.test_numbers) && <p className="mb-3 text-[14px] text-muted-foreground">{guardLine(list.data.guard_on, list.data.test_numbers)}</p>}
         {list.data && (
           <div className={cn(TAB_BAR, 'mb-4 flex-nowrap overflow-x-auto')} role="tablist">
             {tabs.map((t) => (
@@ -143,7 +136,7 @@ export default function YajurConnect() {
             <span className="whitespace-nowrap text-[14px] text-muted-foreground">Assigned to me</span>
           </label>
         </div>
-        <div className={cn('space-y-3', openId && 'lg:grid lg:h-[calc(100dvh-16.5rem)] lg:min-h-[460px] lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-4 lg:space-y-0 lg:overflow-hidden')}>
+        <div className={cn('space-y-3', openId && 'lg:grid lg:h-[calc(100dvh-13rem)] lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-4 lg:space-y-0 lg:overflow-hidden')}>
           {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : items.length === 0 ? (
             <Card>
               <EmptyState
