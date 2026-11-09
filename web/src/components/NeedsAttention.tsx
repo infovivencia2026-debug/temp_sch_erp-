@@ -318,7 +318,9 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
            *
            * The rows wrap on a phone, where a button beside a sentence at
            * 360px leaves neither of them readable. */}
-          <div className="divide-y overflow-hidden rounded-xl border bg-card shadow-[var(--elev-1)]">
+          {/* Owner's dashboard design (2026-11-09): each alert its own card with
+              room between them, lifting on hover; no coloured side lines. */}
+          <div className="attn-list flex flex-col gap-3">
             {items.map((item) => {
               const Icon = ICON[item.severity]
               const href = hrefFor(item.href)
@@ -327,22 +329,22 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
               return (
                 <div
                   key={item.key}
-                  className="flex flex-col gap-2.5 p-4 sm:flex-row sm:items-center sm:gap-4"
+                  className="attn-card flex flex-col gap-2.5 rounded-2xl border bg-card p-4 shadow-[var(--elev-1)] sm:flex-row sm:items-center sm:gap-4"
                 >
                   <span
                     className={cn(
-                      'grid size-8 shrink-0 place-items-center rounded-lg',
+                      'grid size-11 shrink-0 place-items-center rounded-[14px]',
                       item.severity === 'critical' && 'bg-destructive/10 text-destructive',
                       item.severity === 'warning' &&
                         'bg-[hsl(var(--warn,38_92%_90%))] text-[hsl(var(--warning,38_92%_35%))]',
                       item.severity === 'info' && 'bg-muted text-muted-foreground',
                     )}
                   >
-                    <Icon className="size-4" aria-hidden />
+                    <Icon className="size-5" aria-hidden />
                   </span>
 
                   <div className="min-w-0 flex-1">
-                    <p className="text-[14.5px] font-medium leading-snug">{item.headline}</p>
+                    <p className="text-[14.5px] font-semibold leading-snug">{item.headline}</p>
                     {item.detail && (
                       <p className="mt-0.5 text-[12.5px] text-muted-foreground">{item.detail}</p>
                     )}
@@ -379,7 +381,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
                       <button
                         type="button"
                         onClick={() => navigate(href)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                        className="attn-go inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-4 py-2 text-[13px] font-semibold text-primary transition-all"
                       >
                         {item.action}
                         <ArrowRight className="size-3.5" aria-hidden />
@@ -424,9 +426,12 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
       {attentionFirst && attentionBlock}
 
       {!attentionFirst && summary.length > 0 && (
-        <section>
-          <p className="eyebrow mb-2.5">Today</p>
-          <div className={cn('tint-grid grid gap-4',
+        /* TODAY, ON THE OWNER'S GRADIENT (2026-11-09): the day's figures sit in
+           a banner with the cyan-blue-violet grain behind them. */
+        <section className="home-hero">
+          <h2 className="home-hero-title">Today</h2>
+          <p className="home-hero-lead">{items.length ? `${items.length} ${items.length === 1 ? 'thing needs' : 'things need'} you today.` : 'Nothing needs you right now.'}</p>
+          <div className={cn('tint-grid grid gap-3',
             /* One row on a desk, however many figures this role has -- but a
                role with a single figure gets a card, not a banner. Asking a
                one-column grid to fill the page stretched the board's
