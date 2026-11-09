@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api'
@@ -67,6 +67,14 @@ const when = (iso: string | null) => {
 export default function YajurConnect() {
   const [params, setParams] = useSearchParams()
   const openId = params.get('c')
+  // The open chat fills the screen below the filters exactly, on any screen (owner, 2026-11-09: the message box fell off the bottom).
+  const gridRef = useRef<HTMLDivElement>(null)
+  const [chatH, setChatH] = useState(600)
+  useEffect(() => {
+    const fit = () => { const el = gridRef.current; if (el) setChatH(Math.max(380, Math.round(window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - 16))) }
+    fit(); window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [openId])
   const tabParam = params.get('tab') as Tab | null
   const setOpenId = (id: string | null) => {
     const next = new URLSearchParams(params)
@@ -136,7 +144,7 @@ export default function YajurConnect() {
             <span className="whitespace-nowrap text-[14px] text-muted-foreground">Assigned to me</span>
           </label>
         </div>
-        <div className={cn('space-y-3', openId && 'lg:grid lg:h-[calc(100dvh-13rem)] lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-4 lg:space-y-0 lg:overflow-hidden')}>
+        <div ref={gridRef} style={{ '--chat-h': `${chatH}px` } as CSSProperties} className={cn('space-y-3', openId && 'lg:grid lg:h-[var(--chat-h)] lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-4 lg:space-y-0 lg:overflow-hidden')}>
           {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : items.length === 0 ? (
             <Card>
               <EmptyState
@@ -145,7 +153,7 @@ export default function YajurConnect() {
               />
             </Card>
           ) : (
-            <ul className="space-y-2 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
+            <ul className="space-y-2 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
               {items.map((c) => <Row key={c.id} c={c} active={c.id === openId} onOpen={() => setOpenId(c.id)} />)}
             </ul>
           )}
