@@ -354,9 +354,8 @@ function Responses({ form }: { form: Form }) {
   const week = Date.now() - 7 * 86400000
   const open = items.find((r) => r.id === openId) ?? null
   const cell = (r: Resp, k: string) => fileOf(r, k)?.name ?? val(r, k)
-  const rowsOf = (r: Resp): [string, string][] => cols.filter((c) => filled(r, c.key)).map((c) => [c.label, cell(r, c.key)])
   const allRows = () => {
-    const use = cols.filter((c) => items.some((r) => filled(r, c.key)))
+    const use = cols.filter((c) => !INTERNAL.has(c.key) && items.some((r) => filled(r, c.key)))
     return [['Received', ...use.map((c) => c.label)], ...items.map((r) => [when(r.created_at), ...use.map((c) => cell(r, c.key))])]
   }
 
@@ -384,7 +383,7 @@ function Responses({ form }: { form: Form }) {
       {open && (() => {
         /* The owner's response card (2026-11-08): who and what for on top, the
            answers in titled cards, files as attachments; Delete and Export. */
-        const rows = cols.filter((c) => (open.source === 'embed' || filled(open, c.key)) && !fileOf(open, c.key))
+        const rows = cols.filter((c) => (open.source === 'embed' || filled(open, c.key)) && !fileOf(open, c.key) && !INTERNAL.has(c.key))
         const name = val(open, 'full_name') || val(open, 'Name') || val(open, 'name')
         const role = val(open, 'role_you_are_interested_in') || val(open, 'post')
         const used = new Set<string>(['full_name', 'role_you_are_interested_in', 'Name', 'name', 'post', 'Post / subject'])
@@ -400,7 +399,13 @@ function Responses({ form }: { form: Form }) {
         sections.push({ t: 'Other details', list: rows.filter((c) => !used.has(c.key)) })
         const initials = (name || 'R').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
         const fname = (name || 'response') + ' ' + open.created_at.slice(0, 10)
-        const table = (): string[][] => [['Question', 'Answer'], ['Submitted', when(open.created_at)], ...rowsOf(open)]
+        const doc: DocSection[] = [
+          { t: 'Application', items: [['Name', name], ['Applied for', role], ['Submitted', when(open.created_at)]].filter(([, v]) => v) as [string, string][] },
+          ...sections.filter((s) => s.list.length).map((s) => ({ t: s.t, items: s.list.map((c) => [c.label, val(open, c.key)] as [string, string]).filter(([, v]) => v) })),
+        ]
+        const docFiles = cols.map((c) => ({ c, f: fileOf(open, c.key) })).filter((x) => x.f).map((x) => [x.c.label, x.f!.name] as [string, string])
+        if (docFiles.length) doc.push({ t: 'Uploaded documents', items: docFiles })
+        const table = (): string[][] => [['Section', 'Question', 'Answer'], ...doc.flatMap((s) => s.items.map(([k, v]) => [s.t, k, v]))]
         const files = cols.map((c) => ({ c, f: fileOf(open, c.key) })).filter((x) => x.f)
         return (
           <Dialog open onClose={() => setOpenId(null)} title={name || 'Response'}
@@ -409,7 +414,7 @@ function Responses({ form }: { form: Form }) {
               <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this response and its files?" onConfirm={() => del.mutate(open.id)}><Trash2 className="size-4" aria-hidden />Delete</ConfirmButton>
               <span className="flex-1" />
               <Button variant="secondary" onClick={() => saveExcel(fname, table())}>Excel</Button>
-              <Button variant="secondary" onClick={() => printResponse(name || form.title, when(open.created_at), rowsOf(open))}>PDF</Button>
+              <Button variant="secondary" onClick={() => printResponse(form.title, name || 'Response', role, when(open.created_at), doc)}>PDF</Button>
               <Button variant="secondary" onClick={() => saveCsv(fname, table())}>CSV</Button>
               <Button variant="secondary" onClick={() => setOpenId(null)}>Close</Button>
             </>}>
@@ -577,16 +582,32 @@ function saveCsv(name: string, rows: string[][]) {
 }
 function saveExcel(name: string, rows: string[][]) {
   const esc = (v: string) => String(v ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string))
-  const html = '<html><head><meta charset="utf-8"></head><body><table border="1">' + rows.map((r, i) => '<tr>' + r.map((c) => (i ? '<td>' : '<th>') + esc(c) + (i ? '</td>' : '</th>')).join('') + '</tr>').join('') + '</table></body></html>'
+  const html = '<html><head><meta charset="utf-8"><style>td,th{mso-number-format:"\\@";vertical-align:top}th{background:#eef2ff}</style></head><body><table border="1">' + rows.map((r, i) => '<tr>' + r.map((c) => (i ? '<td>' : '<th>') + esc(c) + (i ? '</td>' : '</th>')).join('') + '</tr>').join('') + '</table></body></html>'
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type: 'application/vnd.ms-excel' })); a.download = name.replace(/[^\w .-]+/g, '_') + '.xls'
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
-function printResponse(title: string, received: string, rows: [string, string][]) {
+type DocSection = { t: string; items: [string, string][] }
+/* Print / save as PDF in the response card's design (owner, 2026-11-09). */
+function printResponse(formTitle: string, name: string, role: string, received: string, doc: DocSection[]) {
   const w = window.open('', '_blank'); if (!w) return
-  const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string))
-  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><style>body{font:14px system-ui,sans-serif;margin:32px;color:#111}h1{font-size:20px;margin:0 0 4px}p{color:#555;margin:0 0 18px}table{border-collapse:collapse;width:100%}td{border:1px solid #ddd;padding:8px 10px;vertical-align:top;white-space:pre-line}td:first-child{width:34%;color:#555;background:#fafafa}</style><h1>${esc(title)}</h1><p>Received ${esc(received)}</p><table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table><script>onload=()=>print()</script>`)
+  const esc = (s: string) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string))
+  const initials = name.trim().split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase()
+  const css = `*{box-sizing:border-box}body{font:13.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#0f172a;margin:0;padding:28px;background:#fff}
+.top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#64748b;margin-bottom:14px}.tag{background:#ecfdf5;color:#047857;border-radius:99px;padding:3px 10px;font-weight:600}
+.hero{display:flex;gap:14px;align-items:center;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:12px}.av{width:50px;height:50px;border-radius:12px;background:#eef2ff;color:#4338ca;display:grid;place-items:center;font-weight:700;font-size:18px}
+h1{font-size:19px;margin:0}.role{color:#64748b;margin-top:2px}.role b{color:#0f172a}
+.card{border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:12px;break-inside:avoid}.ct{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}.it{min-width:0}.it.w{grid-column:span 2}.l{font-size:11.5px;color:#64748b}.v{font-weight:600;white-space:pre-line;word-break:break-word}
+@page{margin:14mm}@media print{body{padding:0}}`
+  const body = doc.filter((s) => s.t !== 'Application').map((s) => `<div class="card"><div class="ct">${esc(s.t)}</div><div class="grid">${s.items.map(([k, v]) => `<div class="it${v.length > 40 || /address|experience|reference|academ/i.test(k) ? ' w' : ''}"><div class="l">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('')}</div></div>`).join('')
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(name)} · ${esc(formTitle)}</title><style>${css}</style></head><body>
+<div class="top"><span class="tag">${esc(formTitle)}</span><span>Submitted ${esc(received)}</span></div>
+<div class="hero"><div class="av">${esc(initials || 'R')}</div><div><h1>${esc(name)}</h1>${role ? `<div class="role">Applied for <b>${esc(role)}</b></div>` : ''}</div></div>
+${body}<script>onload=()=>setTimeout(()=>print(),300)</script></body></html>`)
   w.document.close()
 }
+/* The old careers system's own bookkeeping: not part of the application. */
+const INTERNAL = new Set(['Stage', 'Profile', 'Profile steps'])
 const MON: Record<string, string> = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' }
 /** "07-Oct-2026 14:39" (India time) from the old careers page, else when it reached us. */
 function sentAt(r: Resp): string {
