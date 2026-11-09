@@ -35,7 +35,9 @@ export function extOf(p: string): string {
 export function refuseUpload(ext: string, contentType: string): string | null {
   if (BLOCKED_EXTENSIONS.has(ext)) return 'files of type ' + ext + " cannot be uploaded, they are programs, and this is a school's document store"
   const ct = contentType.toLowerCase()
-  if (ct.includes('html') || ct.includes('svg') || ct.includes('xml')) return 'web pages and SVG files cannot be uploaded to the document store'
+  /* Word, Excel and PowerPoint files are "vnd.openxmlformats-..."; that is not a
+     web page (Yajur careers, 2026-11-09: every .docx resume was refused). */
+  if (ct.includes('html') || ct.includes('svg') || /(^|\/)xml\b|\+xml\b/.test(ct)) return 'web pages and SVG files cannot be uploaded to the document store'
   return null
 }
 
