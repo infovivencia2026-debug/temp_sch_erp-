@@ -53,7 +53,8 @@ export interface ConnectContact {
   student: { id: string; name: string; admission_no: string; class_section: string | null } | null
 }
 
-export interface ConnectTemplate { code: string; name: string }
+/** params: the blanks it has, in order; body: its wording with {{blanks}}. */
+export interface ConnectTemplate { code: string; name: string; params: string[]; body: string }
 
 export interface ConnectSending {
   /** The recipient guard holds messages to this number: replies queue but are not delivered. */
@@ -227,7 +228,7 @@ export interface YajurConnectApi {
   'GET /comms/yajur-connect/log': { query?: { status?: ConnectRecipientStatus; from?: string; to?: string; q?: string; page?: string }; res: ConnectLogList }
   'GET /comms/yajur-connect/{id}': { res: ConnectThread }
   'PUT /comms/yajur-connect/{id}': { body: { assigned_to?: string | null; labels?: string[]; state?: ConnectState }; res: ConnectConversation }
-  'POST /comms/yajur-connect/{id}/reply': { body: { text?: string; template_code?: string }; res: ConnectMessage }
+  'POST /comms/yajur-connect/{id}/reply': { body: { text?: string; template_code?: string; vars?: Record<string, string> }; res: ConnectMessage }
   'POST /comms/yajur-connect/{id}/messages/{mid}/retry': { res: ConnectMessage }
   'DELETE /comms/yajur-connect/{id}/messages/{mid}': { res: { ok: true } }
 }

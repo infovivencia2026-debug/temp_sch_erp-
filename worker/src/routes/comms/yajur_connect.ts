@@ -82,14 +82,16 @@ async function testNumbers(c: Ctx): Promise<number> {
   return [...(await loadGuard(c)).allowed].filter((k) => k.startsWith('phone:')).length
 }
 
-const CHAT_VARS = new Set(['parent_name', 'student_name', 'class'])
-const fillable = (text: string | null) => [...String(text ?? '').matchAll(/\{\{\s*(\w+)\s*\}\}/g)].every((m) => CHAT_VARS.has(m[1]))
+/** The blanks a template has: its wa_params list, else the {{names}} in its wording. */
+function paramsOf(waParams: string | null, body: string | null): string[] {
+  try { const p = JSON.parse(waParams ?? ''); if (Array.isArray(p) && p.length) return p.map(String) } catch { /* the wording instead */ }
+  return [...new Set([...String(body ?? '').matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((m) => m[1]))]
+}
 
 async function templates(c: Ctx): Promise<ConnectTemplate[]> {
-  // Only templates a chat can fill: a fee template needs the fee, amount and due date, which a chat does not have (owner, 2026-11-09).
   const r = await c.db.prepare(`SELECT code, wa_template_name, body, wa_params FROM message_templates WHERE channel = 'whatsapp' AND is_active = 1
       AND trim(coalesce(wa_template_name, '')) <> '' AND substr(code, 1, 8) = 'connect_' ORDER BY code`).all<{ code: string; wa_template_name: string; body: string | null; wa_params: string | null }>()
-  return r.results.filter((t) => fillable(t.body) && fillable(t.wa_params)).map((t) => ({ code: t.code, name: connectLabel(t.code) }))
+  return r.results.map((t) => ({ code: t.code, name: connectLabel(t.code), params: paramsOf(t.wa_params, t.body), body: t.body ?? '' }))
 }
 
 async function contactOf(c: Ctx, conv: ConvRow): Promise<ConnectContact> {
@@ -282,7 +284,7 @@ export function registerYajurConnect(r: Router): void {
 
   r.typed('POST /comms/yajur-connect/{id}/reply', WRITE, async (c) => {
     const conv = await convOr404(c)
-    const b = await readJSON<{ text?: string; template_code?: string }>(c.req)
+    const b = await readJSON<{ text?: string; template_code?: string; vars?: Record<string, unknown> }>(c.req)
     const text = String(b.text ?? '').trim(), code = String(b.template_code ?? '').trim()
     if (!text && !code) throw badRequest('write a reply or choose a template')
     if (text && code) throw badRequest('send either text or a template, not both')
@@ -294,12 +296,22 @@ export function registerYajurConnect(r: Router): void {
       }
       out = await queueChatText(scopeOf(c), conv, text, { user: c.id.userId }).catch(notQueued)
     } else {
-      if (!(await templates(c)).some((t) => t.code === code)) throw badRequest('that is not an approved WhatsApp template of this school')
+      const tpl = (await templates(c)).find((t) => t.code === code)
+      if (!tpl) throw badRequest('that is not an approved WhatsApp template of this school')
       const contact = await contactOf(c, conv)
+      // Every blank filled before anything goes out (owner, 2026-11-09: a fee reminder went with {{fee_name}} in it).
+      const given: Record<string, string> = {}
+      for (const [k, v] of Object.entries(b.vars ?? {})) if (typeof v === 'string' && v.trim()) given[k] = v.trim().slice(0, 500)
+      const vars: Record<string, string> = {
+        parent_name: contact.guardian?.name ?? conv.profile_name ?? '', student_name: contact.student?.name ?? '',
+        class: contact.student?.class_section ?? '', ...given,
+      }
+      const missing = tpl.params.filter((p) => !vars[p])
+      if (missing.length) throw badRequest(`fill in ${missing.map((m) => m.replace(/_/g, ' ')).join(', ')}`)
       const res = await queueMessage(scopeOf(c), {
         channel: 'whatsapp', template_code: code, recipient: '+' + conv.phone, student_id: conv.student_id, exact_channel: true, force: true,
         source_kind: CONNECT_SOURCE, source_id: conv.id, occurrence_key: uuid(),
-        vars: { parent_name: contact.guardian?.name ?? conv.profile_name ?? '', student_name: contact.student?.name ?? '', class: contact.student?.class_section ?? '' },
+        vars,
       }).catch(notQueued)
       const body = res.id ? (await c.db.prepare(`SELECT body FROM message_log WHERE id = ?`).bind(res.id).first<{ body: string | null }>())?.body : null
       out = await recordOutbound(c.db, c.id.institution!.id, conv.id, 'template', body || code, res.id, { user: c.id.userId })

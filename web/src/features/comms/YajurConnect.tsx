@@ -211,7 +211,7 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
   })
   const refresh = () => { qc.invalidateQueries({ queryKey: ['connect'] }) }
   const send = useMutation({
-    mutationFn: (body: { text?: string; template_code?: string }) => api.call('POST /comms/yajur-connect/{id}/reply', { params: { id }, body }),
+    mutationFn: (body: { text?: string; template_code?: string; vars?: Record<string, string> }) => api.call('POST /comms/yajur-connect/{id}/reply', { params: { id }, body }),
     onSuccess: refresh,
   })
   const fix = useMutation({
@@ -251,7 +251,7 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
             allowAttachments={false}
             height="min-h-0"
             canSend={canWrite && d.sending.window_open}
-            cannotSendNote={canWrite ? <TemplatePicker thread={d} pending={send.isPending} onSend={(code) => send.mutate({ template_code: code })} error={send.error} />
+            cannotSendNote={canWrite ? <TemplatePicker thread={d} pending={send.isPending} onSend={(code, vars) => send.mutate({ template_code: code, vars })} error={send.error} />
               : 'You can read this chat. Replying needs the Manage Yajur Connect permission.'}
             onSend={(m) => send.mutateAsync({ text: m.body })}
             onRetryDelivery={canWrite ? (mid) => fix.mutate({ mid, discard: false }) : undefined}
@@ -265,8 +265,20 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
   )
 }
 
-function TemplatePicker({ thread, pending, onSend, error }: { thread: ConnectThread; pending: boolean; onSend: (code: string) => void; error: unknown }) {
+function TemplatePicker({ thread, pending, onSend, error }: { thread: ConnectThread; pending: boolean; onSend: (code: string, vars: Record<string, string>) => void; error: unknown }) {
   const [code, setCode] = useState('')
+  const [vars, setVars] = useState<Record<string, string>>({})
+  const { guardian, student } = thread.contact
+  // The blanks the chat already knows; the rest are asked for (owner, 2026-11-09).
+  const known: Record<string, string> = {
+    parent_name: guardian?.name ?? thread.conversation.profile_name ?? '', student_name: student?.name ?? '', class: student?.class_section ?? '',
+  }
+  const tpl = thread.templates.find((t) => t.code === code)
+  const value = (p: string) => vars[p] ?? known[p] ?? ''
+  const blanks = tpl?.params ?? []
+  const ready = !!tpl && blanks.every((p) => value(p).trim())
+  const preview = tpl ? tpl.body.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, p: string) => value(p).trim() || `[${p.replace(/_/g, ' ')}]`) : ''
+  const label = (p: string) => p.replace(/_/g, ' ').replace(/^./, (ch) => ch.toUpperCase())
   if (thread.templates.length === 0) {
     return (
       <p className="text-[14px] text-muted-foreground">
@@ -280,10 +292,24 @@ function TemplatePicker({ thread, pending, onSend, error }: { thread: ConnectThr
       <p className="text-[14px] text-muted-foreground">The parent has not written in 24 hours, so WhatsApp only allows an approved template.</p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="min-w-0 flex-1">
-          <Select value={code} onChange={setCode} placeholder="Choose a template" options={thread.templates.map((t) => ({ value: t.code, label: t.name }))} />
+          <Select value={code} onChange={(v) => { setCode(v); setVars({}) }} placeholder="Choose a template" options={thread.templates.map((t) => ({ value: t.code, label: t.name }))} />
         </div>
-        <Button disabled={!code} pending={pending} onClick={() => onSend(code)}>Send template</Button>
+        <Button disabled={!ready} pending={pending} onClick={() => onSend(code, Object.fromEntries(blanks.map((p) => [p, value(p).trim()])))}>Send template</Button>
       </div>
+      {tpl && blanks.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {blanks.map((p) => (
+            <Field key={p} label={label(p)} required>
+              <Input value={value(p)} onChange={(v) => setVars((o) => ({ ...o, [p]: v }))} />
+            </Field>
+          ))}
+        </div>
+      )}
+      {tpl && (
+        <p className="whitespace-pre-wrap rounded-xl bg-muted/60 px-3 py-2 text-[13.5px]">
+          <span className="mb-1 block text-[12px] font-semibold text-muted-foreground">The parent will get</span>{preview}
+        </p>
+      )}
       <FormNotice error={error} />
     </div>
   )
