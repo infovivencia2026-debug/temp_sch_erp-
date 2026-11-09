@@ -125,7 +125,7 @@ export default function HomeExact() {
 
   const quick = [
     ['Add student', 'institution_admin.students.student_360', 'student_360', '＋'],
-    ['Collect fee', 'institution_admin.standard.fee_collection', 'fee_collection', '₹'],
+    ['Collect fee', 'finance.fees.take_fee_payment', 'take_fee_payment fee_collection', '₹'],
     ['Send notice', 'institution_admin.communication.circulars', 'circulars', '✉'],
     ['Mark attendance', 'institution_admin.academics.student_absentees', 'student_absentees', '✓'],
   ].map(([label, key, fb, ic]) => ({ label, href: byKey(key) ?? hrefFor(fb), ic })).filter((q) => q.href)
@@ -228,7 +228,7 @@ export default function HomeExact() {
             <h2 className="h">At a glance</h2>
             <div className="hx-mini">
               <div className="m" onClick={() => openScreen('hr.leave.leave', 'leave')}><div className="k">Leave requests</div><div className="v">{k?.pending_leave ?? 0}</div><div className="s">waiting approval</div></div>
-              <div className="m" onClick={() => openScreen('institution_admin.admissions.admissions_pipeline', 'admissions_pipeline')}><div className="k">Applications</div><div className="v">{k?.open_applications ?? 0}</div><div className="s">open</div></div>
+              <div className="m" onClick={() => openScreen('admissions.applications.application_forms', 'application_forms admissions_pipeline')}><div className="k">Applications</div><div className="v">{k?.open_applications ?? 0}</div><div className="s">open</div></div>
               <div className="m" onClick={() => openScreen('institution_admin.academics.teacher_assignment', 'teacher_assignment')}><div className="k">Unassigned subjects</div><div className="v" style={{ color: 'var(--hx-amber)' }}>{k?.unassigned_subjects ?? 0}</div><div className="s">no teacher</div></div>
               {canMoney && <div className="m" onClick={() => openScreen('institution_admin.fees.fee_default', 'fee_default')}><div className="k">Fee defaulters</div><div className="v" style={{ color: 'var(--hx-red)' }}>{k?.defaulters ?? 0}</div><div className="s">past due</div></div>}
             </div>
