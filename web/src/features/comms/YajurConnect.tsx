@@ -143,7 +143,7 @@ export default function YajurConnect() {
             <span className="whitespace-nowrap text-[14px] text-muted-foreground">Assigned to me</span>
           </label>
         </div>
-        <div className={cn('space-y-3', openId && 'lg:grid lg:h-[82dvh] lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-4 lg:space-y-0 lg:overflow-hidden')}>
+        <div className={cn('space-y-3', openId && 'lg:grid lg:h-[calc(100dvh-16.5rem)] lg:min-h-[460px] lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-4 lg:space-y-0 lg:overflow-hidden')}>
           {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : items.length === 0 ? (
             <Card>
               <EmptyState
