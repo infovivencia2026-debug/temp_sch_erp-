@@ -51,6 +51,11 @@ const logStmt = (c: Ctx, task: string, kind: string, note: string | null) =>
   c.db.prepare(`INSERT INTO staff_task_updates (id, institution_id, task_id, by_user, kind, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
     .bind(crypto.randomUUID(), school(c).id, task, c.id.userId, kind, note, now())
 
+/* Once a handed-in task is accepted or sent back, nobody still needs telling to check it. */
+const clearReviewStmt = (c: Ctx, task: string) =>
+  c.db.prepare(`UPDATE notifications SET read_at = COALESCE(read_at, ?1), dismissed_at = ?1
+      WHERE source_kind = 'staff_task' AND source_id = ?2 AND kind = 'staff_task_review' AND dismissed_at IS NULL`).bind(now(), task)
+
 /* One bell entry per person, event and task; a repeat refreshes it. */
 const tellStmt = (c: Ctx, user: string | null, kind: string, title: string, body: string, task: string) =>
   !user || user === c.id.userId ? [] : [c.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
@@ -251,6 +256,8 @@ export function registerStaffTasks(r: Router): void {
         break
       case 'accept':
         if (!manage) throw forbidden('only whoever gave the task, the manager or HR can accept it')
+        // Checked: the "Ready for you to check" entry has done its job (owner, 2026-11-09: it stayed in the bell).
+        tell.push(clearReviewStmt(c, id))
         if (t.status !== 'review') throw stale()
         next = 'done'; kind = 'accepted'
         tell.push(...tellStmt(c, t.assignee_user, 'staff_task_done', 'Accepted: ' + t.title, note ?? 'Marked done.', id))
@@ -259,6 +266,7 @@ export function registerStaffTasks(r: Router): void {
         if (!manage) throw forbidden('only whoever gave the task, the manager or HR can send it back')
         if (t.status !== 'review') throw stale()
         if (!note) throw badRequest('say what still needs doing, so they know')
+        tell.push(clearReviewStmt(c, id))
         next = 'in_progress'; kind = 'returned'
         tell.push(...tellStmt(c, t.assignee_user, 'staff_task_returned', 'Sent back: ' + t.title, note, id))
         break
@@ -272,6 +280,7 @@ export function registerStaffTasks(r: Router): void {
         if (!manage) throw forbidden('only whoever gave the task can cancel it')
         if (!LIVE.includes(t.status)) throw stale()
         next = 'cancelled'; kind = 'cancelled'
+        tell.push(clearReviewStmt(c, id))
         break
       default:
         throw badRequest('action is start, finish, accept, return, reopen or cancel')
