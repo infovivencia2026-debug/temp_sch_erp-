@@ -6,7 +6,7 @@ import { ConversationPane, PersonAvatar } from '@/components/ChatScreen'
 import { PickerMenu } from '@/components/PickerMenu'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Input,
+  PageHead, PageBody, Card, Badge, Input,
   Loading, ErrorState, tabClass, TAB_BAR, Select } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useCan, useSession } from '@/lib/session'
@@ -438,7 +438,7 @@ export default function StaffMessages() {
       <PageBody>
         {box === 'parents' ? (
           <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
-            <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))] lg:flex-col">
+            <Card className="flex min-w-0 flex-col h-[calc(100dvh-7rem-var(--dock-reserve,0px))] lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))]">
               {tabs}
               <div className="space-y-2 px-4 pb-3 pt-3">
                 {/* One tidy row: search, the unread pill, and New. */}
@@ -482,7 +482,7 @@ export default function StaffMessages() {
                   </div>
                 )}
               </div>
-              <ul className="max-h-[28rem] divide-y overflow-auto lg:min-h-0 lg:max-h-none lg:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <ul className="min-h-0 flex-1 divide-y overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {parents.map((t) => (
                   <li key={`${t.student_id}-${t.parent_user_id}`}>
                     <button
@@ -635,9 +635,8 @@ export default function StaffMessages() {
           </div>
         ) : (
         <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
-          <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))] lg:flex-col">
+          <Card className="flex min-w-0 flex-col h-[calc(100dvh-7rem-var(--dock-reserve,0px))] lg:h-[calc(100dvh-8.5rem-var(--dock-reserve,0px))]">
             {tabs}
-            <CardHeader title="Staff" description={`${all.length} colleagues`} />
             <div className="space-y-2 px-4 pb-3 pt-3">
               <Input value={find} onChange={setFind} placeholder="Find a name" />
               <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -650,7 +649,7 @@ export default function StaffMessages() {
                 Unread only{staffUnread > 0 ? ` (${staffUnread})` : ''}
               </label>
             </div>
-            <ul className="max-h-[28rem] divide-y overflow-auto lg:min-h-0 lg:max-h-none lg:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <ul className="min-h-0 flex-1 divide-y overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {people.map((t) => (
                 <li key={t.user_id}>
                   <button

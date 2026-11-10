@@ -31,8 +31,8 @@ const QUICK: { value: Status; short: string; label: string; tone: string }[] = [
   { value: 'present', short: 'P', label: 'Present', tone: 'text-success border-success bg-success/15 ring-1 ring-success' },
   { value: 'absent', short: 'A', label: 'Absent', tone: 'text-destructive border-destructive bg-destructive/15 ring-1 ring-destructive' },
   { value: 'late', short: 'L', label: 'Late', tone: 'text-warning border-warning bg-warning/15 ring-1 ring-warning' },
-  { value: 'leave', short: 'Lv', label: 'On leave', tone: 'text-foreground border-foreground/60 bg-surface-hover ring-1 ring-foreground/60' },
-  { value: 'half_day', short: '½', label: 'Half day', tone: 'text-foreground border-foreground/60 bg-surface-hover ring-1 ring-foreground/60' },
+  /* Lv and ½ taken off the marks (owner, 2026-11-10). A leave the parent
+     sent is still marked from its own "Mark On leave" button. */
 ]
 
 const TONE: Record<string, 'success' | 'danger' | 'primary' | 'neutral'> = {

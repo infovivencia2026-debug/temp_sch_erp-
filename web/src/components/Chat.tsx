@@ -358,6 +358,9 @@ export function ChatThread({
   useEffect(() => {
     const el = box.current
     if (!el) return
+    /* An empty box is one line (owner, 2026-11-10: it opened tall, measured
+       while the pane was still sliding in). It grows only with what is typed. */
+    if (!draft) { el.style.height = ''; return }
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 140) + 'px'
   }, [draft])
@@ -955,6 +958,7 @@ export function ChatThread({
                 accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*,video/*"
               />
             )}
+            <div className="chat-pill flex min-w-0 flex-1 items-end rounded-[24px] bg-white shadow-sm focus-within:shadow-[0_0_0_2px_rgba(77,122,254,0.35)] sm:rounded-[20px]">
             {allowAttachments && (
               <button
                 type="button"
@@ -972,7 +976,7 @@ export function ChatThread({
               value={draft}
               rows={1}
               placeholder={placeholder}
-              className={`chat-composer ${COMPOSER_INPUT} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-0 shadow-sm outline-none focus:shadow-[0_0_0_2px_rgba(77,122,254,0.35)]`}
+              className={`chat-composer ${COMPOSER_INPUT} !bg-transparent [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-0 outline-none ${allowAttachments ? '!pl-1' : ''}`}
               onChange={(e) => {
                 setDraft(e.target.value)
                 // "I am typing to you", throttled in sendTyping; only while
@@ -989,6 +993,7 @@ export function ChatThread({
                 }
               }}
             />
+            </div>
             {/* A voice note is an attachment, so it lives behind the same
                 permission as one. */}
             {allowAttachments && !draft.trim() && (
