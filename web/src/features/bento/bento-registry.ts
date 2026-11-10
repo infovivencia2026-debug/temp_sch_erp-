@@ -91,7 +91,8 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
      `parent.home.dashboard`, and the classic registry has said so all along. */
   'parent.home.dashboard': screen(() => import('./ParentWeek')),
   /* The owner's teacher home (2026-10-19) is one layout on both shells. */
-  'faculty.home.todays_classes': screen(() => import('../faculty/TodaysClasses')),
+  /* Focus has the teacher's own cells now (owner, 2026-11-10); Work keeps the timetable page. */
+  'faculty.home.todays_classes': screen(() => import('./TeacherDesk')),
 
   /* The four small workspaces: exam office, IT, operations, driver. The same
      board is the classic Home too, through classic-board.tsx, so there is one
