@@ -274,15 +274,17 @@ export default function TodaysClasses() {
           </div>
         </Card>
 
-        <div className="flex min-w-0 flex-col gap-5">
-        <Card className="flex min-w-0 flex-col">
+        {/* Notifications and Apply for leave stack in one screen height; the list
+            scrolls inside its card, never the whole page (owner, 2026-11-10). */}
+        <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4 lg:h-[calc(100dvh-8.5rem)]">
+        <Card className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
             <div className="flex items-baseline gap-2">
               <h2 className="text-[16px] font-bold">Notifications</h2>
               {unread > 0 && <span className="text-[13px] text-muted-foreground">{unread} new</span>}
             </div>
           </div>
-          <div className="min-h-0 flex-1">
+          <div className="max-h-[60dvh] min-h-0 flex-1 overflow-y-auto overscroll-contain lg:max-h-none">
             {notes.isLoading ? (
               <Loading label="Loading notifications" />
             ) : notes.error ? (
@@ -328,7 +330,7 @@ export default function TodaysClasses() {
         </Card>
         {/* Apply for leave, the same width as the notifications above (Yajur, 2026-10-22). */}
         {leavePath && (
-          <Card className="flex min-w-0 flex-row items-center justify-between gap-3 px-5 py-4">
+          <Card className="flex min-w-0 shrink-0 flex-row items-center justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-[16px] font-bold">Apply for leave</h2>
               <p className="text-[13px] text-muted-foreground">Ask for a day off or a half day, and see where your requests are.</p>
@@ -339,7 +341,7 @@ export default function TodaysClasses() {
           </Card>
         )}
         {tasksPath && ts && (tasksOpen > 0 || ts.overdue > 0 || ts.review > 0) && (
-          <Card className={cn('flex min-w-0 flex-row items-center justify-between gap-3 px-5 py-4', ts.overdue > 0 && 'ring-1 ring-[hsl(var(--sys-red)/0.45)]')}>
+          <Card className={cn('flex min-w-0 shrink-0 flex-row items-center justify-between gap-3 px-5 py-4', ts.overdue > 0 && 'ring-1 ring-[hsl(var(--sys-red)/0.45)]')}>
             <div className="min-w-0">
               <h2 className="text-[16px] font-bold">
                 {ts.overdue > 0 ? <span className="text-[hsl(var(--sys-red-ink))]">Tasks overdue: {ts.overdue}</span> : `My tasks: ${tasksOpen} to do`}
@@ -352,7 +354,7 @@ export default function TodaysClasses() {
           </Card>
         )}
         {/* Watch how it works, right below Apply for leave (Yajur, 2026-11-08). */}
-        <Card className="flex min-w-0 flex-row items-center justify-between gap-3 px-5 py-4">
+        <Card className="flex min-w-0 shrink-0 flex-row items-center justify-between gap-3 px-5 py-4">
           <div className="min-w-0">
             <h2 className="text-[16px] font-bold">Watch how it works</h2>
             <p className="text-[13px] text-muted-foreground">
