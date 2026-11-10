@@ -13,7 +13,7 @@ import { reply } from '../../router'
 import { can } from '../../identity'
 import { HttpError, badRequest, isUUID, like, now, readJSON, uuid } from '../../http'
 import { loadGuard, permits } from '../admin/msg_guard'
-import { MessagingError, kickDispatch, queueMessage, scopeOf } from '../../services/messaging'
+import { MessagingError, kickDispatch, openSecretEnv, queueMessage, scopeOf } from '../../services/messaging'
 import { CONNECT_SOURCE, queueChatText, recordOutbound } from '../../services/wa_connect'
 import { connectLabel } from '../../services/wa_send'
 import { registerYajurConnectSend } from './yajur_connect_send'
@@ -208,6 +208,33 @@ export function registerYajurConnect(r: Router): void {
     const cur = await ruleOr404(c)
     await c.db.prepare(`DELETE FROM wa_autoreplies WHERE id = ?`).bind(cur.id).run()
     return { ok: true as const }
+  })
+
+  /* A parent's photo, voice note or file: WhatsApp keeps it, the row keeps only
+     its media id. Fetched from Meta with the school's token on view and passed
+     through; Meta keeps inbound media about 30 days (owner, 2026-11-10). */
+  r.get('/comms/yajur-connect/media/{mid}', READ, async (c) => {
+    const mid = c.params.mid
+    if (!isUUID(mid)) throw badRequest('bad id')
+    const m = await c.db.prepare(`SELECT media_id, media_mime FROM wa_messages WHERE id = ?`).bind(mid).first<{ media_id: string | null; media_mime: string | null }>()
+    if (!m?.media_id) throw new HttpError(404, 'no media on this message')
+    const row = await c.db.prepare(`SELECT config, credentials FROM integrations WHERE kind = 'messaging' AND provider = 'whatsapp' AND institution_id IS NOT NULL`)
+      .first<{ config: string | null; credentials: ArrayBuffer | null }>()
+    const token = row ? await openSecretEnv(c.env, row.credentials) : ''
+    if (!token) throw new HttpError(503, 'WhatsApp is not set up')
+    let v = 'v21.0'
+    try { v = String((JSON.parse(row?.config ?? '{}') as { api_version?: string }).api_version || v) } catch { /* default */ }
+    const auth = { authorization: 'Bearer ' + token }
+    const meta = await fetch(`https://graph.facebook.com/${v}/${encodeURIComponent(m.media_id)}`, { headers: auth, signal: AbortSignal.timeout(10_000) })
+    if (!meta.ok) throw new HttpError(410, 'WhatsApp no longer has this file (kept about 30 days)')
+    const info = await meta.json() as { url?: string; mime_type?: string }
+    if (!info.url) throw new HttpError(410, 'WhatsApp no longer has this file')
+    const file = await fetch(info.url, { headers: auth, signal: AbortSignal.timeout(20_000) })
+    if (!file.ok || !file.body) throw new HttpError(502, 'could not fetch the file from WhatsApp')
+    return new Response(file.body, { headers: {
+      'content-type': info.mime_type || m.media_mime || 'application/octet-stream',
+      'cache-control': 'private, max-age=86400', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'",
+    } })
   })
 
   r.typed('GET /comms/yajur-connect/{id}', READ, async (c) => {

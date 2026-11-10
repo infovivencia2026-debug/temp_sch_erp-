@@ -241,7 +241,13 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
   const title = d?.conversation.name ?? ''
   const messages: ChatMessage[] = (d?.messages ?? []).map((m) => ({
     id: m.id,
-    body: bodyOf(m),
+    // A photo, voice note or file is drawn from WhatsApp itself; only the caption is text.
+    body: m.media_id && m.kind !== 'sticker' ? (m.text ?? '') : bodyOf(m),
+    attachments: m.media_id && m.kind !== 'sticker' ? [{
+      file_id: m.media_id, name: m.media_name || KIND_LABEL[m.kind] || 'File', size_bytes: 0,
+      content_type: m.media_mime || (m.kind === 'image' ? 'image/jpeg' : m.kind === 'audio' ? 'audio/ogg' : m.kind === 'video' ? 'video/mp4' : 'application/octet-stream'),
+      url: `/api/v1/comms/yajur-connect/media/${m.id}`,
+    }] : undefined,
     at: (m.direction === 'out' && m.sent_at) || m.at,
     ...deliveryOf(m),
     mine: m.direction === 'out',
