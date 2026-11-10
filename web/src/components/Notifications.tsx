@@ -405,9 +405,12 @@ export default function Notifications() {
        and jump to a screen, so a message with no screen of its own simply
        vanished and a long one was never readable anywhere. The screen it is
        about is one button away in the dialog (`follow`). */
-    setViewing(n)
-    // Dismissed on open, not merely marked read: see dismissOne above.
+    /* A PRESS OPENS THE EXACT SCREEN (owner, 2026-11-10: "after pressed the
+       exact page should open"). Read in full here only when it has no screen. */
+    const to = linkFor(n)
     dismissOne.mutate(n.id)
+    if (to) { leaveTo(to); return }
+    setViewing(n)
   }
   const viewingLink = viewing ? linkFor(viewing) : undefined
   const follow = () => {
