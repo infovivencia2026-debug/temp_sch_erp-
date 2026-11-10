@@ -46,6 +46,14 @@ function bodyOf(m: ConnectMessage): string {
   if (m.kind === 'location') return `[Location] ${m.text ?? ''}`.trim()
   return m.text ?? ''
 }
+const PREVIEW: Record<string, string> = {
+  image: '📷 Photo', video: '🎥 Video', audio: '🎤 Voice note', document: '📄 Document', sticker: 'Sticker', location: '📍 Location', reaction: 'Reaction',
+}
+/** "[image]" as WhatsApp's chat list words it: "📷 Photo". */
+function previewOf(p: string | null): string {
+  const k = /^\[(\w+)\]$/.exec(p ?? '')?.[1]
+  return k ? PREVIEW[k] ?? k : p ?? ''
+}
 /** message_log status to the bubble's WhatsApp-style mark. */
 const DELIVERY: Record<string, NonNullable<ChatMessage['delivery']>> = {
   queued: 'waiting', scheduled: 'waiting', held: 'waiting', sending: 'waiting', sent: 'sent', delivered: 'delivered', read: 'read', failed: 'failed', suppressed: 'failed', blocked: 'failed',
@@ -196,7 +204,7 @@ function Row({ c, active, onOpen }: { c: ConnectConversation; active: boolean; o
             <span className={cn('shrink-0 text-[12px]', c.unread ? 'font-semibold text-[#12b76a]' : 'text-muted-foreground')}>{when(c.last_message_at)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="min-w-0 flex-1 truncate text-[13.5px] text-muted-foreground">{c.last_preview ?? ''}</span>
+            <span className="min-w-0 flex-1 truncate text-[13.5px] text-muted-foreground">{previewOf(c.last_preview)}</span>
             {c.unread > 0 && <span className="grid min-w-[20px] place-items-center rounded-full bg-[#12b76a] px-1.5 text-[11px] font-bold leading-[18px] text-white">{c.unread}</span>}
           </div>
           {(c.student_name || c.labels.length > 0 || c.assigned_name || c.state === 'resolved') && (
