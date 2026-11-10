@@ -50,7 +50,14 @@ function readStored(): Layout {
 // --- the store ----------------------------------------------------------
 
 void readStored
-let current: Layout = DEFAULT_LAYOUT
+/* Work on a new visit; the switch's choice holds for the rest of that visit,
+   across reloads and the dock's Home (owner, 2026-11-10: Home opened Work). */
+const SESSION_KEY = 'erp.layout.visit'
+function readVisit(): Layout {
+  try { const v = sessionStorage.getItem(SESSION_KEY); if (isLayout(v)) return v } catch { /* none */ }
+  return DEFAULT_LAYOUT
+}
+let current: Layout = typeof window === 'undefined' ? DEFAULT_LAYOUT : readVisit()
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -87,6 +94,7 @@ export function applyLayout(next: Layout) {
      was chosen rather than what happened to match. */
   try {
     localStorage.setItem(STORAGE_KEY, next)
+    sessionStorage.setItem(SESSION_KEY, next)
   } catch {
     /* the account row still carries it to the next sign-in */
   }
