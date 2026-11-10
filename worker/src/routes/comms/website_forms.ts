@@ -13,7 +13,6 @@ import type { Ctx, Router } from '../../router'
 import type { Env } from '../../env'
 import { json } from '../../env'
 import { HttpError, badRequest, created, isUUID, now, ok, readJSON, uuid } from '../../http'
-import { notifyHoldersStmts } from '../../notify_holders'
 import { allTenants, callerAddress, goError, goInternal, goNotFound, rateLimited, type Tenant } from './public_common'
 import { baseName, extOf, putObject, refuseSize, refuseUpload, sha256, uploadKey } from '../../services/files'
 
@@ -141,6 +140,13 @@ export function registerWebsiteForms(r: Router): void {
     return ok({ deleted: true })
   })
 
+  /* One application read: the form's "new" count drops by one (owner, 2026-11-10). */
+  r.post('/comms/website-forms/{id}/responses/{rid}/read', READ, async (c) => {
+    const f = await formOr404(c, c.params.id)
+    await c.db.prepare(`UPDATE website_form_responses SET is_read = 1 WHERE form_id = ? AND id = ?`).bind(f.id, c.params.rid).run()
+    return ok({ ok: true })
+  })
+
   r.post('/comms/website-forms/{id}/responses/read', READ, async (c) => {
     const f = await formOr404(c, c.params.id)
     await c.db.prepare(`UPDATE website_form_responses SET is_read = 1 WHERE form_id = ? AND is_read = 0`).bind(f.id).run()
@@ -258,8 +264,24 @@ export async function handlePublicWebsiteForms(env: Env, req: Request, path: str
     stmts.push(t.db.prepare(`INSERT INTO website_form_responses (id, institution_id, form_id, data, files, source, page_url, ip, created_at) VALUES (?,?,?,?,?,?,?,?,?)`)
       .bind(respId, inst, f.id, JSON.stringify(data), JSON.stringify(stored), source, page, callerAddress(req).slice(0, 64), ts))
     const who = data[fields.find((x) => x.type === 'text')?.key ?? ''] || data.name || data.full_name || 'Someone'
-    stmts.push(...(await notifyHoldersStmts(t.db, inst, WRITE, null, 'website_form', `New response: ${f.title}`,
-      `${who} filled the ${f.title} form on the website.`, '/go/website_forms', 'website_form_response', respId)))
+    /* ONE CARD PER FORM (owner, 2026-11-10: "any notification from careers
+       only show as 1 message"). A new response replaces the open card for
+       that form with one counting them all: "3 new responses: Careers". */
+    const holders = await t.db.prepare(`SELECT u.id FROM users u WHERE u.status = 'active' AND (
+        EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = u.id AND rp.permission_key = ?1)
+        OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.permission_key = ?1))`).bind(WRITE).all<{ id: string }>()
+    const one = `New response: ${f.title}`, many = ` new responses: ${f.title}`
+    for (const h of holders.results) {
+      const nid = crypto.randomUUID()
+      stmts.push(t.db.prepare(`INSERT INTO notifications (id, institution_id, user_id, kind, title, body, link, source_kind, source_id, created_at)
+          SELECT ?1, ?2, ?3, 'website_form', CASE WHEN c = 0 THEN ?4 ELSE (c + 1) || ?5 END, ?6, '/go/website_forms', 'website_form_response', ?7, ?8
+          FROM (SELECT COALESCE(SUM(CASE WHEN title = ?4 THEN 1 ELSE CAST(title AS INTEGER) END), 0) c FROM notifications
+                WHERE user_id = ?3 AND kind = 'website_form' AND dismissed_at IS NULL AND (title = ?4 OR title LIKE '%' || ?5))`)
+        .bind(nid, inst, h.id, one, many, `Latest: ${who} filled the ${f.title} form on the website.`, respId, ts))
+      stmts.push(t.db.prepare(`UPDATE notifications SET dismissed_at = ?3, read_at = COALESCE(read_at, ?3)
+          WHERE user_id = ?1 AND kind = 'website_form' AND dismissed_at IS NULL AND id <> ?2 AND (title = ?4 OR title LIKE '%' || ?5)`)
+        .bind(h.id, nid, ts, one, many))
+    }
     await t.db.batch(stmts)
 
     const thanks = f.thanks_message || 'Thank you. Your response has been received.'

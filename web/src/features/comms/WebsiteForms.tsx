@@ -69,7 +69,10 @@ export default function WebsiteForms() {
                     className="group text-left">
                     <Card className="h-full p-5 transition-all group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
                       <div className="flex items-start justify-between gap-3">
-                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><FileText className="size-5" /></span>
+                        <span className="relative grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><FileText className="size-5" />
+                          {/* Unopened applications, counted like the bell (owner, 2026-11-10). */}
+                          {(f.unread ?? 0) > 0 && <span aria-label={`${f.unread} new`} className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-none text-white ring-2 ring-background tabular-nums">{f.unread! > 99 ? '99+' : f.unread}</span>}
+                        </span>
                         <span className={cn('inline-flex items-center gap-1.5 text-[12px] font-medium', f.is_open ? 'text-success' : 'text-muted-foreground')}>
                           <span className={cn('size-2 rounded-full', f.is_open ? 'bg-success' : 'bg-muted-foreground/50')} />{f.is_open ? 'Taking responses' : 'Closed'}
                         </span>
@@ -322,9 +325,11 @@ function Responses({ form }: { form: Form }) {
     queryFn: () => api.get<{ form: Form; items: Resp[] }>(`/api/v1/comms/website-forms/${form.id}/responses`),
   })
   const [openId, setOpenId] = useState<string | null>(null)
+  /* Opening one application reads that one only, so the count on the form
+     card drops by one each time, as the bell's does. */
   const seen = useMutation({
-    mutationFn: () => api.post(`/api/v1/comms/website-forms/${form.id}/responses/read`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['website-forms'] }),
+    mutationFn: (rid: string) => api.post(`/api/v1/comms/website-forms/${form.id}/responses/${rid}/read`, {}),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['website-forms'] }); qc.invalidateQueries({ queryKey: ['website-form-responses', form.id] }) },
   })
   const del = useMutation({
     mutationFn: (rid: string) => api.del(`/api/v1/comms/website-forms/${form.id}/responses/${rid}`),
@@ -333,8 +338,7 @@ function Responses({ form }: { form: Form }) {
   /* An application brought over from the old careers page keeps the date it was first sent (its "Submitted" answer). */
   const items = [...(q.data?.items ?? [])].map((r) => ({ ...r, created_at: sentAt(r) })).sort((a, b) => b.created_at.localeCompare(a.created_at))
   const unread = items.filter((r) => !r.is_read).length
-  // Marked read once shown; the New tags stay for this visit.
-  useEffect(() => { if (unread) seen.mutate() }, [unread > 0]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (openId && items.find((r) => r.id === openId && !r.is_read)) seen.mutate(openId) }, [openId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (q.isError) return <ErrorState error={q.error} />
   if (q.isPending) return <SkeletonTable />
