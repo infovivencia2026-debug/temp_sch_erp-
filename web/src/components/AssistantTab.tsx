@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import './assistant/assistant-chat.css'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Mic, Square, X, ArrowRight, ArrowUp, ArrowDown, Wand2, Check, Plus, FileSpreadsheet, SquarePen, RotateCcw, CloudOff } from 'lucide-react'
-import { AssistantImportWithAI } from '@/components/ai/SmartImport'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useDictation } from '@/lib/speech'
@@ -1735,7 +1734,6 @@ export function AssistantTab() {
               >
                 <Plus className="size-6 sm:size-5" />
               </button>
-              <AssistantImportWithAI disabled={state !== 'idle'} />
             </div>
             <div className="assistant-pill flex min-w-0 flex-1 items-end rounded-[24px] border bg-background pl-4 pr-1.5">
               <textarea
