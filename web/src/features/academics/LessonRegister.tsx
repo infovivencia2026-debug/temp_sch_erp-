@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PageHead, PageBody, Card, Field, Select, ErrorState, EmptyState } from '@/components/ui'
 import ChapterPlan from './ChapterPlan'
+import LessonDayPlan from './LessonDayPlan'
 
 /* LESSON PLAN (owner, 2026-11-05: "only chapter wise is enough"). Pick a
    class-section and a subject; every chapter of it shows with its progress
@@ -31,6 +32,8 @@ export default function LessonRegister() {
   // A class with one subject (a teacher's usual case) needs no second choice.
   useEffect(() => { if (subjects.length === 1) setSubject(subjects[0].class_subject_id) }, [subjects])
 
+  const [days, setDays] = useState(false)
+  if (days) return <LessonDayPlan onChapters={() => setDays(false)} />
   if (opts.isError) return <ErrorState error={opts.error} />
 
   return (
@@ -38,7 +41,7 @@ export default function LessonRegister() {
       <PageHead eyebrow="Academics" title="Lesson plan" />
       <PageBody>
         <Card className="p-4 sm:p-5">
-          <div className={`grid gap-4 ${showTeacher ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+          <div className={`grid gap-4 sm:grid-cols-2 ${showTeacher ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
             {showTeacher && (
               <Field label="Teacher">
                 <Select value={teacher} onChange={(v) => { setTeacher(v); setSection(''); setSubject('') }} placeholder="All teachers"
@@ -52,6 +55,10 @@ export default function LessonRegister() {
             <Field label="Subject">
               <Select value={subject} onChange={setSubject} placeholder={section ? 'Choose a subject' : 'Choose a class first'}
                 options={subjects.map((s) => ({ value: s.class_subject_id, label: s.subject }))} />
+            </Field>
+            <Field label="Show">
+              <Select value="chapters" onChange={(v) => v === 'days' && setDays(true)}
+                options={[{ value: 'chapters', label: 'Chapters' }, { value: 'days', label: 'Day by day' }]} />
             </Field>
           </div>
         </Card>
