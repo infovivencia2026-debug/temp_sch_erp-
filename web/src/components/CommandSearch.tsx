@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { shortcutLabel } from '@/lib/platform'
 import { useNavigate } from 'react-router-dom'
-import { Search, CornerDownLeft, GraduationCap, UserRound, MessageCircle } from 'lucide-react'
+import { Search, Check, ArrowUp, ArrowDown, CornerDownLeft } from 'lucide-react'
+import { LineIcon } from './StaffShell'
 import { useCatalog, featurePath } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 import { aliasText } from '@/lib/search-aliases'
@@ -10,8 +11,6 @@ import { api } from '@/lib/api'
 import ScrollBox from './ScrollBox'
 import { Dialog } from './ui'
 import { useSession } from '@/lib/session'
-import { FeatureGlyph } from './FeatureGlyph'
-import { hueFor } from '@/features/bento/BentoLauncher'
 import { useOpenState } from '@/lib/motion'
 import { AskAssistantRow } from './assistant/AskAssistantRow'
 import { askAssistant, looksLikeQuestion } from './assistant/agent'
@@ -100,6 +99,7 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
                a screen's name the way they say it, run together. */
             compact: `${f.name} ${section.name} ${aliasText(f.slug)}`.toLowerCase().replace(/[\s_\-·]+/g, ''),
             aliases: aliasText(f.slug).toLowerCase(),
+            words: `${f.name} ${section.name} ${section.workspace ?? ''} ${aliasText(f.slug)}`.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean),
             /* The haystack as words, for the typo pass below. Built once
                here rather than per keystroke: 414 features times every
                letter typed is the kind of work that makes a palette lag. */
@@ -209,8 +209,11 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
            "fines". Exact hits still rank above fuzzy ones by the score
            below, because the prefix and substring tests are on the name
            as typed. */
+        /* Only real matches (owner, 2026-11-10): a word has to START a word
+           of the screen's name, section or aliases -- "staff re" no longer
+           drags in School setup and Messages through their summaries. */
         const lands = (w: string) =>
-          i.haystack.includes(w) || (w.length >= 4 && i.tokens.some((t) => within1(w, t)))
+          i.words.some((t) => t.startsWith(w)) || (w.length >= 4 && i.tokens.some((t) => within1(w, t)))
         if (!words.every(lands) && !i.compact.includes(compactNeedle)) {
           return { i, score: -1 }
         }
@@ -230,7 +233,8 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
       })
       .filter((x) => x.score >= 0)
       .sort((a, b) => a.score - b.score || Number(b.i.live) - Number(a.i.live))
-    return scored.slice(0, 12).map((x) => x.i)
+    const seenSlug = new Set<string>()
+    return scored.filter((x) => (seenSlug.has(x.i.slug) ? false : (seenSlug.add(x.i.slug), true))).slice(0, 12).map((x) => x.i)
   }, [q, index])
 
   useEffect(() => {
@@ -375,93 +379,87 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
             />
           </div>
 
-          {/* Same treatment as the record menu: a list that runs past its box
-              says so with a control, not by slicing a row in half. */}
-          <ScrollBox className="search-results max-h-[52dvh]">
-          <ul className="py-1">
+          <ScrollBox className="search-results cs-list max-h-[52dvh]">
+          <ul className="px-2.5 pb-2.5 pt-1">
             {offerAsk && <AskAssistantRow q={q} active={asksQuestion || hits.length === 0} onAsked={close} />}
-            {peopleHits.length > 0 && (
-              <>
-                <li className="px-4 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  People
-                </li>
-                {peopleHits.map((p) => (
-                  <li key={`${p.kind}-${p.id}`}>
-                    <button
-                      onClick={() => goPerson(p)}
-                      className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-accent"
-                    >
-                      {p.kind === 'student' ? (
-                        <GraduationCap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      ) : p.kind === 'staff' ? (
-                        <MessageCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      ) : (
-                        <UserRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px]">{p.name}</span>
-                        {p.detail && (
-                          <span className="block truncate text-[12px] text-muted-foreground">
-                            {p.detail}
-                          </span>
-                        )}
-                      </span>
-                      {p.kind === 'staff' && (
-                        <span className="shrink-0 text-[11.5px] text-muted-foreground">Message</span>
-                      )}
-                    </button>
-                  </li>
-                ))}
-                <li className="mx-4 my-1 border-t" aria-hidden />
-              </>
-            )}
             {hits.length === 0 && peopleHits.length === 0 && !offerAsk && (
-              <li className="px-4 py-6 text-center text-[14px] text-muted-foreground">
-                Nothing matches “{q}”.
-              </li>
+              <li className="px-4 py-8 text-center text-[14px] text-muted-foreground">No results for “{q}”</li>
             )}
+            {hits.length > 0 && <li className="cs-head">{q.trim() ? 'Pages' : 'Recent'}</li>}
             {hits.map((h, i) => (
               <li key={h.key}>
                 <button
-                  onMouseEnter={() => setCursor(i)}
                   onClick={() => go(h)}
                   data-command-hit={i === cursor ? 'active' : undefined}
-                  className={cn(
-                    'flex w-full items-center gap-3 px-4 py-2 text-left',
-                    i === cursor && 'bg-accent',
-                  )}
+                  className={cn('cs-row', i === cursor && 'cs-row--on')}
+                  style={{ '--h': hueOf(h.workspace) } as CSSProperties}
                 >
-                  {/* The same plate the launcher draws, at list size: one
-                      feature, one icon, wherever it is offered. */}
-                  <FeatureGlyph slug={h.slug} section={h.sectionSlug} tint={hueFor(h.workspace)} size={24} />
+                  <span className="cs-ic"><LineIcon name={h.name} size={19} /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] font-medium">{h.name}</span>
-                    <span className="block truncate text-[12px] text-muted-foreground">
-                      {h.role} · {h.section}
+                    <span className="block truncate text-[15px] font-medium">{mark(h.name, q)}</span>
+                    <span className="block truncate text-[12.5px] text-muted-foreground">
+                      {h.workspace === h.section ? h.section : `${h.workspace} · ${h.section}`}
                       {!h.inScope && ' · nothing in your scope'}
-                      {/* What the status dot used to say, in the words it
-                          meant. A coloured dot beside every row read as a
-                          bullet list; the one row in ten that is not built
-                          yet is the only one that has anything to report. */}
                       {!h.live && ' · not built yet'}
                     </span>
                   </span>
-                  {i === cursor && (
-                    <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  )}
+                  {i === cursor && <Check className="h-4 w-4 shrink-0 text-muted-foreground" />}
                 </button>
               </li>
             ))}
+            {(['staff', 'student'] as const).map((kind) => {
+              const list = peopleHits.filter((p) => (kind === 'staff' ? p.kind === 'staff' : p.kind !== 'staff'))
+              if (!list.length) return null
+              return [
+                <li key={`h-${kind}`} className="cs-head">{kind === 'staff' ? 'Staff' : 'Students'}</li>,
+                ...list.map((p) => (
+                  <li key={`${p.kind}-${p.id}`}>
+                    <button onClick={() => goPerson(p)} className="cs-row" style={{ '--h': kind === 'staff' ? 262 : 199 } as CSSProperties}>
+                      <span className="cs-av">{p.name.split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase()}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 truncate text-[15px] font-medium">
+                          {mark(p.name, q)}
+                          <span className="cs-tag">{p.kind === 'staff' ? 'Staff 360' : p.kind === 'guardian' ? 'Parent' : 'Student 360'}</span>
+                        </span>
+                        {p.detail && <span className="block truncate text-[12.5px] text-muted-foreground">{p.detail}</span>}
+                      </span>
+                    </button>
+                  </li>
+                )),
+              ]
+            })}
           </ul>
           </ScrollBox>
 
-          <div className="flex items-center gap-3 border-t px-4 py-2 text-[12px] text-muted-foreground">
-            <span>↑↓ to move</span><span>↵ to open</span><span>esc to close</span>
+          <div className="cs-foot">
+            <span><kbd><ArrowUp /></kbd><kbd><ArrowDown /></kbd> Move</span>
+            <span><kbd><CornerDownLeft /></kbd> Open</span>
+            <span className="ml-auto"><kbd>Esc</kbd> Close</span>
           </div>
     </Dialog>
   )
 }
 
+
+/* The sidebar's own hues (StaffShell PILL_HUES): one per workspace, so a
+   screen's icon here is the colour of its group in the menu. */
+const HUES = [199, 160, 262, 38, 330, 347, 173, 239, 24, 142, 280, 210, 52, 0, 190, 300]
+function hueOf(workspace: string): number {
+  let h = 0
+  for (let i = 0; i < workspace.length; i++) h = (h * 31 + workspace.charCodeAt(i)) >>> 0
+  return HUES[h % HUES.length]
+}
+
+/* The typed words set bold where they start a word of the name. */
+function mark(name: string, q: string) {
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  if (!words.length) return name
+  const parts = name.split(/(\s+)/)
+  return parts.map((part, i) => {
+    const w = words.find((x) => part.toLowerCase().startsWith(x))
+    return w ? <span key={i}><b className="font-bold">{part.slice(0, w.length)}</b>{part.slice(w.length)}</span> : part
+  })
+}
 
 /* Below sm (the phone layout), where the long placeholder is cut off. */
 function isPhone(): boolean {
