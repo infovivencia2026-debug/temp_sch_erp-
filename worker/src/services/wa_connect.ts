@@ -1,3 +1,4 @@
+import { notifyHoldersStmts, notifyStmt } from '../notify_holders'
 /* Yajur Connect: the WhatsApp chat store (wa_conversations, wa_messages,
    wa_autoreplies).
 
@@ -113,6 +114,8 @@ export async function recordOutbound(db: D1Database, inst: string, convId: strin
   return { id, message_log_id: logId, status, at }
 }
 
+const PREVIEW_WORD: Record<string, string> = { image: 'Sent a photo', video: 'Sent a video', audio: 'Sent a voice note', document: 'Sent a document', sticker: 'Sent a sticker', location: 'Sent a location' }
+
 /** Store one inbound message in a school; run the auto-replies. Returns false for a repeat delivery. */
 export async function recordInbound(env: Env, db: D1Database, inst: string, msg: WaInboundMessage, profileName: string | null): Promise<boolean> {
   const phone = normalisePhone(msg.from ?? '')
@@ -134,6 +137,21 @@ export async function recordInbound(env: Env, db: D1Database, inst: string, msg:
   await db.prepare(`UPDATE wa_conversations SET last_inbound_at = max(coalesce(last_inbound_at, ''), ?), last_message_at = max(coalesce(last_message_at, ''), ?),
       last_preview = ?, unread = unread + ?, state = CASE WHEN ? THEN state ELSE 'open' END, updated_at = ? WHERE id = ?`)
     .bind(at, at, trunc(preview, 140), reaction ? 0 : 1, reaction ? 1 : 0, new Date().toISOString(), convId).run()
+
+  if (!reaction) {
+    // A bell for the staff: the chat's owner if it has one, else everyone who can answer (owner, 2026-11-10).
+    try {
+      const cv = await db.prepare(`SELECT c.assigned_to, COALESCE(g.full_name, c.profile_name, '+' || c.phone) AS who
+          FROM wa_conversations c LEFT JOIN guardians g ON g.id = c.guardian_id WHERE c.id = ?`).bind(convId).first<{ assigned_to: string | null; who: string }>()
+      const title = `WhatsApp: ${cv?.who ?? '+' + phone}`
+      const body = trunc(PREVIEW_WORD[kind] && !text ? PREVIEW_WORD[kind] : preview, 200)
+      const link = `/go/communication/yajur_connect?c=${convId}`
+      const stmts = cv?.assigned_to
+        ? [notifyStmt(db, inst, cv.assigned_to, 'whatsapp_message', title, body, link, 'wa_conversation', convId)]
+        : await notifyHoldersStmts(db, inst, 'comms.connect.write', null, 'whatsapp_message', title, body, link, 'wa_conversation', convId)
+      if (stmts.length) await db.batch(stmts)
+    } catch (e) { console.warn('connect notify failed', inst, e instanceof Error ? e.message : String(e)) }
+  }
 
   if (reaction || !text || isStopKeyword(text) || isStartKeyword(text)) return true
   const rules = (await db.prepare(`SELECT * FROM wa_autoreplies WHERE enabled = 1 ORDER BY position, created_at`).all<AutoReply>()).results
