@@ -35,8 +35,18 @@ export default function A4Frame({ html, title, size = 'a4' }: { html: string; ti
           srcDoc={html}
           scrolling="no"
           className="block rounded-md border-0 bg-white shadow-sm"
-          style={{ width: paper, height, transform: `scale(${scale})`, transformOrigin: '0 0' }}
-          onLoad={(e) => { const d = e.currentTarget.contentDocument; if (d) setHeight(d.documentElement.scrollHeight) }}
+          /* A picture of the page, not a place to click: the wheel and a finger
+             pass through to the dialog, which scrolls (owner, 2026-11-10:
+             "scrolling not working" over the paper). */
+          style={{ width: paper, height, transform: `scale(${scale})`, transformOrigin: '0 0', pointerEvents: 'none' }}
+          onLoad={(e) => {
+            const d = e.currentTarget.contentDocument
+            if (!d) return
+            const fit = () => setHeight(d.documentElement.scrollHeight)
+            fit()
+            // Pictures finish after load starts; the page grows when they do.
+            for (const img of Array.from(d.images)) if (!img.complete) img.addEventListener('load', fit, { once: true })
+          }}
         />
       </div>
     </div>
