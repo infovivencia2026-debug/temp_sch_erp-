@@ -26,7 +26,9 @@ export type Layout = 'classic' | 'bento'
     migrations/00136_bento_layout.sql. */
 export const LAYOUTS: readonly Layout[] = ['classic', 'bento'] as const
 
-export const DEFAULT_LAYOUT: Layout = 'bento'
+/* WORK OPENS FIRST (owner, 2026-11-10: "as default work mode should open").
+   Every visit starts in Work; Focus is chosen for that visit from the switch. */
+export const DEFAULT_LAYOUT: Layout = 'classic'
 
 const STORAGE_KEY = 'erp.layout'
 
@@ -47,7 +49,8 @@ function readStored(): Layout {
 
 // --- the store ----------------------------------------------------------
 
-let current: Layout = readStored()
+void readStored
+let current: Layout = DEFAULT_LAYOUT
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -182,8 +185,8 @@ export function useLayout(): LayoutValue {
     remounts the control, the fresh one reads the row before the PUT lands, and
     the screen reverts a second or two later. */
 export function reconcileLayout(value: unknown) {
-  if (saving > 0 || localWins) return
-  if (isLayout(value)) applyLayout(value)
+  /* The account's last choice no longer decides how a visit opens: Work does. */
+  void value
 }
 
 /** Whether a reconcile would currently be discarded. Exported for the test;
