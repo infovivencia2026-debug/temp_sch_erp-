@@ -83,7 +83,10 @@ export default function BankBoxEditor({ id, onClose }: { id: string; onClose: ()
   const root: Box = useMemo(() => ({ id: ROOT, children: cur ? [cur] : [] }), [cur])
   const labels = useMemo(() => computeNumbers(root), [root])
   if (!cur) {
-    return <Dialog title="Edit the question" size="xl" onClose={onClose}>{q.error ? <ErrorState error={q.error} /> : <Loading shape="form" />}</Dialog>
+    /* Inside the same provider as the loaded editor, so React keeps this one
+       Dialog when the question arrives. Two dialogs in turn spent the back
+       entry of the first on the second, which shut the editor as it opened. */
+    return <Maker.Provider value={maker}><Dialog title="Edit the question" size="xl" onClose={onClose}>{q.error ? <ErrorState error={q.error} /> : <Loading shape="form" />}</Dialog></Maker.Provider>
   }
   const setRoot = (fn: (r: Box) => Box) => setBox(fn(root).children?.[0] ?? cur)
   const L = paperLabels()

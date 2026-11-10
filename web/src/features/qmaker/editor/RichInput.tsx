@@ -31,12 +31,15 @@ export const editorExtensions = (placeholder = '') => [
 
 const imageFiles = (files: FileList | undefined | null) => [...(files ?? [])].filter((f) => f.type.startsWith('image/'))
 
-/** Pictures at the cursor; several at once become a row (a borderless table), one per cell. */
+/** Pictures at the cursor; several at once become a row (a borderless table), one per cell.
+    As in the desktop QMaker, one picture in a question or answer goes in centred on
+    its own line; in a one-line field (a heading, an option) it stays inline. */
 export function insertAssets(editor: Editor, assets: ImageAsset[]) {
-  if (!assets.length) return
+  if (!assets.length || editor.isDestroyed) return
   if (assets.length === 1) {
     const a = assets[0]
-    editor.chain().focus().insertContent({ type: 'qimage', attrs: { id: a.id, width: defaultWidthMm(a), align: 'inline' } }).run()
+    const single = editor.view.dom.getAttribute('aria-multiline') === 'false'
+    editor.chain().focus().insertContent({ type: 'qimage', attrs: { id: a.id, width: defaultWidthMm(a), align: single ? 'inline' : 'center' } }).run()
     return
   }
   const cells = assets.map((a) => `<td><p style="text-align: center"><img data-id="${a.id}" data-width="25" data-align="inline"></p></td>`).join('')

@@ -16,6 +16,8 @@ import {
   type BankQuestion, type BankSummary,
 } from './teaching'
 import BankFiles from '../qmaker/BankFiles'
+import { PRESETS } from '../qmaker/lib/presets'
+import { bankFields } from '../qmaker/lib/bundle'
 
 // The page editor and its fonts load only when a question is opened.
 const BankBoxEditor = lazy(() => import('../qmaker/BankBoxEditor'))
@@ -123,7 +125,7 @@ export default function QuestionBank({ embedded = false }: { embedded?: boolean 
 
         {generating && <GenerateFromLesson onDone={() => setGenerating(false)} />}
 
-        {composing && <Compose onDone={() => setComposing(false)} />}
+        {composing && <Compose onDone={() => setComposing(false)} onOpen={(id) => { setComposing(false); setEditing(id) }} />}
         {editing && <Suspense fallback={<Loading shape="inline" />}><BankBoxEditor id={editing} onClose={() => setEditing(null)} /></Suspense>}
 
         <Card>
@@ -255,13 +257,37 @@ export default function QuestionBank({ embedded = false }: { embedded?: boolean 
 
 interface DraftOption { body: string; is_correct: boolean }
 
-function Compose({ onDone }: { onDone: () => void }) {
+/* Every question type of the desktop QMaker (its templates, as the paper
+   editor's inserter offers them), or the plain form online tests use. A type
+   is banked as its box and opened at once in the full editor, where it is
+   typed with formatting and pictures (paste, drop or pick), as in the desktop
+   bank; saved, it fills papers like any banked question. */
+const QUESTION_TYPES = PRESETS.map((p, i) => ({ p, i })).filter(({ p }) => !['Text', 'Empty box', 'Section / heading', 'Two columns', 'Three columns', 'Answer (key only)', 'Answer lines', 'Instructions', 'Page break'].includes(p.name))
+
+function Compose({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string) => void }) {
   const toast = useToast()
   const qc = useQueryClient()
   const subjects = useTeachingSubjects()
 
   const [classSubjectID, setClassSubjectID] = useState('')
   const [kind, setKind] = useState('mcq')
+  const [type, setType] = useState('plain')
+  const start = useMutation({
+    mutationFn: async () => {
+      const body = PRESETS[Number(type)].make()
+      const f = bankFields(body)
+      return api.post<{ id: string }>('/api/v1/teaching/question-bank', {
+        class_subject_id: classSubjectID, kind: f.kind, difficulty, bloom_level: bloom, stem: f.stem, default_marks: f.default_marks,
+        options: f.options.length ? f.options : undefined, body,
+      })
+    },
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['question-bank'] })
+      qc.invalidateQueries({ queryKey: ['question-bank-summary'] })
+      onOpen(r.id)
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not start the question'),
+  })
   const [difficulty, setDifficulty] = useState('medium')
   const [bloom, setBloom] = useState('understand')
   const [stem, setStem] = useState('')
@@ -326,13 +352,20 @@ function Compose({ onDone }: { onDone: () => void }) {
               }))}
             />
           </Field>
-          <Field label="Kind">
+          <Field label="Question type" hint="Any type the desktop QMaker has; pictures can go in while typing.">
+            <Select
+              value={type}
+              onChange={setType}
+              options={[{ value: 'plain', label: 'Plain (for online tests)' }, ...QUESTION_TYPES.map(({ p, i }) => ({ value: String(i), label: `${p.group} · ${p.name}` }))]}
+            />
+          </Field>
+          {type === 'plain' && <Field label="Kind">
             <Select
               value={kind}
               onChange={setKind}
               options={QUESTION_KINDS.map((k) => ({ value: k.value, label: k.label }))}
             />
-          </Field>
+          </Field>}
           <Field label="Difficulty">
             <Select
               value={difficulty}
@@ -347,11 +380,17 @@ function Compose({ onDone }: { onDone: () => void }) {
               options={BLOOM_LEVELS.map((b) => ({ value: b.value, label: b.label }))}
             />
           </Field>
-          <Field label="Marks">
+          {type === 'plain' && <Field label="Marks">
             <Input value={marks} onChange={setMarks} placeholder="1" />
-          </Field>
+          </Field>}
         </FormGrid>
 
+        {type !== 'plain' ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button pending={start.isPending} disabled={!classSubjectID || start.isPending} onClick={() => start.mutate()}>Open in the editor</Button>
+            <Button variant="secondary" onClick={onDone}>Close</Button>
+          </div>
+        ) : <>
         <Field label="Question" required>
           <Textarea value={stem} onChange={setStem} rows={2} placeholder="What is 7 × 8?" />
         </Field>
@@ -401,6 +440,7 @@ function Compose({ onDone }: { onDone: () => void }) {
           </Button>
           <Button variant="secondary" onClick={onDone}>Close</Button>
         </div>
+        </>}
       </div>
     </Card>
   )

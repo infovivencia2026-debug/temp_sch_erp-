@@ -28,16 +28,19 @@ function ImportDialog({ got, name, onClose }: { got: Received; name: string; onC
     mutationFn: async () => {
       const { boxes } = await uploadBundleImages(got.questions, got.images, (d, t) => setProgress(`Uploading pictures: ${d} of ${t}`))
       let added = 0
+      let skipped = 0
       for (let i = 0; i < boxes.length; i += CHUNK) {
         setProgress(`Adding questions: ${i} of ${boxes.length}`)
         const items = boxes.slice(i, i + CHUNK).map((b) => ({ ...bankFields(b), body: b }))
-        added += (await api.post<{ added: number }>('/api/v1/teaching/question-bank/import', { class_subject_id: subject, items })).added
+        const r = await api.post<{ added: number; skipped?: number }>('/api/v1/teaching/question-bank/import', { class_subject_id: subject, items })
+        added += r.added
+        skipped += r.skipped ?? 0
       }
-      return added
+      return { added, skipped }
     },
-    onSuccess: (added) => {
+    onSuccess: ({ added, skipped }) => {
       buzz('tap')
-      toast.ok(`Added ${added} ${added === 1 ? 'question' : 'questions'} to the bank`)
+      toast.ok(`Added ${added} ${added === 1 ? 'question' : 'questions'} to the bank${skipped ? ` (${skipped} already there)` : ''}`)
       qc.invalidateQueries({ queryKey: ['question-bank'] })
       qc.invalidateQueries({ queryKey: ['question-bank-summary'] })
       onClose()

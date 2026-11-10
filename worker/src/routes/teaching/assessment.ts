@@ -419,7 +419,15 @@ async function importBankQuestions(c: Ctx): Promise<Response> {
   if (!(await classSubjectTaught(c, res, csId))) throw forbid('banking a question for this subject')
   const units = await c.db.prepare(`SELECT id, title FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1`).bind(csId).all<{ id: string; title: string }>()
   const unitByTitle = new Map(units.results.map((u) => [u.title.trim().toLowerCase(), u.id]))
+  /* Like the desktop QMaker, a question already in the bank (same box id, the
+     desktop's own id for it) is not added again, so opening the same .qbank
+     twice, or a whole-bank file that overlaps, makes no duplicates. */
+  const have = await c.db.prepare(`SELECT json_extract(body, '$.id') AS bid FROM question_bank_questions
+      WHERE institution_id = ? AND class_subject_id = ? AND is_active = 1 AND body IS NOT NULL AND json_valid(body)`)
+    .bind(institutionId(c), csId).all<{ bid: string | null }>()
+  const seen = new Set(have.results.map((r) => r.bid).filter((v): v is string => !!v))
   const stmts: Stmt[] = []
+  let skipped = 0
   list.forEach((item, i) => {
     if (item === null || typeof item !== 'object') throw badRequest(`question ${i + 1} could not be read`)
     const req = decodeBankRequest({ ...item, class_subject_id: csId, syllabus_unit_id: unitByTitle.get(s(item.chapter).trim().toLowerCase()) ?? '' })
@@ -427,10 +435,13 @@ async function importBankQuestions(c: Ctx): Promise<Response> {
     if (req.stem === '') throw badRequest(`question ${i + 1} has no text`)
     const verr = validateBankQuestion(req, false)
     if (verr) throw badRequest(`question ${i + 1}: ${verr}`)
+    const bodyId = (item.body && typeof item.body === 'object' && typeof (item.body as Row).id === 'string') ? (item.body as Row).id as string : ''
+    if (bodyId && seen.has(bodyId)) { skipped++; return }
+    if (bodyId) seen.add(bodyId)
     stmts.push(...insertQuestionStmts(c, uuid(), csId, req, true))
   })
-  await c.db.batch(stmts)
-  return ok({ added: list.length })
+  if (stmts.length) await c.db.batch(stmts)
+  return ok({ added: list.length - skipped, skipped })
 }
 
 // --- paper_compose.go ------------------------------------------------------
