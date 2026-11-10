@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { Info as InfoIcon } from 'lucide-react'
+import { Camera, FileText, Info as InfoIcon, MapPin, Mic, Sticker, Video, type LucideIcon } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { ConnectConversation, ConnectMatch, ConnectMessage, ConnectState, ConnectThread } from '@shared/api/feature_yajur_connect'
 import {
@@ -46,13 +46,16 @@ function bodyOf(m: ConnectMessage): string {
   if (m.kind === 'location') return `[Location] ${m.text ?? ''}`.trim()
   return m.text ?? ''
 }
-const PREVIEW: Record<string, string> = {
-  image: '📷 Photo', video: '🎥 Video', audio: '🎤 Voice note', document: '📄 Document', sticker: 'Sticker', location: '📍 Location', reaction: 'Reaction',
+const PREVIEW: Record<string, [LucideIcon | null, string]> = {
+  image: [Camera, 'Photo'], video: [Video, 'Video'], audio: [Mic, 'Voice note'], document: [FileText, 'Document'],
+  sticker: [Sticker, 'Sticker'], location: [MapPin, 'Location'], reaction: [null, 'Reaction'],
 }
-/** "[image]" as WhatsApp's chat list words it: "📷 Photo". */
-function previewOf(p: string | null): string {
+/** "[image]" as WhatsApp's chat list shows it: a small grey camera and "Photo". */
+function Preview({ p }: { p: string | null }) {
   const k = /^\[(\w+)\]$/.exec(p ?? '')?.[1]
-  return k ? PREVIEW[k] ?? k : p ?? ''
+  if (!k) return <>{p ?? ''}</>
+  const [Icon, label] = PREVIEW[k] ?? [null, k]
+  return <span className="inline-flex items-center gap-1">{Icon && <Icon className="h-[15px] w-[15px] shrink-0" aria-hidden />}{label}</span>
 }
 /** message_log status to the bubble's WhatsApp-style mark. */
 const DELIVERY: Record<string, NonNullable<ChatMessage['delivery']>> = {
@@ -204,7 +207,7 @@ function Row({ c, active, onOpen }: { c: ConnectConversation; active: boolean; o
             <span className={cn('shrink-0 text-[12px]', c.unread ? 'font-semibold text-[#12b76a]' : 'text-muted-foreground')}>{when(c.last_message_at)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="min-w-0 flex-1 truncate text-[13.5px] text-muted-foreground">{previewOf(c.last_preview)}</span>
+            <span className="min-w-0 flex-1 truncate text-[13.5px] text-muted-foreground"><Preview p={c.last_preview} /></span>
             {c.unread > 0 && <span className="grid min-w-[20px] place-items-center rounded-full bg-[#12b76a] px-1.5 text-[11px] font-bold leading-[18px] text-white">{c.unread}</span>}
           </div>
           {(c.student_name || c.labels.length > 0 || c.assigned_name || c.state === 'resolved') && (
