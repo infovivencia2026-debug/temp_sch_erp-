@@ -132,7 +132,7 @@ function SubtopicList({ chapter, sectionId, queryKey }: { chapter: Chapter; sect
     <div className="mt-4 space-y-2 border-t pt-4">
       {chapter.subtopics.length === 0 && <p className="text-[14px] text-muted-foreground">No sub-topics yet.</p>}
       {chapter.subtopics.map((s, i) => (
-        <div key={s.id} className="grid items-end gap-2 rounded-xl border p-3 sm:grid-cols-[minmax(0,1fr)_150px_150px_160px]">
+        <div key={s.id} className="grid items-end gap-2 rounded-xl border p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_190px_190px_180px]">
           <p className="self-center text-[14px] font-medium">{i + 1}. {cleanTitle(s.title)}</p>
           <Field label="From"><Input type="date" value={s.from_date} onChange={(v) => save.mutate({ sub: s, from_date: v })} /></Field>
           <Field label="To"><Input type="date" value={s.to_date} min={s.from_date || undefined} onChange={(v) => save.mutate({ sub: s, to_date: v })} /></Field>
@@ -147,12 +147,12 @@ function SubtopicList({ chapter, sectionId, queryKey }: { chapter: Chapter; sect
           <Button variant="secondary" onClick={() => setAdding('')}><Plus className="h-4 w-4" /> Add sub-topic</Button>
         </div>
       ) : (
-        <div className="grid items-end gap-2 rounded-xl border border-primary/40 p-3 sm:grid-cols-[minmax(0,1fr)_150px_150px_160px]">
+        <div className="grid items-end gap-2 rounded-xl border border-primary/40 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_190px_190px_180px]">
           <Field label="New sub-topic"><Input value={adding} onChange={setAdding} placeholder="Name of the sub-topic" autoFocus /></Field>
           <Field label="From"><Input type="date" value={nFrom} onChange={setNFrom} /></Field>
           <Field label="To"><Input type="date" value={nTo} min={nFrom || undefined} onChange={setNTo} /></Field>
           <Field label="Status"><Select value={nStatus} onChange={(v) => setNStatus(v as Status)} options={STATUS} /></Field>
-          <div className="flex gap-2 sm:col-span-4 sm:justify-end">
+          <div className="flex gap-2 sm:col-span-2 lg:col-span-4 sm:justify-end">
             <Button variant="ghost" onClick={() => setAdding(null)}>Cancel</Button>
             <Button onClick={() => add.mutate()} pending={add.isPending} disabled={!adding.trim() || (!!nFrom && !!nTo && nTo < nFrom)}>Add</Button>
           </div>
