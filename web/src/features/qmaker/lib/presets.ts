@@ -15,7 +15,12 @@ const key = (html: string): Box => ({ id: uid(), visible: 'key', content: html }
 const lines = (n: number): Box => ({ id: uid(), visible: 'paper', content: `<div data-lines="${n}"></div>` })
 const opt = (html: string, correct = false): Box => ({ id: uid(), content: html, number: { format: 'a', pattern: '({n})', scope: 'local' }, correct: correct || undefined })
 const options = (items: string[], cols = 4, correct = -1): Box => ({ id: uid(), name: 'Options', layout: { mode: 'grid', cols }, children: items.map((t, i) => opt(`<p>${t}</p>`, i === correct)) })
-const question = (name: string, m: number, children: Box[], extra: Partial<Box> = {}): Box => ({ id: uid(), name, number: Q_NUM, marks: marks(m), children, ...extra })
+const hasKey = (bs: Box[]): boolean => bs.some((x) => x.visible === 'key' || hasKey(x.children ?? []))
+/* Every question gets a place for its answer (owner, 2026-11-10: "there is no
+   answer key" on an MCQ): an Answer box printed only on the key, unless the
+   preset already has one. */
+const question = (name: string, m: number, children: Box[], extra: Partial<Box> = {}): Box =>
+  ({ id: uid(), name, number: Q_NUM, marks: marks(m), children: hasKey(children) ? children : [...children, key('<p><strong>Answer:</strong> </p>')], ...extra })
 const table = (rows: string[][], header = true, borderless = false) =>
   `<table${borderless ? ' data-borderless="true"' : ''}><tbody>${rows.map((r, i) => `<tr>${r.map((c) => (header && i === 0 ? `<th><p>${c}</p></th>` : `<td><p>${c}</p></td>`)).join('')}</tr>`).join('')}</tbody></table>`
 

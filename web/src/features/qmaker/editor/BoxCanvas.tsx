@@ -102,6 +102,33 @@ function Children({ b }: { b: Box }) {
 }
 
 /** One box on the page, edited in place, drawn as it prints. */
+/* Click the [3] on the paper and type the marks (owner, 2026-11-10: "I can't
+   change the marks" -- the panel field was too hard to find). Only for a fixed
+   mark; a mark added up from the parts says so instead. */
+function MarksEdit({ b, label }: { b: Box; label: string }) {
+  const ops = useOps()
+  const [edit, setEdit] = useState(false)
+  if (!label) return null
+  if (b.marks?.mode !== 'fixed') return <span title="Added up from the parts inside">{label}</span>
+  if (!edit) {
+    return (
+      <button type="button" className="qm-markbtn" title="Click to change the marks"
+        onMouseDown={(e) => e.stopPropagation()} onClick={() => { ops.select(b.id); setEdit(true) }}>{label}</button>
+    )
+  }
+  const save = (v: string) => {
+    const n = Math.max(0, Math.min(1000, Number(v)))
+    if (Number.isFinite(n)) ops.update(b.id, { marks: { ...b.marks!, value: n } })
+    setEdit(false)
+  }
+  return (
+    <input type="number" min={0} step="0.5" autoFocus defaultValue={String(b.marks?.value ?? 0)} aria-label="Marks"
+      className="qm-markin" onMouseDown={(e) => e.stopPropagation()}
+      onBlur={(e) => save(e.currentTarget.value)}
+      onKeyDown={(e) => { if (e.key === 'Enter') save(e.currentTarget.value); if (e.key === 'Escape') setEdit(false) }} />
+  )
+}
+
 function EditBox({ b }: { b: Box }) {
   const ops = useOps()
   const sel = ops.selected === b.id
@@ -135,7 +162,7 @@ function EditBox({ b }: { b: Box }) {
     return (
       <div className={`${cls} heading`} style={style} onMouseDown={onDown}>
         {sel && <BoxBar b={b} />}
-        <div className="bh" style={textStyle}><span className="bh-t">{num && <span className="bh-n">{num}</span>}{content}</span><span className="bh-m">{marks}</span></div>
+        <div className="bh" style={textStyle}><span className="bh-t">{num && <span className="bh-n">{num}</span>}{content}</span><span className="bh-m"><MarksEdit b={b} label={marks} /></span></div>
         {tags.length > 0 && <div className="qm-tags">{tags}</div>}
         {kids}
       </div>
@@ -147,7 +174,7 @@ function EditBox({ b }: { b: Box }) {
         {sel && <BoxBar b={b} />}
         <div className="qn">{num}</div>
         <div className="bb">{body}</div>
-        <div className="qm">{marks}</div>
+        <div className="qm"><MarksEdit b={b} label={marks} /></div>
       </div>
     )
   }
