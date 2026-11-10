@@ -1241,7 +1241,8 @@ function ImageViewer({ a, onClose }: { a: Attachment; onClose: () => void }) {
     return () => window.removeEventListener('keydown', esc)
   }, [onClose])
 
-  return (
+  // On document.body: inside the chat pane a transformed parent shrank "fixed" to the pane, so the top bar and sidebar stayed lit.
+  return createPortal(
     <div className="fixed inset-0 z-[140] flex flex-col bg-black/95" role="dialog" aria-modal="true">
       <div className="flex shrink-0 items-center gap-3 px-3 py-3 text-white">
         <button
@@ -1272,7 +1273,7 @@ function ImageViewer({ a, onClose }: { a: Attachment; onClose: () => void }) {
         <img loading="lazy" decoding="async" src={viewUrl(a)} alt={a.name} className="max-h-full max-w-full object-contain" />
       </button>
     </div>
-  )
+  , document.body)
 }
 
 /* THE URL TO LOOK AT, AS OPPOSED TO THE ONE TO SAVE.
