@@ -8,6 +8,16 @@ import { imgSrc, searchImages, uploadImage, type ImageAsset } from '../lib/image
 /* The image store: every picture anyone at the school has put into a paper or
    a banked question, found by its name. Pick one, or several for a row. */
 export default function ImagePicker({ onPick, onClose }: { onPick: (assets: ImageAsset[]) => void; onClose: () => void }) {
+  return (
+    <Dialog title="Image store" description="Your school's own pictures: upload them under a name, find them, put them in." size="xl" onClose={onClose}
+      footer={<Button variant="ghost" onClick={onClose}>Close</Button>}>
+      <ImageStorePane onPick={onPick} />
+    </Dialog>
+  )
+}
+
+/** The image store itself, also a tab of Find a picture (owner, 2026-11-11: "remove photos, add image store there"). */
+export function ImageStorePane({ onPick }: { onPick: (assets: ImageAsset[]) => void }) {
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState<ImageAsset[]>([])
   const list = useQuery({ queryKey: ['paper-images', q.trim()], queryFn: () => searchImages(q.trim()) })
@@ -46,18 +56,6 @@ export default function ImagePicker({ onPick, onClose }: { onPick: (assets: Imag
   }
 
   return (
-    <Dialog
-      title="Image store"
-      description="Pictures already used in your school's papers. Choose one, or several to put side by side."
-      size="xl"
-      onClose={onClose}
-      footer={<>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button disabled={!picked.length} onClick={() => onPick(picked)}>
-          {picked.length > 1 ? `Insert ${picked.length} pictures` : 'Insert picture'}
-        </Button>
-      </>}
-    >
       <div className="space-y-4">
         <div className="flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-end">
           <div className="min-w-0 flex-1"><Field label="Save a picture from this device" hint="Give it a name so anyone can find it later."><Input value={name} onChange={setName} placeholder="Name, e.g. Red apple" /></Field></div>
@@ -96,7 +94,11 @@ export default function ImagePicker({ onPick, onClose }: { onPick: (assets: Imag
             ))}
           </ul>
         )}
+        <div className="sticky bottom-0 flex justify-end bg-background/95 py-2">
+          <Button disabled={!picked.length} onClick={() => onPick(picked)}>
+            {picked.length > 1 ? `Insert ${picked.length} pictures` : 'Insert picture'}
+          </Button>
+        </div>
       </div>
-    </Dialog>
   )
 }

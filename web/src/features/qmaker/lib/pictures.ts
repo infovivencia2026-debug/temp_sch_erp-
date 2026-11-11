@@ -23,16 +23,15 @@ const headers = (): Record<string, string> => {
    logos. Only the key words go; no cookie, no school. The Worker stays the
    fallback. */
 async function browserSearch(q: string, kind: PictureKind, signal?: AbortSignal): Promise<PictureResult | null> {
+  // Two pages at once: up to 40 clip art choices (owner, 2026-11-11: "as many options").
+  const page = async (n: number) => {
+    const res = await fetch(openverseUrl(q, kind, n), { credentials: 'omit', referrerPolicy: 'no-referrer', signal })
+    return res.ok ? ((await res.json()) as { results?: OpenverseHit[] }).results ?? [] : null
+  }
   try {
-    const res = await fetch(openverseUrl(q, kind), { credentials: 'omit', referrerPolicy: 'no-referrer', signal })
-    if (!res.ok) return null
-    const body = (await res.json()) as { results?: OpenverseHit[] }
-    let items = openverseHits(body.results ?? [], kind)
-    if (!items.length && kind === 'clipart') {
-      const r2 = await fetch(openverseUrl(q, 'photo'), { credentials: 'omit', referrerPolicy: 'no-referrer', signal })
-      if (r2.ok) { items = openverseHits(((await r2.json()) as { results?: OpenverseHit[] }).results ?? [], 'photo'); return items.length ? { q, kind: 'photo', items } : null }
-    }
-    return items.length ? { q, kind, items } : null
+    const [a, b] = await Promise.all([page(1), page(2).catch(() => [])])
+    if (a === null) return null
+    return { q, kind, items: openverseHits([...a, ...(b ?? [])], kind, 40) }
   } catch (e) {
     if (signal?.aborted) throw e
     return null

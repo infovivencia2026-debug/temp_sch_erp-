@@ -96,7 +96,7 @@ export function directPicture(u: string): { thumb: string; full: string } | null
 }
 
 
-export function openverseUrl(q: string, kind: PictureKind): string {
+export function openverseUrl(q: string, kind: PictureKind, page = 1): string {
   const u = new URL('https://api.openverse.org/v1/images/')
   // "bus" alone brought logos and route signs; "bus clipart" brings drawings (owner, 2026-11-11).
   u.searchParams.set('q', kind === 'clipart' ? `${q} clipart` : q)
@@ -104,6 +104,7 @@ export function openverseUrl(q: string, kind: PictureKind): string {
   u.searchParams.set('category', kind === 'clipart' ? 'illustration' : 'photograph')
   u.searchParams.set('mature', 'false')
   u.searchParams.set('page_size', '20')
+  if (page > 1) u.searchParams.set('page', String(page))
   return u.href
 }
 

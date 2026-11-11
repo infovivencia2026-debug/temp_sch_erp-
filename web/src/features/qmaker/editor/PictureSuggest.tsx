@@ -6,6 +6,7 @@ import { Button, Dialog, EmptyState, ErrorState, Loading, SEG_BAR, segClass } fr
 import { SearchBox } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
+import { ImageStorePane } from './ImagePicker'
 import { pictureKeywords, tileSrc, searchPictures, storePicture, type PictureHit, type PictureKind } from '../lib/pictures'
 import { insertAssets } from './RichInput'
 import { useMaker } from './context'
@@ -92,44 +93,42 @@ export function PictureStrip({ editor }: { editor: Editor | null }) {
 export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
   const { from, to, empty } = editor.state.selection
   const [text, setText] = useState(() => empty ? lastWord(pictureKeywords(paragraphText(editor))) : pictureKeywords(editor.state.doc.textBetween(from, to, ' ')))
-  const [kind, setKind] = useState<PictureKind>('clipart')
+  const [tab, setTab] = useState<'clipart' | 'store'>('clipart')
+  const kind: PictureKind = 'clipart'
   const q = pictureKeywords(useDebouncedValue(text, 400))
   const { insert, busy } = useInsertPicture(editor)
   const res = useQuery({
     queryKey: ['picture-search', kind, q],
     queryFn: ({ signal }) => searchPictures(q, kind, signal),
-    enabled: q.length >= 3,
+    enabled: tab === 'clipart' && q.length >= 3,
     staleTime: 10 * 60_000,
     retry: false,
   })
   /* No longer flips the tab when clip art falls back to photos: the cached
      fallback flipped it straight back each time, so Clip art could not be
      chosen (owner, 2026-11-11). It says so instead. */
-  const fellBack = !!res.data && res.data.kind !== kind && res.data.items.length > 0
 
   return (
     <Dialog
       title="Find a picture"
-      description="Free pictures from Openverse and Wikimedia Commons, kept in your image store with their credit."
+      description="Free clip art, or your school's own pictures in the image store."
       size="xl"
       onClose={onClose}
       footer={<Button variant="ghost" onClick={onClose}>Close</Button>}
     >
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="w-full min-w-0 sm:w-auto sm:flex-1"><SearchBox value={text} onChange={setText} placeholder="What should the picture show?" /></div>
-          <div className={SEG_BAR} role="group" aria-label="Kind of picture">
-            {([['clipart', 'Clip art'], ['photo', 'Photos']] as const).map(([k, label]) => (
-              <button key={k} type="button" aria-pressed={kind === k} className={segClass(kind === k)} onClick={() => setKind(k)}>{label}</button>
-            ))}
-          </div>
+        <div className={SEG_BAR} role="group" aria-label="Where the picture comes from">
+          {([['clipart', 'Clip art'], ['store', 'Image store']] as const).map(([k, label]) => (
+            <button key={k} type="button" aria-pressed={tab === k} className={segClass(tab === k)} onClick={() => setTab(k)}>{label}</button>
+          ))}
         </div>
-        {fellBack && <p className="text-[13px] text-muted-foreground">No clip art for this; showing photos instead.</p>}
+        {tab === 'store' ? <ImageStorePane onPick={(assets) => { insertAssets(editor, assets); onClose() }} /> : <>
+        <SearchBox value={text} onChange={setText} placeholder="What should the picture show? e.g. apple" />
         {q.length < 3 ? <EmptyState title="Type what the picture should show." body="For example: apple, leaf, clock." />
           : res.isLoading ? <Loading shape="cards" />
           : res.error ? <ErrorState error={res.error} />
           : res.data?.unavailable ? <EmptyState title="The picture library did not answer." body="Try again in a moment." />
-          : !res.data?.items.length ? <EmptyState title="No pictures found." body="Try a simpler word, in English." />
+          : !res.data?.items.length ? <EmptyState title="No clip art found." body="Try a simpler word, in English, or upload your own in the image store." />
           : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {res.data.items.map((p) => (
@@ -137,6 +136,7 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
               ))}
             </ul>
           )}
+        </>}
       </div>
     </Dialog>
   )
