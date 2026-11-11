@@ -126,10 +126,10 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
   })
   /* More pages as the list is scrolled (owner, 2026-11-11: "lazy loading"). */
   const more = useInfiniteQuery({
-    queryKey: ['picture-search-more', kind, q],
+    queryKey: ['picture-search-pages', kind, q], // not the old key: its saved data has another shape
     queryFn: ({ signal, pageParam }) => searchMorePictures(q, kind, signal, pageParam),
     initialPageParam: 1,
-    getNextPageParam: (last, all) => (all.length < 8 && last.items.length > 0 ? all.length + 1 : undefined),
+    getNextPageParam: (last, all) => (all.length < 8 && (last?.items?.length ?? 0) > 0 ? all.length + 1 : undefined),
     enabled: tab === 'clipart' && q.length >= 3,
     staleTime: 10 * 60_000,
     retry: false,
