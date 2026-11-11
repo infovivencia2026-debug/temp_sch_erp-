@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { PageHead, PageBody, Card, Field, Select, ErrorState, EmptyState } from '@/components/ui'
+import { PageHead, PageBody, Card, Field, Select, ErrorState, EmptyState, Loading } from '@/components/ui'
 import ChapterPlan from './ChapterPlan'
 import LessonDayPlan from './LessonDayPlan'
 
@@ -35,6 +35,8 @@ export default function LessonRegister() {
   const [days, setDays] = useState(false)
   if (days) return <LessonDayPlan onChapters={() => setDays(false)} />
   if (opts.isError) return <ErrorState error={opts.error} />
+  // Never an empty class list while it is still coming (owner, 2026-11-11).
+  if (opts.isLoading) return <PageBody><Loading label="Loading your classes" /></PageBody>
 
   return (
     <>
