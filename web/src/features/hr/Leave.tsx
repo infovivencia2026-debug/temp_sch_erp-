@@ -259,10 +259,10 @@ export default function Leave() {
   const mineTypes = useQuery({
     queryKey: ['leave-types', 'mine'],
     queryFn: () =>
-      api.get<{ items: { id: string; name: string; remaining?: number; entitled?: number }[] }>(
+      api.get<{ items: { id: string; name: string; code?: string; remaining?: number; entitled?: number; taken?: number }[] }>(
         '/api/v1/hr/leave-types?for=mine',
       ),
-    enabled: apply,
+    enabled: apply || mine,
     retry: false,
   })
   const own = !form.employee_id
@@ -399,6 +399,20 @@ export default function Leave() {
               somebody reading "Pending approval" over a list filtered to
               "Approved" needs told. The captions were missing information,
               and the uneven column was that omission showing. */}
+          {mine && (mineTypes.data?.items ?? []).some((t) => t.entitled) ? (() => {
+            /* MY LEAVE, IN DAYS (owner, 2026-11-11): the total given, used and
+               left, from the balances the school set, for every member of staff. */
+            const held = (mineTypes.data?.items ?? []).filter((t) => t.entitled)
+            const sum = (k: 'entitled' | 'taken' | 'remaining') => held.reduce((a, t) => a + (Number(t[k]) || 0), 0)
+            const each = (k: 'entitled' | 'taken' | 'remaining') => held.map((t) => `${t.code ?? t.name} ${Number(t[k]) || 0}`).join(' · ')
+            return (<>
+              <Stat label="Total leaves" value={sum('entitled')} hint={each('entitled')} />
+              <Stat label="Used" value={sum('taken')} hint={each('taken')} />
+              <Stat label="Left" value={sum('remaining')} hint={each('remaining')} />
+              <Stat label="Pending approval" value={all.filter((r) => r.status === 'pending').length}
+                hint={`${all.filter((r) => r.status === 'approved').length} approved · ${all.filter((r) => r.status === 'rejected').length} rejected`} />
+            </>)
+          })() : (<>
           <Stat label="Total requests" value={all.length} hint="Every request" />
           <Stat
             label="Pending approval"
@@ -417,6 +431,7 @@ export default function Leave() {
             value={all.filter((r) => r.status === 'rejected').length}
             hint="Turned down"
           />
+          </>)}
         </CellGrid>
 
         {mayApply && (

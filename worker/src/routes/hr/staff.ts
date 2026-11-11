@@ -334,8 +334,12 @@ export function registerStaff(r: Router) {
            AND CAST(lb.entitled AS REAL) > 0
          ORDER BY lt.name`).bind(emp.id).all<Record<string, unknown>>()
       if (held.results.length) {
-        // Yajur (owner, 2026-11-06): staff are not shown how many days are left.
-        return ok({ source: 'balances', items: held.results.map((v) => ({ id: v.id, code: v.code, name: v.name })) })
+        /* Owner, 2026-11-11: everyone sees their own total, used and left
+           (replaces 2026-11-06, when staff were not shown what was left). */
+        return ok({ source: 'balances', items: held.results.map((v) => {
+          const entitled = Number(v.entitled) || 0, taken = Number(v.taken) || 0
+          return { id: v.id, code: v.code, name: v.name, entitled, taken, remaining: Math.max(0, entitled - taken) }
+        }) })
       }
       const year = todayIST().slice(0, 4)
       const elig = await c.db.prepare(`
