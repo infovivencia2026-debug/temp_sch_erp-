@@ -265,6 +265,9 @@ export default function Leave() {
     enabled: apply || mine,
     retry: false,
   })
+  const held = mine ? (mineTypes.data?.items ?? []).filter((t) => t.entitled) : []
+  const sumOf = (k: 'entitled' | 'taken' | 'remaining') => held.reduce((a, t) => a + (Number(t[k]) || 0), 0)
+  const eachOf = (k: 'entitled' | 'taken' | 'remaining') => held.map((t) => `${t.code ?? t.name} ${Number(t[k]) || 0}`).join(' · ')
   const own = !form.employee_id
   const leaveTypes: { id: string; name: string; label: string }[] = own
     ? (mineTypes.data?.items ?? []).map((t) => ({ id: t.id, name: t.name, label: t.name }))
@@ -374,6 +377,8 @@ export default function Leave() {
       actions={<>{/* A teacher's own leave has no export: the register is HR's, and the button answered 403. */}{!mine && <ExportButton report={forWhom === 'staff' ? 'staff-leave' : 'leave'} />}<Button variant="secondary" onClick={printLeave}><Printer className="h-4 w-4" /> Print</Button></>}
         />
       <PageBody>
+        {/* MY LEAVE, IN DAYS (owner, 2026-11-11): total, used and left from the
+            school's balances. An array, so the grid counts four cells. */}
         <CellGrid cols={4}>
           {/* Counted from every request, not from the rows the filter left on
               screen. With the filter on "pending" these read as totals and
@@ -399,39 +404,30 @@ export default function Leave() {
               somebody reading "Pending approval" over a list filtered to
               "Approved" needs told. The captions were missing information,
               and the uneven column was that omission showing. */}
-          {mine && (mineTypes.data?.items ?? []).some((t) => t.entitled) ? (() => {
-            /* MY LEAVE, IN DAYS (owner, 2026-11-11): the total given, used and
-               left, from the balances the school set, for every member of staff. */
-            const held = (mineTypes.data?.items ?? []).filter((t) => t.entitled)
-            const sum = (k: 'entitled' | 'taken' | 'remaining') => held.reduce((a, t) => a + (Number(t[k]) || 0), 0)
-            const each = (k: 'entitled' | 'taken' | 'remaining') => held.map((t) => `${t.code ?? t.name} ${Number(t[k]) || 0}`).join(' · ')
-            return (<>
-              <Stat label="Total leaves" value={sum('entitled')} hint={each('entitled')} />
-              <Stat label="Used" value={sum('taken')} hint={each('taken')} />
-              <Stat label="Left" value={sum('remaining')} hint={each('remaining')} />
-              <Stat label="Pending approval" value={all.filter((r) => r.status === 'pending').length}
-                hint={`${all.filter((r) => r.status === 'approved').length} approved · ${all.filter((r) => r.status === 'rejected').length} rejected`} />
-            </>)
-          })() : (<>
-          <Stat label="Total requests" value={all.length} hint="Every request" />
-          <Stat
+          {held.length ? [
+            <Stat key="t" label="Total leaves" value={sumOf('entitled')} hint={eachOf('entitled')} />,
+            <Stat key="u" label="Used" value={sumOf('taken')} hint={eachOf('taken')} />,
+            <Stat key="l" label="Left" value={sumOf('remaining')} hint={eachOf('remaining')} />,
+            <Stat key="p" label="Pending approval" value={all.filter((r) => r.status === 'pending').length}
+              hint={`${all.filter((r) => r.status === 'approved').length} approved · ${all.filter((r) => r.status === 'rejected').length} rejected`} />,
+          ] : [
+          <Stat key="a" label="Total requests" value={all.length} hint="Every request" />,
+          <Stat key="b"
             label="Pending approval"
             value={all.filter((r) => r.status === 'pending').length}
             hint="Awaiting a decision"
-          />
-          <Stat
+          />,
+          <Stat key="c"
             label="Approved"
             value={all.filter((r) => r.status === 'approved').length}
             hint="Decided in favour"
-          />
-          {/* The fourth box was a headcount split that repeated what the Who
-              column already says. Rejected is the one somebody looks for. */}
-          <Stat
+          />,
+          <Stat key="d"
             label="Rejected"
             value={all.filter((r) => r.status === 'rejected').length}
             hint="Turned down"
           />
-          </>)}
+          ]}
         </CellGrid>
 
         {mayApply && (
