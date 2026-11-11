@@ -559,7 +559,7 @@ function NoteForm({ studentId }: { studentId: string }) {
           rows={2}
           value={description}
           onChange={setDescription}
-          placeholder="Stayed back to help a classmate who had missed a week with dengue."
+          placeholder="What the child did"
         />
       </Field>
       <Field label="What was done about it">
@@ -627,7 +627,7 @@ function PlanForm({
           rows={2}
           value={concern}
           onChange={setConcern}
-          placeholder="Moderate hearing loss in the left ear; misses instructions given from the back of the room."
+          placeholder="What the child finds hard"
         />
       </Field>
       <Field label="What the school will do" hint="One per line." required>
@@ -646,10 +646,10 @@ function PlanForm({
           <Input value={exam} onChange={setExam} placeholder="Optional" />
         </Field>
         <Field label="Outside support">
-          <Input value={external} onChange={setExternal} placeholder="Therapist, clinic, resource centre" />
+          <Input value={external} onChange={setExternal} placeholder="Optional" />
         </Field>
         <Field label="Category" hint="Goes on the UDISE+ return.">
-          <Input value={type} onChange={setType} placeholder="hearing_impairment" />
+          <Input value={type} onChange={setType} placeholder="Optional" />
         </Field>
         <Field label="Review on" hint="A plan with no review date is one nobody revisits.">
           <Input type="date" value={review} onChange={setReview} />
