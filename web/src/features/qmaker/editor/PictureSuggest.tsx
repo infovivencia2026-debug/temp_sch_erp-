@@ -55,9 +55,13 @@ function Tile({ p, onPick, busy, small }: { p: PictureHit; onPick: () => void; b
 const paragraphText = (e: Editor | null) => (e && !e.isDestroyed ? e.state.selection.$from.parent.textContent : '')
 
 /** A small row of suggestions under the toolbar, for the paragraph being typed. */
+/* The thing to draw is nearly always the last key word ("What is the colour of
+   apple?" -> apple); three words together brought mixed pictures (owner, 2026-11-11). */
+const lastWord = (q: string) => q.split(' ').filter(Boolean).pop() ?? ''
+
 export function PictureStrip({ editor }: { editor: Editor | null }) {
   // Asks once typing has paused for a second, and only for words worth a picture.
-  const q = useDebouncedValue(pictureKeywords(paragraphText(editor)), 1000)
+  const q = useDebouncedValue(lastWord(pictureKeywords(paragraphText(editor))), 1000)
   const [hidden, setHidden] = useState('')
   const { insert, busy } = useInsertPicture(editor)
   const ask = q.length >= 3 && q !== hidden
@@ -87,7 +91,7 @@ export function PictureStrip({ editor }: { editor: Editor | null }) {
 /** "Find a picture": search the library, clip art or photos. */
 export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
   const { from, to, empty } = editor.state.selection
-  const [text, setText] = useState(() => pictureKeywords(empty ? paragraphText(editor) : editor.state.doc.textBetween(from, to, ' ')))
+  const [text, setText] = useState(() => empty ? lastWord(pictureKeywords(paragraphText(editor))) : pictureKeywords(editor.state.doc.textBetween(from, to, ' ')))
   const [kind, setKind] = useState<PictureKind>('clipart')
   const q = pictureKeywords(useDebouncedValue(text, 400))
   const { insert, busy } = useInsertPicture(editor)

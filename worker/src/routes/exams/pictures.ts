@@ -46,6 +46,15 @@ function commonsThumb(fileUrl: string, width: 330 | 500): string | null {
 /** Titles that are signs, logos and maps, not pictures a child would recognise. */
 const NOT_CLIPART = /\b(logo|bsicon|pictogram|symbol|sign|signage|emblem|coat of arms|flag|map|route|line \d|station|icon set)\b/i
 
+function directPicture(u: string): { thumb: string; full: string } | null {
+  if (/^https:\/\/live\.staticflickr\.com\/\d+\/\d+_[0-9a-f]+(_[a-z])?\.jpg$/.test(u)) {
+    const base = u.replace(/(_[a-z])?\.jpg$/, '')
+    return { thumb: `${base}_n.jpg`, full: `${base}_b.jpg` }
+  }
+  if (/^https:\/\/images\.rawpixel\.com\/editor_\d+\/[A-Za-z0-9_-]+\.(jpg|png)$/.test(u)) return { thumb: u, full: u }
+  return null
+}
+
 async function openverse(q: string, kind: PictureKind): Promise<PictureHit[]> {
   const u = new URL('https://api.openverse.org/v1/images/')
   // "bus" alone brought logos and route signs; "bus clipart" brings drawings (owner, 2026-11-11).
@@ -63,8 +72,12 @@ async function openverse(q: string, kind: PictureKind): Promise<PictureHit[]> {
     if (kind === 'clipart' && NOT_CLIPART.test(r.title ?? '')) continue
     // Openverse cannot shrink an SVG; Commons renders its own as PNG.
     const fromCommons = r.url ? commonsThumb(r.url, 330) : null
-    const thumb = fromCommons ?? `https://api.openverse.org/v1/images/${r.id}/thumb/`
-    const full = r.url ? commonsThumb(r.url, 500) ?? thumb : thumb
+    /* Openverse's own thumbnail service gave broken pictures from the Worker
+       (owner, 2026-11-11): Flickr and rawpixel pictures are taken from their
+       own hosts instead, Flickr at 320px for the tile. */
+    const direct = r.url ? directPicture(r.url) : null
+    const thumb = fromCommons ?? direct?.thumb ?? `https://api.openverse.org/v1/images/${r.id}/thumb/`
+    const full = r.url ? commonsThumb(r.url, 500) ?? direct?.full ?? thumb : thumb
     if (r.filetype === 'svg' && !fromCommons) continue
     if (!isLibraryPictureUrl(thumb) || !isLibraryPictureUrl(full)) continue
     out.push({ thumb, full, title: (r.title ?? '').slice(0, 120), creator: (r.creator ?? '').slice(0, 80), licence: licenceName(r.license, r.license_version), source: r.foreign_landing_url ?? '' })
@@ -124,7 +137,7 @@ async function pictureSearch(c: Ctx) {
   const q = pictureKeywords(String(c.url.searchParams.get('q') ?? '').slice(0, 400)).slice(0, MAX_QUERY)
   const kind: PictureKind = c.url.searchParams.get('kind') === 'photo' ? 'photo' : 'clipart'
   if (q.length < 3) throw badRequest('Type a word to find pictures for.')
-  const out = await cached<{ q: string; kind: PictureKind; items: PictureHit[]; unavailable?: boolean }>(`${kind}/${encodeURIComponent(q)}`, 3600, async () => {
+  const out = await cached<{ q: string; kind: PictureKind; items: PictureHit[]; unavailable?: boolean }>(`v2/${kind}/${encodeURIComponent(q)}`, 3600, async () => {
     try {
       let items = await search(q, kind)
       let shown = kind

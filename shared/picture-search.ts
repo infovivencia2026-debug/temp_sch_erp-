@@ -43,6 +43,8 @@ export interface PictureHit {
 }
 
 const OPENVERSE_THUMB = /^\/v1\/images\/[0-9a-f-]{36}\/thumb\/$/
+const FLICKR = /^\/\d+\/\d+_[0-9a-f]+(_[a-z])?\.jpg$/
+const RAWPIXEL = /^\/editor_\d+\/[A-Za-z0-9_-]+\.(jpg|png)$/
 const COMMONS = /^\/wikipedia\/commons\/[\w%().,~!'*+-]+(\/[\w%().,~!'*+-]+)*$/
 
 /** True only for a picture on a library's own host, over https, with nothing unexpected in it. */
@@ -51,6 +53,8 @@ export function isLibraryPictureUrl(u: string): boolean {
   try { url = new URL(u) } catch { return false }
   if (url.protocol !== 'https:' || url.username || url.password || url.port || url.search || url.hash) return false
   if (url.hostname === 'api.openverse.org') return OPENVERSE_THUMB.test(url.pathname)
+  if (url.hostname === 'live.staticflickr.com') return FLICKR.test(url.pathname)
+  if (url.hostname === 'images.rawpixel.com') return RAWPIXEL.test(url.pathname)
   if (url.hostname === 'upload.wikimedia.org') return COMMONS.test(url.pathname) && !url.pathname.includes('..')
   return false
 }
