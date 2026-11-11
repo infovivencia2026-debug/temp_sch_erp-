@@ -110,8 +110,16 @@ async function send<T>(path: string, init?: RequestInit): Promise<T> {
 
   let res: Response
   try {
+    /* A read gives up after 25 s (owner, 2026-11-11: teachers saw screens load
+       for ever on the school line). It is then retried once by React Query and,
+       failing that, the screen says so with Try again instead of spinning. */
+    const limit = method === 'GET' ? AbortSignal.timeout(25_000) : undefined
+    const signal = limit && init?.signal && 'any' in AbortSignal
+      ? (AbortSignal as unknown as { any: (s: AbortSignal[]) => AbortSignal }).any([init.signal, limit])
+      : init?.signal ?? limit
     res = await fetch(path, {
       ...init,
+      signal,
       credentials: 'same-origin',
       headers: {
         Accept: 'application/json',
