@@ -360,7 +360,24 @@ export default function StudentProfile() {
     queryFn: () => api.get<List<Remark>>(
       `/api/v1/teaching/remarks?student_id=${selected}`),
   })
-  const remarkRows = remarks.data?.items ?? []
+  /* Conduct notes written in My Classes are remarks too (owner, 2026-11-11:
+     "this will be on remark in students in student 360"); shown with them,
+     newest first. A teacher without access to them still sees the remarks. */
+  const conduct = useQuery({
+    queryKey: ['student-notes', selected],
+    enabled: !!selected,
+    retry: false,
+    queryFn: () => api.get<List<{ id: string; occurred_on: string; category: string; is_positive: boolean; description: string; action_taken?: string; recorded_by?: string }>>(
+      `/api/v1/students/notes?student_id=${selected}`),
+  })
+  const remarkRows: Remark[] = [
+    ...(remarks.data?.items ?? []),
+    ...(conduct.data?.items ?? []).map((n) => ({
+      id: `note-${n.id}`, kind: n.is_positive ? 'praise' : n.category, private: true,
+      body: n.action_taken ? `${n.description}\nDone: ${n.action_taken}` : n.description,
+      observed_on: n.occurred_on, recorded_at: '', recorded_by: n.recorded_by,
+    })),
+  ].sort((x, y) => (y.observed_on ?? '').localeCompare(x.observed_on ?? ''))
 
   /* The child's photograph.
 

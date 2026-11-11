@@ -474,9 +474,6 @@ function ChildPanel({
                       {formatDate(n.occurred_on)}
                       {n.recorded_by && ` · ${n.recorded_by}`}
                     </span>
-                    {!n.visible_to_student && (
-                      <span className="text-[12px] text-muted-foreground">· staff only</span>
-                    )}
                   </div>
                   <p className="mt-0.5 text-[13px]">{n.description}</p>
                   {n.action_taken && (
@@ -518,7 +515,6 @@ function NoteForm({ studentId }: { studentId: string }) {
   const [positive, setPositive] = useState(false)
   const [description, setDescription] = useState('')
   const [action, setAction] = useState('')
-  const [shared, setShared] = useState(true)
   const [notified, setNotified] = useState(false)
   // Notes are usually written the same day, but not always — a teacher
   // catching up on Friday needs to say which day it happened.
@@ -533,7 +529,8 @@ function NoteForm({ studentId }: { studentId: string }) {
         is_positive: positive,
         description,
         action_taken: action,
-        visible_to_student: shared,
+        // A remark for the school, read in Student 360; not shown to the parent (owner, 2026-11-11).
+        visible_to_student: false,
         parent_notified: notified,
       }),
     onSuccess: () => {
@@ -570,11 +567,6 @@ function NoteForm({ studentId }: { studentId: string }) {
           checked={positive}
           onChange={setPositive}
           label="This is something good"
-        />
-        <Checkbox
-          checked={shared}
-          onChange={setShared}
-          label="Parent can see this"
         />
         <Checkbox
           checked={notified}
