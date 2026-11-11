@@ -167,7 +167,7 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
         <Select
           value={sectionId}
           onChange={setSectionId}
-          placeholder="All sections"
+          placeholder={isLoading ? "Loading…" : "All sections"}
           options={allSections}
         />
       </Field>

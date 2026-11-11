@@ -553,14 +553,14 @@ export default function ReportCards() {
                 </ul></Anchored>
               )}
             </div>
-            <Select value={sectionId} onChange={setSectionId} placeholder="Section"
+            <Select value={sectionId} onChange={setSectionId} placeholder={sections.isLoading ? 'Loading…' : 'Section'}
               options={(sections.data?.items ?? []).map((s) => ({
                 value: s.id, label: `${s.class_name}-${s.name}`,
               }))} />
             <Select
               value={examId}
               onChange={setExamId}
-              placeholder="Choose an exam"
+              placeholder={exams.isLoading ? 'Loading…' : 'Choose an exam'}
               options={(exams.data?.items ?? []).map((e) => ({
                 value: e.id, label: `${e.name} (${e.papers} papers)`,
               }))}
@@ -668,7 +668,7 @@ export default function ReportCards() {
             These four read 0, 0, — and — before anybody picks one: a confident
             row of figures about an exam that has not been named. "Report cards
             0" is indistinguishable from a real exam with no cards generated. */}
-        {all.length === 0 ? (
+        {sectionId && cards.isLoading ? <Loading /> : sectionId && cards.error ? <ErrorState error={cards.error} /> : all.length === 0 ? (
           <EmptyState
             title={sectionId ? 'No report cards yet' : 'Choose a section'}
             body={

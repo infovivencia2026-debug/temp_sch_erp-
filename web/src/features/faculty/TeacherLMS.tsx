@@ -465,6 +465,7 @@ function GradebookView({ id, back }: { id: string; back: () => void }) {
       </div>
       {nudge.data && <p className="border-b px-[var(--card-pad)] py-2 text-[13px]">Reminded {nudge.data.told} people about {nudge.data.missing} children{nudge.data.unreachable ? `; ${nudge.data.unreachable} have no login to reach` : ''}.</p>}
       {giveBack.data && <p className="border-b px-[var(--card-pad)] py-2 text-[13px]">{giveBack.data.returned} returned.</p>}
+      {(nudge.error || giveBack.error) && <div className="border-b px-[var(--card-pad)] py-2"><FormNotice error={nudge.error ?? giveBack.error} /></div>}
       <Table head={['Roll', 'Student', 'Status', 'Work', `Marks${g.assignment.max_marks !== null ? ` / ${g.assignment.max_marks}` : ''}`, '']}>
         {g.items.map((r) => (
           <Fragment key={r.student_id}>
@@ -583,6 +584,7 @@ function Quizzes({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
           <FormNotice error={withdraw.error} />
         </Dialog>
       )}
+      {status.error && <FormNotice error={status.error} />}
       {results && <QuizResults id={results} />}
     </div>
   )

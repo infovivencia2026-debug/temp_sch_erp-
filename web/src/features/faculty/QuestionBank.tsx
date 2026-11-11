@@ -133,7 +133,7 @@ export default function QuestionBank({ embedded = false }: { embedded?: boolean 
             title="By subject"
             description="Whether each bank is deep enough, and of the right kind"
           />
-          {banks.length === 0 ? (
+          {summary.isLoading ? <Loading shape="table" rows={3} /> : summary.error ? <ErrorState error={summary.error} /> : banks.length === 0 ? (
             <EmptyState title="No subjects" />
           ) : (
             <Table head={['Class', 'Subject', 'Total', 'Objective', 'Easy', 'Medium', 'Hard', 'Above recall', 'Chapters']}>
@@ -163,7 +163,7 @@ export default function QuestionBank({ embedded = false }: { embedded?: boolean 
                 <Select
                   value={subject}
                   onChange={setSubject}
-                  placeholder="Any subject"
+                  placeholder={subjects.isLoading ? 'Loading…' : 'Any subject'}
                   options={(subjects.data?.items ?? []).map((s) => ({
                     value: s.class_subject_id,
                     label: `${s.class_name} · ${s.subject}`,
@@ -345,7 +345,7 @@ function Compose({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string) 
             <Select
               value={classSubjectID}
               onChange={setClassSubjectID}
-              placeholder="Choose a subject"
+              placeholder={subjects.isLoading ? 'Loading…' : 'Choose a subject'}
               options={(subjects.data?.items ?? []).map((s) => ({
                 value: s.class_subject_id,
                 label: `${s.class_name} · ${s.subject}`,
@@ -582,7 +582,7 @@ function GenerateFromLesson({ onDone }: { onDone: () => void }) {
             <Select
               value={classSubjectID}
               onChange={setClassSubjectID}
-              placeholder="Choose a subject"
+              placeholder={subjects.isLoading ? 'Loading…' : 'Choose a subject'}
               options={(subjects.data?.items ?? []).map((s) => ({
                 value: s.class_subject_id,
                 label: `${s.class_name} · ${s.subject}`,

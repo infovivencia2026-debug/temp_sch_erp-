@@ -4,7 +4,7 @@ import { Eye, Image as ImageIcon, Pin, PinOff, Play, Plus, Trash2 } from 'lucide
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useOptimisticMutation, useUndoableDelete } from '@/lib/optimistic'
-import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, PageBody, PageHead } from '@/components/ui'
+import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Loading, PageBody, PageHead } from '@/components/ui'
 import StatusRings, { ViewsSheet } from './status/StatusRings'
 import StatusComposer, { StatusFileInput } from './status/StatusComposer'
 import { hoursLeft, type MyPost } from './status/status-api'
@@ -78,7 +78,7 @@ export default function ClassStatus() {
         <StatusRings />
         <Card>
           <CardHeader title="My posts" description="Live for 24 hours from when they went live. Pinned posts stay in the class gallery." />
-          {mine.isError ? <ErrorState error={mine.error} /> : !mine.data ? null : mine.data.items.length === 0 ? (
+          {mine.isError ? <ErrorState error={mine.error} /> : !mine.data ? <Loading shape="table" rows={3} /> : mine.data.items.length === 0 ? (
             <EmptyState title="Nothing posted yet" body="Take a photo of today's class and share it with the families." />
           ) : (
             <ul className="divide-y">

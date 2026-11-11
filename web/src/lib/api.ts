@@ -113,7 +113,13 @@ async function send<T>(path: string, init?: RequestInit): Promise<T> {
     /* A read gives up after 25 s (owner, 2026-11-11: teachers saw screens load
        for ever on the school line). It is then retried once by React Query and,
        failing that, the screen says so with Try again instead of spinning. */
-    const limit = method === 'GET' ? AbortSignal.timeout(25_000) : undefined
+    /* A write gives up after 60 s: a save that never answered spun for ever.
+       It then goes to the outbox under the same Idempotency-Key, so if the
+       server did take it the resend is recognised and not done twice. A file
+       upload (FormData) is left alone: it is slow on purpose and has its own. */
+    const limit = method === 'GET' ? AbortSignal.timeout(25_000)
+      : typeof init?.body === 'string' || init?.body == null ? AbortSignal.timeout(60_000)
+      : undefined
     const signal = limit && init?.signal && 'any' in AbortSignal
       ? (AbortSignal as unknown as { any: (s: AbortSignal[]) => AbortSignal }).any([init.signal, limit])
       : init?.signal ?? limit
@@ -147,6 +153,11 @@ async function send<T>(path: string, init?: RequestInit): Promise<T> {
         'queued_offline',
         'Saved on this device. It will be sent as soon as there is a connection.',
       )
+    }
+    if (e instanceof DOMException && e.name === 'TimeoutError') {
+      throw new ApiError(0, 'timeout', idem
+        ? 'The server did not answer in time. Check whether it saved, then try again.'
+        : 'The server did not answer in time. The internet may be slow; try again.')
     }
     if (idem) {
       throw new ApiError(0, 'offline', 'Needs internet. Nothing was saved; try again when you are connected.')

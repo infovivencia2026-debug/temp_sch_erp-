@@ -5,6 +5,7 @@ import { StatParts, StatTrend, type StatPart, type TrendPoint } from './stat-ext
 import { PickerMenu } from '@/components/PickerMenu'
 import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, SkeletonForm, useDelayed } from './Skeleton'
 import { ApiError } from '@/lib/api'
+import { QueryClientContext } from '@tanstack/react-query'
 import { useBundleTitle } from '@/lib/bundle-title'
 import { DatePopover, prettyDate } from '@/components/DatePopover'
 import { printDocument } from '@/lib/print'
@@ -2916,7 +2917,12 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
   return null
 }
 
-export function ErrorState({ error }: { error: unknown }) {
+export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  /* Try again (owner, 2026-11-11: teachers on the school line). Without an
+     onRetry it refetches the screen's failed queries, so every ErrorState
+     over a query gets the button without each screen wiring it. */
+  const qc = useContext(QueryClientContext)
+  const [retrying, setRetrying] = useState(false)
   const raw = error instanceof Error ? error.message.trim() : ''
   const refused = (error instanceof ApiError && error.status === 403) || /^forbidden\.?$/i.test(raw) || /^[a-z_]+(\.[a-z_]+)+$/.test(raw)
   /* A 401 is a sign-in that has ended (identity.ts found no live session),
@@ -2930,6 +2936,22 @@ export function ErrorState({ error }: { error: unknown }) {
     <Card className="empty-state p-10 text-center">
       <p role="alert" className="mx-auto max-w-md text-[15px] font-medium text-destructive">{msg}</p>
       {ended && <div className="mt-3 flex justify-center"><a href="/login" className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">Sign in again</a></div>}
+      {!ended && !refused && (onRetry || qc) && (
+        <div className="mt-3 flex justify-center">
+          <Button
+            variant="secondary"
+            disabled={retrying}
+            onClick={() => {
+              if (onRetry) return onRetry()
+              setRetrying(true)
+              void qc!.refetchQueries({ type: 'active', predicate: (q) => q.state.status === 'error' })
+                .finally(() => setRetrying(false))
+            }}
+          >
+            <RefreshCw className="size-4" /> {retrying ? 'Trying…' : 'Try again'}
+          </Button>
+        </div>
+      )}
       <div className="mt-2 flex justify-center"><CopyRef text={msg} /></div>
     </Card>
   )

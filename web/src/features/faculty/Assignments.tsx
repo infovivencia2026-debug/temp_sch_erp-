@@ -184,7 +184,7 @@ function Compose({ onDone }: { onDone: () => void }) {
             <Select
               value={sectionID}
               onChange={setSectionID}
-              placeholder="Choose a class"
+              placeholder={classes.isLoading ? 'Loading…' : 'Choose a class'}
               options={(classes.data?.items ?? []).map((c) => ({
                 value: c.section_id,
                 label: `${c.class_name} ${c.section_name}`,
@@ -195,7 +195,7 @@ function Compose({ onDone }: { onDone: () => void }) {
             <Select
               value={classSubjectID}
               onChange={setClassSubjectID}
-              placeholder="No particular subject"
+              placeholder={subjects.isLoading ? 'Loading…' : 'No particular subject'}
               options={(subjects.data?.items ?? []).map((s) => ({
                 value: s.class_subject_id,
                 label: `${s.class_name} · ${s.subject}`,

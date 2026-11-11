@@ -37,7 +37,7 @@ const SENT: Record<string, { label: string; tone: 'warning' | 'success' | 'dange
 }
 
 /** A new paper, set up from the exam it is for when one is chosen. */
-function NewPaper({ slots, onClose, onMade }: { slots: Slot[]; onClose: () => void; onMade: (id: string) => void }) {
+function NewPaper({ slots, slotsLoading, onClose, onMade }: { slots: Slot[]; slotsLoading?: boolean; onClose: () => void; onMade: (id: string) => void }) {
   const [slot, setSlot] = useState('')
   const make = useMutation({
     mutationFn: () => {
@@ -59,7 +59,7 @@ function NewPaper({ slots, onClose, onMade }: { slots: Slot[]; onClose: () => vo
     >
       <div className="space-y-4">
         <Field label="Exam" hint="Optional. Exams of the classes you teach.">
-          <Select value={slot} onChange={setSlot} placeholder={slots.length ? 'Choose' : 'No exams scheduled for your classes'}
+          <Select value={slot} onChange={setSlot} placeholder={slotsLoading ? 'Loading…' : slots.length ? 'Choose' : 'No exams scheduled for your classes'}
             options={slots.filter((s) => s.status !== 'approved').map((s) => ({ value: s.exam_subject_id, label: `${s.class} · ${s.subject} · ${s.exam_name}` }))} />
         </Field>
         <FormNotice error={make.error} />
@@ -167,7 +167,7 @@ export default function QuestionMaker({ embedded = false, slots: given }: { embe
           )}
         </Card>
       </Body>
-      {starting && <NewPaper slots={slots} onClose={() => setStarting(false)} onMade={(id) => { setStarting(false); qc.invalidateQueries({ queryKey: ['paper-drafts'] }); setEditing(id) }} />}
+      {starting && <NewPaper slots={slots} slotsLoading={!given && slotsQ.isLoading} onClose={() => setStarting(false)} onMade={(id) => { setStarting(false); qc.invalidateQueries({ queryKey: ['paper-drafts'] }); setEditing(id) }} />}
     </>
   )
 }

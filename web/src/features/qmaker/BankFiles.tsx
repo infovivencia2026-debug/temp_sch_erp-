@@ -59,7 +59,7 @@ function ImportDialog({ got, name, onClose }: { got: Received; name: string; onC
     >
       <div className="space-y-4">
         <Field label="Add them to" required>
-          <Select value={subject} onChange={setSubject} placeholder="Choose a subject"
+          <Select value={subject} onChange={setSubject} placeholder={subjects.isLoading ? 'Loading…' : 'Choose a subject'}
             options={(subjects.data?.items ?? []).map((s) => ({ value: s.class_subject_id, label: `${s.class_name} · ${s.subject}` }))} />
         </Field>
         {progress && <FormNotice ok={progress} />}

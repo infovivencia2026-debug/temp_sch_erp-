@@ -227,7 +227,7 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
         <Select
           value={sectionId}
           onChange={setSectionId}
-          placeholder="All sections"
+          placeholder={isLoading ? "Loading…" : "All sections"}
           options={allSections}
         />
       </Field>

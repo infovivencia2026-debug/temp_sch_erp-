@@ -94,7 +94,13 @@ function putPart(id: string, n: number, blob: Blob, onBytes: (sent: number) => v
     x.setRequestHeader('Content-Type', 'application/octet-stream')
     const acting = actingInstitution()
     if (acting) x.setRequestHeader('X-Acting-Institution', acting)
-    x.upload.onprogress = (e) => onBytes(e.loaded)
+    /* A part that stops moving for a minute is given up (the school line can
+       hang a request for ever); the job then pauses and resumes from it. */
+    let stall = setTimeout(() => x.abort(), 60_000)
+    const alive = () => { clearTimeout(stall); stall = setTimeout(() => x.abort(), 60_000) }
+    x.upload.onprogress = (e) => { alive(); onBytes(e.loaded) }
+    x.onloadend = () => clearTimeout(stall)
+    x.onabort = () => reject(new Error(`part ${n}: the connection stopped moving`))
     x.onload = () => {
       if (x.status >= 200 && x.status < 300) return resolve()
       let msg = `part ${n} failed (${x.status})`
@@ -136,7 +142,7 @@ async function runUpload(job: Job, meta: { title: string; description: string; s
     job.id = s.id; partSize = s.part_size
     store.set(key, s.id)
     if (job.probe?.thumb) {
-      await fetch(`/api/v1/lms/videos/${s.id}/thumbnail`, { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'image/jpeg' }, body: job.probe.thumb }).catch(() => {})
+      await fetch(`/api/v1/lms/videos/${s.id}/thumbnail`, { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'image/jpeg' }, body: job.probe.thumb, signal: AbortSignal.timeout(30_000) }).catch(() => {})
     }
   }
   const id = job.id!
@@ -423,10 +429,10 @@ function UseInLesson({ v, done }: { v: Video; done: () => void }) {
     <Card>
       <CardHeader title={`Use "${v.title}" in a lesson`} action={<Button size="sm" variant="secondary" onClick={done}>Close</Button>} />
       <div className="grid gap-3 px-[var(--card-pad)] pb-4 sm:grid-cols-2">
-        <Field label="Course"><Select value={course} onChange={(x) => { setCourse(x); setUnit('') }} placeholder="Choose a course"
+        <Field label="Course"><Select value={course} onChange={(x) => { setCourse(x); setUnit('') }} placeholder={courses.isLoading ? 'Loading…' : courses.error ? 'Could not load your courses' : 'Choose a course'}
           options={(courses.data?.items ?? []).map((x) => ({ value: x.section_id + '|' + x.class_subject_id, label: `${x.subject} · ${x.class_name} ${x.section_name}` }))} /></Field>
         <Field label="Unit" hint={c && detail.data && !detail.data.units.length ? 'This course has no units yet: add one in the course first.' : undefined}>
-          <Select value={unit} onChange={setUnit} placeholder="Choose a unit" options={(detail.data?.units ?? []).map((u) => ({ value: u.id, label: u.title }))} />
+          <Select value={unit} onChange={setUnit} placeholder={detail.isLoading ? 'Loading…' : 'Choose a unit'} options={(detail.data?.units ?? []).map((u) => ({ value: u.id, label: u.title }))} />
         </Field>
         <Field label="Lesson title"><Input value={title} onChange={setTitle} /></Field>
         <Field label="Day of the unit (optional)"><Input type="number" value={day} onChange={setDay} /></Field>
@@ -449,6 +455,7 @@ export function VideoUpload({ onUploaded }: { onUploaded: (id: string, title: st
 export function VideoPick({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const q = useQuery({ queryKey: ['lms-videos', 'status=ready'], queryFn: () => api.get<Library>('/api/v1/lms/videos?status=ready') })
   if (q.isLoading) return <Loading />
+  if (q.error) return <FormNotice error={q.error} />
   const items = q.data?.items ?? []
   if (!items.length) return <p className="text-[13px] text-muted-foreground">Your video library is empty. Upload a video in LMS → Video library first.</p>
   return <Select value={value} onChange={onChange} placeholder="Choose a video" options={items.map((v) => ({ value: v.id, label: `${v.title}${v.duration_seconds ? ` (${fmtDur(v.duration_seconds)})` : ''}` }))} />

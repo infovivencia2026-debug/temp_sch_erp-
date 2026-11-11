@@ -202,6 +202,10 @@ async function run({ force = false }: { force?: boolean }) {
           ...(row.body ? { 'Content-Type': 'application/json' } : {}),
         },
         body: row.body,
+        /* A replay that never answers would hold the whole queue behind it
+           (flush runs one pass at a time). After 60 s it counts as a failed
+           attempt like no network; the key makes a late success harmless. */
+        signal: AbortSignal.timeout(60_000),
       })
     } catch {
       /* Still no network. Count the attempt and stop the pass: the order

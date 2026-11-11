@@ -288,7 +288,7 @@ export default function TodaysClasses() {
             {notes.isLoading ? (
               <Loading label="Loading notifications" />
             ) : notes.error ? (
-              <EmptyState title="Could not load notifications" body="Open the bell at the top to try again." />
+              <ErrorState error={notes.error} />
             ) : noteItems.length === 0 ? (
               <EmptyState title="No notifications" body="New notices and messages for you appear here." />
             ) : (
