@@ -43,9 +43,13 @@ function commonsThumb(fileUrl: string, width: 330 | 500): string | null {
   return `https://upload.wikimedia.org/wikipedia/commons/thumb/${a}/${ab}/${name}/${width}px-${name}${ext === 'svg' ? '.png' : ''}`
 }
 
+/** Titles that are signs, logos and maps, not pictures a child would recognise. */
+const NOT_CLIPART = /\b(logo|bsicon|pictogram|symbol|sign|signage|emblem|coat of arms|flag|map|route|line \d|station|icon set)\b/i
+
 async function openverse(q: string, kind: PictureKind): Promise<PictureHit[]> {
   const u = new URL('https://api.openverse.org/v1/images/')
-  u.searchParams.set('q', q)
+  // "bus" alone brought logos and route signs; "bus clipart" brings drawings (owner, 2026-11-11).
+  u.searchParams.set('q', kind === 'clipart' ? `${q} clipart` : q)
   u.searchParams.set('license_type', 'commercial,modification')
   u.searchParams.set('category', kind === 'clipart' ? 'illustration' : 'photograph')
   u.searchParams.set('mature', 'false')
@@ -56,6 +60,7 @@ async function openverse(q: string, kind: PictureKind): Promise<PictureHit[]> {
   const out: PictureHit[] = []
   for (const r of body.results ?? []) {
     if (r.mature || (r.unstable__sensitivity?.length ?? 0) > 0) continue
+    if (kind === 'clipart' && NOT_CLIPART.test(r.title ?? '')) continue
     // Openverse cannot shrink an SVG; Commons renders its own as PNG.
     const fromCommons = r.url ? commonsThumb(r.url, 330) : null
     const thumb = fromCommons ?? `https://api.openverse.org/v1/images/${r.id}/thumb/`
@@ -74,7 +79,7 @@ const plain = (s = '') => s.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
 async function commons(q: string, kind: PictureKind): Promise<PictureHit[]> {
   const u = new URL('https://commons.wikimedia.org/w/api.php')
   const p = { action: 'query', format: 'json', generator: 'search', gsrnamespace: '6', gsrlimit: '30',
-    gsrsearch: `${q} filetype:${kind === 'clipart' ? 'drawing' : 'bitmap'}`, prop: 'imageinfo', iiprop: 'url|extmetadata', origin: '*' }
+    gsrsearch: kind === 'clipart' ? `${q} clipart filetype:drawing` : `${q} filetype:bitmap`, prop: 'imageinfo', iiprop: 'url|extmetadata', origin: '*' }
   for (const [k, v] of Object.entries(p)) u.searchParams.set(k, v)
   const res = await fetch(u.href, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: timeout() })
   if (!res.ok) throw new Error(`commons ${res.status}`)

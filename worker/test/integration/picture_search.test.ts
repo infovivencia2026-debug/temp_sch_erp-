@@ -49,7 +49,7 @@ describe('picture search', () => {
     expect(r.body.q).toBe('apple student ravi')
     expect(r.body.kind).toBe('clipart')
     const sent = new URL(seen[0])
-    expect(sent.searchParams.get('q')).toBe('apple student ravi')
+    expect(sent.searchParams.get('q')).toBe('apple student ravi clipart')
     expect(sent.searchParams.get('category')).toBe('illustration')
     expect(sent.searchParams.get('mature')).toBe('false')
     expect(seen[0]).not.toContain('9876543210')
