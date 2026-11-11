@@ -138,7 +138,7 @@ async function sendDraft(c: Ctx) {
   if (!slot) throw badRequest('Choose which exam paper this is for.')
   if (!(await examSubjectInScope(c, slot))) throw forbidden('That exam paper is not one of your classes.')
   const existing = await c.db.prepare(`SELECT status FROM question_papers WHERE exam_subject_id = ?`).bind(slot).first<{ status: string }>()
-  if (existing?.status === 'approved') throw conflict('The paper for this exam is already approved. Ask your head of department to send it back before sending a new one.')
+  if (existing?.status === 'approved') throw conflict('The paper for this exam is already approved. Ask the examination branch to send it back before sending a new one.')
   const notes = String(req.notes ?? '').trim().slice(0, 1000)
   const t = now()
   await c.db.batch([

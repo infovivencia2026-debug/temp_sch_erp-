@@ -99,7 +99,7 @@ function Split({ title, rows }: { title: string; rows: { label: string; marks: n
   )
 }
 
-/* Sending: the frozen copy goes to the head of department for the chosen
+/* Sending: the frozen copy goes to the examination branch for the chosen
    exam paper. Exams already approved are not offered; one sent and waiting
    is, and is replaced. */
 function SendDialog({ draft, doc, slots, onClose, onSent }: { draft: Draft; doc: PaperDoc; slots: Slot[]; onClose: () => void; onSent: () => void }) {
@@ -115,7 +115,7 @@ function SendDialog({ draft, doc, slots, onClose, onSent }: { draft: Draft; doc:
   return (
     <Dialog
       title="Send for approval"
-      description="Your head of department reads it and approves it or sends it back. What they read is this paper as it is now; changing it later does not change what was sent."
+      description="The examination branch reads it and approves it or sends it back. What they read is this paper as it is now; changing it later does not change what was sent."
       onClose={onClose}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
