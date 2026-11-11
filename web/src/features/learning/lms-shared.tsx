@@ -1,3 +1,4 @@
+import { shrinkImage } from '@/lib/shrink-image'
 import { ProgressRing as SharedRing } from '../../components/ProgressRing'
 import { Fragment, useRef, useState, type ReactNode } from 'react'
 import { useAutoGrow } from '@/lib/auto-grow'
@@ -56,10 +57,18 @@ export interface Placed { id: string; title: string; lms_unit_id?: string | null
 
 /** Uploads one file to POST /api/v1/files and returns its id and name. */
 export async function uploadFile(f: File, purpose: string): Promise<{ id: string; name: string; size: number; type: string }> {
+  /* A teacher's phone photo is 3-5 MB; on the school line it never finished and
+     the button spun for ever (owner, 2026-11-11). Photos go up at 1600px, and
+     an upload gives up after 2 minutes with a message instead of spinning. */
   const fd = new FormData()
-  fd.append('file', f)
+  fd.append('file', await shrinkImage(f))
   fd.append('purpose', purpose)
-  const res = await fetch('/api/v1/files', { method: 'POST', body: fd, credentials: 'same-origin' })
+  let res: Response
+  try {
+    res = await fetch('/api/v1/files', { method: 'POST', body: fd, credentials: 'same-origin', signal: AbortSignal.timeout(120_000) })
+  } catch {
+    throw new Error('The upload did not finish. Check the internet connection and try again.')
+  }
   if (!res.ok) {
     let msg = 'Could not upload that file.'
     try { msg = (await res.json()).error ?? msg } catch { /* not JSON */ }

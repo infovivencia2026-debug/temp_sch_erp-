@@ -124,6 +124,12 @@ export default function FilePicker({
       setProgress(null)
       setError('The upload did not reach the server.')
     }
+    // Gives up after 3 minutes on a dropped line instead of spinning for ever (owner, 2026-11-11).
+    xhr.timeout = 180_000
+    xhr.ontimeout = () => {
+      setProgress(null)
+      setError('The upload did not finish. Check the internet connection and try again.')
+    }
     xhr.send(body)
   }
 
