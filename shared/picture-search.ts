@@ -108,9 +108,21 @@ export function openverseUrl(q: string, kind: PictureKind, page = 1): string {
   return u.href
 }
 
-export function openverseHits(results: OpenverseHit[], kind: PictureKind, max = 12): PictureHit[] {
+/* A picture whose name does not contain a searched word is not shown: "candy"
+   brought "candy apple red" cars (owner, 2026-11-11). Plural/singular count. */
+export function namesWord(title: string, q: string): boolean {
+  const t = title.toLowerCase()
+  return q.toLowerCase().split(/\s+/).filter((w) => w.length >= 3 && w !== 'clipart').some((w) => {
+    const stem = w.replace(/(ies|es|s)$/, '')
+    const clean = stem.replace(/[^\p{L}\p{N}]/gu, '')
+    return clean.length > 0 && t.split(/[^\p{L}\p{N}]+/u).some((word) => word.startsWith(clean))
+  })
+}
+
+export function openverseHits(results: OpenverseHit[], kind: PictureKind, max = 12, q = ''): PictureHit[] {
   const out: PictureHit[] = []
   for (const r of results) {
+    if (q && !namesWord(r.title ?? '', q)) continue
     if (r.mature || (r.unstable__sensitivity?.length ?? 0) > 0) continue
     if (kind === 'clipart' && NOT_CLIPART.test(r.title ?? '')) continue
     const fromCommons = r.url ? commonsThumb(r.url, 330) : null

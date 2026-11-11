@@ -1,6 +1,6 @@
 import type { Router, Ctx } from '../../router'
 import { badRequest, HttpError, ok } from '../../http'
-import { commonsThumb, isLibraryPictureUrl, MAX_QUERY, openverseHits, openverseUrl, pictureKeywords, type OpenverseHit, type PictureHit, type PictureKind } from '../../../../shared/picture-search'
+import { commonsThumb, namesWord, isLibraryPictureUrl, MAX_QUERY, openverseHits, openverseUrl, pictureKeywords, type OpenverseHit, type PictureHit, type PictureKind } from '../../../../shared/picture-search'
 
 /* Picture suggestions for the Question maker: free, openly licensed pictures
    (CC0, public domain, CC BY, CC BY-SA) from Openverse, or Wikimedia Commons
@@ -25,7 +25,7 @@ async function openverse(q: string, kind: PictureKind): Promise<PictureHit[]> {
   const res = await fetch(openverseUrl(q, kind), { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: timeout() })
   if (!res.ok) throw new Error(`openverse ${res.status}`)
   const body = (await res.json()) as { results?: OpenverseHit[] }
-  return openverseHits(body.results ?? [], kind, MAX_RESULTS)
+  return openverseHits(body.results ?? [], kind, MAX_RESULTS, q)
 }
 
 interface CommonsPage { title: string; imageinfo?: { url: string; descriptionurl: string; extmetadata?: Record<string, { value?: string }> }[] }
@@ -43,7 +43,7 @@ async function commons(q: string, kind: PictureKind): Promise<PictureHit[]> {
   const out: PictureHit[] = []
   for (const pg of pages) {
     const ii = pg.imageinfo?.[0]
-    if (!ii) continue
+    if (!ii || !namesWord(pg.title.replace(/^File:/, ''), q)) continue
     const meta = ii.extmetadata ?? {}
     const licence = plain(meta.LicenseShortName?.value)
     // Free to reuse and adapt: public domain, CC0, CC BY, CC BY-SA. Not NC or ND.

@@ -92,6 +92,7 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
   const { from, to, empty } = editor.state.selection
   const [text, setText] = useState(() => empty ? lastWord(pictureKeywords(paragraphText(editor))) : pictureKeywords(editor.state.doc.textBetween(from, to, ' ')))
   const [tab, setTab] = useState<'clipart' | 'store'>('clipart')
+  const [up, setUp] = useState(0)
   const kind: PictureKind = 'clipart'
   const q = pictureKeywords(useDebouncedValue(text, 400))
   const { insert, busy } = useInsertPicture(editor)
@@ -109,18 +110,21 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
   return (
     <Dialog
       title="Find a picture"
+      actions={<>
+        {tab === 'store' && <Button size="sm" onClick={() => setUp((n) => n + 1)}>Upload picture</Button>}
+          <div className={SEG_BAR} role="group" aria-label="Where the picture comes from">
+          {([['clipart', 'Clip art'], ['store', 'Image store']] as const).map(([k, label]) => (
+            <button key={k} type="button" aria-pressed={tab === k} className={segClass(tab === k)} onClick={() => setTab(k)}>{label}</button>
+          ))}
+        </div>
+      </>}
       size="xl"
       onClose={onClose}
       footer={<Button variant="ghost" onClick={onClose}>Close</Button>}
     >
       <div className="space-y-4">
-        <div className={SEG_BAR} role="group" aria-label="Where the picture comes from">
-          {([['clipart', 'Clip art'], ['store', 'Image store']] as const).map(([k, label]) => (
-            <button key={k} type="button" aria-pressed={tab === k} className={segClass(tab === k)} onClick={() => setTab(k)}>{label}</button>
-          ))}
-        </div>
-        {tab === 'store' ? <ImageStorePane onPick={(assets) => { insertAssets(editor, assets); onClose() }} /> : <>
-        <SearchBox value={text} onChange={setText} placeholder="What should the picture show? e.g. apple" />
+        {tab === 'store' ? <ImageStorePane uploadTrigger={up} onPick={(assets) => { insertAssets(editor, assets); onClose() }} /> : <>
+        <SearchBox value={text} onChange={setText} placeholder="Search clip art, e.g. apple" />
         {q.length < 3 ? <EmptyState title="Type what the picture should show." body="For example: apple, leaf, clock." />
           : res.isLoading ? <Loading shape="cards" />
           : res.error ? <ErrorState error={res.error} />

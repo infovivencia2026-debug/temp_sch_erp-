@@ -31,7 +31,7 @@ async function browserSearch(q: string, kind: PictureKind, signal?: AbortSignal)
   try {
     const [a, b] = await Promise.all([page(1), page(2).catch(() => [])])
     if (a === null) return null
-    return { q, kind, items: openverseHits([...a, ...(b ?? [])], kind, 40) }
+    return { q, kind, items: openverseHits([...a, ...(b ?? [])], kind, 40, q) }
   } catch (e) {
     if (signal?.aborted) throw e
     return null
