@@ -27,7 +27,9 @@ describe('leave self service', () => {
     const r = await api('teacher', 'GET', '/hr/leave-types?for=mine')
     expect(r.status).toBe(200)
     expect(r.body.items.map((t: { id: string }) => t.id)).toEqual([given])
-    expect(r.body.items[0].remaining).toBeUndefined() // Yajur: staff are not shown days left
+    expect(r.body.items[0].remaining).toBe(9) // owner, 2026-11-11: everyone sees total, used and left
+    expect(r.body.items[0].entitled).toBe(12)
+    expect(r.body.items[0].taken).toBe(3)
     const all = await api('admin', 'GET', '/hr/leave-types?applies_to=staff')
     expect(all.body.items.map((t: { id: string }) => t.id)).toContain(other)
   })
