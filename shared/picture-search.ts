@@ -56,6 +56,7 @@ export function isLibraryPictureUrl(u: string): boolean {
   if (url.hostname === 'api.openverse.org') return OPENVERSE_THUMB.test(url.pathname)
   if (url.hostname === 'live.staticflickr.com') return FLICKR.test(url.pathname)
   if (url.hostname === 'images.rawpixel.com') return RAWPIXEL.test(url.pathname)
+  if (url.hostname === 'api.iconify.design') return /^\/[a-z0-9-]+\/[a-z0-9-]+\.svg$/.test(url.pathname)
   if (url.hostname === 'pixabay.com') return /^\/get\/[A-Za-z0-9_-]+\.(jpg|png)$/.test(url.pathname)
   if (url.hostname === 'cdn.pixabay.com') return /^\/photo\/\d{4}\/\d{2}\/\d{2}\/\d{2}\/\d{2}\/[\w-]+\.(jpg|png)$/.test(url.pathname)
   if (url.hostname === 'upload.wikimedia.org') return COMMONS.test(url.pathname) && !url.pathname.includes('..')
@@ -139,3 +140,48 @@ export function openverseHits(results: OpenverseHit[], kind: PictureKind, max = 
   }
   return out
 }
+
+/* Iconify, asked by the Worker (owner, 2026-11-11: a school network blocked
+   the browser asking it, so only a few backup pictures came). */
+/* Many more sets (owner, 2026-11-11: "only 4 5 images, not accurate"), and
+   an outline kind: black line drawings for colouring and labelling. A name
+   must hold the word itself ("apple", not "pineapple" or "grapple"). */
+const COLOUR_SETS: Record<string, string> = {
+  noto: 'Apache 2.0', 'noto-v1': 'Apache 2.0', 'fluent-emoji-flat': 'MIT', 'fluent-emoji': 'MIT', twemoji: 'CC BY 4.0', openmoji: 'CC BY-SA 4.0',
+  emojione: 'CC BY 4.0', 'emojione-v1': 'CC BY-SA 4.0', fxemoji: 'Apache 2.0', 'streamline-emojis': 'CC BY 4.0', 'streamline-color': 'CC BY 4.0',
+  'streamline-flex-color': 'CC BY 4.0', 'flat-color-icons': 'MIT', 'icon-park-twotone': 'Apache 2.0', healthicons: 'MIT', 'game-icons': 'CC BY 3.0',
+}
+const OUTLINE_SETS: Record<string, string> = {
+  'fluent-emoji-high-contrast': 'MIT', 'emojione-monotone': 'CC BY 4.0', 'icon-park-outline': 'Apache 2.0', tabler: 'MIT', ph: 'MIT', lucide: 'ISC',
+  iconoir: 'MIT', streamline: 'CC BY 4.0', hugeicons: 'MIT', mdi: 'Apache 2.0', healthicons: 'MIT', 'game-icons': 'CC BY 3.0',
+}
+// Filled, bold and brand variants of an outline icon, and "no-x" signs.
+const NOT_OUTLINE = /-(fill|filled|solid|bold|duotone|off|slash|ios|logo|remix|sharp|light|thin)(-|$)/
+export async function iconSearch(q: string, kind: PictureKind, signal?: AbortSignal): Promise<PictureHit[]> {
+  const sets = kind === 'outline' ? OUTLINE_SETS : COLOUR_SETS
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const stems = words.map((w) => w.replace(/(ies|es|s)$/, ''))
+  try {
+    const res = await fetch(`https://api.iconify.design/search?query=${encodeURIComponent(q)}&prefixes=${Object.keys(sets).join(',')}&limit=999`, { signal, headers: { Accept: 'application/json' } })
+    if (!res.ok) return []
+    const body = (await res.json()) as { icons?: string[] }
+    const hits = (body.icons ?? []).map((id) => {
+      const [set, name] = id.split(':')
+      const parts = name.split('-')
+      const exact = parts.some((p) => words.includes(p))
+      const ok = exact || parts.some((p) => stems.some((st) => p === st || p === st + 's' || p === st + 'es'))
+      return { set, name, parts, ok, exact }
+    }).filter((h) => h.ok && !(kind === 'outline' && NOT_OUTLINE.test(h.name)))
+    // Closest first: the name is the word itself, then short names.
+    const whole = words.join('-')
+    hits.sort((x, y) => Number(y.name === whole) - Number(x.name === whole) || Number(y.exact) - Number(x.exact) || x.parts.length - y.parts.length)
+    return hits.slice(0, 120).map(({ set, name }) => {
+      const url = `https://api.iconify.design/${set}/${name}.svg`
+      return { thumb: url, full: url, title: name.replace(/-/g, ' '), creator: set, licence: sets[set] ?? '', source: `https://icon-sets.iconify.design/${set}/${name}/` }
+    })
+  } catch (e) {
+    if (signal?.aborted) throw e
+    return []
+  }
+}
+

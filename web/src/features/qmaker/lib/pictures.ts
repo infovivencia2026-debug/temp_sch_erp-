@@ -47,53 +47,13 @@ async function browserSearch(q: string, kind: PictureKind, signal?: AbortSignal)
    licences (Noto, Twemoji, OpenMoji, Fluent, Game Icons...). Its pictures are
    named for exactly what they show, so "chocolate" is a chocolate bar, not a
    chocolate cupcake. Shown first; Openverse clip art follows as more choices. */
-/* Many more sets (owner, 2026-11-11: "only 4 5 images, not accurate"), and
-   an outline kind: black line drawings for colouring and labelling. A name
-   must hold the word itself ("apple", not "pineapple" or "grapple"). */
-const COLOUR_SETS: Record<string, string> = {
-  noto: 'Apache 2.0', 'noto-v1': 'Apache 2.0', 'fluent-emoji-flat': 'MIT', 'fluent-emoji': 'MIT', twemoji: 'CC BY 4.0', openmoji: 'CC BY-SA 4.0',
-  emojione: 'CC BY 4.0', 'emojione-v1': 'CC BY-SA 4.0', fxemoji: 'Apache 2.0', 'streamline-emojis': 'CC BY 4.0', 'streamline-color': 'CC BY 4.0',
-  'streamline-flex-color': 'CC BY 4.0', 'flat-color-icons': 'MIT', 'icon-park-twotone': 'Apache 2.0', healthicons: 'MIT', 'game-icons': 'CC BY 3.0',
-}
-const OUTLINE_SETS: Record<string, string> = {
-  'fluent-emoji-high-contrast': 'MIT', 'emojione-monotone': 'CC BY 4.0', 'icon-park-outline': 'Apache 2.0', tabler: 'MIT', ph: 'MIT', lucide: 'ISC',
-  iconoir: 'MIT', streamline: 'CC BY 4.0', hugeicons: 'MIT', mdi: 'Apache 2.0', healthicons: 'MIT', 'game-icons': 'CC BY 3.0',
-}
-// Filled, bold and brand variants of an outline icon, and "no-x" signs.
-const NOT_OUTLINE = /-(fill|filled|solid|bold|duotone|off|slash|ios|logo|remix|sharp|light|thin)(-|$)/
-async function iconSearch(q: string, kind: PictureKind, signal?: AbortSignal): Promise<PictureHit[]> {
-  const sets = kind === 'outline' ? OUTLINE_SETS : COLOUR_SETS
-  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
-  const stems = words.map((w) => w.replace(/(ies|es|s)$/, ''))
-  try {
-    const res = await fetch(`https://api.iconify.design/search?query=${encodeURIComponent(q)}&prefixes=${Object.keys(sets).join(',')}&limit=999`, { credentials: 'omit', referrerPolicy: 'no-referrer', signal })
-    if (!res.ok) return []
-    const body = (await res.json()) as { icons?: string[] }
-    const hits = (body.icons ?? []).map((id) => {
-      const [set, name] = id.split(':')
-      const parts = name.split('-')
-      const exact = parts.some((p) => words.includes(p))
-      const ok = exact || parts.some((p) => stems.some((st) => p === st || p === st + 's' || p === st + 'es'))
-      return { set, name, parts, ok, exact }
-    }).filter((h) => h.ok && !(kind === 'outline' && NOT_OUTLINE.test(h.name)))
-    // Closest first: the name is the word itself, then short names.
-    const whole = words.join('-')
-    hits.sort((x, y) => Number(y.name === whole) - Number(x.name === whole) || Number(y.exact) - Number(x.exact) || x.parts.length - y.parts.length)
-    return hits.slice(0, 120).map(({ set, name }) => {
-      const url = `https://api.iconify.design/${set}/${name}.svg`
-      return { thumb: url, full: url, title: name.replace(/-/g, ' '), creator: set, licence: sets[set] ?? '', source: `https://icon-sets.iconify.design/${set}/${name}/` }
-    })
-  } catch (e) {
-    if (signal?.aborted) throw e
-    return []
-  }
-}
-
 /* Two separate searches so the quick one shows at once (owner, 2026-11-11:
    "taking too long to load"): Iconify answers in a moment; the open library
    (two pages, Worker fallback) adds its pictures when it is ready. */
 export async function searchPictures(q: string, kind: PictureKind, signal?: AbortSignal): Promise<PictureResult> {
-  return { q, kind, items: await iconSearch(q, kind, signal) }
+  const res = await fetch(`/api/v1/exams/picture-search?q=${encodeURIComponent(q)}&kind=${kind}&src=icons`, { credentials: 'same-origin', headers: headers(), signal })
+  if (!res.ok) throw new Error('Pictures could not be searched. Check the connection and try again.')
+  return (await res.json()) as PictureResult
 }
 export async function searchMorePictures(q: string, kind: PictureKind, signal?: AbortSignal): Promise<PictureResult> {
   return searchLibrary(q, kind, signal)
@@ -110,7 +70,7 @@ async function searchLibrary(q: string, kind: PictureKind, signal?: AbortSignal)
 /** The Worker's copy of a library picture, for an <img src>. */
 export const pictureSrc = (u: string) => `/api/v1/exams/picture-search/image?u=${encodeURIComponent(u)}`
 /** A tile's picture straight from the library's host: quicker than through the Worker. */
-export const tileSrc = (u: string) => (/^https:\/\/(api\.iconify\.design|images\.rawpixel\.com|live\.staticflickr\.com|upload\.wikimedia\.org)\//.test(u) ? u : pictureSrc(u))
+export const tileSrc = (u: string) => (/^https:\/\/(images\.rawpixel\.com|live\.staticflickr\.com|upload\.wikimedia\.org)\//.test(u) ? u : pictureSrc(u))
 
 /** The name it is kept under in the image store: what it is, and whose. */
 export function creditName(p: PictureHit): string {
@@ -122,7 +82,7 @@ export function creditName(p: PictureHit): string {
 /** An Iconify SVG drawn to a 512px PNG in the browser, so it prints and goes into Word like any picture. */
 async function svgToPng(url: string): Promise<Blob> {
   // Outline icons draw in currentColor: black on paper.
-  const svg = (await (await fetch(url, { credentials: 'omit' })).text()).replace(/currentColor/g, '#000')
+  const svg = (await (await fetch(pictureSrc(url), { credentials: 'same-origin', headers: headers() })).text()).replace(/currentColor/g, '#000')
   const img = new Image()
   img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
   await img.decode()

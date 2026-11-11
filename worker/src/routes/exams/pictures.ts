@@ -1,6 +1,6 @@
 import type { Router, Ctx } from '../../router'
 import { badRequest, HttpError, ok } from '../../http'
-import { commonsThumb, namesWord, isLibraryPictureUrl, MAX_QUERY, openverseHits, openverseUrl, pictureKeywords, type OpenverseHit, type PictureHit, type PictureKind } from '../../../../shared/picture-search'
+import { iconSearch, commonsThumb, namesWord, isLibraryPictureUrl, MAX_QUERY, openverseHits, openverseUrl, pictureKeywords, type OpenverseHit, type PictureHit, type PictureKind } from '../../../../shared/picture-search'
 
 /* Picture suggestions for the Question maker: free, openly licensed pictures
    (CC0, public domain, CC BY, CC BY-SA) from Openverse, or Wikimedia Commons
@@ -104,6 +104,10 @@ async function pictureSearch(c: Ctx) {
   const kind: PictureKind = k === 'photo' ? 'photo' : k === 'outline' ? 'outline' : 'clipart'
   const key = c.env.PIXABAY_KEY
   if (q.length < 3) throw badRequest('Type a word to find pictures for.')
+  if (c.url.searchParams.get('src') === 'icons') {
+    const items = await cached<PictureHit[]>(`i1/${kind}/${encodeURIComponent(q)}`, 86400, async () => { const body = await iconSearch(q, kind, timeout()); return { body, keep: body.length > 0 } })
+    return ok({ q, kind, items })
+  }
   const out = await cached<{ q: string; kind: PictureKind; items: PictureHit[]; unavailable?: boolean }>(`v3${key ? 'p' : ''}/${kind}/${encodeURIComponent(q)}`, 3600, async () => {
     try {
       let items = await search(q, kind, key)
@@ -130,7 +134,7 @@ async function picture(c: Ctx) {
     throw new HttpError(502, 'The picture library did not answer. Try again in a moment.')
   }
   const type = (res.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase()
-  if (!res.ok || !/^image\/(png|jpeg|gif|webp)$/.test(type)) throw new HttpError(502, 'That picture could not be loaded. Choose another.')
+  if (!res.ok || !/^image\/(png|jpeg|gif|webp|svg\+xml)$/.test(type)) throw new HttpError(502, 'That picture could not be loaded. Choose another.')
   if (Number(res.headers.get('Content-Length') ?? 0) > MAX_BYTES) throw badRequest('That picture is too large. Choose another.')
   const bytes = await readCapped(res, MAX_BYTES)
   if (!bytes) throw badRequest('That picture is too large. Choose another.')
