@@ -6,10 +6,13 @@
 interface Row { needs_login?: boolean; employee_code: string; full_name: string; check_in?: string; check_out?: string; status?: string }
 
 const CUTOFF = '08:45'
+/* Left off the picture (owner, 2026-11-11): management, not staff on the clock. */
+const SKIP = ['sriram reddy', 'sri ram reddy', 'tejaswi', 'vignan']
+const skipped = (n: string) => SKIP.some((x) => n.toLowerCase().replace(/\s+/g, ' ').includes(x))
 const hm = (t?: string) => (t ?? '').slice(0, 5)
 
 export function lateListJpeg(rows: Row[], onDate: string) {
-  const live = rows.filter((r) => !r.needs_login)
+  const live = rows.filter((r) => !r.needs_login && !skipped(r.full_name))
   const late = live.filter((r) => r.check_in && hm(r.check_in) > CUTOFF).sort((a, b) => hm(a.check_in).localeCompare(hm(b.check_in)))
   const absent = ['absent', 'leave', 'week_off', 'on_duty']
   const none = live.filter((r) => !r.check_in && !r.check_out && !absent.includes(r.status ?? '')).sort((a, b) => a.full_name.localeCompare(b.full_name))
