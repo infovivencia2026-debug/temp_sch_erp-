@@ -40,22 +40,95 @@ const STOP = new Set(['a', 'an', 'the', 'i', 'how', 'do', 'does', 'can', 'to', '
 const stem = (w: string) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)
 const helpWords = (s: string) => (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP.has(w)).map(stem)
 const HELP_CONFIDENT = 2.0
+/* Asked any way at all (owner, 2026-11-11: "how can I mark attendance" and
+   "amrk attendace" got nothing, "take attendance" worked). Each word of the
+   question also counts as its synonyms, and a misspelt word as the closest
+   word the help knows (one or two letters off, swapped letters too). */
+const SYNONYMS: string[][] = [
+  ['take', 'mark', 'record', 'enter', 'entry', 'fill', 'put', 'submit', 'update'],
+  ['attendance', 'attendence', 'present', 'absent', 'absentee', 'rollcall', 'roll'],
+  ['fee', 'fees', 'payment', 'dues', 'collect', 'collection', 'receipt'],
+  ['leave', 'holiday', 'off', 'absence'],
+  ['mark', 'score', 'result', 'grade'],
+  ['timetable', 'schedule', 'period', 'routine'],
+  ['homework', 'assignment', 'task'],
+  ['exam', 'test', 'examination', 'assessment'],
+  ['student', 'pupil', 'child', 'kid', 'learner'],
+  ['staff', 'teacher', 'employee', 'faculty'],
+  ['salary', 'payroll', 'pay', 'payslip'],
+  ['message', 'sms', 'whatsapp', 'notify', 'send', 'circular', 'notice'],
+  ['report', 'card', 'marksheet', 'progress'],
+  ['admission', 'enquiry', 'enroll', 'enrol', 'join', 'new'],
+  ['transport', 'bus', 'van', 'route'],
+  ['create', 'make', 'new', 'add', 'start'],
+  ['see', 'view', 'check', 'find', 'open', 'show'],
+  ['edit', 'change', 'modify', 'correct', 'fix'],
+  ['delete', 'remove', 'cancel'],
+  ['print', 'download', 'export', 'pdf'],
+]
+const SYN = new Map<string, Set<string>>()
+for (const g of SYNONYMS) for (const w of g.map(stem)) {
+  const set = SYN.get(w) ?? new Set([w])
+  for (const x of g) set.add(stem(x))
+  SYN.set(w, set)
+}
+let VOCAB: string[] | null = null
+const vocab = () => (VOCAB ??= [...new Set(HELP_ANSWERS.flatMap((r) => [...r[4], ...r[5], ...r[6]]).concat(SYNONYMS.flat()))].filter((w) => w.length >= 3))
+/** Edit distance with swapped neighbours counting as one. */
+function typoDistance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1
+  const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)])
+  for (let j = 1; j <= b.length; j++) d[0][j] = j
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1)
+  }
+  return d[a.length][b.length]
+}
+/** The word as the help knows it: itself if known, else the closest spelling. */
+function known(w: string): string {
+  const v = vocab()
+  if (w.length < 4 || v.includes(w) || SYN.has(w)) return w
+  const max = w.length >= 7 ? 2 : 1
+  let best = w, bestD = max + 1
+  if (w.length < 4) return w
+  for (const x of v) {
+    const dd = typoDistance(w, x, max)
+    // Fewest changes; on a tie, the same first letter and a word the synonyms know.
+    const rank = (y: string, n: number) => n * 4 + (y[0] === w[0] ? 0 : 2) + (SYN.has(stem(y)) ? 0 : 1)
+    if (dd <= max && rank(x, dd) < rank(best, bestD)) { best = x; bestD = dd }
+  }
+  return bestD <= max ? best : w
+}
+const alternatives = (w: string): string[] => { const k = known(w); return [...(SYN.get(k) ?? new Set([k]))] }
 
-function matchHelp(question: string, roles: string[]): { answer: string; name: string; where: string; score: number } | null {
-  const q = helpWords(question)
+export function matchHelp(question: string, roles: string[]): { answer: string; name: string; where: string; score: number } | null {
+  const fixed = question.replace(/\btime\s+table/gi, 'timetable').replace(/\bhome\s+work/gi, 'homework')
+  // Spelling is checked on the word as typed ("fess" -> "fees"), then stemmed.
+  const q = (fixed.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP.has(w)).map((w) => stem(known(w)))
   if (q.length === 0) return null
+  const alts = q.map(alternatives)
   const allowed = new Set(roles)
   let best: { answer: string; name: string; where: string; score: number } | null = null
   for (const [role, name, where, answer, nameW, whereW, terms] of HELP_ANSWERS) {
     if (allowed.size > 0 && !allowed.has(role)) continue
     const N = new Set(nameW), W = new Set(whereW), T = new Set(terms)
     let score = 0, hit = 0, named = 0
-    for (const w of q) {
-      if (N.has(w)) { score += 3; hit++; named++ } else if (W.has(w)) { score += 2; hit++ } else if (T.has(w)) { score++; hit++ }
-    }
+    // Words as typed first, then synonyms for the rest; a word counts once.
+    const direct = q.map((w) => (N.has(w) ? 3 : W.has(w) ? 2 : T.has(w) ? 1 : 0))
+    const used = new Set(q.filter((_, i) => direct[i] > 0))
+    q.forEach((w, i) => {
+      let s = direct[i], isName = N.has(w)
+      if (!s) for (const a of alts[i]) {
+        if (used.has(a)) continue
+        const t = N.has(a) ? 2.5 : W.has(a) ? 1.5 : T.has(a) ? 0.75 : 0
+        if (t > s) { s = t; isName = N.has(a); used.add(a) }
+      }
+      if (s) { score += s; hit++; if (isName) named++ }
+    })
     if (hit === 0) continue
     const coverage = hit / q.length
-    const nameMatch = nameW.length > 0 ? named / nameW.length : 0
+    const nameMatch = nameW.length > 0 ? Math.min(1, named / nameW.length) : 0
     score = (score / q.length) * (1 + 0.5 * coverage) + 1.5 * nameMatch
     if (!best || score > best.score) best = { answer, name, where, score }
   }
