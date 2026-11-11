@@ -146,12 +146,12 @@
 .ed-block .lines div { border-bottom: 1px solid #999; height: calc(var(--fs, 12pt) * 2.1); }
 .ed-block .drawbox { border: 1px solid #000; }
 .qm-bar {
-  position: absolute; top: 2px; left: 2px; z-index: 5; display: none; align-items: center; gap: 1px; padding: 2px;
+  position: absolute; top: 2px; left: 2px; z-index: 5; display: none; align-items: center; gap: 1px; padding: 2px; width: max-content; flex-wrap: nowrap;
   border-radius: var(--radius-control); background: hsl(var(--popover)); color: hsl(var(--popover-foreground));
   box-shadow: var(--elev-2); line-height: 1.4; font: 12px system-ui, sans-serif; white-space: nowrap;
 }
 .ed-block .qm-bar { top: auto; bottom: 2px; right: 2px; left: auto; }
-.qm-bar-n { padding: 0 6px; color: hsl(var(--muted-foreground)); }
+.qm-bar-n { padding: 0 6px; color: hsl(var(--muted-foreground)); white-space: nowrap; font: 12px/1 var(--font-sans, system-ui), sans-serif; }
 .ed-img:hover .qm-bar, .ed-img.sel .qm-bar, .ed-block:hover .qm-bar, .ed-block.sel .qm-bar, .qm-bar:focus-within { display: flex; }
 .ed-handle { position: absolute; z-index: 6; display: none; background: hsl(var(--ring)); border: 2px solid #fff; touch-action: none; }
 .ed-handle.corner { right: -6px; bottom: -6px; width: 14px; height: 14px; border-radius: 3px; cursor: nwse-resize; }
