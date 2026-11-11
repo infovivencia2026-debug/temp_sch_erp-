@@ -3,7 +3,7 @@
    yet, each with S.No, name and time -- ready to share on WhatsApp. Drawn on
    a canvas, so no library is needed. */
 
-interface Row { needs_login?: boolean; employee_code: string; full_name: string; check_in?: string; check_out?: string; status?: string }
+interface Row { needs_login?: boolean; on_reader?: boolean; employee_code: string; full_name: string; check_in?: string; check_out?: string; status?: string }
 
 const CUTOFF = '08:45'
 /* Left off the picture (owner, 2026-11-11): management, not staff on the clock. */
@@ -12,10 +12,11 @@ const skipped = (n: string) => SKIP.some((x) => n.toLowerCase().replace(/\s+/g, 
 const hm = (t?: string) => (t ?? '').slice(0, 5)
 
 export function lateListJpeg(rows: Row[], onDate: string) {
-  const live = rows.filter((r) => !r.needs_login && !skipped(r.full_name))
+  const live = rows.filter((r) => !skipped(r.full_name))
   const late = live.filter((r) => r.check_in && hm(r.check_in) > CUTOFF).sort((a, b) => hm(a.check_in).localeCompare(hm(b.check_in)))
   const absent = ['absent', 'leave', 'week_off', 'on_duty']
-  const none = live.filter((r) => !r.check_in && !r.check_out && !absent.includes(r.status ?? '')).sort((a, b) => a.full_name.localeCompare(b.full_name))
+  /* Only staff the biometric reader knows (owner, 2026-11-11). */
+  const none = live.filter((r) => r.on_reader && !r.check_in && !r.check_out && !absent.includes(r.status ?? '')).sort((a, b) => a.full_name.localeCompare(b.full_name))
 
   const W = 900, pad = 40, rowH = 44, headH = 50
   const H = 150 + (headH + 50 + Math.max(late.length, 1) * rowH) + (headH + 50 + Math.max(none.length, 1) * rowH) + 60

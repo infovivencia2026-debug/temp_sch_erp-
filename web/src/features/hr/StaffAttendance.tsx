@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils'
  */
 
 interface StaffRow {
+  on_reader?: boolean
   user_id: string
   /** On the roll but with no login yet, so nothing can be marked against them. */
   needs_login?: boolean

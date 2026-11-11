@@ -1293,7 +1293,7 @@ function registerWorkflow(r: Router) {
        A mark the office made always wins; the reader only fills what is
        empty, which is what COALESCE says here. */
     const rows = await c.db.prepare(`
-      SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status,
+      SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status, e.device_user_id AS reader_id,
              /* A tap within an hour of the first is the same arrival; one tap
                 after noon is leaving, with the in left for the office (as
                 routes/setup/imports.ts rollUpImportedDay saves the day). */
@@ -1321,7 +1321,7 @@ function registerWorkflow(r: Router) {
     const holiday = hol.get(on)
     return ok({ holiday: holiday ?? undefined, items: rows.results.map((v) => ({
       user_id: v.user_id ?? '', needs_login: v.user_id == null,
-      employee_code: v.employee_code, full_name: v.full_name,
+      employee_code: v.employee_code, full_name: v.full_name, on_reader: v.reader_id != null,
       status: v.status ?? (holiday && !v.check_in ? 'holiday' : undefined), check_in: hhmmIn(tz, v.check_in as string | null) ?? undefined,
       check_out: hhmmIn(tz, v.check_out as string | null) ?? undefined,
     })) })
