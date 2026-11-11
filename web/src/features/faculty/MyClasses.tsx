@@ -635,7 +635,7 @@ function PlanForm({
           rows={3}
           value={accommodations}
           onChange={setAccommodations}
-          placeholder={'Seat front-left, right ear to the class.\nWrite homework on the board, never only spoken.'}
+          placeholder="One step per line"
         />
       </Field>
       <FormGrid>
