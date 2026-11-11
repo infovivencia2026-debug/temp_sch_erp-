@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import type { Editor } from '@tiptap/react'
 import { X } from 'lucide-react'
 import { Button, Dialog, EmptyState, ErrorState, Loading, SEG_BAR, segClass } from '@/components/ui'
@@ -7,7 +7,7 @@ import { SearchBox } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
 import { ImageStorePane } from './ImagePicker'
-import { pictureKeywords, tileSrc, searchMorePictures, searchPictures, storePicture, type PictureHit, type PictureKind } from '../lib/pictures'
+import { isLineIcon, outlineOf, pictureSrc, pictureKeywords, tileSrc, searchMorePictures, searchPictures, storePicture, type PictureHit, type PictureKind } from '../lib/pictures'
 import { insertAssets } from './RichInput'
 import { useMaker } from './context'
 
@@ -18,7 +18,7 @@ import { useMaker } from './context'
 const STRIP = 6
 
 /** Stores the picture and puts it where the cursor is. */
-function useInsertPicture(editor: Editor | null) {
+function useInsertPicture(editor: Editor | null, outline = false) {
   const { remember } = useMaker()
   const toast = useToast()
   const [busy, setBusy] = useState<string | null>(null)
@@ -26,7 +26,7 @@ function useInsertPicture(editor: Editor | null) {
     if (!editor || busy) return false
     setBusy(p.full)
     try {
-      const a = await storePicture(p)
+      const a = await storePicture(p, outline)
       remember([a])
       insertAssets(editor, [a])
       return true
@@ -40,12 +40,33 @@ function useInsertPicture(editor: Editor | null) {
   return { insert, busy }
 }
 
-function Tile({ p, onPick, busy, small }: { p: PictureHit; onPick: () => void; busy: boolean; small?: boolean }) {
+/* Outline: the picture drawn as black lines in the browser, as it will go in. */
+function useOutlineSrc(p: PictureHit, on: boolean) {
+  const [src, setSrc] = useState<string | null>(null)
+  const ref = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!on || isLineIcon(p)) return
+    let url = '', gone = false
+    const el = ref.current
+    // Only once the tile is on screen.
+    const io = new IntersectionObserver(async ([e]) => {
+      if (!e.isIntersecting) return
+      io.disconnect()
+      try { const b = await outlineOf(pictureSrc(p.thumb)); if (!gone) { url = URL.createObjectURL(b); setSrc(url) } } catch { /* the picture as it is */ }
+    }, { rootMargin: '200px' })
+    if (el) io.observe(el)
+    return () => { gone = true; io.disconnect(); if (url) URL.revokeObjectURL(url) }
+  }, [p, on])
+  return { ref, src: on && !isLineIcon(p) ? src : null, waiting: on && !isLineIcon(p) && !src }
+}
+
+function Tile({ p, onPick, busy, small, outline = false }: { p: PictureHit; onPick: () => void; busy: boolean; small?: boolean; outline?: boolean }) {
+  const o = useOutlineSrc(p, outline)
   const credit = [p.title, p.creator && `by ${p.creator}`, p.licence].filter(Boolean).join(', ')
   return (
-    <button type="button" className={`qm-pictile ${small ? 'small' : ''}`} title="Insert this picture" aria-label={`Insert picture: ${credit}`}
+    <button ref={o.ref} type="button" className={`qm-pictile ${small ? 'small' : ''}`} title="Insert this picture" aria-label={`Insert picture: ${credit}`}
       disabled={busy} aria-busy={busy} onClick={onPick}>
-      <img src={tileSrc(p.thumb)} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { const li = e.currentTarget.closest('li'); if (li) li.style.display = 'none' }} />
+      <img src={o.src ?? tileSrc(p.thumb)} style={o.waiting ? { filter: 'grayscale(1)', opacity: 0.4 } : undefined} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { const li = e.currentTarget.closest('li'); if (li) li.style.display = 'none' }} />
     </button>
   )
 }
@@ -95,7 +116,7 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
   const [up, setUp] = useState(0)
   const [kind, setKind] = useState<PictureKind>('clipart')
   const q = pictureKeywords(useDebouncedValue(text, 400))
-  const { insert, busy } = useInsertPicture(editor)
+  const { insert, busy } = useInsertPicture(editor, kind === 'outline')
   const res = useQuery({
     queryKey: ['picture-search', kind, q],
     queryFn: ({ signal }) => searchPictures(q, kind, signal),
@@ -103,14 +124,28 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
     staleTime: 10 * 60_000,
     retry: false,
   })
-  const more = useQuery({
+  /* More pages as the list is scrolled (owner, 2026-11-11: "lazy loading"). */
+  const more = useInfiniteQuery({
     queryKey: ['picture-search-more', kind, q],
-    queryFn: ({ signal }) => searchMorePictures(q, kind, signal),
+    queryFn: ({ signal, pageParam }) => searchMorePictures(q, kind, signal, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (last, all) => (all.length < 8 && last.items.length > 0 ? all.length + 1 : undefined),
     enabled: tab === 'clipart' && q.length >= 3,
     staleTime: 10 * 60_000,
     retry: false,
   })
-  const shown = res.data?.q === q ? [...res.data.items, ...(more.data?.q === q ? more.data.items : [])] : []
+  const seen = new Set<string>()
+  const shown = res.data?.q === q
+    ? [...res.data.items, ...(more.data?.pages ?? []).filter((pg) => pg.q === q).flatMap((pg) => pg.items)].filter((p) => !seen.has(p.full) && !!seen.add(p.full))
+    : []
+  const end = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = end.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting && more.hasNextPage && !more.isFetchingNextPage) void more.fetchNextPage() }, { rootMargin: '300px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [more, shown.length])
   /* No longer flips the tab when clip art falls back to photos: the cached
      fallback flipped it straight back each time, so Clip art could not be
      chosen (owner, 2026-11-11). It says so instead. */
@@ -145,10 +180,11 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
           : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {shown.map((p) => (
-                <li key={p.full}><Tile p={p} busy={busy === p.full} onPick={async () => { if (await insert(p)) onClose() }} /></li>
+                <li key={p.full}><Tile p={p} outline={kind === 'outline'} busy={busy === p.full} onPick={async () => { if (await insert(p)) onClose() }} /></li>
               ))}
             </ul>
           )}
+        {shown.length > 0 && <div ref={end} className="py-2 text-center text-[13px] text-muted-foreground">{more.isFetchingNextPage ? 'Loading more…' : more.hasNextPage ? '' : 'No more pictures.'}</div>}
         </>}
       </div>
     </Dialog>

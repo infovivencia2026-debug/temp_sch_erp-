@@ -59,20 +59,28 @@ async function commons(q: string, kind: PictureKind): Promise<PictureHit[]> {
 /* Pixabay (owner, 2026-11-11: "only 4 5 images, not accurate"): free, keyed,
    far more and better drawings than Openverse. Used first when the key is set. */
 interface PixabayHit { id: number; tags?: string; user?: string; previewURL?: string; webformatURL?: string; pageURL?: string }
-async function pixabay(key: string, q: string, kind: PictureKind): Promise<PictureHit[]> {
+/* Only pictures whose own first tags name the thing (owner, 2026-11-11: a
+   trophy and a map came for "mango"). Outline asks for the same pictures;
+   the browser draws them as line art, so they are as many and as accurate. */
+function tagsName(tags: string, q: string): boolean {
+  const first = tags.toLowerCase().split(',').map((t) => t.trim()).filter((t) => t && t !== 'ai generated').slice(0, 2).join(',')
+  return namesWord(first, q)
+}
+async function pixabay(key: string, q: string, kind: PictureKind, page = 1): Promise<PictureHit[]> {
   const u = new URL('https://pixabay.com/api/')
   u.searchParams.set('key', key)
-  u.searchParams.set('q', kind === 'outline' ? `${q} outline` : q)
-  u.searchParams.set('image_type', kind === 'photo' ? 'photo' : kind === 'outline' ? 'vector' : 'illustration')
+  u.searchParams.set('q', q)
+  u.searchParams.set('image_type', kind === 'photo' ? 'photo' : 'illustration')
   u.searchParams.set('safesearch', 'true')
-  u.searchParams.set('per_page', '80')
+  u.searchParams.set('per_page', '60')
+  u.searchParams.set('page', String(page))
   const res = await fetch(u.href, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: timeout() })
   if (!res.ok) throw new Error(`pixabay ${res.status}`)
   const body = (await res.json()) as { hits?: PixabayHit[] }
   const out: PictureHit[] = []
   for (const h of body.hits ?? []) {
     const thumb = h.webformatURL ?? '', full = h.webformatURL ?? ''
-    if (!isLibraryPictureUrl(thumb) || !namesWord(h.tags ?? '', q)) continue
+    if (!isLibraryPictureUrl(thumb) || !tagsName(h.tags ?? '', q)) continue
     out.push({ thumb, full, title: (h.tags ?? '').split(',')[0].trim().slice(0, 120) || q, creator: (h.user ?? '').slice(0, 80), licence: 'Pixabay licence', source: h.pageURL ?? '' })
   }
   return out
@@ -104,11 +112,20 @@ async function pictureSearch(c: Ctx) {
   const kind: PictureKind = k === 'photo' ? 'photo' : k === 'outline' ? 'outline' : 'clipart'
   const key = c.env.PIXABAY_KEY
   if (q.length < 3) throw badRequest('Type a word to find pictures for.')
+  const page = Math.min(8, Math.max(1, Number(c.url.searchParams.get('page')) || 1))
+  // Later pages, while scrolling: Pixabay only (owner, 2026-11-11: "lazy loading").
+  if (page > 1) {
+    if (!key) return ok({ q, kind, items: [] })
+    const items = await cached<PictureHit[]>(`px1/${kind}/${page}/${encodeURIComponent(q)}`, 3600, async () => {
+      try { const body = await pixabay(key, q, kind, page); return { body, keep: true } } catch { return { body: [], keep: false } }
+    })
+    return ok({ q, kind, items })
+  }
   if (c.url.searchParams.get('src') === 'icons') {
     const items = await cached<PictureHit[]>(`i1/${kind}/${encodeURIComponent(q)}`, 86400, async () => { const body = await iconSearch(q, kind, timeout()); return { body, keep: body.length > 0 } })
     return ok({ q, kind, items })
   }
-  const out = await cached<{ q: string; kind: PictureKind; items: PictureHit[]; unavailable?: boolean }>(`v3${key ? 'p' : ''}/${kind}/${encodeURIComponent(q)}`, 3600, async () => {
+  const out = await cached<{ q: string; kind: PictureKind; items: PictureHit[]; unavailable?: boolean }>(`v4${key ? 'p' : ''}/${kind}/${encodeURIComponent(q)}`, 3600, async () => {
     try {
       let items = await search(q, kind, key)
       let shown = kind

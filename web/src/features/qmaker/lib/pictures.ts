@@ -55,7 +55,11 @@ export async function searchPictures(q: string, kind: PictureKind, signal?: Abor
   if (!res.ok) throw new Error('Pictures could not be searched. Check the connection and try again.')
   return (await res.json()) as PictureResult
 }
-export async function searchMorePictures(q: string, kind: PictureKind, signal?: AbortSignal): Promise<PictureResult> {
+export async function searchMorePictures(q: string, kind: PictureKind, signal?: AbortSignal, page = 1): Promise<PictureResult> {
+  if (page > 1) {
+    const res = await fetch(`/api/v1/exams/picture-search?q=${encodeURIComponent(q)}&kind=${kind}&page=${page}`, { credentials: 'same-origin', headers: headers(), signal })
+    return res.ok ? ((await res.json()) as PictureResult) : { q, kind, items: [] }
+  }
   return searchLibrary(q, kind, signal)
 }
 
@@ -93,7 +97,10 @@ async function svgToPng(url: string): Promise<Blob> {
   return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error('That picture could not be drawn. Choose another.'))), 'image/png'))
 }
 
-export async function storePicture(p: PictureHit): Promise<ImageAsset> {
+/** Line art of a library picture (Iconify outline icons are line art already). */
+export const isLineIcon = (p: PictureHit) => p.full.startsWith('https://api.iconify.design/')
+export async function storePicture(p: PictureHit, outline = false): Promise<ImageAsset> {
+  if (outline && !isLineIcon(p)) return uploadImage(await outlineOf(pictureSrc(p.full)), `${creditName(p)} (outline)`.slice(0, 120))
   if (p.full.startsWith('https://api.iconify.design/')) return uploadImage(await svgToPng(p.full), creditName(p))
   const res = await fetch(pictureSrc(p.full), { credentials: 'same-origin', headers: headers() })
   if (!res.ok) {
