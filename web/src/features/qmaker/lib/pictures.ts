@@ -65,10 +65,14 @@ async function iconSearch(q: string, signal?: AbortSignal): Promise<PictureHit[]
   }
 }
 
+/* Two separate searches so the quick one shows at once (owner, 2026-11-11:
+   "taking too long to load"): Iconify answers in a moment; the open library
+   (two pages, Worker fallback) adds its pictures when it is ready. */
 export async function searchPictures(q: string, kind: PictureKind, signal?: AbortSignal): Promise<PictureResult> {
-  const [icons, more] = await Promise.all([iconSearch(q, signal), searchLibrary(q, kind, signal).catch((e) => { if (signal?.aborted) throw e; return null })])
-  const items = [...icons, ...(more?.items ?? [])]
-  return { q, kind, items, unavailable: !items.length && !!more?.unavailable }
+  return { q, kind, items: await iconSearch(q, signal) }
+}
+export async function searchMorePictures(q: string, kind: PictureKind, signal?: AbortSignal): Promise<PictureResult> {
+  return searchLibrary(q, kind, signal)
 }
 
 async function searchLibrary(q: string, kind: PictureKind, signal?: AbortSignal): Promise<PictureResult> {

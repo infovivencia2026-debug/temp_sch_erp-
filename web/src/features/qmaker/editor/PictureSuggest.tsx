@@ -7,7 +7,7 @@ import { SearchBox } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
 import { ImageStorePane } from './ImagePicker'
-import { pictureKeywords, tileSrc, searchPictures, storePicture, type PictureHit, type PictureKind } from '../lib/pictures'
+import { pictureKeywords, tileSrc, searchMorePictures, searchPictures, storePicture, type PictureHit, type PictureKind } from '../lib/pictures'
 import { insertAssets } from './RichInput'
 import { useMaker } from './context'
 
@@ -103,6 +103,14 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
     staleTime: 10 * 60_000,
     retry: false,
   })
+  const more = useQuery({
+    queryKey: ['picture-search-more', kind, q],
+    queryFn: ({ signal }) => searchMorePictures(q, kind, signal),
+    enabled: tab === 'clipart' && q.length >= 3,
+    staleTime: 10 * 60_000,
+    retry: false,
+  })
+  const shown = res.data?.q === q ? [...res.data.items, ...(more.data?.q === q ? more.data.items : [])] : []
   /* No longer flips the tab when clip art falls back to photos: the cached
      fallback flipped it straight back each time, so Clip art could not be
      chosen (owner, 2026-11-11). It says so instead. */
@@ -126,13 +134,12 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
         {tab === 'store' ? <ImageStorePane uploadTrigger={up} onPick={(assets) => { insertAssets(editor, assets); onClose() }} /> : <>
         <SearchBox value={text} onChange={setText} placeholder="Search clip art, e.g. apple" />
         {q.length < 3 ? <EmptyState title="Type what the picture should show." body="For example: apple, leaf, clock." />
-          : res.isLoading || (res.isFetching && res.data?.q !== q) ? <Loading shape="cards" />
+          : !shown.length && (res.isFetching || more.isFetching) ? <Loading shape="cards" />
           : res.error ? <ErrorState error={res.error} />
-          : res.data?.unavailable ? <EmptyState title="The picture library did not answer." body="Try again in a moment." />
-          : !res.data?.items.length ? <EmptyState title="No clip art found." body="Try a simpler word, in English, or upload your own in the image store." />
+          : !shown.length ? <EmptyState title="No clip art found." body="Try a simpler word, in English, or upload your own in the image store." />
           : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {res.data.items.map((p) => (
+              {shown.map((p) => (
                 <li key={p.full}><Tile p={p} busy={busy === p.full} onPick={async () => { if (await insert(p)) onClose() }} /></li>
               ))}
             </ul>
