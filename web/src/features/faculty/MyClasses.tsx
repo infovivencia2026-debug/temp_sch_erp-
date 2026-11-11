@@ -193,9 +193,11 @@ export default function MyClasses() {
       `/api/v1/teaching/progress/pending-homework?${rangeQuery(range)}${filterQuery ? '&' + filterQuery : ''}`),
     enabled: showPending,
   })
+  /* Before the wait: progress only starts once options has answered, so a
+     failed options read would otherwise keep the skeleton up another minute. */
+  if (options.error) return <ErrorState error={options.error} />
   if (options.isLoading || progress.isLoading || warnings.isLoading) return <SkeletonTiles count={4} label="Working out how each child is doing…" />
   if (progress.error) return <ErrorState error={progress.error} />
-  if (options.error) return <ErrorState error={options.error} />
 
   const attention = rows.filter((r) => r.risk_band !== 'none')
   const top = rows.filter((r) => r.marks_percent != null && r.marks_percent >= 80)
