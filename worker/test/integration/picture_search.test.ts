@@ -61,14 +61,14 @@ describe('picture search', () => {
 
   it('falls back to photos when no drawing matches', async () => {
     noClipart = true
-    const r = await api('teacher', 'GET', '/exams/picture-search?q=mango+tree')
+    const r = await api('teacher', 'GET', '/exams/picture-search?q=apple+tree')
     expect(r.body.kind).toBe('photo')
     expect(r.body.items.length).toBeGreaterThan(0)
   })
 
   it('uses Wikimedia Commons when Openverse is down, keeping only free licences', async () => {
     openverseDown = true
-    const r = await api('teacher', 'GET', '/exams/picture-search?q=banana')
+    const r = await api('teacher', 'GET', '/exams/picture-search?q=green+apple')
     expect(r.status).toBe(200)
     expect(r.body.items).toHaveLength(1)
     expect(r.body.items[0]).toMatchObject({ title: 'Apple', creator: 'Bob', licence: 'CC0' })
