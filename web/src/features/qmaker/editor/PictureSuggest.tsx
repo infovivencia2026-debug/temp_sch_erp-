@@ -98,7 +98,10 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
     staleTime: 10 * 60_000,
     retry: false,
   })
-  useEffect(() => { if (res.data && res.data.kind !== kind && res.data.items.length) setKind(res.data.kind) }, [res.data, kind])
+  /* No longer flips the tab when clip art falls back to photos: the cached
+     fallback flipped it straight back each time, so Clip art could not be
+     chosen (owner, 2026-11-11). It says so instead. */
+  const fellBack = !!res.data && res.data.kind !== kind && res.data.items.length > 0
 
   return (
     <Dialog
@@ -117,6 +120,7 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
             ))}
           </div>
         </div>
+        {fellBack && <p className="text-[13px] text-muted-foreground">No clip art for this; showing photos instead.</p>}
         {q.length < 3 ? <EmptyState title="Type what the picture should show." body="For example: apple, leaf, clock." />
           : res.isLoading ? <Loading shape="cards" />
           : res.error ? <ErrorState error={res.error} />
