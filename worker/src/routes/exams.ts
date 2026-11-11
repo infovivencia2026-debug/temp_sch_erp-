@@ -7,6 +7,7 @@ import { coded, dateOf, escapeHtml, inList, items, js, minuteOf, nameOf, nextNum
   numberInWords, paperSubmittedStmts, requireOpenYear, resolveScope, sign, str, todayIST, trimFloat, uuidsOf } from './exams/common'
 import { defaultReportCardHTML } from './exams/template'
 import { registerQuestionMaker } from './exams/qmaker'
+import { registerPictureSearch } from './exams/pictures'
 import { ddmmyyyy, examinedPaper, fillReportCard, gatherReportCard, loadReportCardTemplate, reportCardDesigns, reportCardFonts, reportCardPlaceholders } from './exams/card'
 import { DOC_PRINT_CSS, documentHTML, inr, schoolFacts, type SchoolFacts } from '../services/document'
 import { Messenger, scopeOf } from '../services/messaging'
@@ -33,6 +34,7 @@ const NAME = nameOf('st')
 export function registerExams(r: Router): void {
   registerExamGroup(r)
   registerQuestionMaker(r)
+  registerPictureSearch(r)
   registerHpc(r)
   registerLifecycle(r)
 }

@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode, type RefObject } from 'react'
 import type { Editor } from '@tiptap/react'
 import {
-  AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, ChevronDown, Italic, List, ListOrdered, Omega,
+  AlignCenter, AlignJustify, ImageOff, ImagePlus, Images, AlignLeft, AlignRight, Bold, ChevronDown, Italic, List, ListOrdered, Omega,
   RemoveFormatting, Strikethrough, Subscript, Superscript, Table2, Underline,
 } from 'lucide-react'
 import { Button, Checkbox, Field, Input } from '@/components/ui'
@@ -11,6 +11,8 @@ import { useActiveEditor } from './activeEditor'
 import { insertAssets, insertImages } from './RichInput'
 import { useMaker } from './context'
 import ImagePicker from './ImagePicker'
+import { PictureDialog, PictureStrip } from './PictureSuggest'
+import { setSuggestionsOn, suggestionsOn } from '../lib/pictures'
 import { Menu } from '@/features/bento/Menu'
 
 const SYMBOLS = '√ ∛ π ° ± × ÷ = ≠ ≈ ≤ ≥ < > ∞ ∠ △ ⊥ ∥ ∴ ∵ ∈ ∉ ⊂ ∪ ∩ ∅ α β γ δ θ λ μ σ ω Ω Σ Δ → ← ↔ ⇌ ↑ ↓ ½ ⅓ ¼ ¾ ² ³ ₂ ₃ ⁻ ✓ ✗ ☐ ★ ₹ %'.split(' ')
@@ -74,6 +76,8 @@ export default function Toolbar() {
   const { addImage, remember } = useMaker()
   const [menu, setMenu] = useState<null | 'insert' | 'table' | 'symbols'>(null)
   const [storeOpen, setStoreOpen] = useState(false)
+  const [findOpen, setFindOpen] = useState(false)
+  const [suggest, setSuggest] = useState(suggestionsOn)
   const file = useRef<HTMLInputElement>(null)
   const multi = useRef(false)
 
@@ -159,6 +163,13 @@ export default function Toolbar() {
         </div>
       )}
       <div className="qm-tgroup">
+        <Tool title="Find a picture" disabled={off} onClick={() => setFindOpen(true)}><ImagePlus className="size-4" /></Tool>
+        <Tool title={suggest ? 'Picture suggestions are on. Turn them off' : 'Picture suggestions are off. Turn them on'} on={suggest}
+          onClick={() => { setSuggestionsOn(!suggest); setSuggest(!suggest) }}>
+          {suggest ? <Images className="size-4" /> : <ImageOff className="size-4" />}
+        </Tool>
+      </div>
+      <div className="qm-tgroup">
         <Tool title="Clear formatting" disabled={off} onClick={() => c().unsetAllMarks().setTextAlign('left').run()}><RemoveFormatting className="size-4" /></Tool>
       </div>
       {off && <span className="qm-thint">Click into any text on the paper to format it.</span>}
@@ -174,6 +185,8 @@ export default function Toolbar() {
           ev.target.value = ''
         }}
       />
+      {suggest && e && <PictureStrip editor={e} />}
+      {findOpen && e && <PictureDialog editor={e} onClose={() => setFindOpen(false)} />}
       {storeOpen && e && (
         <ImagePicker
           onClose={() => setStoreOpen(false)}
