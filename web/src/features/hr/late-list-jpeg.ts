@@ -29,9 +29,9 @@ export function lateListJpeg(rows: Row[], onDate: string) {
   const font = (w: number, s: number) => `${w} ${s}px Inter, Segoe UI, Arial, sans-serif`
   const date = new Date(onDate + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
-  g.fillStyle = '#101828'; g.font = font(700, 28); g.fillText('Staff late & not punched in', pad, 62)
-  g.fillStyle = '#667085'; g.font = font(500, 16); g.fillText(`${date} · after ${CUTOFF} AM`, pad, 92)
-  let y = 130
+  g.fillStyle = '#101828'; g.font = font(700, 28); g.fillText('Staff Late & Leave Report', pad, 58)
+  g.fillStyle = '#101828'; g.font = font(800, 24); g.fillText(date, pad, 98)
+  let y = 132
 
   const section = (title: string, color: string, bg: string, list: Row[], time: (r: Row) => string, empty: string) => {
     g.fillStyle = bg; roundRect(g, pad, y, W - pad * 2, headH, 12); g.fill()
@@ -51,7 +51,7 @@ export function lateListJpeg(rows: Row[], onDate: string) {
     })
     y += 30
   }
-  section('Punched in after 8:45', '#b54708', '#fffaeb', late, (r) => hm(r.check_in), 'Nobody was late.')
+  section('Punched in after 8:45', '#1d4ed8', '#eff6ff', late, (r) => hm(r.check_in), 'Nobody was late.')
   section('Not punched in yet', '#b42318', '#fef3f2', none, () => 'Not in', 'Everyone has punched in.')
 
   const a = document.createElement('a')
