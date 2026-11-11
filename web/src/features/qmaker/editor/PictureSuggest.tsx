@@ -121,7 +121,7 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
       actions={<>
         {tab === 'store' && <Button size="sm" onClick={() => setUp((n) => n + 1)}>Upload picture</Button>}
           <div className={SEG_BAR} role="group" aria-label="Where the picture comes from">
-          {([['clipart', 'Clip art'], ['store', 'Image store']] as const).map(([k, label]) => (
+          {([['clipart', 'Images'], ['store', 'Image store']] as const).map(([k, label]) => (
             <button key={k} type="button" aria-pressed={tab === k} className={segClass(tab === k)} onClick={() => setTab(k)}>{label}</button>
           ))}
         </div>
@@ -132,11 +132,11 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
     >
       <div className="space-y-4">
         {tab === 'store' ? <ImageStorePane uploadTrigger={up} onPick={(assets) => { insertAssets(editor, assets); onClose() }} /> : <>
-        <SearchBox value={text} onChange={setText} placeholder="Search clip art, e.g. apple" />
+        <SearchBox value={text} onChange={setText} placeholder="Search pictures, e.g. apple" />
         {q.length < 3 ? <EmptyState title="Type what the picture should show." body="For example: apple, leaf, clock." />
           : !shown.length && (res.isFetching || more.isFetching) ? <Loading shape="cards" />
           : res.error ? <ErrorState error={res.error} />
-          : !shown.length ? <EmptyState title="No clip art found." body="Try a simpler word, in English, or upload your own in the image store." />
+          : !shown.length ? <EmptyState title="No pictures found." body="Try a simpler word, in English, or upload your own in the image store." />
           : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {shown.map((p) => (

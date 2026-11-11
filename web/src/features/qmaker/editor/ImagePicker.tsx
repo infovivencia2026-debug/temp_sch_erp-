@@ -102,14 +102,14 @@ function StoreTile({ a, onPick, onRenamed }: { a: ImageAsset; onPick: () => void
         <div className="flex items-center gap-1">
           <input autoFocus value={val} onChange={(e) => setVal(e.target.value)} aria-label="Picture name"
             onKeyDown={(e) => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') setEdit(false) }}
-            className="field min-w-0 flex-1 rounded-md px-2 py-1 text-[14px]" />
-          <Button size="sm" variant="ghost" title="Save name" disabled={busy} onClick={() => void save()}><Check className="size-4" /></Button>
-          <Button size="sm" variant="ghost" title="Cancel" onClick={() => { setVal(shown); setEdit(false) }}><X className="size-4" /></Button>
+            className="field h-7 min-w-0 flex-1 rounded-md px-2 text-[14px]" />
+          <Button size="sm" variant="ghost" className="!h-7 !w-7 !min-h-0 !p-0" title="Save name" disabled={busy} onClick={() => void save()}><Check className="size-3.5" /></Button>
+          <Button size="sm" variant="ghost" className="!h-7 !w-7 !min-h-0 !p-0" title="Cancel" onClick={() => { setVal(shown); setEdit(false) }}><X className="size-3.5" /></Button>
         </div>
       ) : (
         <div className="flex items-center gap-1">
           <span className="min-w-0 flex-1 truncate">{shown}</span>
-          <Button size="sm" variant="ghost" title="Rename" onClick={() => { setVal(shown); setEdit(true) }}><Pencil className="size-4" /></Button>
+          <Button size="sm" variant="ghost" className="!h-7 !w-7 !min-h-0 !p-0" title="Rename" onClick={() => { setVal(shown); setEdit(true) }}><Pencil className="size-3.5" /></Button>
         </div>
       )}
     </div>
