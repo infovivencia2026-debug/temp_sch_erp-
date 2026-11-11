@@ -8,7 +8,8 @@ import {
 import { ImportButton } from '@/components/DataPortActions'
 import { StaffMonth } from './StaffMonth'
 import { useCan } from '@/lib/session'
-import { Download, Printer } from 'lucide-react'
+import { Download, Printer, Image as ImageIcon } from 'lucide-react'
+import { lateListJpeg } from './late-list-jpeg'
 import { useSession } from '@/lib/session'
 import { printHtml } from '@/features/finance/receipt-print'
 import { staffRangeHtml, staffRegisterHtml } from './staff-register-print'
@@ -192,6 +193,9 @@ export default function StaffAttendance() {
             />
           )}
           <ExportButton report="staff-attendance" />
+          <Button variant="secondary" onClick={() => lateListJpeg(rows, onDate)} disabled={!rows.length}>
+            <ImageIcon className="h-4 w-4" /> Late list (JPEG)
+          </Button>
           <Button variant="secondary" onClick={printRegister} disabled={!rows.length}>
             <Printer className="h-4 w-4" /> Print
           </Button>
