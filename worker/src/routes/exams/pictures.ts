@@ -1,6 +1,6 @@
 import type { Router, Ctx } from '../../router'
 import { badRequest, HttpError, ok } from '../../http'
-import { isLibraryPictureUrl, MAX_QUERY, pictureKeywords, type PictureHit, type PictureKind } from '../../../../shared/picture-search'
+import { commonsThumb, isLibraryPictureUrl, MAX_QUERY, openverseHits, openverseUrl, pictureKeywords, type OpenverseHit, type PictureHit, type PictureKind } from '../../../../shared/picture-search'
 
 /* Picture suggestions for the Question maker: free, openly licensed pictures
    (CC0, public domain, CC BY, CC BY-SA) from Openverse, or Wikimedia Commons
@@ -21,69 +21,11 @@ const TIMEOUT_MS = 8000
 
 const timeout = () => AbortSignal.timeout(TIMEOUT_MS)
 
-interface OpenverseHit {
-  id: string; title?: string; creator?: string; license?: string; license_version?: string
-  foreign_landing_url?: string; url?: string; filetype?: string | null; mature?: boolean; unstable__sensitivity?: unknown[]
-}
-
-const licenceName = (l = '', v = '') => {
-  const k = l.toLowerCase()
-  if (k === 'cc0') return 'CC0'
-  if (k === 'pdm') return 'Public domain'
-  return `CC ${k.toUpperCase()}${v ? ' ' + v : ''}`
-}
-
-/** A Commons file's PNG/JPEG rendering at one of the widths Commons serves. */
-function commonsThumb(fileUrl: string, width: 330 | 500): string | null {
-  const m = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/([0-9a-f])\/([0-9a-f]{2})\/([^/?#]+)$/.exec(fileUrl)
-  if (!m) return null
-  const [, a, ab, name] = m
-  const ext = name.toLowerCase().split('.').pop() ?? ''
-  if (!['svg', 'png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) return null
-  return `https://upload.wikimedia.org/wikipedia/commons/thumb/${a}/${ab}/${name}/${width}px-${name}${ext === 'svg' ? '.png' : ''}`
-}
-
-/** Titles that are signs, logos and maps, not pictures a child would recognise. */
-const NOT_CLIPART = /\b(logo|bsicon|pictogram|symbol|sign|signage|emblem|coat of arms|flag|map|route|line \d|station|icon set)\b/i
-
-function directPicture(u: string): { thumb: string; full: string } | null {
-  if (/^https:\/\/live\.staticflickr\.com\/\d+\/\d+_[0-9a-f]+(_[a-z])?\.jpg$/.test(u)) {
-    const base = u.replace(/(_[a-z])?\.jpg$/, '')
-    return { thumb: `${base}_n.jpg`, full: `${base}_b.jpg` }
-  }
-  if (/^https:\/\/images\.rawpixel\.com\/editor_\d+\/[A-Za-z0-9_-]+\.(jpg|png)$/.test(u)) return { thumb: u, full: u }
-  return null
-}
-
 async function openverse(q: string, kind: PictureKind): Promise<PictureHit[]> {
-  const u = new URL('https://api.openverse.org/v1/images/')
-  // "bus" alone brought logos and route signs; "bus clipart" brings drawings (owner, 2026-11-11).
-  u.searchParams.set('q', kind === 'clipart' ? `${q} clipart` : q)
-  u.searchParams.set('license_type', 'commercial,modification')
-  u.searchParams.set('category', kind === 'clipart' ? 'illustration' : 'photograph')
-  u.searchParams.set('mature', 'false')
-  u.searchParams.set('page_size', '20')
-  const res = await fetch(u.href, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: timeout() })
+  const res = await fetch(openverseUrl(q, kind), { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: timeout() })
   if (!res.ok) throw new Error(`openverse ${res.status}`)
   const body = (await res.json()) as { results?: OpenverseHit[] }
-  const out: PictureHit[] = []
-  for (const r of body.results ?? []) {
-    if (r.mature || (r.unstable__sensitivity?.length ?? 0) > 0) continue
-    if (kind === 'clipart' && NOT_CLIPART.test(r.title ?? '')) continue
-    // Openverse cannot shrink an SVG; Commons renders its own as PNG.
-    const fromCommons = r.url ? commonsThumb(r.url, 330) : null
-    /* Openverse's own thumbnail service gave broken pictures from the Worker
-       (owner, 2026-11-11): Flickr and rawpixel pictures are taken from their
-       own hosts instead, Flickr at 320px for the tile. */
-    const direct = r.url ? directPicture(r.url) : null
-    const thumb = fromCommons ?? direct?.thumb ?? `https://api.openverse.org/v1/images/${r.id}/thumb/`
-    const full = r.url ? commonsThumb(r.url, 500) ?? direct?.full ?? thumb : thumb
-    if (r.filetype === 'svg' && !fromCommons) continue
-    if (!isLibraryPictureUrl(thumb) || !isLibraryPictureUrl(full)) continue
-    out.push({ thumb, full, title: (r.title ?? '').slice(0, 120), creator: (r.creator ?? '').slice(0, 80), licence: licenceName(r.license, r.license_version), source: r.foreign_landing_url ?? '' })
-    if (out.length >= MAX_RESULTS) break
-  }
-  return out
+  return openverseHits(body.results ?? [], kind, MAX_RESULTS)
 }
 
 interface CommonsPage { title: string; imageinfo?: { url: string; descriptionurl: string; extmetadata?: Record<string, { value?: string }> }[] }

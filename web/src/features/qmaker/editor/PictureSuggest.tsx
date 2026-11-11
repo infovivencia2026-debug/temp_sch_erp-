@@ -6,7 +6,7 @@ import { Button, Dialog, EmptyState, ErrorState, Loading, SEG_BAR, segClass } fr
 import { SearchBox } from '@/components/rows'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
-import { pictureKeywords, pictureSrc, searchPictures, storePicture, type PictureHit, type PictureKind } from '../lib/pictures'
+import { pictureKeywords, tileSrc, searchPictures, storePicture, type PictureHit, type PictureKind } from '../lib/pictures'
 import { insertAssets } from './RichInput'
 import { useMaker } from './context'
 
@@ -44,7 +44,7 @@ function Tile({ p, onPick, busy, small }: { p: PictureHit; onPick: () => void; b
   return (
     <button type="button" className={`qm-pictile ${small ? 'small' : ''}`} title={`Insert: ${credit}`} aria-label={`Insert picture: ${credit}`}
       disabled={busy} aria-busy={busy} onClick={onPick}>
-      <img src={pictureSrc(p.thumb)} alt="" loading="lazy" />
+      <img src={tileSrc(p.thumb)} alt="" loading="lazy" referrerPolicy="no-referrer" />
       {!small && <span className="truncate">{p.title || 'Picture'}</span>}
       {!small && <span className="truncate text-muted-foreground">{p.licence}{p.creator ? ` · ${p.creator}` : ''}</span>}
     </button>
