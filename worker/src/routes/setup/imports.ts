@@ -1409,7 +1409,7 @@ export async function rollUpImportedDay(ctx: Pick<ImportCtx, 'db' | 'inst'>, emp
      was shown as arriving). Nobody arrives after noon and leaves unrecorded;
      somebody who forgot the morning tap does. The in is left for the office. */
   let checkIn: string | null = d.first_seen
-  if (!checkOut && istToUTC(onDate, '12:00') <= d.first_seen) { checkOut = d.last_seen; checkIn = null }
+  if (!checkOut && istToUTC(onDate, '15:00') <= d.first_seen) { checkOut = d.last_seen; checkIn = null }
   const existing = await ctx.db.prepare(`SELECT id, source, check_in, check_out FROM staff_attendance WHERE user_id = ? AND on_date = ?`).bind(e.user_id, onDate)
     .first<{ id: string; source: string; check_in: string | null; check_out: string | null }>()
   if (existing) {
