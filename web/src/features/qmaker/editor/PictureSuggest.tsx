@@ -45,7 +45,7 @@ function Tile({ p, onPick, busy, small }: { p: PictureHit; onPick: () => void; b
   return (
     <button type="button" className={`qm-pictile ${small ? 'small' : ''}`} title="Insert this picture" aria-label={`Insert picture: ${credit}`}
       disabled={busy} aria-busy={busy} onClick={onPick}>
-      <img src={tileSrc(p.thumb)} alt="" loading="lazy" referrerPolicy="no-referrer" />
+      <img src={tileSrc(p.thumb)} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { const li = e.currentTarget.closest('li'); if (li) li.style.display = 'none' }} />
     </button>
   )
 }
@@ -126,7 +126,7 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
         {tab === 'store' ? <ImageStorePane uploadTrigger={up} onPick={(assets) => { insertAssets(editor, assets); onClose() }} /> : <>
         <SearchBox value={text} onChange={setText} placeholder="Search clip art, e.g. apple" />
         {q.length < 3 ? <EmptyState title="Type what the picture should show." body="For example: apple, leaf, clock." />
-          : res.isLoading ? <Loading shape="cards" />
+          : res.isLoading || (res.isFetching && res.data?.q !== q) ? <Loading shape="cards" />
           : res.error ? <ErrorState error={res.error} />
           : res.data?.unavailable ? <EmptyState title="The picture library did not answer." body="Try again in a moment." />
           : !res.data?.items.length ? <EmptyState title="No clip art found." body="Try a simpler word, in English, or upload your own in the image store." />

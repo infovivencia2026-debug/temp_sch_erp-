@@ -31,7 +31,12 @@ async function browserSearch(q: string, kind: PictureKind, signal?: AbortSignal)
   try {
     const [a, b] = await Promise.all([page(1), page(2).catch(() => [])])
     if (a === null) return null
-    return { q, kind, items: openverseHits([...a, ...(b ?? [])], kind, 40, q) }
+    // Closest names first: "Chocolate bar clipart" before "Chocolate cupcake".
+    const items = openverseHits([...a, ...(b ?? [])], kind, 60, q)
+    const words = q.toLowerCase().split(/\s+/)
+    const score = (t: string) => { const x = t.toLowerCase(); const w = words.find((k) => x.includes(k)) ?? ''; return (x.startsWith(w) ? 0 : 2) + (x.split(/[ ,]+/).length > 4 ? 1 : 0) }
+    const seen = new Set<string>()
+    return { q, kind, items: items.filter((h) => !seen.has(h.title) && seen.add(h.title)).sort((x, y) => score(x.title) - score(y.title)).slice(0, 40) }
   } catch (e) {
     if (signal?.aborted) throw e
     return null
