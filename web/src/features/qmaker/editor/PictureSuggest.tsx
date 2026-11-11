@@ -43,11 +43,9 @@ function useInsertPicture(editor: Editor | null) {
 function Tile({ p, onPick, busy, small }: { p: PictureHit; onPick: () => void; busy: boolean; small?: boolean }) {
   const credit = [p.title, p.creator && `by ${p.creator}`, p.licence].filter(Boolean).join(', ')
   return (
-    <button type="button" className={`qm-pictile ${small ? 'small' : ''}`} title={`Insert: ${credit}`} aria-label={`Insert picture: ${credit}`}
+    <button type="button" className={`qm-pictile ${small ? 'small' : ''}`} title="Insert this picture" aria-label={`Insert picture: ${credit}`}
       disabled={busy} aria-busy={busy} onClick={onPick}>
       <img src={tileSrc(p.thumb)} alt="" loading="lazy" referrerPolicy="no-referrer" />
-      {!small && <span className="truncate">{p.title || 'Picture'}</span>}
-      {!small && <span className="truncate text-muted-foreground">{p.licence}{p.creator ? ` · ${p.creator}` : ''}</span>}
     </button>
   )
 }
@@ -111,7 +109,6 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
   return (
     <Dialog
       title="Find a picture"
-      description="Free clip art, or your school's own pictures in the image store."
       size="xl"
       onClose={onClose}
       footer={<Button variant="ghost" onClick={onClose}>Close</Button>}
