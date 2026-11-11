@@ -33,26 +33,28 @@ export function lateListJpeg(rows: Row[], onDate: string) {
   g.fillStyle = '#101828'; g.font = font(800, 24); g.fillText(date, pad, 98)
   let y = 132
 
-  const section = (title: string, color: string, bg: string, list: Row[], time: (r: Row) => string, empty: string) => {
+  const section = (title: string, color: string, bg: string, light: string, list: Row[], time: (r: Row) => string, empty: string) => {
     g.fillStyle = bg; roundRect(g, pad, y, W - pad * 2, headH, 12); g.fill()
-    g.fillStyle = color; g.font = font(700, 18); g.fillText(`${title} (${list.length})`, pad + 18, y + 32)
+    g.fillStyle = '#ffffff'; g.font = font(700, 19); g.fillText(`${title} (${list.length})`, pad + 18, y + 32)
     y += headH + 10
     g.fillStyle = '#667085'; g.font = font(600, 14)
     g.fillText('S.No', pad + 18, y + 24); g.fillText('Name', pad + 100, y + 24); g.fillText('Time', W - pad - 140, y + 24)
     y += 40
     if (!list.length) { g.fillStyle = '#98a2b3'; g.font = font(500, 16); g.fillText(empty, pad + 18, y + 28); y += rowH }
     list.forEach((r, i) => {
-      if (i % 2 === 0) { g.fillStyle = '#f9fafb'; g.fillRect(pad, y, W - pad * 2, rowH) }
+      g.fillStyle = i % 2 === 0 ? light : '#ffffff'; g.fillRect(pad, y, W - pad * 2, rowH)
+      g.fillStyle = color; g.fillRect(pad, y, 5, rowH)
       g.fillStyle = '#101828'; g.font = font(500, 17)
       g.fillText(String(i + 1), pad + 18, y + 29)
       g.fillText(fit(g, r.full_name, W - pad * 2 - 280), pad + 100, y + 29)
-      g.fillStyle = color; g.font = font(700, 17); g.fillText(time(r), W - pad - 140, y + 29)
+      g.fillStyle = color; roundRect(g, W - pad - 150, y + 9, 100, 27, 13); g.fill()
+      g.fillStyle = '#ffffff'; g.font = font(700, 15); g.textAlign = 'center'; g.fillText(time(r), W - pad - 100, y + 28); g.textAlign = 'left'
       y += rowH
     })
     y += 30
   }
-  section('Punched in after 8:45', '#1d4ed8', '#eff6ff', late, (r) => hm(r.check_in), 'Nobody was late.')
-  section('Not punched in yet', '#b42318', '#fef3f2', none, () => 'Not in', 'Everyone has punched in.')
+  section('Punched in after 8:45', '#2563eb', '#2563eb', '#e8f0fe', late, (r) => hm(r.check_in), 'Nobody was late.')
+  section('Not punched in yet', '#dc2626', '#dc2626', '#fde8e8', none, () => 'Not in', 'Everyone has punched in.')
 
   const a = document.createElement('a')
   a.download = `Late list ${onDate}.jpg`
