@@ -9,6 +9,8 @@ export interface Env {
   /** Live update hubs, one per school (src/services/live.ts). */
   LIVE: DurableObjectNamespace
   CREDENTIAL_KEY?: string
+  /** Pixabay API key (free): more and better picture suggestions in the Question maker. */
+  PIXABAY_KEY?: string
   /** The Gemini relay, pinned where Google serves the API (worker/ai-relay). */
   AI_RELAY?: Fetcher
   /** Shared with the Pages function; see origin.ts. */

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Dialog, EmptyState, ErrorState, Field, Input, Loading } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
 import { imgSrc, searchImages, uploadImage, type ImageAsset } from '../lib/images'
+import { outlineOf } from '../lib/pictures'
 
 /* The image store: every picture anyone at the school has put into a paper or
    a banked question, found by its name. Pick one, or several for a row. */
@@ -20,7 +21,7 @@ export default function ImagePicker({ onPick, onClose }: { onPick: (assets: Imag
 }
 
 /** The image store itself, also a tab of Find a picture (owner, 2026-11-11: "remove photos, add image store there"). */
-export function ImageStorePane({ onPick, uploadTrigger = 0 }: { onPick: (assets: ImageAsset[]) => void; uploadTrigger?: number }) {
+export function ImageStorePane({ onPick, uploadTrigger = 0, outline = false }: { onPick: (assets: ImageAsset[]) => void; uploadTrigger?: number; outline?: boolean }) {
   const [q, setQ] = useState('')
   const list = useQuery({ queryKey: ['paper-images', q.trim()], queryFn: () => searchImages(q.trim()) })
   /* Teachers keep their own pictures here under a name they choose, and rename
@@ -38,6 +39,16 @@ export function ImageStorePane({ onPick, uploadTrigger = 0 }: { onPick: (assets:
   const choose = (f: File | undefined) => {
     if (!f) return
     setPending({ file: f, url: URL.createObjectURL(f) }); setName(f.name.replace(/\.[a-z0-9]+$/i, '')); setNote('')
+  }
+  /* Outline on: the chosen picture goes in as a black outline, kept in the
+     store as "<name> (outline)" (owner, 2026-11-11). */
+  const pick = async (a: ImageAsset) => {
+    if (!outline) return onPick([a])
+    setBusy(true); setNote('')
+    try {
+      const o = await uploadImage(await outlineOf(imgSrc(a)), `${(a.name || 'Picture').replace(/ \(by .*$/, '')} (outline)`.slice(0, 120))
+      refresh(); onPick([o])
+    } catch (e) { setNote(e instanceof Error ? e.message : 'The outline could not be made.') } finally { setBusy(false) }
   }
   const saveUpload = async () => {
     if (!pending || !name.trim()) return
@@ -72,7 +83,7 @@ export function ImageStorePane({ onPick, uploadTrigger = 0 }: { onPick: (assets:
         ) : (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {list.data.map((a) => (
-              <li key={a.id}><StoreTile a={a} onPick={() => onPick([a])} onRenamed={refresh} /></li>
+              <li key={a.id}><StoreTile a={a} outline={outline} onPick={() => void pick(a)} onRenamed={refresh} /></li>
             ))}
           </ul>
         )}
@@ -82,7 +93,7 @@ export function ImageStorePane({ onPick, uploadTrigger = 0 }: { onPick: (assets:
 
 /* One picture: click it to put it in; the pencil under it renames it there
    (owner, 2026-11-11: "add pencil for each image, rename it below the image"). */
-function StoreTile({ a, onPick, onRenamed }: { a: ImageAsset; onPick: () => void; onRenamed: () => void }) {
+function StoreTile({ a, onPick, onRenamed, outline }: { a: ImageAsset; onPick: () => void; onRenamed: () => void; outline?: boolean }) {
   const shown = (a.name || 'Picture').replace(/ \(by .*$/, '')
   const [edit, setEdit] = useState(false)
   const [val, setVal] = useState(shown)
@@ -96,7 +107,7 @@ function StoreTile({ a, onPick, onRenamed }: { a: ImageAsset; onPick: () => void
   return (
     <div className="qm-imgtile">
       <button type="button" className="contents" title="Put this picture in the question" onClick={onPick}>
-        <img src={imgSrc(a)} alt="" loading="lazy" />
+        <img src={imgSrc(a)} alt="" loading="lazy" style={outline ? { filter: 'grayscale(1) contrast(4) brightness(1.3)' } : undefined} />
       </button>
       {edit ? (
         <div className="flex items-center gap-1">

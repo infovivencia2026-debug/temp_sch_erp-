@@ -93,7 +93,7 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
   const [text, setText] = useState(() => empty ? lastWord(pictureKeywords(paragraphText(editor))) : pictureKeywords(editor.state.doc.textBetween(from, to, ' ')))
   const [tab, setTab] = useState<'clipart' | 'store'>('clipart')
   const [up, setUp] = useState(0)
-  const kind: PictureKind = 'clipart'
+  const [kind, setKind] = useState<PictureKind>('clipart')
   const q = pictureKeywords(useDebouncedValue(text, 400))
   const { insert, busy } = useInsertPicture(editor)
   const res = useQuery({
@@ -120,6 +120,11 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
       title="Find a picture"
       actions={<>
         {tab === 'store' && <Button size="sm" onClick={() => setUp((n) => n + 1)}>Upload picture</Button>}
+          <div className={SEG_BAR} role="group" aria-label="Colour or outline">
+          {([['clipart', 'Colour'], ['outline', 'Outline']] as const).map(([k, label]) => (
+            <button key={k} type="button" aria-pressed={kind === k} className={segClass(kind === k)} onClick={() => setKind(k)}>{label}</button>
+          ))}
+        </div>
           <div className={SEG_BAR} role="group" aria-label="Where the picture comes from">
           {([['clipart', 'Images'], ['store', 'Image store']] as const).map(([k, label]) => (
             <button key={k} type="button" aria-pressed={tab === k} className={segClass(tab === k)} onClick={() => setTab(k)}>{label}</button>
@@ -131,7 +136,7 @@ export function PictureDialog({ editor, onClose }: { editor: Editor; onClose: ()
       footer={<Button variant="ghost" onClick={onClose}>Close</Button>}
     >
       <div className="space-y-4">
-        {tab === 'store' ? <ImageStorePane uploadTrigger={up} onPick={(assets) => { insertAssets(editor, assets); onClose() }} /> : <>
+        {tab === 'store' ? <ImageStorePane uploadTrigger={up} outline={kind === 'outline'} onPick={(assets) => { insertAssets(editor, assets); onClose() }} /> : <>
         <SearchBox value={text} onChange={setText} placeholder="Search pictures, e.g. apple" />
         {q.length < 3 ? <EmptyState title="Type what the picture should show." body="For example: apple, leaf, clock." />
           : !shown.length && (res.isFetching || more.isFetching) ? <Loading shape="cards" />

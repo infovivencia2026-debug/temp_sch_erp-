@@ -30,7 +30,8 @@ export function pictureKeywords(text: string): string {
 }
 
 /** The picture kinds a teacher can ask for. */
-export type PictureKind = 'clipart' | 'photo'
+/** outline: black line drawings, for colouring and labelling (owner, 2026-11-11). */
+export type PictureKind = 'clipart' | 'photo' | 'outline'
 
 /** One suggestion, as the Worker returns it. `thumb` and `full` are library URLs, fetched through the Worker. */
 export interface PictureHit {
@@ -55,6 +56,8 @@ export function isLibraryPictureUrl(u: string): boolean {
   if (url.hostname === 'api.openverse.org') return OPENVERSE_THUMB.test(url.pathname)
   if (url.hostname === 'live.staticflickr.com') return FLICKR.test(url.pathname)
   if (url.hostname === 'images.rawpixel.com') return RAWPIXEL.test(url.pathname)
+  if (url.hostname === 'pixabay.com') return /^\/get\/[A-Za-z0-9_-]+\.(jpg|png)$/.test(url.pathname)
+  if (url.hostname === 'cdn.pixabay.com') return /^\/photo\/\d{4}\/\d{2}\/\d{2}\/\d{2}\/\d{2}\/[\w-]+\.(jpg|png)$/.test(url.pathname)
   if (url.hostname === 'upload.wikimedia.org') return COMMONS.test(url.pathname) && !url.pathname.includes('..')
   return false
 }
@@ -99,9 +102,9 @@ export function directPicture(u: string): { thumb: string; full: string } | null
 export function openverseUrl(q: string, kind: PictureKind, page = 1): string {
   const u = new URL('https://api.openverse.org/v1/images/')
   // "bus" alone brought logos and route signs; "bus clipart" brings drawings (owner, 2026-11-11).
-  u.searchParams.set('q', kind === 'clipart' ? `${q} clipart` : q)
+  u.searchParams.set('q', kind === 'clipart' ? `${q} clipart` : kind === 'outline' ? `${q} line art` : q)
   u.searchParams.set('license_type', 'commercial,modification')
-  u.searchParams.set('category', kind === 'clipart' ? 'illustration' : 'photograph')
+  u.searchParams.set('category', kind === 'photo' ? 'photograph' : 'illustration')
   u.searchParams.set('mature', 'false')
   u.searchParams.set('page_size', '20')
   if (page > 1) u.searchParams.set('page', String(page))
@@ -124,7 +127,7 @@ export function openverseHits(results: OpenverseHit[], kind: PictureKind, max = 
   for (const r of results) {
     if (q && !namesWord(r.title ?? '', q)) continue
     if (r.mature || (r.unstable__sensitivity?.length ?? 0) > 0) continue
-    if (kind === 'clipart' && NOT_CLIPART.test(r.title ?? '')) continue
+    if (kind !== 'photo' && NOT_CLIPART.test(r.title ?? '')) continue
     const fromCommons = r.url ? commonsThumb(r.url, 330) : null
     const direct = r.url ? directPicture(r.url) : null
     const thumb = fromCommons ?? direct?.thumb ?? `https://api.openverse.org/v1/images/${r.id}/thumb/`

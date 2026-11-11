@@ -14,7 +14,7 @@ import { commonsThumb, namesWord, isLibraryPictureUrl, MAX_QUERY, openverseHits,
    store like any upload (lib/images.ts uploadImage), with its credit. */
 
 const EXAMS_READ = 'academics.exams.read'
-const MAX_RESULTS = 12
+const MAX_RESULTS = 40
 const MAX_BYTES = 5 * 1024 * 1024
 const UA = 'SchoolERP-PictureSearch/1.0 (question paper picture suggestions)'
 const TIMEOUT_MS = 8000
@@ -34,7 +34,7 @@ const plain = (s = '') => s.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
 async function commons(q: string, kind: PictureKind): Promise<PictureHit[]> {
   const u = new URL('https://commons.wikimedia.org/w/api.php')
   const p = { action: 'query', format: 'json', generator: 'search', gsrnamespace: '6', gsrlimit: '30',
-    gsrsearch: kind === 'clipart' ? `${q} clipart filetype:drawing` : `${q} filetype:bitmap`, prop: 'imageinfo', iiprop: 'url|extmetadata', origin: '*' }
+    gsrsearch: kind === 'outline' ? `${q} line art filetype:drawing` : kind === 'clipart' ? `${q} clipart filetype:drawing` : `${q} filetype:bitmap`, prop: 'imageinfo', iiprop: 'url|extmetadata', origin: '*' }
   for (const [k, v] of Object.entries(p)) u.searchParams.set(k, v)
   const res = await fetch(u.href, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: timeout() })
   if (!res.ok) throw new Error(`commons ${res.status}`)
@@ -56,7 +56,30 @@ async function commons(q: string, kind: PictureKind): Promise<PictureHit[]> {
   return out
 }
 
-async function search(q: string, kind: PictureKind): Promise<PictureHit[]> {
+/* Pixabay (owner, 2026-11-11: "only 4 5 images, not accurate"): free, keyed,
+   far more and better drawings than Openverse. Used first when the key is set. */
+interface PixabayHit { id: number; tags?: string; user?: string; previewURL?: string; webformatURL?: string; pageURL?: string }
+async function pixabay(key: string, q: string, kind: PictureKind): Promise<PictureHit[]> {
+  const u = new URL('https://pixabay.com/api/')
+  u.searchParams.set('key', key)
+  u.searchParams.set('q', kind === 'outline' ? `${q} outline` : q)
+  u.searchParams.set('image_type', kind === 'photo' ? 'photo' : kind === 'outline' ? 'vector' : 'illustration')
+  u.searchParams.set('safesearch', 'true')
+  u.searchParams.set('per_page', '80')
+  const res = await fetch(u.href, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: timeout() })
+  if (!res.ok) throw new Error(`pixabay ${res.status}`)
+  const body = (await res.json()) as { hits?: PixabayHit[] }
+  const out: PictureHit[] = []
+  for (const h of body.hits ?? []) {
+    const thumb = h.webformatURL ?? '', full = h.webformatURL ?? ''
+    if (!isLibraryPictureUrl(thumb) || !namesWord(h.tags ?? '', q)) continue
+    out.push({ thumb, full, title: (h.tags ?? '').split(',')[0].trim().slice(0, 120) || q, creator: (h.user ?? '').slice(0, 80), licence: 'Pixabay licence', source: h.pageURL ?? '' })
+  }
+  return out
+}
+
+async function search(q: string, kind: PictureKind, key?: string): Promise<PictureHit[]> {
+  if (key) { try { const p = await pixabay(key, q, kind); if (p.length) return p } catch { /* the open libraries next */ } }
   try {
     return await openverse(q, kind)
   } catch {
@@ -77,14 +100,16 @@ async function cached<T>(key: string, maxAge: number, make: () => Promise<{ body
 
 async function pictureSearch(c: Ctx) {
   const q = pictureKeywords(String(c.url.searchParams.get('q') ?? '').slice(0, 400)).slice(0, MAX_QUERY)
-  const kind: PictureKind = c.url.searchParams.get('kind') === 'photo' ? 'photo' : 'clipart'
+  const k = c.url.searchParams.get('kind')
+  const kind: PictureKind = k === 'photo' ? 'photo' : k === 'outline' ? 'outline' : 'clipart'
+  const key = c.env.PIXABAY_KEY
   if (q.length < 3) throw badRequest('Type a word to find pictures for.')
-  const out = await cached<{ q: string; kind: PictureKind; items: PictureHit[]; unavailable?: boolean }>(`v2/${kind}/${encodeURIComponent(q)}`, 3600, async () => {
+  const out = await cached<{ q: string; kind: PictureKind; items: PictureHit[]; unavailable?: boolean }>(`v3${key ? 'p' : ''}/${kind}/${encodeURIComponent(q)}`, 3600, async () => {
     try {
-      let items = await search(q, kind)
+      let items = await search(q, kind, key)
       let shown = kind
       // No drawing of it: offer photographs rather than nothing.
-      if (!items.length && kind === 'clipart') { items = await search(q, 'photo'); shown = 'photo' }
+      if (!items.length && kind === 'clipart') { items = await search(q, 'photo', key); shown = 'photo' }
       return { body: { q, kind: shown, items }, keep: true }
     } catch {
       return { body: { q, kind, items: [] as PictureHit[], unavailable: true }, keep: false }
