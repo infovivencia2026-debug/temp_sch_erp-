@@ -195,6 +195,7 @@ export default function MyClasses() {
   })
   if (options.isLoading || progress.isLoading || warnings.isLoading) return <SkeletonTiles count={4} label="Working out how each child is doing…" />
   if (progress.error) return <ErrorState error={progress.error} />
+  if (options.error) return <ErrorState error={options.error} />
 
   const attention = rows.filter((r) => r.risk_band !== 'none')
   const top = rows.filter((r) => r.marks_percent != null && r.marks_percent >= 80)
@@ -229,7 +230,7 @@ export default function MyClasses() {
         {showPending && (
           <Card>
             <CardHeader title="Pending homework" description="Only work still owed, with the students who have not handed it in." />
-            {pending.isLoading ? <Loading /> : (pending.data?.items ?? []).length === 0 ? (
+            {pending.isLoading ? <Loading /> : pending.error ? <ErrorState error={pending.error} /> : (pending.data?.items ?? []).length === 0 ? (
               <p className="px-5 py-6 text-center text-[13.5px] text-muted-foreground">Nothing pending: everyone has handed in everything set in this period.</p>
             ) : (
               <ul className="divide-y">
@@ -459,6 +460,8 @@ function ChildPanel({
           {canNote && <NoteForm studentId={child.student_id} />}
           {notes.isLoading ? (
             <Loading label="Loading notes…" />
+          ) : notes.error ? (
+            <ErrorState error={notes.error} />
           ) : (notes.data?.items ?? []).length === 0 ? (
             <p className="text-[13px] text-muted-foreground">Nothing recorded yet.</p>
           ) : (

@@ -130,7 +130,13 @@ export async function postStatus(p: { file?: File | null; text?: boolean; thumb?
   fd.append('targets', JSON.stringify(p.targets))
   if (p.asSchool) fd.append('as_school', '1')
   if (p.duration) fd.append('duration_seconds', String(p.duration))
-  const res = await fetch('/api/v1/status/posts', { method: 'POST', body: fd, credentials: 'same-origin' })
+  let res: Response
+  try {
+    res = await fetch('/api/v1/status/posts', { method: 'POST', body: fd, credentials: 'same-origin', signal: AbortSignal.timeout(180_000) })
+  } catch (e) {
+    if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) throw new Error('The upload took too long on this connection. Try again.')
+    throw new Error('Could not reach the server. Check the connection and try again.')
+  }
   if (!res.ok) {
     let msg = 'Could not post that status.'
     try { msg = (await res.json()).error ?? msg } catch { /* not JSON */ }

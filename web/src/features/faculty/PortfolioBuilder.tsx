@@ -140,7 +140,7 @@ export default function PortfolioBuilder() {
         {studentID && pieces.isLoading && <SkeletonTable columns={6} />}
         {pieces.error && <ErrorState error={pieces.error} />}
 
-        {studentID && !pieces.isLoading && (
+        {studentID && !pieces.isLoading && !pieces.error && (
           <Card>
             <CardHeader
               title="The portfolio"

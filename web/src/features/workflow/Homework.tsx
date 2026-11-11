@@ -604,12 +604,12 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
   // redundant with the composer only opening for a teacher, and worth stating
   // anyway: it records at the point of use which data a family may not read,
   // and keeps a future refactor from quietly issuing a 403 on a child's screen.
-  const { data: sections } = useQuery({
+  const { data: sections, isLoading: sectionsLoading, error: sectionsError } = useQuery({
     queryKey: ['sections', 'mine'],
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=true'),
     enabled: canPublish,
   })
-  const { data: subjects } = useQuery({
+  const { data: subjects, isLoading: subjectsLoading, error: subjectsError } = useQuery({
     queryKey: ['subjects','mine'],
     /* What this person can actually set, not the whole prospectus. A Maths
        teacher offered Sanskrit is offered a filter that only ever returns
@@ -669,7 +669,7 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
             <Select
               value={f.section_id}
               onChange={(x) => setF({ ...f, section_id: x })}
-              placeholder="Choose a section you teach"
+              placeholder={sectionsLoading ? 'Loading…' : 'Choose a section you teach'}
               options={(sections?.items ?? []).map((s) => ({
                 value: s.id,
                 label: `${s.class_name}-${s.name}`,
@@ -680,7 +680,7 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
             <Select
               value={f.subject_id}
               onChange={(x) => setF({ ...f, subject_id: x })}
-              placeholder="Choose a subject"
+              placeholder={subjectsLoading ? 'Loading…' : 'Choose a subject'}
               options={(subjects?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
             />
           </Field>
@@ -714,7 +714,7 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
             />
           </Field>
         </FormGrid>
-        <FormNotice error={publish.error} />
+        <FormNotice error={publish.error ?? sectionsError ?? subjectsError} />
         <div className="mt-4 flex items-center gap-2">
           <Button type="submit" disabled={publish.isPending || !f.section_id || !f.title.trim()}>
             {publish.isPending ? 'Publishing…' : 'Publish to the class'}

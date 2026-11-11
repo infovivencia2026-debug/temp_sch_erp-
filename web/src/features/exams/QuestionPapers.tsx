@@ -212,6 +212,7 @@ export default function QuestionPapers() {
          * there. Somebody reading that concludes the button is broken, not
          * that the school has no exams yet. So the reason is said, with the
          * one thing that fixes it. */}
+        {slots.error && <ErrorState error={slots.error} />}
         {open.length === 0 && slots.data && (
           <EmptyState
             title="No exam papers to write against yet."

@@ -136,6 +136,7 @@ export default function MontessoriTracking() {
               </Field>
             </FormGrid>
           </div>
+          {room.isLoading ? <SkeletonTable columns={7} /> : room.error ? <ErrorState error={room.error} /> : (
           <Table
             head={['Adm no', 'Child', 'Presented', 'Practising', 'Mastered', 'Last seen', '']}
             empty={(room.data?.items.length ?? 0) === 0}
@@ -165,6 +166,7 @@ export default function MontessoriTracking() {
               )
             })}
           </Table>
+          )}
         </Card>
 
         {studentID && (

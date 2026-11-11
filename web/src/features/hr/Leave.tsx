@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Select, SkeletonTable, ErrorState, FormNotice, Field, FormGrid, Input, ExportButton,
+  Button, Select, SkeletonTable, Loading, ErrorState, FormNotice, Field, FormGrid, Input, ExportButton,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
@@ -563,6 +563,7 @@ export default function Leave() {
                   differently, deducted differently, and a leave with no kind
                   cannot be counted against a balance at all — which is what
                   the balance tiles beside it are for. */}
+              {form.kind === 'leave' && (own ? mineTypes : types).isLoading && <Loading shape="inline" label="Loading leave types…" />}
               {leaveTypes.length > 0 && form.kind === 'leave' && (
                 <Field label="Kind of leave" required>
                   <Select
@@ -609,7 +610,7 @@ export default function Leave() {
                   (form.kind === 'leave' && form.is_half_day && !form.from_time) ||
                   // Only when there is something to choose. A school that has
                   // not set its leave types up must still be able to apply.
-                  (form.kind === 'leave' && (noneGiven || (leaveTypes.length > 0 && !form.leave_type_id))) ||
+                  (form.kind === 'leave' && (noneGiven || (own ? mineTypes : types).isLoading || (leaveTypes.length > 0 && !form.leave_type_id))) ||
                   send.isPending
                 }
                 onClick={() => send.mutate()}

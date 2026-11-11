@@ -421,7 +421,7 @@ export default function Gradebook() {
             <Select
               value={esID}
               onChange={pickPaper}
-              placeholder={visible.length ? 'Choose a paper' : 'No papers match'}
+              placeholder={papers.isLoading ? 'Loading…' : visible.length ? 'Choose a paper' : 'No papers match'}
               options={visible.map((p) => ({
                 value: p.id,
                 label: `${p.subject} · ${p.exam_name} · ${p.marks_entered}/${p.students} entered`,
@@ -454,6 +454,10 @@ export default function Gradebook() {
             className={visible[0].class_name}
             examName={visible[0].exam_name}
           />
+        ) : !esID && papers.isLoading ? (
+          <SkeletonTiles count={3} />
+        ) : !esID && papers.error ? (
+          <ErrorState error={papers.error} />
         ) : !esID ? (
           <EmptyState
             title="Choose a paper"

@@ -157,7 +157,7 @@ export default function Corrections() {
                     <Select
                       value={sectionId}
                       onChange={setSectionId}
-                      placeholder="Which section"
+                      placeholder={mySections.isLoading ? 'Loading…' : 'Which section'}
                       options={(mySections.data?.items ?? []).map((x) => ({
                         value: x.id, label: `${x.class_name}-${x.name}`,
                       }))}
@@ -172,8 +172,12 @@ export default function Corrections() {
                 </label>
               </div>
 
-              {!sectionId ? null : register.isLoading ? (
+              {mySections.error ? (
+                <ErrorState error={mySections.error} />
+              ) : !sectionId ? null : register.isLoading ? (
                 <SkeletonTable columns={5} />
+              ) : register.error ? (
+                <ErrorState error={register.error} />
               ) : (register.data?.items ?? []).length === 0 ? (
                 <EmptyState
                   title="Nothing marked that day"

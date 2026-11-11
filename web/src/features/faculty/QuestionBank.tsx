@@ -478,12 +478,19 @@ interface EditRow {
    multipart boundary; we must not set Content-Type ourselves. */
 async function generateFromPDF(form: FormData): Promise<GenResult> {
   const acting = actingInstitution()
-  const res = await fetch('/api/v1/teaching/question-bank/generate', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json', ...(acting ? { 'X-Acting-Institution': acting } : {}) },
-    body: form,
-  })
+  let res: Response
+  try {
+    res = await fetch('/api/v1/teaching/question-bank/generate', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', ...(acting ? { 'X-Acting-Institution': acting } : {}) },
+      body: form,
+      signal: AbortSignal.timeout(180_000),
+    })
+  } catch (e) {
+    if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) throw new Error('This took too long on this connection. Try again.')
+    throw new Error('Could not reach the server. Check the connection and try again.')
+  }
   const text = await res.text()
   let body: any = null
   try {

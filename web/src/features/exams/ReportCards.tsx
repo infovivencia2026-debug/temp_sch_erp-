@@ -662,6 +662,7 @@ export default function ReportCards() {
           </>
         )}
         {outcome && <FormNotice ok={outcome} />}
+        {(act.error || chooseDesign.error || resetTemplate.error) && <FormNotice error={act.error ?? chooseDesign.error ?? resetTemplate.error} />}
         {/* Nothing is claimed until an exam is chosen.
         
             These four read 0, 0, — and — before anybody picks one: a confident

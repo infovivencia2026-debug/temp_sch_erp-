@@ -251,7 +251,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             <div className="col-span-2 sm:col-span-1"><Select
               value={sectionId}
               onChange={(v) => { setSectionId(v); setDraft({}) }}
-              placeholder="Select section"
+              placeholder={sections.isLoading ? 'Loading…' : 'Select section'}
               options={(sections.data?.items ?? []).map((s) => ({
                 value: s.id, label: `${s.class_name}-${s.name}`,
               }))}
@@ -275,7 +275,11 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
         }
       />
 
-      {!sectionId ? (
+      {!sectionId && sections.isLoading ? (
+        <Loading />
+      ) : !sectionId && sections.error ? (
+        <ErrorState error={sections.error} />
+      ) : !sectionId ? (
         <p className="px-4 py-10 text-center text-sm text-muted-foreground">
           Select a section and date.
         </p>

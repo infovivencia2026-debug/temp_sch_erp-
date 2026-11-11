@@ -402,6 +402,7 @@ export default function StudentProfile() {
       qc.invalidateQueries({ queryKey: ['student-profile', selected] })
       qc.invalidateQueries({ queryKey: ['student-counts'] })
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not change the status. Try again.'),
   })
   /* Erasing a record, which is a different act from taking a child off the
      roll and is on a different footing.
@@ -432,6 +433,7 @@ export default function StudentProfile() {
       qc.invalidateQueries({ queryKey: ['student-profile', selected] })
       qc.invalidateQueries({ queryKey: ['profile-search'] })
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not readmit. Try again.'),
   })
 
   const [writingRemark, setWritingRemark] = useState(false)
@@ -2059,6 +2061,7 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
   /* '' means "adding a new one"; a guardian id means "correcting that one".
      null means the form is closed. */
   const [editing, setEditing] = useState<string | null>(null)
+  const toast = useToast()
   const save = useMutation({
     mutationFn: (v: Record<string, unknown>) =>
       api.post(`/api/v1/students/${p.id}/guardians`, v),
@@ -2067,12 +2070,14 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
   const unlink = useMutation({
     mutationFn: (gid: string) => api.del(`/api/v1/students/${p.id}/guardians/${gid}`),
     onSuccess: () => onChanged?.(),
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not remove this guardian. Try again.'),
   })
   /* Which parent is rung first (Yajur, 2026-10-28). Contact order only: each
      parent keeps their own login and number, so no confirmation. */
   const makePrimary = useMutation({
     mutationFn: (gid: string) => api.post(`/api/v1/students/${p.id}/guardians/${gid}/primary`, {}),
     onSuccess: () => onChanged?.(),
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not change the first contact. Try again.'),
   })
   return (
     <Card>
