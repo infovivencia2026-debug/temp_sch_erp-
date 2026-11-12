@@ -120,19 +120,19 @@ function CallButton({ label, name, phone, primary }: { label: string; name: stri
   return (
     <a
       href={`tel:${phone}`}
-      className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[13px] font-medium hover:bg-accent"
+      className="inline-flex items-center gap-2 rounded-full bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
     >
       <Phone className="h-3.5 w-3.5 shrink-0" />
       <span className="min-w-0">
         <span className="block truncate">
           {label}
           {name && name !== label ? (
-            <span className="font-normal text-muted-foreground"> · {name}</span>
+            <span className="font-normal opacity-80"> · {name}</span>
           ) : null}
         </span>
-        <span className="flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground">
+        <span className="flex items-center gap-1.5 font-mono text-[12px] opacity-80">
           {phone}
-          {primary ? <Badge tone="primary">Primary</Badge> : null}
+          {primary ? <span className="rounded-full bg-white/90 px-1.5 py-px font-sans text-[10.5px] font-semibold text-primary">Primary</span> : null}
         </span>
       </span>
     </a>
