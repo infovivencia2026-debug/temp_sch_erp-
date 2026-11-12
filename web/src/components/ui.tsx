@@ -1603,7 +1603,7 @@ export function Table({
       role="dialog"
       aria-modal="true"
       aria-label="Table, full screen"
-      className="vv-screen-phone fixed inset-0 z-[80] flex flex-col bg-background p-3 sm:p-5"
+      className="vv-screen-phone fixed inset-0 z-[95] flex flex-col bg-background p-3 sm:p-5"
     >
       <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
         <p className="text-[13px] tabular-nums text-muted-foreground">
