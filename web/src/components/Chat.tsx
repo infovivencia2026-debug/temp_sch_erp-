@@ -656,7 +656,7 @@ export function ChatThread({
         )}
         {loading ? (
           <Loading />
-        ) : messages.length === 0 ? (
+        ) : all.length === 0 ? (
           <div className="grid h-full place-items-center py-8 text-center text-[13px] text-muted-foreground">
             {empty ?? 'Nothing yet. Say hello.'}
           </div>
