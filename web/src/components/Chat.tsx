@@ -439,7 +439,10 @@ export function ChatThread({
         setOutgoing((cur) =>
           cur.map((m) => (m.id === draftMsg.id ? { ...m, pending: false } : m)),
         )
-      } catch {
+      } catch (e) {
+        /* Kept on the device and sent by the outbox when the line returns:
+           it stays "sending", with no Retry, so it cannot go twice. */
+        if ((e as { code?: string })?.code === 'queued_offline') return
         setOutgoing((cur) =>
           cur.map((m) => (m.id === draftMsg.id ? { ...m, pending: false, failed: true } : m)),
         )
