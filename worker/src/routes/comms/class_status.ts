@@ -426,12 +426,19 @@ async function removePost(c: Ctx, p: PostRow) {
 // ---------------------------------------------------------------------------
 // posting rules
 
+/* The school's own choice decides (owner, 2026-11-12: class teachers were
+   chosen but had no upload button, their role lacked the permission). */
+function allowedToPost(c: Ctx, v: Viewer, pol: StatusPolicy): boolean {
+  if (v.admin) return true
+  if (pol.who.includes('office') && can(c.id, SCHOOL)) return true
+  if (pol.who.includes('teachers') && (v.classTeacher || v.teachSections.length > 0)) return true
+  if (pol.who.includes('class_teachers') && v.classTeacher) return true
+  return false
+}
+
 function mayPost(c: Ctx, v: Viewer, pol: StatusPolicy, asSchool: boolean) {
   if (asSchool) { if (!can(c.id, SCHOOL)) throw forbidden('only the school office can post as the school'); return }
-  if (!can(c.id, POST)) throw forbidden('you cannot post a class status')
-  if (v.admin || can(c.id, SCHOOL)) return
-  if (pol.who === 'admins') throw forbidden('at this school only the principal and the office post statuses')
-  if (pol.who === 'class_teachers' && !v.classTeacher) throw forbidden('at this school only class teachers post statuses')
+  if (!allowedToPost(c, v, pol)) throw forbidden('at this school you cannot post a status')
 }
 
 async function checkTargets(c: Ctx, v: Viewer, asSchool: boolean, raw: unknown): Promise<Target[]> {
@@ -485,12 +492,12 @@ export function registerClassStatus(r: Router): void {
      school's own first), unseen first, with the unseen count for the badge. */
   r.typed('GET /status/feed', 'auth', async (c) => {
     const pol = await statusPolicy(c.db)
-    const canPost = can(c.id, POST) && pol.enabled
     const canSchool = can(c.id, SCHOOL) && pol.enabled
-    const empty: StatusFeed = { enabled: pol.enabled, can_post: canPost, can_post_school: canSchool, unseen: 0, rings: [], gallery: [],
+    const empty: StatusFeed = { enabled: pol.enabled, can_post: false, can_post_school: canSchool, unseen: 0, rings: [], gallery: [],
       allow_video: pol.allow_video, max_video_seconds: pol.max_video_seconds }
     if (!pol.enabled || !c.id.institution) return empty
     const v = await viewer(c)
+    const canPost = allowedToPost(c, v, pol)
     const vis = visible(v)
     const t = now()
     const rows = (await c.db.prepare(`SELECT p.id, p.posted_by, p.as_school, p.media_kind, p.content_type, p.caption, p.created_at, p.published_at,

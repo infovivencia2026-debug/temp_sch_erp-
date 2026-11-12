@@ -27,26 +27,36 @@ export const LIFETIME_MS = 24 * 3600_000
    it is deleted. A post waiting for approval waits until it is decided. */
 export const GRACE_MS = 7 * 24 * 3600_000
 export const MAX_BYTES = 25 << 20
-export const WHO = ['teachers', 'class_teachers', 'admins'] as const
+/* Who may post, any mix of these (owner, 2026-11-12: "let that drop down
+   choose multiple"). The principal always may. Older single values read as
+   the groups they meant. */
+export const WHO = ['teachers', 'class_teachers', 'office'] as const
 export type Who = (typeof WHO)[number]
+export function parseWho(raw: unknown, base: Who[]): Who[] {
+  if (raw === undefined || raw === null) return base
+  const legacy: Record<string, Who[]> = { teachers: ['teachers', 'class_teachers', 'office'], class_teachers: ['class_teachers', 'office'], admins: ['office'] }
+  if (typeof raw === 'string' && legacy[raw]) return legacy[raw]
+  const list = Array.isArray(raw) ? raw : String(raw).split(',')
+  return [...new Set(list.map((x) => String(x).trim()).filter((x): x is Who => (WHO as readonly string[]).includes(x)))]
+}
 
 export interface StatusPolicy {
   enabled: boolean
   needs_approval: boolean
-  who: Who
+  who: Who[]
   allow_video: boolean
   max_video_seconds: number
   chosen: boolean
 }
 
-export const DEFAULT_POLICY: StatusPolicy = { enabled: true, needs_approval: false, who: 'teachers', allow_video: true, max_video_seconds: 30, chosen: false }
+export const DEFAULT_POLICY: StatusPolicy = { enabled: true, needs_approval: false, who: ['teachers', 'class_teachers', 'office'], allow_video: true, max_video_seconds: 30, chosen: false }
 
 export function cleanPolicy(raw: Record<string, unknown>, base: StatusPolicy = DEFAULT_POLICY): Omit<StatusPolicy, 'chosen'> {
   const secs = Number(raw.max_video_seconds)
   return {
     enabled: raw.enabled === undefined ? base.enabled : !!raw.enabled,
     needs_approval: raw.needs_approval === undefined ? base.needs_approval : !!raw.needs_approval,
-    who: (WHO as readonly string[]).includes(String(raw.who)) ? (raw.who as Who) : base.who,
+    who: parseWho(raw.who, base.who),
     allow_video: raw.allow_video === undefined ? base.allow_video : !!raw.allow_video,
     max_video_seconds: Number.isFinite(secs) && raw.max_video_seconds !== undefined ? Math.min(60, Math.max(5, Math.round(secs))) : base.max_video_seconds,
   }

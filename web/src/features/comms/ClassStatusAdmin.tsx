@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Eye, Pin, PinOff, Plus, Trash2, Users, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
-import { Button, Card, CardHeader, EmptyState, ErrorState, FormNotice, PageBody, PageHead, Select } from '@/components/ui'
+import { Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, FormNotice, PageBody, PageHead, Select } from '@/components/ui'
 import { ViewsSheet } from './status/StatusRings'
 import StatusComposer, { StatusFileInput } from './status/StatusComposer'
 import { PostThumb } from './ClassStatus'
@@ -165,9 +165,15 @@ export default function ClassStatusAdmin() {
                   <SettingsRow title="Status feature" sub="Turn on class stories school-wide">
                     <Switch on={d.enabled} onChange={(v) => setD({ enabled: v })} />
                   </SettingsRow>
-                  <SettingsRow title="Who may post" sub="Eligible publishing roles">
-                    <MiniSelect value={d.who} onChange={(v) => setD({ who: v as StatusSettings['who'] })}
-                      options={[['teachers', 'All teachers'], ['class_teachers', 'Class teachers only'], ['admins', 'Principal and office only']]} />
+                  <SettingsRow title="Who may post" sub="Tick any. The principal always can.">
+                    {/* Any mix (owner, 2026-11-12). The principal always may post. */}
+                    <div className="flex flex-wrap justify-end gap-x-4 gap-y-2">
+                      {([['teachers', 'All teachers'], ['class_teachers', 'Class teachers'], ['office', 'Office']] as const).map(([k, l]) => {
+                        const who = Array.isArray(d.who) ? d.who : []
+                        return <Checkbox key={k} label={l} checked={who.includes(k)}
+                          onChange={(on) => setD({ who: on ? [...who, k] : who.filter((x) => x !== k) })} />
+                      })}
+                    </div>
                   </SettingsRow>
                   <SettingsRow title="Require approval" sub="Review teachers' posts before they publish">
                     <Switch on={d.needs_approval} onChange={(v) => setD({ needs_approval: v })} />

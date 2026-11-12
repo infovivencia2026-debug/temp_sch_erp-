@@ -44,7 +44,7 @@ export interface AdminPost extends MyPost {
 }
 
 export interface StatusSettings {
-  enabled: boolean; needs_approval: boolean; who: 'teachers' | 'class_teachers' | 'admins'
+  enabled: boolean; needs_approval: boolean; who: ('teachers' | 'class_teachers' | 'office')[]
   allow_video: boolean; max_video_seconds: number; chosen?: boolean
 }
 
