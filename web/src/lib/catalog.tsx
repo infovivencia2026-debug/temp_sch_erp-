@@ -61,6 +61,12 @@ export function setAllRoles(on: boolean) {
 const SHOWN_AS: Record<string, string> = { inbox: 'Mail' }
 function renamed(c: CatalogResponse): CatalogResponse {
   for (const r of c.roles) for (const s of r.sections ?? []) for (const f of s.features) if (SHOWN_AS[f.slug]) f.name = SHOWN_AS[f.slug]
+  /* One "Take attendance" in the menu (owner, 2026-11-12): the whole-school
+     grant still widens its class list, but is not a second menu item. */
+  for (const r of c.roles) {
+    const has = (r.sections ?? []).some((s) => s.features.some((f) => f.slug === 'take_attendance' && usable(f)))
+    if (has) for (const s of r.sections ?? []) s.features = s.features.filter((f) => f.slug !== 'take_attendance_school')
+  }
   return c
 }
 
