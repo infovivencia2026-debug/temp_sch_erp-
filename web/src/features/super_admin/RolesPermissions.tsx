@@ -206,10 +206,15 @@ function StaffScreensOff() {
   const hidden = new Set((groupOff.data?.items ?? []).filter((x) => x.audience === who).map((x) => x.feature_slug))
   const hiddenAll = new Set((allOff.data?.items ?? []).map((x) => x.feature_slug))
   const slugOf = (key: string) => key.slice(key.lastIndexOf('.') + 1)
-  /* Every screen in the role's menu, not only the ones switched on in the
-     role itself: teachers also reach screens through their permissions, and
-     the owner could not hide those (2026-11-12: "I see only few"). */
-  const held = (feats.data?.sections ?? []).filter((sec) => sec.features.length)
+  /* What they see, and what they could be given, as two lists (owner,
+     2026-11-12): "Their screens" is only what is switched on for them;
+     everything else is listed under "Not given yet" with Give. */
+  const held = (feats.data?.sections ?? []).map((sec) => ({ ...sec, features: sec.features.filter((f) => f.held) })).filter((sec) => sec.features.length)
+  const notGiven = (feats.data?.sections ?? []).map((sec) => ({ ...sec, features: sec.features.filter((f) => !f.held) })).filter((sec) => sec.features.length)
+  const giveOne = useMutation({
+    mutationFn: (key: string) => api.put(`/api/v1/admin/roles/${role!.id}/features`, { enable: [key], disable: [] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['role-features', role?.id] }); qc.invalidateQueries({ queryKey: ['catalog'] }) },
+  })
   const options = [
     { value: 'all', label: 'All staff' },
     { value: 'duty:class_teacher', label: 'Class teachers' },
@@ -277,6 +282,25 @@ function StaffScreensOff() {
                     {give.isSuccess && !toGive.length && <span className="text-[13px] text-success">Given. Staff see them on their next page load.</span>}
                   </div>
                   <FormNotice error={give.error} />
+                </div>
+              )}
+              {role && notGiven.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  <p className="m-0 text-[13px] font-medium text-muted-foreground">Not given yet ({notGiven.reduce((n, s) => n + s.features.length, 0)})</p>
+                  {notGiven.map((sec) => (
+                    <div key={sec.slug}>
+                      <p className="m-0 mb-1 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{sec.name}</p>
+                      <ul className="m-0 list-none divide-y rounded-xl border p-0">
+                        {sec.features.map((f) => (
+                          <li key={f.key} className="flex items-center gap-3 px-3 py-2.5">
+                            <span className="min-w-0 flex-1 truncate text-[14px] text-muted-foreground">{f.name}</span>
+                            <Button size="sm" variant="secondary" disabled={giveOne.isPending} onClick={() => giveOne.mutate(f.key)}>Give</Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <FormNotice error={giveOne.error} />
                 </div>
               )}
             </div>
