@@ -668,7 +668,7 @@ export default function ReportCards() {
             These four read 0, 0, — and — before anybody picks one: a confident
             row of figures about an exam that has not been named. "Report cards
             0" is indistinguishable from a real exam with no cards generated. */}
-        {sectionId && cards.isLoading ? <Loading /> : sectionId && cards.error ? <ErrorState error={cards.error} /> : all.length === 0 ? (
+        {!sectionId && sections.error ? <ErrorState error={sections.error} /> : !sectionId && sections.isLoading ? <Loading /> : sectionId && cards.isLoading ? <Loading /> : sectionId && cards.error ? <ErrorState error={cards.error} /> : all.length === 0 ? (
           <EmptyState
             title={sectionId ? 'No report cards yet' : 'Choose a section'}
             body={

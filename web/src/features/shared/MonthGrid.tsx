@@ -301,7 +301,12 @@ export function MonthGrid({
           title={formatDate(picked)}
           description="What falls on the day picked in the grid above."
         />
-        {pickedList.length === 0 ? (
+        {pickedList.length === 0 && (loading || error) ? (
+          /* Not "Nothing on this day" while the month is unread or failed. */
+          <p className="px-5 py-6 text-[13.5px] text-muted-foreground">
+            {error ? 'Could not read this month. See the message above.' : 'Loading…'}
+          </p>
+        ) : pickedList.length === 0 ? (
           <EmptyState title="Nothing on this day" body="Pick another day in the grid above." />
         ) : (
           <ul className="divide-y">
