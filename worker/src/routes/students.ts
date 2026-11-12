@@ -1007,7 +1007,7 @@ async function recordDisciplineNote(c: Ctx) {
       tell.push(...rows.results.map((x) => x.user_id))
     }
     if (req.parent_notified) {
-      const rows = await c.db.prepare(`SELECT g.user_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = ? AND g.user_id IS NOT NULL`)
+      const rows = await c.db.prepare(`SELECT g.user_id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = ? AND g.user_id IS NOT NULL AND NOT sg.portal_blocked AND (sg.access_until IS NULL OR sg.access_until >= date('now', '+330 minutes'))`)
         .bind(student).all<{ user_id: string }>()
       tell.push(...rows.results.map((x) => x.user_id))
     }

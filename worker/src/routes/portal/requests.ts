@@ -587,9 +587,20 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
     feedbackUpdateStmt(c, newID, 'created', 'Concern raised.', 'open', true, c.id.userId),
   ]
   const owner = addressedTo ?? policy?.default_owner_id ?? null
-  if (owner && owner !== c.id.userId) {
-    stmts.push(notify(c, owner, 'A new concern has been raised', subject,
-      (await frontDeskMode(c)) ? `/go/parent_concerns?id=${newID}` : `/institution_admin/communication/grievances?id=${newID}`, 'support_ticket', newID))
+  /* Nobody named and no default owner: the bell goes to the child's class
+     teacher, or failing that the institution admin and principal, so the
+     concern is not left with nobody told. The ticket stays unassigned. */
+  let tell: string[] = owner ? [owner] : []
+  if (!owner) {
+    const ct = child ? await c.db.prepare(`SELECT sec.class_teacher_id AS id FROM enrollments e JOIN sections sec ON sec.id = e.section_id
+        WHERE e.student_id = ? AND e.status = 'active' AND sec.class_teacher_id IS NOT NULL ORDER BY e.enrolled_on DESC LIMIT 1`).bind(child).first<{ id: string }>() : null
+    if (ct?.id) tell = [ct.id]
+    else tell = (await c.db.prepare(`SELECT DISTINCT u.id FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
+        WHERE u.status = 'active' AND r.key IN ('institution_admin', 'principal')`).all<{ id: string }>()).results.map((x) => x.id)
+  }
+  const link = (await frontDeskMode(c)) ? `/go/parent_concerns?id=${newID}` : `/institution_admin/communication/grievances?id=${newID}`
+  for (const u of tell) {
+    if (u !== c.id.userId) stmts.push(notify(c, u, 'A new concern has been raised', subject, link, 'support_ticket', newID))
   }
   try {
     await c.db.batch(stmts)

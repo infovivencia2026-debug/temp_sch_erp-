@@ -47,7 +47,7 @@ export function circularRecipients(sections: string[]): { sql: string; args: unk
   const sql = `
     SELECT g.user_id AS user_id
       FROM students st
-      JOIN student_guardians sg ON sg.student_id = st.id
+      JOIN student_guardians sg ON sg.student_id = st.id AND NOT sg.portal_blocked AND (sg.access_until IS NULL OR sg.access_until >= date('now', '+330 minutes'))
       JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
       LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
      WHERE st.status = 'active' AND ?1 IN ('all','parents','everyone') AND (?2 OR e.section_id IN ${list})

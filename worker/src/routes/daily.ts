@@ -1844,31 +1844,35 @@ async function applyForLeave(c: Ctx): Promise<Response> {
     const child = await c.db.prepare(`SELECT ${fullName2('st')} AS name FROM students st WHERE st.id = ?`)
       .bind(studentId).first<{ name: string }>().catch(() => null)
     const keepers = await c.db.prepare(`
-      SELECT DISTINCT u.id FROM users u
+      SELECT DISTINCT u.id, EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                     WHERE ur.user_id = u.id AND r.key IN ('institution_admin', 'principal')) AS head
+        FROM users u
        WHERE u.status = 'active' AND u.id <> ?2 AND (
-         u.id = (SELECT sec.class_teacher_id FROM enrollments e
-                   JOIN sections sec ON sec.id = e.section_id
-                  WHERE e.student_id = ?1 AND e.status = 'active'
-                  ORDER BY e.enrolled_on DESC LIMIT 1)
+         /* the class teacher and the co-class-teachers, who can approve too */
+         u.id IN (SELECT sct.user_id FROM section_class_teachers sct
+                   WHERE sct.section_id = (SELECT e.section_id FROM enrollments e
+                                            WHERE e.student_id = ?1 AND e.status = 'active'
+                                            ORDER BY e.enrolled_on DESC LIMIT 1))
          /* and the institution admin and the principal (the owner's rule) */
          OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
                      WHERE ur.user_id = u.id AND r.key IN ('institution_admin', 'principal')))`)
-      .bind(studentId, c.id.userId).all<{ id: string }>().catch(() => null)
+      .bind(studentId, c.id.userId).all<{ id: string; head: number }>().catch(() => null)
     const span = to !== from ? `${from} to ${to}` : from
     for (const k of keepers?.results ?? []) {
       stmts.push(notifyStmt(c, k.id, studentId, 'leave_request',
         `${child?.name ?? 'A child'} has applied for leave`,
-        `${span} - ${reason}. Approve or reject it from Approvals.`,
-        '/go/approvals/approvals', 'leave_request', newId))
+        k.head ? `${span} - ${reason}. Approve or reject it from Approvals.` : `${span} - ${reason}. Approve or reject it from Student leave requests.`,
+        k.head ? '/go/approvals/approvals' : '/go/my_profile/student_leave_requests', 'leave_request', newId))
     }
   }
   if (kind === 'staff') {
     const who = await c.db.prepare('SELECT full_name FROM users WHERE id = ?').bind(c.id.userId).first<{ full_name: string }>()
     const approvers = await c.db.prepare(`
       SELECT DISTINCT u.id FROM users u
-        JOIN user_roles ur ON ur.user_id = u.id
-        JOIN role_permissions rp ON rp.role_id = ur.role_id
-       WHERE u.institution_id = ? AND u.status = 'active' AND u.id <> ? AND rp.permission_key = 'hr.leave.approve'`).bind(inst, c.id.userId).all<{ id: string }>()
+       WHERE u.institution_id = ? AND u.status = 'active' AND u.id <> ?
+         AND (EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
+                       WHERE ur.user_id = u.id AND rp.permission_key = 'hr.leave.approve')
+              OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.permission_key = 'hr.leave.approve'))`).bind(inst, c.id.userId).all<{ id: string }>()
     const span = to !== from ? `${from} to ${to}` : from
     for (const a of approvers.results) {
       stmts.push(notifyStmt(c, a.id, null, 'leave_request', `${who?.full_name ?? c.id.fullName} has ${requestKind === 'on_duty' ? 'asked to be marked on duty' : 'applied for leave'}`,
@@ -1973,7 +1977,16 @@ async function decideLeave(c: Ctx): Promise<Response> {
     let title = `Your ${what} was approved`, body = `Approved by ${c.id.fullName}.`
     if (req.decision !== 'approved') { title = `Your ${what} was not approved`; body = `Rejected by ${c.id.fullName}.` }
     if (note.trim()) body += ' ' + note.trim()
-    stmts.push(notifyStmt(c, row.applied_by, null, 'leave_decided', title, body, '/go/my_profile/leave_self_service', 'leave_request', lid))
+    /* A parent or a student is sent to their own leave screen, staff to theirs. */
+    let link = '/go/my_profile/leave_self_service'
+    if (!row.employee_id) {
+      const who = await c.db.prepare(`SELECT EXISTS (SELECT 1 FROM students WHERE user_id = ?1) AS student,
+                                             EXISTS (SELECT 1 FROM guardians WHERE user_id = ?1) AS parent`).bind(row.applied_by)
+        .first<{ student: number; parent: number }>()
+      if (who?.parent) link = '/go/leave_absence/apply_student_leave'
+      else if (who?.student) link = '/go/attendance/attendance'
+    }
+    stmts.push(notifyStmt(c, row.applied_by, null, 'leave_decided', title, body, link, 'leave_request', lid))
   }
   /* APPROVED IS MARKED. A child's approved leave sets each day of it to
      "leave" (LV) in the register, with who approved it and the parent's
@@ -2164,11 +2177,16 @@ async function publishHomework(c: Ctx): Promise<Response> {
     SELECT DISTINCT g.user_id AS uid, st.id AS student, ${fullName2('st')} AS name
       FROM enrollments e
       JOIN students st ON st.id = e.student_id AND st.status = 'active'
-      JOIN student_guardians sg ON sg.student_id = st.id
+      JOIN student_guardians sg ON sg.student_id = st.id AND NOT sg.portal_blocked AND (sg.access_until IS NULL OR sg.access_until >= ?2)
       JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
-     WHERE e.section_id = ? AND e.status = 'active'`).bind(sectionId).all<{ uid: string; student: string; name: string }>()
+     WHERE e.section_id = ?1 AND e.status = 'active'`).bind(sectionId, today()).all<{ uid: string; student: string; name: string }>()
   const label = WORK_KINDS[kind]
-  for (const t of targets.results) {
+  // Students with their own login get the bell too (as remarks do); the email below stays parents-only.
+  const pupils = await c.db.prepare(`
+    SELECT DISTINCT st.user_id AS uid, st.id AS student, ${fullName2('st')} AS name
+      FROM enrollments e JOIN students st ON st.id = e.student_id AND st.status = 'active' AND st.user_id IS NOT NULL
+     WHERE e.section_id = ? AND e.status = 'active'`).bind(sectionId).all<{ uid: string; student: string; name: string }>()
+  for (const t of [...targets.results, ...pupils.results]) {
     stmts.push(notifyStmt(c, t.uid, t.student, 'homework', `${label} set for ${t.name}`, `${title}, due ${due}`, '/go/homework', 'homework', newId))
   }
   await c.db.batch(stmts)

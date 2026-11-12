@@ -46,7 +46,7 @@ export const LIVE_AREAS: Record<string, LiveArea> = {
     words: [],
   },
   access: {
-    tables: /^(users|user_roles|roles|role_permissions|user_permissions|permissions|feature_blocks|impersonation_grants|auth_policies|session_policies|api_keys|user_working_years|user_display_preferences|password_resets|email_changes|push_tokens|person_groups|person_group_members)$/,
+    tables: /^(users|user_roles|roles|role_permissions|user_permissions|permissions|feature_blocks|impersonation_grants|auth_policies|session_policies|api_keys|user_working_years|user_display_preferences|password_resets|email_changes|push_tokens|person_groups|person_group_members|staff_feature_blocks|staff_feature_audience_blocks)$/,
     words: [...STAFF, ...PEOPLE, 'role', 'permission', 'feature', 'session', 'catalog', 'assignable',
       'installable', 'it-', 'display', 'sign-in', 'admin', 'group', 'signature'],
   },

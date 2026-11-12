@@ -90,7 +90,7 @@ export function registerFacultyComms(r: Router) {
     if (!priv) {
       // notifyGuardiansOfRemark: the in-app alert and the student.remark email for every guardian with a login and the child.
       const child = await c.db.prepare(`SELECT ${shortName('students')} AS n FROM students WHERE id = ?`).bind(req.student_id).first<{ n: string }>()
-      const people = await c.db.prepare(`SELECT g.user_id AS id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = ? AND g.user_id IS NOT NULL
+      const people = await c.db.prepare(`SELECT g.user_id AS id FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = ? AND g.user_id IS NOT NULL AND NOT sg.portal_blocked AND (sg.access_until IS NULL OR sg.access_until >= date('now', '+330 minutes'))
           UNION SELECT st.user_id FROM students st WHERE st.id = ? AND st.user_id IS NOT NULL`).bind(req.student_id, req.student_id).all<{ id: string }>()
       const childName = child?.n ?? ''
       let summary = body
@@ -292,7 +292,7 @@ export function registerFacultyComms(r: Router) {
     const inst = institutionId(c)
     const ref = (req.client_ref ?? '').trim()
     const target = `st.status = 'active' AND (e.section_id IN (${marks(sectionIds)}) OR st.id IN (${marks(studentIds)}))`
-    const countStmt = c.db.prepare(`SELECT count(DISTINCT g.user_id) AS n FROM students st JOIN student_guardians sg ON sg.student_id = st.id
+    const countStmt = c.db.prepare(`SELECT count(DISTINCT g.user_id) AS n FROM students st JOIN student_guardians sg ON sg.student_id = st.id AND NOT sg.portal_blocked AND (sg.access_until IS NULL OR sg.access_until >= date('now', '+330 minutes'))
         JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
         WHERE ${target}`).bind(js(sectionIds), js(studentIds))
     let annId: string | null = null, duplicate = false
@@ -316,7 +316,7 @@ export function registerFacultyComms(r: Router) {
     if (channels.length) {
       // One message:send job per household per channel (announcement.published), as Go's fan-out.
       try {
-        const to = (await c.db.prepare(`SELECT DISTINCT g.user_id FROM students st JOIN student_guardians sg ON sg.student_id = st.id
+        const to = (await c.db.prepare(`SELECT DISTINCT g.user_id FROM students st JOIN student_guardians sg ON sg.student_id = st.id AND NOT sg.portal_blocked AND (sg.access_until IS NULL OR sg.access_until >= date('now', '+330 minutes'))
             JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
             WHERE ${target}`).bind(js(sectionIds), js(studentIds)).all<{ user_id: string }>()).results
         const jobs = to.flatMap((u) => channels.map((ch) => ({ type: 'message:send', institution_id: inst,
