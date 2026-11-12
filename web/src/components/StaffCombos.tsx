@@ -8,7 +8,7 @@ import { TAB_BAR, tabClass } from '@/components/ui'
    still its own screen and its own grant, so a role without one simply has no
    tab for it. */
 export const COMBOS: { slugs: string[]; tabs: string[] }[] = [
-  { slugs: ['remarks', 'behaviour', 'anecdotal_records'], tabs: ['Remarks', 'Behaviour', 'Anecdotal records'] },
+  { slugs: ['remarks', 'behaviour'], tabs: ['Remarks', 'Behaviour'] },
   // Mail is its own menu item, no longer a tab of Messages (owner, 2026-10-27).
   { slugs: ['report_cards', 'class_teacher_remarks'], tabs: ['Report cards', 'Class teacher remarks'] },
 ]

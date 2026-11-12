@@ -107,10 +107,10 @@ export interface CommsSummary {
 }
 
 /** The sections this teacher actually teaches — never the school's whole list. */
-export function useMyClasses() {
+export function useMyClasses(ownClass = false) {
   return useQuery({
-    queryKey: ['teaching-classes'],
-    queryFn: () => api.get<List<MyClass>>('/api/v1/teaching/classes'),
+    queryKey: ['teaching-classes', ownClass ? 'class_teacher' : 'all'],
+    queryFn: () => api.get<List<MyClass>>(`/api/v1/teaching/classes${ownClass ? '?mine=class_teacher' : ''}`),
   })
 }
 

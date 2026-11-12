@@ -283,6 +283,8 @@ export function registerFacultyComms(r: Router) {
     for (const sid of sectionIds) {
       if (!isUUID(sid)) throw badRequest('section_ids must be uuids')
       if (!reachesSection(s, sid)) throw forbidden('you can only write to a class you teach')
+      // A class teacher writes to parents of their own class only (owner, 2026-11-12).
+      if (s.classTeacherOf.length && !s.classTeacherOf.includes(sid) && !s.anySection) throw forbidden('you can only write to your own class')
     }
     for (const sid of studentIds) if (!isUUID(sid)) throw badRequest('student_ids must be uuids')
     for (const sid of studentIds) if (!(await reachesTaughtStudent(c, s, sid))) throw notFound()

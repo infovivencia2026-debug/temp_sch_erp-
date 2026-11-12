@@ -104,7 +104,6 @@ export const FEATURE_ICONS: Record<string, string> = {
   ais_140_telematics_vahan_compliance: 'satellite_alt', // AIS-140 Telematics & VAHAN Compliance
   alumni_job_internship_board: 'work', // Alumni Job & Internship Board
   alumni_network_registration: 'diversity_3', // Alumni Network Registration
-  anecdotal_records: 'sticky_note_2', // Anecdotal records
   annual_book_stock_verification: 'inventory', // Annual Book Stock Verification
   apaar_id_provisioning: 'fingerprint', // APAAR ID Provisioning
   applicant_communication: 'forward_to_inbox', // Applicant communication

@@ -103,7 +103,8 @@ export default function Broadcasts() {
 function Compose({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const classes = useMyClasses()
+  // A class teacher sees only their own class (owner, 2026-11-12).
+  const classes = useMyClasses(true)
   const [target, setTarget] = useState<'class' | 'child'>('class')
   const [sectionID, setSectionID] = useState('')
   const [studentID, setStudentID] = useState('')

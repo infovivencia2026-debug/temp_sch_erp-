@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 489 features. */
+/** 24 roles, 488 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -826,7 +826,6 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.communication.communication', slug: 'communication', name: 'Communication', scope: 'assigned_classes', tier: 'core', summary: 'Announcements/messages to assigned classes, students or parents based on policy.' },
           { key: 'faculty.communication.remarks', slug: 'remarks', name: 'Remarks', scope: 'assigned_classes', tier: 'core', summary: 'Add permitted academic/class remarks and observations.' },
-          { key: 'faculty.communication.anecdotal_records', slug: 'anecdotal_records', name: 'Anecdotal records', scope: 'assigned_classes', tier: 'core', summary: 'Private notes on how a child is growing, never shown to the parent.' },
           { key: 'faculty.communication.class_teacher_remarks', slug: 'class_teacher_remarks', name: 'Class teacher remarks', scope: 'assigned_classes', tier: 'core', summary: 'The term-end line printed on the report card, and the principal’s summary beside it.' },
           { key: 'faculty.communication.ptm_notes_action_items', slug: 'ptm_notes_action_items', name: 'PTM notes & action items', scope: 'assigned_classes', tier: 'core', summary: 'Who came to the parents’ meeting, what they raised, and what was agreed.' },
           { key: 'faculty.communication.classroom_communication', slug: 'classroom_communication', name: 'Classroom communication', scope: 'assigned_classes', tier: 'core', summary: 'A notice to a whole class, or to one child’s parent.' },

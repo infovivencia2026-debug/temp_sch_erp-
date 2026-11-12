@@ -2858,7 +2858,6 @@ function RemarkForm({ saving, error, onSave, onCancel }: {
             { value: 'participation', label: 'Participation' },
             { value: 'behaviour', label: 'Behaviour' },
             { value: 'concern', label: 'Concern' },
-            { value: 'anecdotal', label: 'Anecdotal note (staff only)' },
           ]} />
         </FormField>
         <FormField label="Observed on" hint="Blank means today">

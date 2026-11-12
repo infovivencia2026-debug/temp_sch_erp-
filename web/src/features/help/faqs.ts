@@ -54,7 +54,6 @@ const BY_ROLE: Record<string, Faq[]> = {
     { q: 'How do I take attendance for any class?', a: ['Open Take attendance (whole school).', 'Pick the class and section, tap absentees, and save.'], screen: 'Take attendance (whole school)' },
     { q: 'How do I follow up absent students?', a: ['Open Absentee followup.', 'Call or message each family and note what they said.'], screen: 'Absentee followup' },
     { q: 'How do I see everything about my class?', a: ['Open Class 360. Attendance, marks, fees and remarks for the class are on one page.'], screen: 'Class 360' },
-    { q: 'How do I write an anecdotal record?', a: ['Open Anecdotal records, pick the student, write what happened and save.'], screen: 'Anecdotal records' },
     { q: 'How do I enter CCE formative marks?', a: ['Open CCE Formative Assessment Entry, pick the class and subject, enter and save.'], screen: 'CCE Formative Assessment Entry' },
     { q: 'How do I see report cards?', a: ['Open Report cards, pick the exam and class.'], screen: 'Report cards' },
   ],

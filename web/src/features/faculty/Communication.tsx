@@ -29,7 +29,6 @@ import type { CommsSummary, PTMNote, Remark } from './comms'
    opinion about where a feature lives; /go asks the catalogue. */
 const ROUTES = {
   remarks: '/go/remarks',
-  anecdotal: '/go/anecdotal_records',
   cards: '/go/class_teacher_remarks',
   ptm: '/go/ptm_notes_action_items',
   broadcast: '/go/classroom_communication',
@@ -88,7 +87,6 @@ export default function Communication() {
             value={s?.awaiting_acknowledgement ?? 0}
             hint="Notices you sent that asked for one"
           />
-          <Stat label="Staff-only notes" value={s?.anecdotal_records ?? 0} icon={EyeOff} />
         </CellGrid>
 
         <CellGrid cols={3}>
@@ -101,7 +99,6 @@ export default function Communication() {
           <CardHeader title="Where to go" />
           <div className="flex flex-wrap gap-2 px-5 pb-5">
             <Jump to={ROUTES.remarks} title="Remarks" onGo={navigate} />
-            <Jump to={ROUTES.anecdotal} title="Anecdotal records" onGo={navigate} />
             <Jump to={ROUTES.cards} title="Class teacher remarks" onGo={navigate} />
             <Jump to={ROUTES.ptm} title="PTM notes & action items" onGo={navigate} />
             <Jump to={ROUTES.broadcast} title="Classroom communication" onGo={navigate} />

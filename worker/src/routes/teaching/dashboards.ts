@@ -326,7 +326,9 @@ async function listDeptFaculty(c: Ctx) {
 
 async function listMyClasses(c: Ctx) {
   const s = await resolveScope(c)
-  const f = inList('sec.id', s.sectionIds)
+  // ?mine=class_teacher: a class teacher sees only their own class (owner, 2026-11-12).
+  const own = c.url.searchParams.get('mine') === 'class_teacher' && s.classTeacherOf.length > 0
+  const f = inList('sec.id', own ? s.classTeacherOf : s.sectionIds)
   const rows = await c.db.prepare(`
     SELECT sec.id AS section_id, sec.name AS section_name, c.name AS class_name, sec.room,
            (SELECT count(*) FROM enrollments e WHERE e.section_id = sec.id AND e.status = 'active') AS enrolled,
