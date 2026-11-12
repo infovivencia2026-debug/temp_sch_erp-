@@ -57,6 +57,8 @@ export default function FacultyAllocation() {
   const teachers = useQuery({
     queryKey: ['teachers'],
     queryFn: () => api.call('GET /timetable/teachers'),
+    // Counts change when periods move elsewhere; read them fresh on open.
+    refetchOnMount: 'always',
   })
   const alloc = useQuery({
     queryKey: ['faculty-allocation', classId, gapsOnly],
@@ -84,6 +86,8 @@ export default function FacultyAllocation() {
         (cl.length ? ` ${cl.length} could not move because the new teacher already teaches then: ` +
           cl.slice(0, 6).map((x) => `${x.section} ${x.subject}, ${DAY[x.day] ?? x.day} ${x.period} (${x.teacher})`).join('; ') + (cl.length > 6 ? ' and more.' : '.') : ''))
       qc.invalidateQueries({ queryKey: ['faculty-allocation'] })
+      // The period counts beside each name move with the timetable.
+      qc.invalidateQueries({ queryKey: ['teachers'] })
     },
   })
 
