@@ -565,7 +565,30 @@ async function setFacultyAllocation(c: Ctx) {
     const res = await batch(c, stmts)
     for (const i of clearing) cleared += res[i].meta.changes ?? 0
   } catch (err) { throw badRequest(err instanceof Error ? err.message : String(err)) }
-  return ok({ assigned, cleared })
+  /* THE TIMETABLE FOLLOWS THE CHANGE (owner, 2026-11-12: "if they replace
+     with someone, the timetable will be replaced at once"). Only the rows
+     saved here move, never the whole school; a period where the new teacher
+     is already teaching keeps its teacher and is reported back. */
+  let periodsMoved = 0
+  const clashes: { section: string; subject: string; day: number; period: string; teacher: string }[] = []
+  for (const a of allocs) {
+    const t = str(a.teacher_user_id).trim()
+    if (!t) continue
+    const r = await c.db.prepare(`UPDATE timetable_entries SET teacher_user_id = ?1
+       WHERE section_id = ?2 AND class_subject_id = ?3 AND teacher_user_id IS NOT ?1
+         AND NOT EXISTS (SELECT 1 FROM timetable_entries o WHERE o.teacher_user_id = ?1 AND o.weekday = timetable_entries.weekday
+                         AND o.period_id = timetable_entries.period_id AND o.academic_year_id = timetable_entries.academic_year_id)`)
+      .bind(t, a.section_id, a.class_subject_id).run()
+    periodsMoved += r.meta.changes ?? 0
+    const left = await c.db.prepare(`SELECT cl.name || ' ' || se.name AS section, su.name AS subject, te.weekday AS day, p.name AS period, u.full_name AS teacher
+       FROM timetable_entries te JOIN sections se ON se.id = te.section_id JOIN classes cl ON cl.id = se.class_id
+       JOIN class_subjects cs ON cs.id = te.class_subject_id JOIN subjects su ON su.id = cs.subject_id
+       JOIN periods p ON p.id = te.period_id LEFT JOIN users u ON u.id = ?1
+      WHERE te.section_id = ?2 AND te.class_subject_id = ?3 AND te.teacher_user_id IS NOT ?1`)
+      .bind(t, a.section_id, a.class_subject_id).all<{ section: string; subject: string; day: number; period: string; teacher: string }>()
+    clashes.push(...left.results)
+  }
+  return ok({ assigned, cleared, periods_moved: periodsMoved, clashes })
 }
 
 async function applyAllocationToTimetable(c: Ctx) {

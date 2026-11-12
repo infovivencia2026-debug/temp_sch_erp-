@@ -73,9 +73,16 @@ export default function FacultyAllocation() {
 
   const save = useMutation({
     mutationFn: (allocations: { section_id: string; class_subject_id: string; teacher_user_id: string }[]) =>
-      api.post('/api/v1/academics/admin/faculty-allocation', { allocations }),
-    onSuccess: () => {
+      api.post<{ periods_moved?: number; clashes?: { section: string; subject: string; day: number; period: string; teacher: string }[] }>('/api/v1/academics/admin/faculty-allocation', { allocations }),
+    onSuccess: (r) => {
       setDraft({})
+      /* Saving moves those periods on the timetable too; say what moved and
+         what could not (the new teacher already teaching then). */
+      const DAY = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      const cl = r?.clashes ?? []
+      setApplied(`Saved. ${r?.periods_moved ?? 0} timetable periods now name the new teacher.` +
+        (cl.length ? ` ${cl.length} could not move because the new teacher already teaches then: ` +
+          cl.slice(0, 6).map((x) => `${x.section} ${x.subject}, ${DAY[x.day] ?? x.day} ${x.period} (${x.teacher})`).join('; ') + (cl.length > 6 ? ' and more.' : '.') : ''))
       qc.invalidateQueries({ queryKey: ['faculty-allocation'] })
     },
   })
