@@ -250,7 +250,7 @@ function Compose({ onClose }: { onClose: () => void }) {
           value={f.body}
           onChange={(v) => setF({ ...f, body: v })}
           rows={4}
-          placeholder="Please send the signed consent slip for Friday's field trip by Wednesday."
+          placeholder="Type the notice for the families"
           className="w-full"
         />
         <Checkbox
