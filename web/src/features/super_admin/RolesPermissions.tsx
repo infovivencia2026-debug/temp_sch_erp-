@@ -188,6 +188,21 @@ function StaffScreensOff() {
     mutationFn: (v: { slug: string; off: boolean }) => api.post('/api/v1/admin/staff-feature-blocks/by-group', { audience: who, ...v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['staff-feature-blocks-by-group'] }),
   })
+  /* GIVE SCREENS IN BULK (owner, 2026-11-12: "another dropdown where they
+     can give feature by choosing to that role at bulk"). Each pick joins a
+     list; one press gives them all. A teaching duty gives to Faculty. */
+  const [toGive, setToGive] = useState<string[]>([])
+  useEffect(() => setToGive([]), [who])
+  const notHeld = (feats.data?.sections ?? []).flatMap((sec) => sec.features.filter((f) => !f.held).map((f) => ({ value: f.key, label: `${sec.name} › ${f.name}` })))
+  const giveNames = new Map(notHeld.map((o) => [o.value, o.label]))
+  const give = useMutation({
+    mutationFn: () => api.put(`/api/v1/admin/roles/${role!.id}/features`, { enable: toGive, disable: [] }),
+    onSuccess: () => {
+      setToGive([])
+      qc.invalidateQueries({ queryKey: ['role-features', role?.id] })
+      qc.invalidateQueries({ queryKey: ['catalog'] })
+    },
+  })
   const hidden = new Set((groupOff.data?.items ?? []).filter((x) => x.audience === who).map((x) => x.feature_slug))
   const hiddenAll = new Set((allOff.data?.items ?? []).map((x) => x.feature_slug))
   const slugOf = (key: string) => key.slice(key.lastIndexOf('.') + 1)
@@ -235,6 +250,32 @@ function StaffScreensOff() {
                 </div>
               ))}
               <FormNotice error={set.error} />
+              {role && notHeld.length > 0 && (
+                <div className="space-y-2 rounded-xl border p-3">
+                  <p className="m-0 text-[13px] font-semibold">Give screens to {who.startsWith('duty:') ? 'teachers (Faculty role)' : role.name}</p>
+                  <div className="w-full max-w-md">
+                    <Select value="" onChange={(k) => k && setToGive((l) => (l.includes(k) ? l : [...l, k]))}
+                      options={[{ value: '', label: `Choose a screen to add (${notHeld.length} available)` }, ...notHeld.filter((o) => !toGive.includes(o.value))]} />
+                  </div>
+                  {toGive.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {toGive.map((k) => (
+                        <span key={k} className="inline-flex items-center gap-1 rounded-full border bg-muted/40 py-1 pl-3 pr-1 text-[13px]">
+                          {giveNames.get(k)}
+                          <button type="button" aria-label={`Remove ${giveNames.get(k)}`} className="tap-inline grid h-6 w-6 place-items-center rounded-full hover:bg-muted" onClick={() => setToGive((l) => l.filter((x) => x !== k))}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Button size="sm" disabled={!toGive.length || give.isPending} pending={give.isPending} onClick={() => give.mutate()}>
+                      Give {toGive.length || ''} {toGive.length === 1 ? 'screen' : 'screens'}
+                    </Button>
+                    {give.isSuccess && !toGive.length && <span className="text-[13px] text-success">Given. Staff see them on their next page load.</span>}
+                  </div>
+                  <FormNotice error={give.error} />
+                </div>
+              )}
             </div>
           )}
           {who.startsWith('role:') && role && (
@@ -242,9 +283,6 @@ function StaffScreensOff() {
               <p className="m-0 mb-2 text-[13px] font-medium text-muted-foreground">Give this role more screens</p>
               <FeaturesEditor roleID={role.id} />
             </div>
-          )}
-          {who.startsWith('duty:') && (
-            <p className="m-0 text-[13px] text-muted-foreground">To give teachers more screens, choose the Faculty role above.</p>
           )}
         </>
       )}
