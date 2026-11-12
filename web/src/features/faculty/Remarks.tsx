@@ -261,7 +261,7 @@ function Compose({ anecdotal, onClose }: { anecdotal: boolean; onClose: () => vo
               checked={f.staffOnly}
               onChange={(v) => setF({ ...f, staffOnly: v })}
               label="Staff only"
-              hint="Keep this out of the parent portal. Use it for something the parent should hear from you first."
+              hint="Only school staff see this: the class teacher and Student 360. Parents don't."
             />
           </div>
         )}
