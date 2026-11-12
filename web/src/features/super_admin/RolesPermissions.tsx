@@ -206,7 +206,10 @@ function StaffScreensOff() {
   const hidden = new Set((groupOff.data?.items ?? []).filter((x) => x.audience === who).map((x) => x.feature_slug))
   const hiddenAll = new Set((allOff.data?.items ?? []).map((x) => x.feature_slug))
   const slugOf = (key: string) => key.slice(key.lastIndexOf('.') + 1)
-  const held = (feats.data?.sections ?? []).map((sec) => ({ ...sec, features: sec.features.filter((f) => f.held) })).filter((sec) => sec.features.length)
+  /* Every screen in the role's menu, not only the ones switched on in the
+     role itself: teachers also reach screens through their permissions, and
+     the owner could not hide those (2026-11-12: "I see only few"). */
+  const held = (feats.data?.sections ?? []).filter((sec) => sec.features.length)
   const options = [
     { value: 'all', label: 'All staff' },
     { value: 'duty:class_teacher', label: 'Class teachers' },
