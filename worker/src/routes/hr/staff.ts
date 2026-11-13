@@ -7,6 +7,7 @@ import { addDays, fullName, isHHMM, isUUIDish, istClock, istMinute, nextNumber, 
 import { employeeFilter, growthReach } from './reach'
 import { overviewExtras, staffOverviewDoc } from './staff_overview_doc'
 import { school } from '../school'
+import { COVERED_SQL } from '../academics/coverage'
 import { buildXLSX, XLSX_CONTENT_TYPE } from '../../services/xlsx'
 
 /* Port of the /hr group's own handlers: the dashboard, the employee directory
@@ -696,6 +697,45 @@ export function registerStaff(r: Router) {
     const ov = await resolveStaffOverview(c.db, c.params.id)
     if (!ov) throw notFound()
     return ok(ov)
+  })
+
+  /* Syllabus covered by this teacher (owner, 2026-11-13): per class-section and
+     subject they teach this year, chapters completed out of the total, and per
+     chapter the from and to dates from Lesson plan -> Chapters with the days it
+     took. Older delivered lesson plans count as completed too (COVERED_SQL). */
+  r.get('/hr/employees/{id}/syllabus', READ, async (c) => {
+    if (!isUUIDish(c.params.id)) throw badRequest('invalid employee id')
+    const rows = await c.db.prepare(`
+      WITH pairs AS (
+        SELECT DISTINCT sst.section_id, sst.class_subject_id, cl.name || ' ' || sec.name AS label, sub.name AS subject, cl.level AS level
+          FROM section_subject_teachers sst JOIN employees e ON e.user_id = sst.teacher_user_id
+          JOIN sections sec ON sec.id = sst.section_id JOIN classes cl ON cl.id = sec.class_id
+          JOIN class_subjects cs ON cs.id = sst.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
+         WHERE e.id = ? AND sec.academic_year_id = (SELECT id FROM academic_years WHERE is_current = 1 LIMIT 1))
+      SELECT pr.section_id, pr.class_subject_id, pr.label, pr.subject, u.id AS unit_id, u.title, u.sequence,
+             p.status, p.from_date, p.to_date, COALESCE(cv.w, 0) AS w
+        FROM pairs pr
+        LEFT JOIN syllabus_units u ON u.class_subject_id = pr.class_subject_id AND u.is_active = 1 AND u.parent_unit_id IS NULL
+        LEFT JOIN chapter_progress p ON p.unit_id = u.id AND p.section_id = pr.section_id
+        LEFT JOIN ${COVERED_SQL} cv ON cv.unit_id = u.id AND cv.section_id = pr.section_id
+       ORDER BY pr.level, pr.label, pr.subject, u.sequence, u.title`).bind(c.params.id)
+      .all<{ section_id: string; class_subject_id: string; label: string; subject: string; unit_id: string | null; title: string | null; sequence: number | null;
+             status: string | null; from_date: string | null; to_date: string | null; w: number }>()
+    const days = (a: string | null, b: string | null) => a && b ? Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1 : null
+    const groups = new Map<string, { section_id: string; class_subject_id: string; label: string; subject: string; total: number; completed: number; ongoing: number; percent: number; chapters: unknown[] }>()
+    for (const v of rows.results) {
+      const k = v.section_id + '|' + v.class_subject_id
+      let g = groups.get(k)
+      if (!g) { g = { section_id: v.section_id, class_subject_id: v.class_subject_id, label: v.label, subject: v.subject, total: 0, completed: 0, ongoing: 0, percent: 0, chapters: [] }; groups.set(k, g) }
+      if (!v.unit_id) continue
+      const status = v.w >= 1 ? 'completed' : v.w > 0 ? 'ongoing' : (v.status ?? 'not_completed')
+      g.total++
+      if (status === 'completed') g.completed++; else if (status === 'ongoing') g.ongoing++
+      g.chapters.push({ id: v.unit_id, title: v.title, status, from_date: v.from_date, to_date: v.to_date,
+        days: status === 'completed' ? days(v.from_date, v.to_date) : null })
+    }
+    const items = [...groups.values()].map((g) => ({ ...g, percent: g.total ? Math.round(100 * (g.completed + g.ongoing / 2) / g.total) : 0 }))
+    return ok({ items })
   })
 
   /* One person's overview as an Excel sheet (owner, 2026-10-31: "just keep

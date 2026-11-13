@@ -295,8 +295,10 @@ async function getYearPlan(c: Ctx) {
   }
   const rows = await c.db.prepare(`
     SELECT u.id, u.sequence, u.title, u.planned_periods,
-           EXISTS (SELECT 1 FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id WHERE lpu.syllabus_unit_id = u.id AND lp.delivered_on IS NOT NULL) AS delivered,
-           (SELECT max(lp.delivered_on) FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id WHERE lpu.syllabus_unit_id = u.id AND lp.delivered_on IS NOT NULL) AS delivered_on
+           (EXISTS (SELECT 1 FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id WHERE lpu.syllabus_unit_id = u.id AND lp.delivered_on IS NOT NULL)
+             OR EXISTS (SELECT 1 FROM chapter_progress cp WHERE cp.unit_id = u.id AND cp.status = 'completed')) AS delivered,
+           NULLIF(max(COALESCE((SELECT max(lp.delivered_on) FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id WHERE lpu.syllabus_unit_id = u.id AND lp.delivered_on IS NOT NULL), ''),
+                      COALESCE((SELECT max(cp.to_date) FROM chapter_progress cp WHERE cp.unit_id = u.id AND cp.status = 'completed'), '')), '') AS delivered_on
       FROM syllabus_units u WHERE u.class_subject_id = ? AND u.is_active = 1 ORDER BY u.sequence, u.title`).bind(classSubject)
     .all<{ id: string; sequence: number; title: string; planned_periods: number; delivered: number; delivered_on: string | null }>()
   const units = rows.results.map((u) => {

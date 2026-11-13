@@ -26,7 +26,7 @@ interface Notice { id: string; title: string; body: string; kind: string; publis
 interface Meeting { id: string; title: string; agenda: string | null; meets_at: string; place: string | null; minutes: string | null; by_name: string | null; replies: { name: string; reply: 'yes' | 'no'; note: string | null }[] }
 interface Section {
   section_id: string; class_subject_id: string; label: string; level: number; teacher_user_id: string | null; teacher: string | null; students: number
-  avg: number | null; pass: number | null; papers: number; units_total: number; units_due: number; units_done: number
+  avg: number | null; pass: number | null; papers: number; units_total: number; units_due: number; units_done: number; units_progress?: number
 }
 interface Heads {
   subjects: { id: string; name: string; code: string; head_user_id: string | null; head_name: string | null }[]
@@ -374,7 +374,7 @@ function Classes({ rows, canAssign, staff }: { rows: Section[]; canAssign: boole
         empty={!rows.length} emptyLabel="No class has this subject this year.">
         {rows.map((r) => {
           const why = behind(r)
-          const pc = r.units_total ? Math.round((r.units_done / r.units_total) * 100) : null
+          const pc = r.units_total ? Math.min(100, Math.round(((r.units_progress ?? r.units_done) / r.units_total) * 100)) : null
           return (
             <tr key={r.section_id + r.class_subject_id}>
               <Td className="whitespace-nowrap font-medium">{r.label}</Td>

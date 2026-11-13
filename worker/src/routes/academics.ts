@@ -58,8 +58,10 @@ const omitNull = (o: Record<string, unknown>, keys: string[]) => { for (const k 
 
 // --- syllabus units --------------------------------------------------------------------
 
-const DELIVERED_SQL = (u: string) => `EXISTS (SELECT 1 FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id
-                                          WHERE lpu.syllabus_unit_id = ${u}.id AND lp.delivered_on IS NOT NULL)`
+// Delivered: an older delivered lesson plan, or the chapter completed in Lesson plan -> Chapters (chapter_progress).
+const DELIVERED_SQL = (u: string) => `(EXISTS (SELECT 1 FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id
+                                          WHERE lpu.syllabus_unit_id = ${u}.id AND lp.delivered_on IS NOT NULL)
+                                       OR EXISTS (SELECT 1 FROM chapter_progress cp WHERE cp.unit_id = ${u}.id AND cp.status = 'completed'))`
 
 async function listSyllabusUnits(c: Ctx) {
   const q = c.url.searchParams
@@ -67,7 +69,8 @@ async function listSyllabusUnits(c: Ctx) {
   const rows = await c.db.prepare(`
     SELECT u.id, u.sequence, u.title, u.description, u.outcomes, u.planned_periods, c.name AS class_name, sub.name AS subject,
            ${DELIVERED_SQL('u')} AS delivered,
-           (SELECT max(lp.delivered_on) FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id WHERE lpu.syllabus_unit_id = u.id) AS delivered_on
+           NULLIF(max(COALESCE((SELECT max(lp.delivered_on) FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id WHERE lpu.syllabus_unit_id = u.id), ''),
+               COALESCE((SELECT max(cp.to_date) FROM chapter_progress cp WHERE cp.unit_id = u.id AND cp.status = 'completed'), '')), '') AS delivered_on
       FROM syllabus_units u JOIN class_subjects cs ON cs.id = u.class_subject_id JOIN classes c ON c.id = cs.class_id JOIN subjects sub ON sub.id = cs.subject_id
      WHERE u.is_active = 1 AND (? IS NULL OR u.class_subject_id = ?) AND (? IS NULL OR cs.class_id = ?)
      ORDER BY c.level, sub.name, u.sequence`).bind(cs, cs, cls, cls).all<Record<string, unknown>>()
@@ -208,10 +211,12 @@ async function getSyllabusCoverage(c: Ctx) {
            (SELECT u2.full_name FROM section_subject_teachers t JOIN users u2 ON u2.id = t.teacher_user_id WHERE t.class_subject_id = cs.id LIMIT 1) AS teacher,
            count(u.id) AS units,
            COALESCE(SUM(CASE WHEN ${DELIVERED_SQL('u')} THEN 1 ELSE 0 END), 0) AS delivered,
-           (SELECT max(lp.delivered_on) FROM lesson_plans lp WHERE lp.class_subject_id = cs.id) AS last_taught,
+           NULLIF(max(COALESCE((SELECT max(lp.delivered_on) FROM lesson_plans lp WHERE lp.class_subject_id = cs.id), ''),
+               COALESCE((SELECT max(COALESCE(cp.to_date, cp.from_date)) FROM chapter_progress cp JOIN syllabus_units su2 ON su2.id = cp.unit_id
+                          WHERE su2.class_subject_id = cs.id AND cp.status <> 'not_completed'), '')), '') AS last_taught,
            (SELECT count(*) FROM lesson_plans lp2 WHERE lp2.class_subject_id = cs.id AND lp2.status = 'submitted') AS plans_waiting
       FROM class_subjects cs JOIN classes c ON c.id = cs.class_id JOIN subjects sub ON sub.id = cs.subject_id
-      LEFT JOIN syllabus_units u ON u.class_subject_id = cs.id AND u.is_active = 1
+      LEFT JOIN syllabus_units u ON u.class_subject_id = cs.id AND u.is_active = 1 AND u.parent_unit_id IS NULL
      WHERE (? IS NULL OR cs.class_id = ?)
      GROUP BY cs.id, c.name, c.level, sub.name HAVING count(u.id) > 0
      ORDER BY c.level, sub.name`).bind(cls, cls).all<Record<string, unknown>>()

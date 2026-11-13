@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../../router'
+import { COVERED_SQL } from './coverage'
 import { HttpError, ok, badRequest, forbidden, notFound, readJSON, isUUID, uuid, now } from '../../http'
 import { notifyPlanDecided } from './plan_notify'
 import { can } from '../../identity'
@@ -248,11 +249,12 @@ async function overview(c: Ctx) {
   const units = await all<{ class_subject_id: string; total: number; due: number }>(c.db.prepare(`
       SELECT u.class_subject_id, count(*) AS total, sum(CASE WHEN u.ends_on IS NOT NULL AND u.ends_on <= date('now') THEN 1 ELSE 0 END) AS due
         FROM syllabus_units u JOIN class_subjects cs ON cs.id = u.class_subject_id
-       WHERE cs.subject_id = ? AND u.is_active = 1 GROUP BY u.class_subject_id`).bind(sid))
-  const done = await all<{ section_id: string; class_subject_id: string; done: number }>(c.db.prepare(`
-      SELECT lp.section_id, lp.class_subject_id, count(DISTINCT lpu.syllabus_unit_id) AS done
-        FROM lesson_plans lp JOIN lesson_plan_units lpu ON lpu.lesson_plan_id = lp.id JOIN class_subjects cs ON cs.id = lp.class_subject_id
-       WHERE cs.subject_id = ? AND lp.delivered_on IS NOT NULL GROUP BY lp.section_id, lp.class_subject_id`).bind(sid))
+       WHERE cs.subject_id = ? AND u.is_active = 1 AND u.parent_unit_id IS NULL GROUP BY u.class_subject_id`).bind(sid))
+  // Chapters covered: chapter_progress (Lesson plan -> Chapters) plus any older delivered lesson plans.
+  const done = await all<{ section_id: string; class_subject_id: string; done: number; weighted: number }>(c.db.prepare(`
+      SELECT cv.section_id, cv.class_subject_id, sum(CASE WHEN cv.w >= 1 THEN 1 ELSE 0 END) AS done, sum(cv.w) AS weighted
+        FROM ${COVERED_SQL} cv JOIN class_subjects cs ON cs.id = cv.class_subject_id
+       WHERE cs.subject_id = ? GROUP BY cv.section_id, cv.class_subject_id`).bind(sid))
   const sections = secs.map((s) => {
     const mk = secMarks.find((x) => x.section_id === s.section_id)
     const u = units.find((x) => x.class_subject_id === s.class_subject_id)
@@ -260,6 +262,8 @@ async function overview(c: Ctx) {
       ...s, avg: mk?.avg ?? null, pass: mk?.pass ?? null, papers: mk?.papers ?? 0,
       units_total: u?.total ?? 0, units_due: u?.due ?? 0,
       units_done: done.find((x) => x.section_id === s.section_id && x.class_subject_id === s.class_subject_id)?.done ?? 0,
+      // Ongoing chapters count half, as ChapterPlan's progress bar does.
+      units_progress: done.find((x) => x.section_id === s.section_id && x.class_subject_id === s.class_subject_id)?.weighted ?? 0,
     }
   })
   const office = can(c.id, OFFICE)
@@ -351,11 +355,11 @@ async function summary(c: Ctx) {
       (SELECT round(avg(CAST(m.marks_obtained AS REAL) * 100.0 / NULLIF(CAST(es.max_marks AS REAL), 0)), 1)
          FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN class_subjects cs ON cs.id = es.class_subject_id
         WHERE cs.subject_id = s.id AND m.is_absent = 0 AND m.marks_obtained IS NOT NULL AND m.marks_obtained <> '') AS avg,
-      (SELECT count(*) FROM syllabus_units su JOIN class_subjects cs ON cs.id = su.class_subject_id WHERE cs.subject_id = s.id AND su.is_active = 1) AS units,
+      (SELECT count(*) FROM syllabus_units su JOIN class_subjects cs ON cs.id = su.class_subject_id WHERE cs.subject_id = s.id AND su.is_active = 1 AND su.parent_unit_id IS NULL) AS units,
       (SELECT count(*) FROM syllabus_units su JOIN class_subjects cs ON cs.id = su.class_subject_id
-        WHERE cs.subject_id = s.id AND su.is_active = 1 AND su.ends_on IS NOT NULL AND su.ends_on <= date('now')) AS due,
-      (SELECT count(DISTINCT lpu.syllabus_unit_id) FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id
-         JOIN class_subjects cs ON cs.id = lp.class_subject_id WHERE cs.subject_id = s.id AND lp.delivered_on IS NOT NULL) AS done,
+        WHERE cs.subject_id = s.id AND su.is_active = 1 AND su.parent_unit_id IS NULL AND su.ends_on IS NOT NULL AND su.ends_on <= date('now')) AS due,
+      (SELECT count(DISTINCT cv.unit_id) FROM ${COVERED_SQL} cv JOIN class_subjects cs ON cs.id = cv.class_subject_id
+        WHERE cs.subject_id = s.id AND cv.w >= 1) AS done,
       (SELECT count(*) FROM lesson_plans lp JOIN class_subjects cs ON cs.id = lp.class_subject_id WHERE cs.subject_id = s.id AND lp.status = 'submitted') AS plans_waiting,
       (SELECT count(*) FROM subject_meetings m WHERE m.subject_id = s.id AND m.meets_at >= date('now', '-90 days')) AS meetings
     FROM subjects s LEFT JOIN subject_heads h ON h.subject_id = s.id LEFT JOIN users u ON u.id = h.head_user_id

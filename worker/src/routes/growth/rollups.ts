@@ -1,6 +1,7 @@
 import type { Ctx, Router } from '../../router'
 import { clampInt, isUUID, ok } from '../../http'
 import { can } from '../../identity'
+import { COVERED_SQL } from '../academics/coverage'
 import { nameOf } from '../exams/common'
 import { resolveRange, todayIST } from '../admissions/util'
 import {
@@ -333,11 +334,13 @@ export function registerRollups(r: Router) {
           SELECT e.department_id, count(*) AS periods FROM timetable_entries te JOIN employees e ON e.user_id = te.teacher_user_id
            WHERE e.department_id IS NOT NULL GROUP BY e.department_id
       ), syll AS (
+          -- Per taught section and chapter: chapter_progress plus older delivered lesson plans (COVERED_SQL).
           SELECT cd.department_id, count(*) AS planned,
-                 sum(CASE WHEN EXISTS (SELECT 1 FROM lesson_plan_units lpu JOIN lesson_plans lp ON lp.id = lpu.lesson_plan_id
-                                        WHERE lpu.syllabus_unit_id = su.id AND lp.delivered_on IS NOT NULL) THEN 1 ELSE 0 END) AS delivered
+                 sum(CASE WHEN cv.w >= 1 THEN 1 ELSE 0 END) AS delivered, sum(COALESCE(cv.w, 0)) AS weighted
             FROM cs_dept cd JOIN syllabus_units su ON su.class_subject_id = cd.class_subject_id
-           WHERE su.is_active = 1 GROUP BY cd.department_id
+            JOIN (SELECT DISTINCT class_subject_id, section_id FROM section_subject_teachers) ss ON ss.class_subject_id = cd.class_subject_id
+            LEFT JOIN ${COVERED_SQL} cv ON cv.unit_id = su.id AND cv.section_id = ss.section_id
+           WHERE su.is_active = 1 AND su.parent_unit_id IS NULL GROUP BY cd.department_id
       ), perf AS (
           SELECT cd.department_id, ${avgPct} AS avg_pct, ${passPct} AS pass_pct
             FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN cs_dept cd ON cd.class_subject_id = es.class_subject_id
@@ -346,7 +349,7 @@ export function registerRollups(r: Router) {
       SELECT d.id AS department_id, d.name, hu.full_name AS head,
              (SELECT count(*) FROM employees e WHERE e.department_id = d.id AND e.status = 'active') AS teachers,
              COALESCE(t.subjects,0) AS subjects, COALESCE(t.sections,0) AS sections, COALESCE(l.periods,0) AS periods,
-             COALESCE(sy.planned,0) AS planned, COALESCE(sy.delivered,0) AS delivered, pf.avg_pct, pf.pass_pct
+             COALESCE(sy.planned,0) AS planned, COALESCE(sy.delivered,0) AS delivered, COALESCE(sy.weighted,0) AS weighted, pf.avg_pct, pf.pass_pct
         FROM departments d
         LEFT JOIN users hu ON hu.id = d.head_user_id
         LEFT JOIN teach t ON t.department_id = d.id
@@ -355,10 +358,11 @@ export function registerRollups(r: Router) {
         LEFT JOIN perf pf ON pf.department_id = d.id
        WHERE ${f.sql} ORDER BY d.name`).bind(...f.args).all<Row>()
     const items = rows.results.map((v) => {
-      const planned = num0(v.planned), done = num0(v.delivered)
+      const planned = num0(v.planned), done = num0(v.delivered), weighted = num0(v.weighted)
       return omitNull({ department_id: v.department_id, name: v.name, head: v.head, teachers: num0(v.teachers), subjects: num0(v.subjects),
         sections: num0(v.sections), weekly_periods: num0(v.periods), syllabus_units_planned: planned, syllabus_units_delivered: done,
-        syllabus_coverage_pct: planned > 0 ? round1(100 * done / planned) : null, avg_score_pct: numOrNull(v.avg_pct), pass_pct: numOrNull(v.pass_pct) })
+        // Ongoing chapters count half, as in Lesson plan -> Chapters.
+        syllabus_coverage_pct: planned > 0 ? round1(100 * weighted / planned) : null, avg_score_pct: numOrNull(v.avg_pct), pass_pct: numOrNull(v.pass_pct) })
     })
     return respond(c, 'department-academics', ['Department', 'Head', 'Teachers', 'Subjects', 'Sections', 'Weekly periods', 'Units planned', 'Units delivered',
       'Coverage %', 'Average score %', 'Pass %'], items, (v) => [String(v.name), strCell(v.head as string | undefined), intCell(v.teachers), intCell(v.subjects),

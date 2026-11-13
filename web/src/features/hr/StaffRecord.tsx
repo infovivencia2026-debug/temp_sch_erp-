@@ -82,6 +82,68 @@ function StaffOverview({ employeeID }: { employeeID: string }) {
   )
 }
 
+/* SYLLABUS (owner, 2026-11-13): how much of each class's syllabus this teacher
+   has covered, from Lesson plan -> Chapters, and how long each chapter took.
+   One row per class-section and subject; open it for the chapters. Tables
+   scroll inside the card, never the page. */
+interface SyllabusGroup {
+  section_id: string; class_subject_id: string; label: string; subject: string
+  total: number; completed: number; ongoing: number; percent: number
+  chapters: { id: string; title: string; status: string; from_date: string | null; to_date: string | null; days: number | null }[]
+}
+
+function StaffSyllabus({ employeeID }: { employeeID: string }) {
+  const q = useQuery({
+    queryKey: ['staff-syllabus', employeeID],
+    queryFn: () => api.get<{ items: SyllabusGroup[] }>(`/api/v1/hr/employees/${employeeID}/syllabus`),
+  })
+  const items = q.data?.items ?? []
+  if (!q.isLoading && !q.error && !items.length) return null
+  return (
+    <Card>
+      <CardHeader title="Syllabus" description="Chapters covered per class and subject, from Lesson plan → Chapters." />
+      {q.isLoading ? <div className="p-5"><Loading shape="inline" /></div>
+        : q.error ? <div className="p-4"><ErrorState error={q.error} /></div>
+        : (
+          <div className="min-w-0 divide-y divide-border">
+            {items.map((g) => (
+              <details key={g.section_id + g.class_subject_id} className="group min-w-0 px-4 py-3">
+                <summary className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="font-medium">{g.label}</span>
+                  <span className="text-muted-foreground">{g.subject}</span>
+                  <span className="ml-auto text-[13px] tabular-nums">
+                    {g.total ? `${g.completed}/${g.total} chapters${g.ongoing ? ` · ${g.ongoing} ongoing` : ''}` : 'No syllabus set'}
+                  </span>
+                  {g.total > 0 && (
+                    <div className="h-2 w-full overflow-hidden rounded bg-muted" role="progressbar" aria-valuenow={g.percent} aria-valuemin={0} aria-valuemax={100}>
+                      <div className="h-full bg-primary" style={{ width: `${g.percent}%` }} />
+                    </div>
+                  )}
+                </summary>
+                {g.chapters.length > 0 && (
+                  <div className="mt-3 min-w-0 max-w-full overflow-x-auto">
+                    <Table unpaged noExport head={['Chapter', 'Status', 'From', 'To', { label: 'Days', align: 'right' }]}>
+                      {g.chapters.map((ch) => (
+                        <tr key={ch.id}>
+                          <Td className="min-w-[10rem]">{ch.title}</Td>
+                          <Td><Badge tone={ch.status === 'completed' ? 'success' : ch.status === 'ongoing' ? 'warning' : 'neutral'}>
+                            {ch.status === 'completed' ? 'Completed' : ch.status === 'ongoing' ? 'Ongoing' : 'Not started'}</Badge></Td>
+                          <Td className="whitespace-nowrap">{ch.from_date ? formatDate(ch.from_date) : '—'}</Td>
+                          <Td className="whitespace-nowrap">{ch.to_date ? formatDate(ch.to_date) : '—'}</Td>
+                          <Td className="num">{ch.days ?? '—'}</Td>
+                        </tr>
+                      ))}
+                    </Table>
+                  </div>
+                )}
+              </details>
+            ))}
+          </div>
+        )}
+    </Card>
+  )
+}
+
 function OverviewBody({ o }: { o: Overview }) {
   const { load, marks } = o
   return (
@@ -474,6 +536,7 @@ export default function StaffRecord({ employeeID, onClose }: {
             <Stat label="Open tasks" value={s ? s.tasks.length : '-'} icon={ListChecks} />
           </CellGrid>
           <StaffOverview employeeID={employeeID} />
+          <StaffSyllabus employeeID={employeeID} />
         </>
       ),
     },
