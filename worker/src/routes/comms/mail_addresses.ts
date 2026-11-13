@@ -2,7 +2,7 @@
    each member of staff's address. Assign, change, switch off. Nothing here
    reads or lists anyone's mail: mail_messages is never touched, by design. */
 import type { Ctx, Router } from '../../router'
-import { badRequest, conflict, notFound, readJSON, uuid } from '../../http'
+import { badRequest, conflict, notFound, ok, readJSON, uuid } from '../../http'
 import type { MailImportPreview, MailImportPreviewRow, MailImportRow, MailServerSettings, StaffMailAddress } from '@shared/api/feature_mail_addresses'
 import { isDomain, isLocalPart, schoolDomain } from '../../services/mail'
 import { mailServer } from '../../services/mail_import'
@@ -105,6 +105,30 @@ export function registerMailAddresses(r: Router): void {
         ON CONFLICT (user_id) DO UPDATE SET address = excluded.address, status = excluded.status, updated_at = excluded.updated_at`)
       .bind(uuid(), userId, address, status, c.id.userId, at, at).run()
     return staffRow(c, userId)
+  })
+
+  /* Everyone at once (owner, 2026-11-13: "connect all school email to all
+     the staff who has mail"): a member of staff whose login email is on the
+     school's domain gets that same address as their mailbox. Anyone who
+     already has an address, or whose address someone else holds, is left as is. */
+  r.post('/comms/mail-addresses/auto', MANAGE, async (c) => {
+    const domain = await schoolDomain(c.env, c.id.institution!.id)
+    if (!domain) throw conflict('set the school mail domain first')
+    const rows = (await c.db.prepare(`${SELECT} WHERE ${STAFF} AND ma.address IS NULL AND lower(u.email) LIKE ?`).bind(`%@${domain}`).all<Row>()).results ?? []
+    const taken = new Set(((await c.db.prepare('SELECT address FROM mail_addresses').all<{ address: string }>()).results ?? []).map((r) => r.address.toLowerCase()))
+    const at = new Date().toISOString()
+    const stmts: D1PreparedStatement[] = []
+    let skipped = 0
+    for (const r of rows) {
+      const address = (r.login_email ?? '').trim().toLowerCase()
+      const local = address.replace(/@.*$/, '')
+      if (!isLocalPart(local) || taken.has(address)) { skipped++; continue }
+      taken.add(address)
+      stmts.push(c.db.prepare(`INSERT INTO mail_addresses (id, user_id, address, status, created_by, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?, ?)
+          ON CONFLICT (user_id) DO NOTHING`).bind(uuid(), r.user_id, address, c.id.userId, at, at))
+    }
+    for (let i = 0; i < stmts.length; i += 50) await c.db.batch(stmts.slice(i, i + 50))
+    return ok({ assigned: stmts.length, skipped, domain })
   })
 
   r.typed('POST /comms/mail-addresses/import/preview', MANAGE, async (c) => planImport(c, await readImport(c)))

@@ -24,6 +24,14 @@ export default function MailAddresses() {
     mutationFn: (d: string) => api.call('PUT /comms/mail-addresses/domain', { body: { domain: d } }),
     onSuccess: () => { setDomain(null); qc.invalidateQueries({ queryKey: ['mail-addresses'] }) },
   })
+  const toast = useToast()
+  const autoAssign = useMutation({
+    mutationFn: () => api.post<{ assigned: number; skipped: number; domain: string }>('/api/v1/comms/mail-addresses/auto', {}),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['mail-addresses'] })
+      toast.ok(r.assigned ? `${r.assigned} staff now have their @${r.domain} mailbox${r.skipped ? `, ${r.skipped} left as they were` : ''}.` : `No one new: everyone with an @${r.domain} login already has a mailbox.`)
+    },
+  })
   const setStatus = useMutation({
     mutationFn: (v: { user_id: string; status: 'active' | 'disabled' }) =>
       api.call('PUT /comms/mail-addresses/{user_id}', { params: { user_id: v.user_id }, body: { status: v.status } }),
@@ -72,10 +80,12 @@ export default function MailAddresses() {
             <CardHeader title="Staff" action={
               <div className="flex items-center gap-2">
                 <Input value={filter} onChange={setFilter} placeholder="Search name or address" srLabel="Search staff" type="search" />
+                <Button variant="secondary" pending={autoAssign.isPending} onClick={() => autoAssign.mutate()}
+                  title="Staff whose login email is on the school domain get that address as their mailbox">Give everyone their address</Button>
                 <Button variant="secondary" onClick={() => setImporting(true)}>Import from file</Button>
               </div>
             } />
-            <FormNotice error={setStatus.error} />
+            <FormNotice error={setStatus.error ?? autoAssign.error} />
             <Table head={['Name', 'Address', 'Status', '']} empty={rows.length === 0} emptyLabel={f ? 'No one matches.' : 'No staff found.'}>
               {rows.map((s) => (
                 <tr key={s.user_id}>
