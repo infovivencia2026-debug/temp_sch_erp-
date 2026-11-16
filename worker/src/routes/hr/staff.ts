@@ -299,7 +299,34 @@ function leaveFor(q: URLSearchParams): string | null {
   return null
 }
 
+/* The next staff code after the ones the school already uses (owner,
+   2026-11-16): the commonest pattern ("T-" + number), its highest number + 1,
+   with the same zero padding ("T-014" -> "T-015"). Empty when no code ends
+   in a number. */
+export function nextStaffCode(codes: string[]): string {
+  const groups = new Map<string, { n: number; max: number; width: number }>()
+  for (const raw of codes) {
+    const m = /^(.*?)(\d+)$/.exec(raw.trim())
+    if (!m) continue
+    const g = groups.get(m[1]) ?? { n: 0, max: 0, width: 0 }
+    g.n++; g.max = Math.max(g.max, Number(m[2])); g.width = Math.max(g.width, m[2].length)
+    groups.set(m[1], g)
+  }
+  let best: [string, { n: number; max: number; width: number }] | null = null
+  for (const e of groups) if (!best || e[1].n > best[1].n) best = e
+  if (!best) return ''
+  const [prefix, g] = best
+  let next = g.max + 1
+  const taken = new Set(codes.map((c) => c.trim().toLowerCase()))
+  while (taken.has(`${prefix}${String(next).padStart(g.width, '0')}`.toLowerCase())) next++
+  return `${prefix}${String(next).padStart(g.width, '0')}`
+}
+
 export function registerStaff(r: Router) {
+  r.get('/hr/employees/next-code', WRITE, async (c) => {
+    const rows = (await c.db.prepare(`SELECT employee_code FROM employees WHERE employee_code IS NOT NULL AND employee_code <> ''`).all<{ employee_code: string }>()).results ?? []
+    return ok({ code: nextStaffCode(rows.map((x) => x.employee_code)) })
+  })
   /* Registered outside the /hr guard: anyone may read their own leave; the HR grant widens it. */
   r.get('/hr/leave', 'auth', async (c) => {
     const q = c.url.searchParams

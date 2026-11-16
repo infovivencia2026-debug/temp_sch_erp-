@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -88,6 +88,17 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
   }
   const [f, setF] = useState(blank)
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
+  /* The next code after the school's own (owner, 2026-11-16), filled in while
+     the box is empty; it can still be typed over. */
+  const nextCode = useQuery({
+    queryKey: ['hr', 'next-code'],
+    queryFn: () => api.get<{ code: string }>('/api/v1/hr/employees/next-code'),
+    staleTime: 0,
+  })
+  useEffect(() => {
+    const code = nextCode.data?.code
+    if (code) setF((x) => (x.employee_code ? x : { ...x, employee_code: code }))
+  }, [nextCode.data?.code])
 
   /* The roles that stand in front of a class.
 
@@ -136,6 +147,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
         : ''
       setAdded(`${[f.first_name, f.last_name].filter(Boolean).join(' ')} added${where}`)
       setF(blank)
+      qc.invalidateQueries({ queryKey: ["hr", "next-code"] })
       setSectionID('')
       setClassSubjectID('')
       setClassTeacher(false)
@@ -172,7 +184,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
         <FormNotice error={save.error} ok={added} />
 
         <FormGrid>
-          <Field label="Employee code" required hint="Whatever your registers already use.">
+          <Field label="Employee code" required hint={nextCode.data?.code ? 'The next one after your existing codes. You can change it.' : 'Whatever your registers already use.'}>
             <Input value={f.employee_code} onChange={set('employee_code')} placeholder="T-014" />
           </Field>
           <Field label="Role" hint="Every role your school has, including any you have created.">
