@@ -132,7 +132,8 @@ export async function postStatus(p: { file?: File | null; text?: boolean; thumb?
   if (p.duration) fd.append('duration_seconds', String(p.duration))
   let res: Response
   try {
-    res = await fetch('/api/v1/status/posts', { method: 'POST', body: fd, credentials: 'same-origin', signal: AbortSignal.timeout(180_000) })
+    // A text status carries no file, so it gives up after 60 s like any other save; an upload gets 3 minutes.
+    res = await fetch('/api/v1/status/posts', { method: 'POST', body: fd, credentials: 'same-origin', signal: AbortSignal.timeout(p.file ? 180_000 : 60_000) })
   } catch (e) {
     if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) throw new Error('The upload took too long on this connection. Try again.')
     throw new Error('Could not reach the server. Check the connection and try again.')
