@@ -682,7 +682,9 @@ export default function ReportCards() {
             <Stat label="Report cards" value={all.length} />
             <Stat label="Published" value={published} hint={`${all.length - published} draft`} />
             <Stat label="Section average" value={avg !== '-' ? `${avg}%` : '-'} />
-            <Stat label="Topper" value={topper ? `${topper.full_name} · ${topper.percentage?.toFixed(1)}%` : '-'} />
+            {/* The figure is the percentage and the name sits under it: name and figure on one
+                unbreakable phone line were cut off at 390 px. */}
+            <Stat label="Topper" value={topper ? `${topper.percentage?.toFixed(1)}%` : '-'} hint={topper?.full_name} />
           </CellGrid>
         )}
 
