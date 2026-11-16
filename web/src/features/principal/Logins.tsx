@@ -99,6 +99,12 @@ const STATUS_TONE: Record<string, 'success' | 'danger' | 'warning' | 'neutral'> 
   archived: 'neutral',
 }
 
+/* Staff sign in with their school email or phone only, never a personal
+   email (owner, 2026-11-06); the server sends exactly that. Parents keep
+   their phone or email. */
+const signInOf = (u: AdminUser): string =>
+  u.record === 'staff' ? (u.sign_in_as || 'No school email or phone, add one first') : (u.sign_in_as || u.phone || u.email || '')
+
 const RECORD_LABEL: Record<string, string> = {
   staff: 'Staff',
   student: 'Student',
@@ -264,7 +270,7 @@ export default function Logins() {
              parent's password and their sign-in name are often the same
              number, which is exactly when saying only one of them is
              useless. */
-          signIn: u.sign_in_as || u.phone || u.email || '',
+          signIn: signInOf(u),
           code: u.login_code || '',
         })),
     onSuccess: (r) => setIssued(r),
@@ -279,7 +285,7 @@ export default function Logins() {
       const out: { name: string; sign_in_as: string; password: string; existing: boolean; login_code?: string }[] = []
       for (const u of list) {
         const r = await api.post<{ temporary_password?: string }>(`/api/v1/admin/users/${u.id}/reset-password`, {})
-        out.push({ name: u.full_name, sign_in_as: u.sign_in_as || u.phone || u.email || '', password: r.temporary_password ?? '', existing: false, login_code: u.login_code || undefined })
+        out.push({ name: u.full_name, sign_in_as: signInOf(u), password: r.temporary_password ?? '', existing: false, login_code: u.login_code || undefined })
         setBulk([...out])
       }
       return out

@@ -1,5 +1,5 @@
 import type { Router, Ctx } from '../../router'
-import { shownSignIn } from '../../services/sign_in_name'
+import { shownSignIn, staffSignIn } from '../../services/sign_in_name'
 import { HttpError, badRequest, clampInt, created, forbidden, isUUID, like, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
 import { tenantDb, type Institution } from '../../tenant'
@@ -372,11 +372,12 @@ export function registerAdminUsers(r: Router): void {
                 can, which is what makes it the thing to quote on the phone. */
              COALESCE(u.username, u.phone, u.email, '') AS sign_in_as,
              COALESCE(u.login_code, '') AS login_code,
+             (SELECT COALESCE(e.school_email, '') || '|' || COALESCE(u.phone, e.phone, '') FROM employees e WHERE e.user_id = u.id LIMIT 1) AS staff_ids,
              CASE WHEN EXISTS (SELECT 1 FROM employees e WHERE e.user_id = u.id) THEN 'staff'
                   WHEN EXISTS (SELECT 1 FROM students st WHERE st.user_id = u.id) THEN 'student'
                   WHEN EXISTS (SELECT 1 FROM guardians g WHERE g.user_id = u.id) THEN 'guardian' ELSE 'none' END AS record
         FROM users u WHERE ${USER_FILTER} ORDER BY u.full_name LIMIT ?3 OFFSET ?4`).bind(status, searchArg, pageSize, offset)
-      .all<{ id: string; full_name: string; email: string | null; phone: string | null; status: string; mfa: number; last_login_at: string | null; record: string; sign_in_as: string; login_code: string }>()
+      .all<{ id: string; full_name: string; email: string | null; phone: string | null; status: string; mfa: number; last_login_at: string | null; record: string; sign_in_as: string; login_code: string; staff_ids: string | null }>()
     const ids = rows.results.map((u) => u.id)
     /* WHOSE PARENT THIS IS, AND WHICH CLASS THEY ARE IN.
 
@@ -428,7 +429,7 @@ export function registerAdminUsers(r: Router): void {
         last_login_at: u.last_login_at ?? undefined, roles: [...(roles.get(u.id)?.names ?? [])].sort(), role_keys: [...(roles.get(u.id)?.keys ?? [])].sort(),
         institution: instName, active_sessions: sessions.get(u.id) ?? 0, record: u.record,
         about: aboutBy.get(u.id) ?? '',
-        sign_in_as: shownSignIn(u.sign_in_as), login_code: u.login_code ?? '',
+        sign_in_as: u.record === 'staff' ? staffSignIn(...(String(u.staff_ids ?? '|').split('|') as [string, string])) : shownSignIn(u.sign_in_as), login_code: u.login_code ?? '',
       })),
       total: total?.n ?? offset + rows.results.length,
     })

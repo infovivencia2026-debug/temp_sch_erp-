@@ -1,7 +1,7 @@
 import type { Env } from '../env'
 import { now } from '../env'
 import { DUMMY_HASH, verifyPassword } from '../auth/password'
-import { isCodedUsername } from '../services/sign_in_name'
+import { isCodedUsername, isPersonalEmail } from '../services/sign_in_name'
 import { issueSession } from '../auth/session'
 import { chooserHTML, loginHTML, type Brand, type LoginLang } from '../auth/login-page'
 import { isTelugu } from './admin/msg_templates'
@@ -305,7 +305,6 @@ async function extraRows(env: Env, identifier: string, onlySchool?: string): Pro
   return out
 }
 
-const PERSONAL_MAIL = /^(gmail|googlemail|yahoo|ymail|rocketmail|hotmail|outlook|live|msn|icloud|me|mac|aol|rediffmail|rediff|protonmail|proton|zoho|zohomail|gmx|mail|yandex|inbox)\.[a-z.]+$/i
 
 async function authenticate(env: Env, identifier: string, password: string, onlySchool?: string | null):
   Promise<{ ok: true; c: Candidate } | { ok: false; outcome: 'no_account' | 'wrong_password' | 'school_paused' | 'ambiguous' }> {
@@ -323,7 +322,7 @@ async function authenticate(env: Env, identifier: string, password: string, only
      mail, only phone number or school email". A school account signs in with
      an email unless it is from a personal mail provider (gmail and the like),
      which answers as an unknown name. Vendor staff are not school accounts. */
-  if (identifier.includes('@') && PERSONAL_MAIL.test(identifier.slice(identifier.lastIndexOf('@') + 1))) {
+  if (isPersonalEmail(identifier)) {
     rows = rows.filter((r) => r.institution_id === null)
   }
   if (onlySchool !== null) rows.push(...await extraRows(env, identifier, onlySchool))

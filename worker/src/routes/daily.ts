@@ -1,5 +1,5 @@
 import type { Ctx, Router } from '../router'
-import { shownSignIn } from '../services/sign_in_name'
+import { staffSignIn } from '../services/sign_in_name'
 import { clearDoneWork } from '../services/notification_done'
 import type { AttendanceRow, MarkAttendanceResult, Period, Teacher, TimetableEntry } from '@shared/api'
 import { Messenger, enqueueMessageSends, scopeOf, type SendRequest } from '../services/messaging'
@@ -326,7 +326,7 @@ function registerTimetable(r: Router) {
       SELECT COALESCE(u.id, '') AS user_id,
              COALESCE(u.full_name, ${fullName2('e')}) AS full_name,
              e.employee_code, e.id AS employee_id, e.status,
-             COALESCE(u.username, u.email, u.phone, '') AS sign_in_as,
+             COALESCE(e.school_email, '') AS school_email, COALESCE(u.phone, e.phone, '') AS phone,
              (u.password_hash IS NOT NULL AND u.status <> 'invited') AS can_sign_in,
              COALESCE((SELECT group_concat(key, ', ') FROM (SELECT ro.key FROM user_roles ur JOIN roles ro ON ro.id = ur.role_id
                         WHERE ur.user_id = u.id ORDER BY ro.key)), '') AS roles,
@@ -345,12 +345,12 @@ function registerTimetable(r: Router) {
               OR NOT EXISTS (SELECT 1 FROM sections sec WHERE sec.class_teacher_id = u.id AND (? IS NULL OR sec.id <> ?)))
        ORDER BY COALESCE(u.full_name, ${fullName2('e')})`)
       .bind(former, subject, subject, subject, freeCT, except, except)
-      .all<{ user_id: string; full_name: string; employee_code: string; employee_id: string; status: string; sign_in_as: string
+      .all<{ user_id: string; full_name: string; employee_code: string; employee_id: string; status: string; school_email: string; phone: string
              can_sign_in: number; roles: string; periods: number; subjects: string; class_teacher_of: string }>()
     return { items: rows.results.map((v): Teacher => ({
       user_id: v.user_id, full_name: v.full_name, employee_code: v.employee_code, status: v.status,
       weekly_periods: mayPlan ? num(v.periods) : undefined,
-      employee_id: v.employee_id, sign_in_as: shownSignIn(v.sign_in_as), can_sign_in: bool(v.can_sign_in),
+      employee_id: v.employee_id, sign_in_as: v.user_id ? staffSignIn(v.school_email, v.phone) : '', can_sign_in: bool(v.can_sign_in),
       roles: v.roles, subjects: v.subjects, class_teacher_of: v.class_teacher_of || undefined,
     })) }
   })

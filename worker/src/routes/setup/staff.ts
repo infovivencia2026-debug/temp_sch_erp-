@@ -1,5 +1,5 @@
 import type { Router } from '../../router'
-import { shownSignIn } from '../../services/sign_in_name'
+import { NO_STAFF_SIGN_IN, shownSignIn, staffSignIn } from '../../services/sign_in_name'
 import { Messenger, scopeOf } from '../../services/messaging'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID, clampInt } from '../../http'
@@ -600,8 +600,8 @@ export function registerStaff(r: Router): void {
     requireInstitution(c)
     const empId = uuidParam(c.params.id)
     const reset = c.url.searchParams.get('reset') === 'true'
-    const e = await c.db.prepare(`SELECT user_id, TRIM(first_name || ' ' || COALESCE(last_name, '')) AS full_name, employee_code, email, phone, staff_number, status FROM employees WHERE id = ?`)
-      .bind(empId).first<{ user_id: string | null; full_name: string; employee_code: string; email: string | null; phone: string | null; staff_number: number | null; status: string }>()
+    const e = await c.db.prepare(`SELECT user_id, TRIM(first_name || ' ' || COALESCE(last_name, '')) AS full_name, employee_code, email, school_email, phone, staff_number, status FROM employees WHERE id = ?`)
+      .bind(empId).first<{ user_id: string | null; full_name: string; employee_code: string; email: string | null; school_email: string | null; phone: string | null; staff_number: number | null; status: string }>()
     if (!e) throw new HttpError(404, 'no such employee', { code: 'not_found' })
     const sch = await c.db.prepare('SELECT school_code FROM institutions LIMIT 1')
       .first<{ school_code: string | null }>()
@@ -663,9 +663,11 @@ export function registerStaff(r: Router): void {
         existing = false
       }
     }
-    const signIn = await signInAs(c, userId, 'email')
+    const anySignIn = await signInAs(c, userId, 'email')
     await indexLogin(c, userId)
-    if (signIn.trim() === '') throw badRequest(errNoContact)
+    if (anySignIn.trim() === '') throw badRequest(errNoContact)
+    const userPhone = await c.db.prepare(`SELECT phone FROM users WHERE id = ?`).bind(userId).first<{ phone: string | null }>()
+    const signIn = staffSignIn(e.school_email, userPhone?.phone || e.phone)
     const out: Record<string, unknown> = { employee_code: e.employee_code, full_name: e.full_name, sign_in_as: signIn, password: '', existing }
     if (existing) {
       out.note = 'This person already has a working login, the one whoever created it handed over. The password cannot be read back; reset it only if it has been lost, because that stops the one they are using.'
@@ -1045,7 +1047,13 @@ export function registerStaff(r: Router): void {
       throw forbidden('missing permission: sending logins for ' + kind)
     }
     if (!isUUID(trim(req.id))) throw badRequest('id must be a uuid')
-    const signIn = shownSignIn(trim(req.sign_in_as))
+    let signIn = shownSignIn(trim(req.sign_in_as))
+    if (kind === 'employees' && isUUID(trim(req.id))) {
+      const se = await c.db.prepare(`SELECT e.school_email, COALESCE(u.phone, e.phone) AS phone FROM employees e LEFT JOIN users u ON u.id = e.user_id WHERE e.id = ?`)
+        .bind(trim(req.id)).first<{ school_email: string | null; phone: string | null }>()
+      signIn = staffSignIn(se?.school_email, se?.phone)
+      if (signIn === NO_STAFF_SIGN_IN) throw badRequest(NO_STAFF_SIGN_IN)
+    }
     const password = trim(req.password)
     if (signIn === '' || password === '') throw badRequest('nothing to send: the sign-in name and password are both needed')
 
@@ -1117,7 +1125,7 @@ export function registerStaff(r: Router): void {
                   -- and a screen that appears to have lost data is worse than
                   one that never showed it. */
                COALESCE(emp.email, '') AS email, COALESCE(emp.phone, '') AS phone,
-               COALESCE(eu.username, eu.phone, eu.email, '') AS sign_in,
+               COALESCE(emp.school_email, '') AS school_email, COALESCE(eu.phone, emp.phone, '') AS login_phone,
                COALESCE(eu.login_code, '') AS login_code,
                COALESCE((eu.password_hash IS NOT NULL AND eu.status = 'active'), 0) AS usable
           FROM employees emp
@@ -1130,7 +1138,7 @@ export function registerStaff(r: Router): void {
       return ok({ items: staff.results.map((r) => ({
         id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
         class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
-        has_login: bool(r.usable), sign_in_as: shownSignIn(String(r.sign_in ?? '')),
+        has_login: bool(r.usable), sign_in_as: staffSignIn(String(r.school_email ?? ''), String(r.login_phone ?? '')),
         login_code: String(r.login_code ?? ''),
         email: String(r.email ?? ''), phone: String(r.phone ?? ''), guardians: [],
       })) })

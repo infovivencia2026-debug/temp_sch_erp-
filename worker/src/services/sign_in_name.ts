@@ -16,3 +16,22 @@ export function shownSignIn(v: string | null | undefined): string {
   const m = CODED_USERNAME.exec(s)
   return m ? m[1] : s
 }
+
+/** Personal mail providers (gmail and the like); login.ts refuses them as a sign-in. */
+export const PERSONAL_MAIL = /^(gmail|googlemail|yahoo|ymail|rocketmail|hotmail|outlook|live|msn|icloud|me|mac|aol|rediffmail|rediff|protonmail|proton|zoho|zohomail|gmx|mail|yandex|inbox)\.[a-z.]+$/i
+
+export function isPersonalEmail(v: string | null | undefined): boolean {
+  const s = (v ?? '').trim()
+  return s.includes('@') && PERSONAL_MAIL.test(s.slice(s.lastIndexOf('@') + 1))
+}
+
+export const NO_STAFF_SIGN_IN = 'No school email or phone, add one first'
+
+/* Owner, 2026-11-06: staff sign in only with their school email or phone,
+   never a personal email. This is what is shown and sent as their sign-in. */
+export function staffSignIn(schoolEmail: string | null | undefined, phone: string | null | undefined): string {
+  const se = (schoolEmail ?? '').trim()
+  if (se.includes('@') && !isPersonalEmail(se)) return se
+  const p = shownSignIn((phone ?? '').trim())
+  return p !== '' ? p : NO_STAFF_SIGN_IN
+}
