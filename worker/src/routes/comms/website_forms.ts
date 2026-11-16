@@ -147,6 +147,33 @@ export function registerWebsiteForms(r: Router): void {
     return ok({ ok: true })
   })
 
+  /* SHORTCUTS (owner, 2026-11-16: "select few applications and dump them in a
+     shortcut, like Snapchat"). Named groups of responses, one list per form,
+     kept in module_settings so no new table is needed. */
+  const shortcutKey = (formId: string) => `wf_shortcuts:${formId}`
+  r.get('/comms/website-forms/{id}/shortcuts', READ, async (c) => {
+    const f = await formOr404(c, c.params.id)
+    const row = await c.db.prepare(`SELECT config FROM module_settings WHERE module = ?`).bind(shortcutKey(f.id)).first<{ config: string | null }>()
+    let items: unknown = []
+    try { items = JSON.parse(row?.config || '{}').items ?? [] } catch { items = [] }
+    return ok({ items })
+  })
+  r.put('/comms/website-forms/{id}/shortcuts', READ, async (c) => {
+    const f = await formOr404(c, c.params.id)
+    const b = await readJSON<{ items?: { id?: unknown; name?: unknown; ids?: unknown }[] }>(c.req)
+    if (!Array.isArray(b.items) || b.items.length > 50) throw badRequest('items is a list of at most 50 shortcuts')
+    const items = b.items.map((s) => {
+      const name = String(s.name ?? '').trim().slice(0, 40)
+      if (!name) throw badRequest('every shortcut needs a name')
+      const ids = Array.isArray(s.ids) ? [...new Set(s.ids.map(String).filter(isUUID))].slice(0, 2000) : []
+      return { id: isUUID(String(s.id)) ? String(s.id) : uuid(), name, ids }
+    })
+    const config = JSON.stringify({ items })
+    await c.db.prepare(`INSERT INTO module_settings (institution_id, module, enabled, config) VALUES (?, ?, 1, ?)
+        ON CONFLICT (institution_id, module) DO UPDATE SET config = excluded.config`).bind(c.id.institution!.id, shortcutKey(f.id), config).run()
+    return ok({ items })
+  })
+
   r.post('/comms/website-forms/{id}/responses/read', READ, async (c) => {
     const f = await formOr404(c, c.params.id)
     await c.db.prepare(`UPDATE website_form_responses SET is_read = 1 WHERE form_id = ? AND is_read = 0`).bind(f.id).run()

@@ -7,7 +7,7 @@ import {
 import { api } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import {
-  PageHead, PageBody, EmptyState, ErrorState, Card, Button, ConfirmButton, Input, Textarea, Select, Field, FormNotice, Badge,
+  PageHead, PageBody, EmptyState, ErrorState, Card, Button, Checkbox, ConfirmButton, Input, Textarea, Select, Field, FormNotice, Badge,
   Table, Td, Switch, SkeletonTable, Stat, CellGrid, Dialog, TAB_BAR, tabClass,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
@@ -335,6 +335,36 @@ function Responses({ form }: { form: Form }) {
     mutationFn: (rid: string) => api.del(`/api/v1/comms/website-forms/${form.id}/responses/${rid}`),
     onSuccess: () => { setOpenId(null); qc.invalidateQueries({ queryKey: ['website-form-responses', form.id] }); qc.invalidateQueries({ queryKey: ['website-forms'] }) },
   })
+  /* Shortcuts: tick applications, put them in a named group, and open that
+     group from a round chip above the list (owner, 2026-11-16, "like Snapchat"). */
+  const toast = useToast()
+  const sq = useQuery({
+    queryKey: ['website-form-shortcuts', form.id],
+    queryFn: () => api.get<{ items: Shortcut[] }>(`/api/v1/comms/website-forms/${form.id}/shortcuts`),
+  })
+  const shortcuts = sq.data?.items ?? []
+  const saveShortcuts = useMutation({
+    mutationFn: (list: Shortcut[]) => api.put<{ items: Shortcut[] }>(`/api/v1/comms/website-forms/${form.id}/shortcuts`, { items: list }),
+    onSuccess: (r) => qc.setQueryData(['website-form-shortcuts', form.id], r),
+  })
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [view, setView] = useState<string | null>(null)
+  const [naming, setNaming] = useState(false)
+  const [newName, setNewName] = useState('')
+  const togglePick = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const addTo = (sid: string | null, name?: string) => {
+    const ids = [...picked]
+    const list = sid
+      ? shortcuts.map((s) => (s.id === sid ? { ...s, ids: [...new Set([...s.ids, ...ids])] } : s))
+      : [...shortcuts, { id: '', name: (name ?? '').trim(), ids }]
+    saveShortcuts.mutate(list, { onSuccess: () => { setPicked(new Set()); setNaming(false); setNewName(''); toast.ok(`${ids.length} added to ${sid ? shortcuts.find((s) => s.id === sid)?.name : name}`) } })
+  }
+  const removeFromView = () => {
+    if (!view) return
+    saveShortcuts.mutate(shortcuts.map((s) => (s.id === view ? { ...s, ids: s.ids.filter((x) => !picked.has(x)) } : s)), { onSuccess: () => setPicked(new Set()) })
+  }
+  const deleteShortcut = (sid: string) => saveShortcuts.mutate(shortcuts.filter((s) => s.id !== sid), { onSuccess: () => setView(null) })
+
   /* An application brought over from the old careers page keeps the date it was first sent (its "Submitted" answer). */
   const items = [...(q.data?.items ?? [])].map((r) => ({ ...r, created_at: sentAt(r) })).sort((a, b) => b.created_at.localeCompare(a.created_at))
   const unread = items.filter((r) => !r.is_read).length
@@ -374,9 +404,58 @@ function Responses({ form }: { form: Form }) {
         <Stat label="New" value={unread} tint />
         <Stat label="Last 7 days" value={items.filter((r) => Date.parse(r.created_at) >= week).length} tint />
       </CellGrid>
-      <Table head={['Received', ...shownCols.map((c) => c.label), 'Files', '']}>
-        {items.map((r) => (
+      {/* The shortcut chips: All, then each group with its count. */}
+      <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none]" role="tablist" aria-label="Shortcuts">
+        {[{ id: '', name: 'All', ids: items.map((r) => r.id) }, ...shortcuts].map((s) => {
+          const on = (view ?? '') === s.id
+          const n = s.id ? s.ids.filter((x) => items.some((r) => r.id === x)).length : items.length
+          return (
+            <button key={s.id || 'all'} type="button" role="tab" aria-selected={on} onClick={() => { setView(s.id || null); setPicked(new Set()) }}
+              className="flex w-[72px] shrink-0 flex-col items-center gap-1 text-center">
+              <span className={cn('grid size-14 place-items-center rounded-full border-2 text-[18px] font-bold transition-colors',
+                on ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/40 bg-primary/10 text-primary')}>
+                {s.id ? s.name.trim().slice(0, 1).toUpperCase() : n}
+              </span>
+              <span className={cn('w-full truncate text-[12px]', on ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{s.name}{s.id ? ` · ${n}` : ''}</span>
+            </button>
+          )
+        })}
+      </div>
+      {(picked.size > 0 || naming) && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
+          <span className="text-[14px] font-medium">{picked.size} selected</span>
+          <span className="flex-1" />
+          {naming ? (
+            <>
+              <div className="w-56"><Input value={newName} onChange={setNewName} placeholder="Shortcut name, e.g. Shortlist" autoFocus /></div>
+              <Button variant="ghost" onClick={() => setNaming(false)}>Cancel</Button>
+              <Button pending={saveShortcuts.isPending} disabled={!newName.trim()} onClick={() => addTo(null, newName)}>Create</Button>
+            </>
+          ) : (
+            <>
+              {view && <Button variant="secondary" pending={saveShortcuts.isPending} onClick={removeFromView}>Remove from this shortcut</Button>}
+              {shortcuts.filter((s) => s.id !== view).length > 0 && (
+                <div className="w-52"><Select value="" placeholder="Add to shortcut" onChange={(v) => v && addTo(v)}
+                  options={shortcuts.filter((s) => s.id !== view).map((s) => ({ value: s.id, label: s.name }))} /></div>
+              )}
+              <Button onClick={() => setNaming(true)}><Plus className="size-4" aria-hidden />New shortcut</Button>
+              <Button variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button>
+            </>
+          )}
+        </div>
+      )}
+      {view && picked.size === 0 && (
+        <div className="flex justify-end">
+          <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this shortcut? The applications stay." onConfirm={() => deleteShortcut(view)}>
+            <Trash2 className="size-4" aria-hidden />Delete shortcut
+          </ConfirmButton>
+        </div>
+      )}
+      <FormNotice error={saveShortcuts.error ?? sq.error} />
+      <Table head={['', 'Received', ...shownCols.map((c) => c.label), 'Files', '']}>
+        {items.filter((r) => !view || (shortcuts.find((s) => s.id === view)?.ids ?? []).includes(r.id)).map((r) => (
           <tr key={r.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenId(r.id)}>
+            <Td className="w-10" ><span onClick={(e) => e.stopPropagation()}><Checkbox label="" srLabel="Select this application" checked={picked.has(r.id)} onChange={() => togglePick(r.id)} /></span></Td>
             <Td className="whitespace-nowrap tabular-nums">{when(r.created_at)}{!r.is_read && <Badge tone="primary" className="ml-2">New</Badge>}</Td>
             {shownCols.map((c) => <Td key={c.key} className="max-w-[260px] truncate">{cell(r, c.key)}</Td>)}
             <Td>{r.files.length ? <span className="inline-flex items-center gap-1 text-[13px] text-muted-foreground"><Paperclip className="size-4" />{r.files.length}</span> : null}</Td>
@@ -470,6 +549,7 @@ function Responses({ form }: { form: Form }) {
     </>
   )
 }
+interface Shortcut { id: string; name: string; ids: string[] }
 const show = (r: Resp, k: string) => { const v = r.data[k]; return v === 'true' ? 'Yes' : v === 'false' ? 'No' : v ?? '' }
 /* The careers page's own names for this form's questions (old row labels, then its field names). */
 const ALIASES: Record<string, string[]> = {
