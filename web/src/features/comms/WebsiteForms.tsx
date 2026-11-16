@@ -352,16 +352,22 @@ function Responses({ form }: { form: Form }) {
   const [naming, setNaming] = useState(false)
   const [newName, setNewName] = useState('')
   const togglePick = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
-  const addTo = (sid: string | null, name?: string) => {
-    const ids = [...picked]
-    const list = sid
-      ? shortcuts.map((s) => (s.id === sid ? { ...s, ids: [...new Set([...s.ids, ...ids])] } : s))
-      : [...shortcuts, { id: '', name: (name ?? '').trim(), ids }]
-    saveShortcuts.mutate(list, { onSuccess: () => { setPicked(new Set()); setNaming(false); setNewName(''); toast.ok(`${ids.length} added to ${sid ? shortcuts.find((s) => s.id === sid)?.name : name}`) } })
+  /* + makes an empty shortcut with a name; applications are MOVED into one,
+     by ticking rows or from inside an application (owner, 2026-11-16). */
+  const createShortcut = () => {
+    const name = newName.trim()
+    if (!name) return
+    saveShortcuts.mutate([...shortcuts, { id: '', name, ids: [] }], { onSuccess: () => { setNaming(false); setNewName('') } })
+  }
+  const moveTo = (sid: string, ids: string[]) => {
+    const target = shortcuts.find((x) => x.id === sid)
+    if (!target || !ids.length) return
+    const list = shortcuts.map((x) => (x.id === sid ? { ...x, ids: [...new Set([...x.ids, ...ids])] } : { ...x, ids: x.ids.filter((i) => !ids.includes(i)) }))
+    saveShortcuts.mutate(list, { onSuccess: () => { setPicked(new Set()); toast.ok(`Moved to ${target.name}`) } })
   }
   const removeFromView = () => {
     if (!view) return
-    saveShortcuts.mutate(shortcuts.map((s) => (s.id === view ? { ...s, ids: s.ids.filter((x) => !picked.has(x)) } : s)), { onSuccess: () => setPicked(new Set()) })
+    saveShortcuts.mutate(shortcuts.map((x) => (x.id === view ? { ...x, ids: x.ids.filter((i) => !picked.has(i)) } : x)), { onSuccess: () => setPicked(new Set()) })
   }
   const deleteShortcut = (sid: string) => saveShortcuts.mutate(shortcuts.filter((s) => s.id !== sid), { onSuccess: () => setView(null) })
 
@@ -420,28 +426,28 @@ function Responses({ form }: { form: Form }) {
             </button>
           )
         })}
+        <button type="button" onClick={() => setNaming(true)} aria-label="Add a shortcut" className="flex w-[72px] shrink-0 flex-col items-center gap-1 text-center">
+          <span className="grid size-14 place-items-center rounded-full border-2 border-dashed border-primary/50 text-primary"><Plus className="size-6" aria-hidden /></span>
+          <span className="w-full truncate text-[12px] text-muted-foreground">New</span>
+        </button>
       </div>
-      {(picked.size > 0 || naming) && (
+      {naming && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
+          <div className="min-w-0 flex-1 sm:max-w-xs"><Input value={newName} onChange={setNewName} placeholder="Shortcut name, e.g. Shortlist" autoFocus /></div>
+          <Button variant="ghost" onClick={() => { setNaming(false); setNewName('') }}>Cancel</Button>
+          <Button pending={saveShortcuts.isPending} disabled={!newName.trim()} onClick={createShortcut}>Create</Button>
+        </div>
+      )}
+      {picked.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
           <span className="text-[14px] font-medium">{picked.size} selected</span>
           <span className="flex-1" />
-          {naming ? (
-            <>
-              <div className="w-56"><Input value={newName} onChange={setNewName} placeholder="Shortcut name, e.g. Shortlist" autoFocus /></div>
-              <Button variant="ghost" onClick={() => setNaming(false)}>Cancel</Button>
-              <Button pending={saveShortcuts.isPending} disabled={!newName.trim()} onClick={() => addTo(null, newName)}>Create</Button>
-            </>
-          ) : (
-            <>
-              {view && <Button variant="secondary" pending={saveShortcuts.isPending} onClick={removeFromView}>Remove from this shortcut</Button>}
-              {shortcuts.filter((s) => s.id !== view).length > 0 && (
-                <div className="w-52"><Select value="" placeholder="Add to shortcut" onChange={(v) => v && addTo(v)}
-                  options={shortcuts.filter((s) => s.id !== view).map((s) => ({ value: s.id, label: s.name }))} /></div>
-              )}
-              <Button onClick={() => setNaming(true)}><Plus className="size-4" aria-hidden />New shortcut</Button>
-              <Button variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button>
-            </>
-          )}
+          {shortcuts.filter((x) => x.id !== view).length > 0
+            ? <div className="w-52"><Select value="" placeholder="Move to" onChange={(v) => v && moveTo(v, [...picked])}
+                options={shortcuts.filter((x) => x.id !== view).map((x) => ({ value: x.id, label: x.name }))} /></div>
+            : <span className="text-[13px] text-muted-foreground">Make a shortcut with + first.</span>}
+          {view && <Button variant="secondary" pending={saveShortcuts.isPending} onClick={removeFromView}>Remove from this shortcut</Button>}
+          <Button variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button>
         </div>
       )}
       {view && picked.size === 0 && (
@@ -496,6 +502,10 @@ function Responses({ form }: { form: Form }) {
             footer={<>
               <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this response and its files?" onConfirm={() => del.mutate(open.id)}><Trash2 className="size-4" aria-hidden />Delete</ConfirmButton>
               <span className="flex-1" />
+              {shortcuts.length > 0 && (
+                <div className="w-44"><Select value={shortcuts.find((x) => x.ids.includes(open.id))?.id ?? ''} placeholder="Move to"
+                  onChange={(v) => v && moveTo(v, [open.id])} options={shortcuts.map((x) => ({ value: x.id, label: x.name }))} /></div>
+              )}
               <Button variant="secondary" onClick={() => saveExcel(fname, table())}>Excel</Button>
               <Button variant="secondary" onClick={() => printResponse(form.title, name || 'Response', role, when(open.created_at), doc)}>PDF</Button>
               <Button variant="secondary" onClick={() => saveCsv(fname, table())}>CSV</Button>
