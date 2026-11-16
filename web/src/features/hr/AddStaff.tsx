@@ -113,7 +113,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
   const save = useMutation({
     mutationFn: async () => {
       const made = await api.post<{ user_id?: string; employee?: { user_id?: string } }>(
-        '/api/v1/setup/employees', { ...f, create_login: !!f.email })
+        '/api/v1/setup/employees', { ...f, create_login: !!(f.phone || f.school_email) })
       const userID = made.user_id ?? made.employee?.user_id
       /* The allocation is a second call, after the person exists.
 
@@ -204,7 +204,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
           <Field label="Last name">
             <Input value={f.last_name} onChange={set('last_name')} />
           </Field>
-          <Field label="Personal email" hint="Used to sign in. Leave blank for staff who will not.">
+          <Field label="Personal email" hint="For contact only. Staff sign in with their school email or phone.">
             <Input type="email" value={f.email} onChange={set('email')} />
           </Field>
           <Field label="School email" hint="Their official address at the school, if they have one.">
@@ -319,7 +319,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
           <BulkImport
             entity="staff"
             title="Or add your whole staff list from a sheet"
-            hint="Employee code and first name are required. Give an email and a role and they get a login too."
+            hint="Employee code and first name are required. Give a phone or school email and a role and they get a login too."
             onDone={onDone}
           />
         </div>

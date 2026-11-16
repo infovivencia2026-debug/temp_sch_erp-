@@ -1685,7 +1685,7 @@ function StaffPanel({ onDone }: PanelProps) {
         <Field label="Last name">
           <Input value={f.last_name} onChange={(x) => setF({ ...f, last_name: x })} />
         </Field>
-        <Field label="Personal email" hint="Used to sign in. Leave blank for staff who will not.">
+        <Field label="Personal email" hint="For contact only. Staff sign in with their school email or phone.">
           <Input type="email" value={f.email} onChange={(x) => setF({ ...f, email: x })} />
         </Field>
         <Field label="School email" hint="Their official address at the school, if they have one.">
