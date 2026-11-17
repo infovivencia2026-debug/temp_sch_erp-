@@ -447,7 +447,7 @@ function Responses({ form }: { form: Form }) {
             onConfirm={async () => { for (const id of picked) await del.mutateAsync(id); setPicked(new Set()) }}>
             <Trash2 className="size-4" aria-hidden />Delete
           </ConfirmButton>
-          <Button variant="ghost" aria-label="Clear selection" onClick={() => setPicked(new Set())}><X className="size-4" aria-hidden /></Button>
+          <Button variant="ghost" title="Clear selection" onClick={() => setPicked(new Set())}><X className="size-4" aria-hidden /></Button>
         </div>
       )}
       </div>
