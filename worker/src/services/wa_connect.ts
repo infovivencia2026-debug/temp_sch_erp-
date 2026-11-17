@@ -172,23 +172,33 @@ export async function recordInbound(env: Env, db: D1Database, inst: string, msg:
    messages any type is send I need to see in our ERP connect"). Connect posts a
    copy of the Graph body it sent; it is stored as an outgoing row, once per wamid.
    A picture or file sent by link keeps the link as media_id "url:<link>". */
-export interface ConnectSent { to?: string; type?: string; text?: { body?: string }; template?: { name?: string }
+type TplParam = { type?: string; text?: string; image?: { link?: string; id?: string }; document?: { link?: string; id?: string; filename?: string }; video?: { link?: string; id?: string } }
+export interface ConnectSent { to?: string; type?: string; text?: { body?: string }
+  template?: { name?: string; components?: { type?: string; parameters?: TplParam[] }[] }
   image?: { link?: string; id?: string; caption?: string }; document?: { link?: string; id?: string; caption?: string; filename?: string }
   video?: { link?: string; id?: string; caption?: string }; audio?: { link?: string; id?: string } }
+/** A template message's name and filled blanks, kept in media_name as "tpl:{json}". */
+const tplTag = (name: string, params: string[]) => trunc('tpl:' + JSON.stringify({ n: name.slice(0, 120), p: params.map((x) => x.slice(0, 500)) }), 2000)
 export async function recordConnectSent(db: D1Database, inst: string, msg: ConnectSent, wamid: string | null, atIso: string | null): Promise<boolean> {
   const phone = normalisePhone(msg.to ?? '')
   if (!phone) return false
   const at = atIso && !Number.isNaN(Date.parse(atIso)) ? new Date(atIso).toISOString() : new Date().toISOString()
   const convId = await conversationFor(db, inst, phone, null, at)
   const kind = String(msg.type ?? 'text').slice(0, 20)
-  const media = msg.image ?? msg.document ?? msg.video ?? msg.audio
+  /* A template's picture sits in its header; its blanks in the body. Kept so the
+     ERP can draw it as WhatsApp does (owner, 2026-11-17: "IT SHOULD LOOK LIKE WHATSAPP"). */
+  const comps = msg.template?.components ?? []
+  const head = comps.find((x) => String(x.type).toLowerCase() === 'header')?.parameters?.[0]
+  const params = (comps.find((x) => String(x.type).toLowerCase() === 'body')?.parameters ?? []).map((x) => String(x.text ?? ''))
+  const media = msg.image ?? msg.document ?? msg.video ?? msg.audio ?? head?.image ?? head?.document ?? head?.video
   const text = msg.text?.body ?? (msg.image?.caption || msg.document?.caption || msg.video?.caption)
-    ?? (kind === 'template' ? `Template: ${msg.template?.name ?? ''}`.trim() : null)
+    ?? (kind === 'template' ? (params.join(' · ') || `Template: ${msg.template?.name ?? ''}`.trim()) : null)
+  const tpl = kind === 'template' && msg.template?.name ? tplTag(msg.template.name, params) : null
   const mediaId = media?.id ? media.id : media?.link && /^https:\/\//i.test(media.link) ? 'url:' + media.link.slice(0, 1000) : null
-  const mime = kind === 'image' ? 'image/jpeg' : null
+  const mime = kind === 'image' || head?.image ? 'image/jpeg' : head?.video ? 'video/mp4' : null
   const ins = await db.prepare(`INSERT INTO wa_messages (id, institution_id, conversation_id, direction, kind, text, media_id, media_mime, media_name, wa_id, status, at)
       VALUES (?,?,?,'out',?,?,?,?,?,?,'sent',?) ON CONFLICT (wa_id) DO NOTHING`)
-    .bind(crypto.randomUUID(), inst, convId, kind, text ? trunc(text, 4096) : null, mediaId, mime, msg.document?.filename ?? null, wamid, at).run()
+    .bind(crypto.randomUUID(), inst, convId, kind, text ? trunc(text, 4096) : null, mediaId, mime, tpl ?? msg.document?.filename ?? null, wamid, at).run()
   if (!ins.meta.changes) return false
   const preview = text || (PREVIEW_WORD[kind] ?? `[${kind}]`)
   await db.prepare(`UPDATE wa_conversations SET last_message_at = max(coalesce(last_message_at, ''), ?), last_preview = ?, updated_at = ? WHERE id = ?`)
@@ -225,10 +235,15 @@ export async function importConnectHistory(db: D1Database, inst: string, rows: C
     }
     const key = r.id && r.id.startsWith('wamid.') ? r.id.slice(0, 200) : `connect:${phone}:${sec}:${dir}:${(text ?? '').slice(0, 40)}`
     const mime = media && (kind === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(r.media ?? '')) ? 'image/jpeg' : null
+    const tpl = kind === 'template' && r.template ? tplTag(r.template, r.text ? [r.text] : []) : null
     const ins = await db.prepare(`INSERT INTO wa_messages (id, institution_id, conversation_id, direction, kind, text, media_id, media_mime, media_name, wa_id, status, at)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (wa_id) DO NOTHING`)
-      .bind(crypto.randomUUID(), inst, convId, dir, kind, text ? trunc(text, 4096) : null, media, mime, r.fileName || null, key, dir === 'in' ? 'received' : 'sent', at).run()
-    if (!ins.meta.changes) { skipped++; continue }
+      .bind(crypto.randomUUID(), inst, convId, dir, kind, text ? trunc(text, 4096) : null, media, mime, tpl ?? (r.fileName || null), key, dir === 'in' ? 'received' : 'sent', at).run()
+    if (!ins.meta.changes) {
+      // Copied earlier without the template's name: add it now.
+      if (tpl) await db.prepare(`UPDATE wa_messages SET media_name = ? WHERE wa_id = ? AND media_name IS NULL`).bind(tpl, key).run()
+      skipped++; continue
+    }
     stored++
     const preview = text || (PREVIEW_WORD[kind] ?? `[${kind}]`)
     await db.prepare(`UPDATE wa_conversations SET last_message_at = CASE WHEN coalesce(last_message_at,'') < ? THEN ? ELSE last_message_at END,

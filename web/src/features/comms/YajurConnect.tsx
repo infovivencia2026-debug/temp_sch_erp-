@@ -33,6 +33,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'log', label: 'Log' }, { key: 'rules', label: 'Auto-replies' },
 ]
 
+interface WaTpl { name: string; language: string; header: string | null; body: string; footer: string | null; buttons: string[] }
 const KIND_LABEL: Record<string, string> = {
   image: 'Photo', video: 'Video', audio: 'Voice note', document: 'Document', sticker: 'Sticker', location: 'Location', reaction: 'Reaction',
 }
@@ -248,6 +249,18 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
       : api.call('POST /comms/yajur-connect/{id}/messages/{mid}/retry', { params: { id, mid: v.mid } }),
     onSuccess: refresh,
   })
+  /* A template message drawn as the parent saw it (owner, 2026-11-17). */
+  const tq = useQuery({ queryKey: ['connect', 'wa-templates'], queryFn: () => api.get<{ items: WaTpl[] }>('/api/v1/comms/yajur-connect/wa-templates'), staleTime: 3_600_000 })
+  const tplText = (m: ConnectMessage) => {
+    if (m.kind !== 'template') return null
+    let n = '', p: string[] = m.text ? [m.text] : []
+    if (m.media_name?.startsWith('tpl:')) try { const j = JSON.parse(m.media_name.slice(4)) as { n?: string; p?: string[] }; n = j.n ?? ''; p = j.p ?? p } catch { /* as stored */ }
+    const def = n ? tq.data?.items.find((x) => x.name === n) : undefined
+    if (!def) return null
+    const body = def.body.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, i: string) => p[Number(i) - 1] ?? '')
+    const tail = [def.footer, ...def.buttons.map((x) => `↗ ${x}`)].filter(Boolean).join('\n')
+    return tail ? `${body}\n\n${tail}` : body
+  }
   const d = t.data
   const title = d?.conversation.name ?? ''
   const raw = d?.messages ?? []
@@ -275,9 +288,9 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
     messages.push({
       id: m.id,
       // A photo, voice note or file is drawn from WhatsApp itself; only the caption is text.
-      body: m.media_id && m.kind !== 'sticker' ? (m.text ?? '') : bodyOf(m),
+      body: tplText(m) ?? (m.media_id && m.kind !== 'sticker' ? (m.text ?? '') : bodyOf(m)),
       attachments: m.media_id && m.kind !== 'sticker' ? [{
-        file_id: m.media_id, name: m.media_name || KIND_LABEL[m.kind] || 'File', size_bytes: 0,
+        file_id: m.media_id, name: (m.media_name?.startsWith('tpl:') ? '' : m.media_name) || KIND_LABEL[m.kind] || 'Photo', size_bytes: 0,
         content_type: m.media_mime || (m.kind === 'image' ? 'image/jpeg' : m.kind === 'audio' ? 'audio/ogg' : m.kind === 'video' ? 'video/mp4' : 'application/octet-stream'),
         url: `/api/v1/comms/yajur-connect/media/${m.id}`,
       }] : undefined,

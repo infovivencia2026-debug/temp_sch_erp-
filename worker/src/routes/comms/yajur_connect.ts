@@ -11,7 +11,7 @@
 import type { Ctx, Router } from '../../router'
 import { reply } from '../../router'
 import { can } from '../../identity'
-import { HttpError, badRequest, isUUID, like, now, readJSON, uuid } from '../../http'
+import { HttpError, badRequest, isUUID, like, now, ok, readJSON, uuid } from '../../http'
 import { loadGuard, permits } from '../admin/msg_guard'
 import { MessagingError, kickDispatch, openSecretEnv, queueMessage, scopeOf } from '../../services/messaging'
 import { CONNECT_SOURCE, queueChatText, recordOutbound } from '../../services/wa_connect'
@@ -213,6 +213,32 @@ export function registerYajurConnect(r: Router): void {
   /* A parent's photo, voice note or file: WhatsApp keeps it, the row keeps only
      its media id. Fetched from Meta with the school's token on view and passed
      through; Meta keeps inbound media about 30 days (owner, 2026-11-10). */
+  /* The wording of the school's WhatsApp templates, from Meta, so a template
+     message is drawn as the parent saw it: picture, filled-in text, footer and
+     buttons (owner, 2026-11-17: "IT SHOULD LOOK LIKE WHATSAPP"). */
+  r.get('/comms/yajur-connect/wa-templates', READ, async (c) => {
+    const row = await c.db.prepare(`SELECT config, credentials FROM integrations WHERE kind = 'messaging' AND provider = 'whatsapp' AND institution_id IS NOT NULL`)
+      .first<{ config: string | null; credentials: ArrayBuffer | null }>()
+    const token = row ? await openSecretEnv(c.env, row.credentials) : ''
+    let cfg: { api_version?: string; waba_id?: string } = {}
+    try { cfg = JSON.parse(row?.config ?? '{}') } catch { /* none */ }
+    if (!token || !cfg.waba_id) return ok({ items: [] })
+    const items: { name: string; language: string; header: string | null; body: string; footer: string | null; buttons: string[] }[] = []
+    let next: string | null = `https://graph.facebook.com/${cfg.api_version || 'v21.0'}/${encodeURIComponent(cfg.waba_id)}/message_templates?limit=200&fields=name,language,components`
+    for (let page = 0; next && page < 5; page++) {
+      const f = await fetch(next, { headers: { authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(10_000) }).catch(() => null)
+      if (!f?.ok) break
+      const j = await f.json() as { data?: { name: string; language: string; components?: { type: string; format?: string; text?: string; buttons?: { text?: string }[] }[] }[]; paging?: { next?: string } }
+      for (const t of j.data ?? []) {
+        const comp = (k: string) => t.components?.find((x) => x.type === k)
+        items.push({ name: t.name, language: t.language, header: comp('HEADER')?.format ?? null, body: comp('BODY')?.text ?? '', footer: comp('FOOTER')?.text ?? null,
+          buttons: (comp('BUTTONS')?.buttons ?? []).map((b) => String(b.text ?? '')).filter(Boolean) })
+      }
+      next = j.paging?.next ?? null
+    }
+    return ok({ items })
+  })
+
   r.get('/comms/yajur-connect/media/{mid}', READ, async (c) => {
     const mid = c.params.mid
     if (!isUUID(mid)) throw badRequest('bad id')
