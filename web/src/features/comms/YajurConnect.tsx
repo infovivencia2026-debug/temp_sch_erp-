@@ -250,20 +250,44 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
   })
   const d = t.data
   const title = d?.conversation.name ?? ''
-  const messages: ChatMessage[] = (d?.messages ?? []).map((m) => ({
-    id: m.id,
-    // A photo, voice note or file is drawn from WhatsApp itself; only the caption is text.
-    body: m.media_id && m.kind !== 'sticker' ? (m.text ?? '') : bodyOf(m),
-    attachments: m.media_id && m.kind !== 'sticker' ? [{
-      file_id: m.media_id, name: m.media_name || KIND_LABEL[m.kind] || 'File', size_bytes: 0,
-      content_type: m.media_mime || (m.kind === 'image' ? 'image/jpeg' : m.kind === 'audio' ? 'audio/ogg' : m.kind === 'video' ? 'video/mp4' : 'application/octet-stream'),
-      url: `/api/v1/comms/yajur-connect/media/${m.id}`,
-    }] : undefined,
-    at: (m.direction === 'out' && m.sent_at) || m.at,
-    ...deliveryOf(m),
-    mine: m.direction === 'out',
-    sender: m.direction === 'out' ? (m.auto_reply ? 'Auto-reply' : m.sent_by_name ?? undefined) : undefined,
-  }))
+  const raw = d?.messages ?? []
+  /* A reaction is not a message of its own: WhatsApp pins the emoji on the
+     message it answers. We take the latest reaction per target wa_id (an empty
+     one means the parent removed it), pin it on that bubble, and for a reaction
+     whose target was never stored we show one plain centred line. */
+  const reactByTarget = new Map<string, string>()
+  for (const m of raw) if (m.kind === 'reaction' && m.reply_to_wa_id) reactByTarget.set(m.reply_to_wa_id, m.text ?? '')
+  const storedWaIds = new Set(raw.filter((m) => m.kind !== 'reaction' && m.wa_id).map((m) => m.wa_id as string))
+  const orphanDone = new Set<string>()
+  const messages: ChatMessage[] = []
+  for (const m of raw) {
+    if (m.kind === 'reaction') {
+      const tgt = m.reply_to_wa_id ?? ''
+      if (tgt && storedWaIds.has(tgt)) continue // pinned on its bubble below
+      if (orphanDone.has(tgt)) continue
+      orphanDone.add(tgt)
+      const emoji = tgt ? (reactByTarget.get(tgt) ?? '') : (m.text ?? '')
+      if (!emoji) continue // a removed reaction with nothing to show
+      messages.push({ id: m.id, note: true, body: `${emoji} reacted to an earlier message`, at: m.at, mine: m.direction === 'out' })
+      continue
+    }
+    const react = m.wa_id ? reactByTarget.get(m.wa_id) : undefined
+    messages.push({
+      id: m.id,
+      // A photo, voice note or file is drawn from WhatsApp itself; only the caption is text.
+      body: m.media_id && m.kind !== 'sticker' ? (m.text ?? '') : bodyOf(m),
+      attachments: m.media_id && m.kind !== 'sticker' ? [{
+        file_id: m.media_id, name: m.media_name || KIND_LABEL[m.kind] || 'File', size_bytes: 0,
+        content_type: m.media_mime || (m.kind === 'image' ? 'image/jpeg' : m.kind === 'audio' ? 'audio/ogg' : m.kind === 'video' ? 'video/mp4' : 'application/octet-stream'),
+        url: `/api/v1/comms/yajur-connect/media/${m.id}`,
+      }] : undefined,
+      at: (m.direction === 'out' && m.sent_at) || m.at,
+      ...deliveryOf(m),
+      mine: m.direction === 'out',
+      sender: m.direction === 'out' ? (m.auto_reply ? 'Auto-reply' : m.sent_by_name ?? undefined) : undefined,
+      reactions: react ? [react] : undefined,
+    })
+  }
 
   return (
     <ConversationPane

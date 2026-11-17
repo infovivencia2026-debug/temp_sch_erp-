@@ -55,6 +55,11 @@ export interface ChatMessage {
   reply_body?: string
   reply_sender?: string
   edited?: boolean
+  /** WhatsApp-style reactions pinned on this bubble, e.g. ['❤️']. */
+  reactions?: string[]
+  /** A centred, bubble-less system line (e.g. "❤️ reacted to an earlier
+      message" when the reacted-to message was never stored). */
+  note?: boolean
   /** Withdrawn by its author: the row stays, the words are gone. */
   deleted?: boolean
   /* Set only on a message this screen is still sending, or failed to send.
@@ -687,15 +692,26 @@ export function ChatThread({
                own words and the principal's reply from the desk -- sits on the
                school's side, and only the family's on the other. */
             const right = m.right ?? m.mine
+            const dayPill = sep && (
+              <div className="my-3 flex justify-center">
+                <span className="chat-daypill rounded-[7.5px] px-3 py-[5px] text-[12.5px] font-medium uppercase tracking-wide">
+                  {dayLabel(day)}
+                </span>
+              </div>
+            )
+            /* A reaction to a message we never stored: WhatsApp has nothing to
+               pin it onto, so we say it plainly on its own centred line. */
+            if (m.note) return (
+              <div key={m.id}>
+                {dayPill}
+                <div className="my-2 flex justify-center">
+                  <span className="rounded-full bg-black/5 px-3 py-1 text-center text-[12.5px] text-muted-foreground">{m.body}</span>
+                </div>
+              </div>
+            )
             return (
               <div key={m.id}>
-                {sep && (
-                  <div className="my-3 flex justify-center">
-                    <span className="chat-daypill rounded-[7.5px] px-3 py-[5px] text-[12.5px] font-medium uppercase tracking-wide">
-                      {dayLabel(day)}
-                    </span>
-                  </div>
-                )}
+                {dayPill}
                 <div className={cn('group flex items-end gap-2', last ? 'mb-[7px]' : 'mb-[2px]', right ? 'justify-end' : 'justify-start')}>
                   {peerName && !right && (
                     last
@@ -789,6 +805,12 @@ export function ChatThread({
                           <Check className="h-[15px] w-[15px]" aria-label="Sent" />
                         ))}
                     </p>
+                    {/* Reactions, pinned on the bubble the WhatsApp way. */}
+                    {!!m.reactions?.length && (
+                      <span className={cn('absolute -bottom-[10px] flex items-center gap-[1px] rounded-full bg-card px-1.5 py-[2px] text-[13px] leading-none shadow ring-1 ring-black/5', right ? 'right-2' : 'left-2')}>
+                        {m.reactions.map((e, i) => <span key={i}>{e}</span>)}
+                      </span>
+                    )}
                     </div>
                     </div>
                     {m.mine && m.delivery === 'failed' && !m.failed && (onRetryDelivery || onDiscardDelivery) && (
