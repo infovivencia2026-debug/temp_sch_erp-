@@ -107,4 +107,22 @@ describe('communication.website_forms', () => {
     expect((await post({ willing_to_work_on_saturdays: 'Maybe' })).status).toBe(400)
     expect((await post({ willing_to_work_on_saturdays: 'No' })).status).toBe(201)
   })
+
+  it('a full response replaces only its own short first step', async () => {
+    const f = await api('admin', 'POST', '/comms/website-forms', { title: 'Two step' })
+    await api('admin', 'PUT', `/comms/website-forms/${f.body.id}`, { fields: [
+      { label: 'Name', type: 'text', required: true }, { label: 'Mobile', type: 'phone', required: true },
+      { label: 'Saturdays', type: 'choice', required: true, options: ['Yes', 'No'] },
+    ] })
+    const send = (b: Record<string, string>) => call(`/api/v1/public/forms/test/${f.body.slug}`, { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '10.9.9.9' }, body: JSON.stringify(b) })
+    const s1 = await (await send({ name: 'Ravi', mobile: '9876543210', application_stage: 'Step 1' })).json() as { id: string }
+    const other = await (await send({ name: 'Sita', mobile: '9876500000' })).json() as { id: string }
+    expect((await send({ name: 'Ravi', mobile: '9876543210', saturdays: 'Yes', application_stage: 'Completed', _source: 'embed', _replaces: s1.id })).status).toBe(201)
+    expect((await send({ name: 'Ravi', mobile: '9876543210', saturdays: 'No', _source: 'embed', _replaces: other.id })).status).toBe(201)
+    const list = await api('admin', 'GET', `/comms/website-forms/${f.body.id}/responses`)
+    const ids = (list.body.items as { id: string }[]).map((x) => x.id)
+    expect(ids).not.toContain(s1.id)
+    expect(ids).toContain(other.id)
+    expect(ids.length).toBe(3)
+  })
 })

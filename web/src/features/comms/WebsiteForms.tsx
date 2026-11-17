@@ -505,7 +505,7 @@ function Responses({ form }: { form: Form }) {
         const table = (): string[][] => [['Section', 'Question', 'Answer'], ...doc.flatMap((s) => s.items.map(([k, v]) => [s.t, k, v]))]
         const files = cols.map((c) => ({ c, f: fileOf(open, c.key) })).filter((x) => x.f)
         return (
-          <Dialog open onClose={() => setOpenId(null)} title={name || 'Response'}
+          <Dialog open initialFocus="panel" onClose={() => setOpenId(null)} title={name || 'Response'}
             description={`${open.source === 'embed' ? 'Embedded form' : 'Website form'} · Submitted ${when(open.created_at)}`}
             footer={<>
               <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this response and its files?" onConfirm={() => del.mutate(open.id)}><Trash2 className="size-4" aria-hidden />Delete</ConfirmButton>

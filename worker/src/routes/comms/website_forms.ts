@@ -288,6 +288,22 @@ export async function handlePublicWebsiteForms(env: Env, req: Request, path: str
       stored.push({ key: fieldKeyOf(x.key), file_id: fileId, name, size: bytes.byteLength })
     }
     const page = (inc.meta._page || req.headers.get('referer') || '').slice(0, 500) || null
+    /* A two-step website form (Yajur Fellowship, owner 2026-11-17: "if they
+       complete full show them as one") first sends the short answers, then the
+       full set naming the first response in _replaces. The short one is removed
+       so a finished applicant is one row; someone who stops after step one still
+       shows. Only a recent, file-less response of this form whose every answer is
+       repeated in the full one can be replaced, so a guessed id cannot remove
+       anyone else's response. */
+    const rep = (inc.meta._replaces ?? '').trim()
+    if (/^[0-9a-f-]{36}$/i.test(rep)) {
+      const old = await t.db.prepare(`SELECT data, files, created_at FROM website_form_responses WHERE id = ? AND form_id = ?`).bind(rep, f.id).first<{ data: string; files: string; created_at: string }>()
+      if (old && (JSON.parse(old.files || '[]') as unknown[]).length === 0 && Date.now() - Date.parse(old.created_at) < 86400000) {
+        const od = JSON.parse(old.data || '{}') as Record<string, string>
+        const same = Object.entries(od).every(([k, v]) => k === 'application_stage' || (data[k] ?? '').trim() === String(v).trim())
+        if (same) stmts.push(t.db.prepare(`DELETE FROM website_form_responses WHERE id = ? AND form_id = ?`).bind(rep, f.id))
+      }
+    }
     stmts.push(t.db.prepare(`INSERT INTO website_form_responses (id, institution_id, form_id, data, files, source, page_url, ip, created_at) VALUES (?,?,?,?,?,?,?,?,?)`)
       .bind(respId, inst, f.id, JSON.stringify(data), JSON.stringify(stored), source, page, callerAddress(req).slice(0, 64), ts))
     const who = data[fields.find((x) => x.type === 'text')?.key ?? ''] || data.name || data.full_name || 'Someone'
