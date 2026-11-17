@@ -16,7 +16,7 @@ import { HttpError, badRequest, created, isUUID, now, ok, readJSON, uuid } from 
 import { allTenants, callerAddress, goError, goInternal, goNotFound, rateLimited, type Tenant } from './public_common'
 import { baseName, extOf, putObject, refuseSize, refuseUpload, sha256, uploadKey } from '../../services/files'
 
-export const FIELD_TYPES = ['text', 'long_text', 'email', 'phone', 'number', 'date', 'dropdown', 'checkbox', 'file'] as const
+export const FIELD_TYPES = ['text', 'long_text', 'email', 'phone', 'number', 'date', 'dropdown', 'choice', 'checkbox', 'file'] as const
 type FieldType = typeof FIELD_TYPES[number]
 /** show_if: the question shows (and is checked) only when another question's answer equals value. */
 export interface FormField { key: string; label: string; type: FieldType; required: boolean; options?: string[]; show_if?: { key: string; value: string } }
@@ -40,10 +40,10 @@ function cleanFields(raw: unknown): FormField[] {
     let key = slugify(String(o.key ?? '') || label).replace(/-/g, '_')
     while (seen.has(key)) key += '_' + (i + 1)
     seen.add(key)
-    const options = type === 'dropdown'
+    const options = type === 'dropdown' || type === 'choice'
       ? (Array.isArray(o.options) ? o.options : []).map((x) => String(x).trim()).filter(Boolean).slice(0, 100)
       : undefined
-    if (type === 'dropdown' && !options!.length) throw badRequest(`${label}: add at least one choice`)
+    if ((type === 'dropdown' || type === 'choice') && !options!.length) throw badRequest(`${label}: add at least one choice`)
     const si = o.show_if as { key?: unknown; value?: unknown } | undefined
     const show_if = si && String(si.key ?? '').trim() && String(si.value ?? '').trim()
       ? { key: String(si.key).trim(), value: String(si.value).trim().slice(0, 200) } : undefined
@@ -265,7 +265,7 @@ export async function handlePublicWebsiteForms(env: Env, req: Request, path: str
       if (fd.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) problems.push(`${fd.label}: give a valid email address`)
       if (fd.type === 'phone' && v.replace(/\D/g, '').length < 10) problems.push(`${fd.label}: give a 10-digit number`)
       if (fd.type === 'number' && Number.isNaN(Number(v))) problems.push(`${fd.label}: give a number`)
-      if (fd.type === 'dropdown' && fd.options && !fd.options.includes(v)) problems.push(`${fd.label}: choose one of the options`)
+      if ((fd.type === 'dropdown' || fd.type === 'choice') && fd.options && !fd.options.includes(v)) problems.push(`${fd.label}: choose one of the options`)
     }
     if (!Object.keys(data).length && !inc.files.length) problems.push('The form is empty')
     if (inc.files.length > 10) problems.push('At most 10 files')
@@ -354,9 +354,10 @@ function draw(box){
         w.appendChild(el('label',{'for':id,text:q.label+star}));var inp;
         if(q.type==='long_text')inp=el('textarea',{id:id,name:q.key,rows:'4'});
         else if(q.type==='dropdown'){inp=el('select',{id:id,name:q.key},[el('option',{value:'',text:'Select'})]);(q.options||[]).forEach(function(o){inp.appendChild(el('option',{value:o,text:o}))})}
+        else if(q.type==='choice'){inp=null;var g=el('div',{'class':'xf-choices',role:'radiogroup'});(q.options||[]).forEach(function(o,k){var r=el('input',{type:'radio',name:q.key,value:o,id:id+'-'+k});if(q.required&&!k)r.required=true;g.appendChild(el('label',{'for':id+'-'+k,'class':'xf-choice'},[r,document.createTextNode(' '+o)]))});w.appendChild(g)}
         else if(q.type==='file')inp=el('input',{id:id,name:q.key,type:'file',accept:'.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp'});
         else inp=el('input',{id:id,name:q.key,type:q.type==='phone'?'tel':q.type==='text'?'text':q.type});
-        if(q.required)inp.required=true;w.appendChild(inp)}
+        if(inp){if(q.required)inp.required=true;w.appendChild(inp)}}
       if(q.show_if)w.setAttribute('data-show-if',JSON.stringify(q.show_if));
       f.appendChild(w)});
     function sync(){var v={};new FormData(f).forEach(function(x,k){if(typeof x==='string')v[k]=x});

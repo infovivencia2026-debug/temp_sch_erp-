@@ -93,4 +93,18 @@ describe('communication.website_forms', () => {
     expect((await post({ role: 'Other' })).status).toBe(400)
     expect((await post({ role: 'Other', please_specify: 'Librarian' })).status).toBe(201)
   })
+
+  it('a choose-one question needs exactly one of its choices when required', async () => {
+    const f = await api('admin', 'POST', '/comms/website-forms', { title: 'Saturdays' })
+    const u = await api('admin', 'PUT', `/comms/website-forms/${f.body.id}`, { fields: [
+      { label: 'Willing to work on Saturdays?', type: 'choice', required: true, options: ['Yes', 'No'] },
+    ] })
+    expect(u.status).toBe(200)
+    expect(u.body.fields[0]).toMatchObject({ type: 'choice', options: ['Yes', 'No'] })
+    expect((await api('admin', 'PUT', `/comms/website-forms/${f.body.id}`, { fields: [{ label: 'Q', type: 'choice', options: [] }] })).status).toBe(400)
+    const post = (b: unknown) => call(`/api/v1/public/forms/test/${f.body.slug}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...(b as object), _source: 'embed' }) })
+    expect((await post({})).status).toBe(400)
+    expect((await post({ willing_to_work_on_saturdays: 'Maybe' })).status).toBe(400)
+    expect((await post({ willing_to_work_on_saturdays: 'No' })).status).toBe(201)
+  })
 })

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
+  AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, CircleDot, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
   Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -17,7 +17,7 @@ import { cn, formatDate } from '@/lib/utils'
    a live preview, put the form on the website by embed or the website's own
    form, and read every response with its date, time and files. */
 
-type FieldType = 'text' | 'long_text' | 'email' | 'phone' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'file'
+type FieldType = 'text' | 'long_text' | 'email' | 'phone' | 'number' | 'date' | 'dropdown' | 'choice' | 'checkbox' | 'file'
 interface FormField { key: string; label: string; type: FieldType; required: boolean; options?: string[]; show_if?: { key: string; value: string } }
 interface Form {
   id: string; slug: string; title: string; description: string; fields: FormField[]; submit_label: string; thanks_message: string
@@ -34,6 +34,7 @@ const TYPES: { value: FieldType; label: string; icon: typeof Type }[] = [
   { value: 'number', label: 'Number', icon: Hash },
   { value: 'date', label: 'Date', icon: Calendar },
   { value: 'dropdown', label: 'Dropdown', icon: ChevronDown },
+  { value: 'choice', label: 'Choose one', icon: CircleDot },
   { value: 'checkbox', label: 'Tick box', icon: CheckSquare },
   { value: 'file', label: 'File upload', icon: Paperclip },
 ]
@@ -182,7 +183,7 @@ function Builder({ form }: { form: Form }) {
   const save = useMutation({
     mutationFn: () => api.put<Form>(`/api/v1/comms/website-forms/${form.id}`, {
       title, description, submit_label: submitLabel, thanks_message: thanks,
-      fields: fields.map((f) => ({ ...f, options: f.type === 'dropdown' ? (f.options ?? []).map((o) => o.trim()).filter(Boolean) : undefined })),
+      fields: fields.map((f) => ({ ...f, options: f.type === 'dropdown' || f.type === 'choice' ? (f.options ?? []).map((o) => o.trim()).filter(Boolean) : undefined })),
     }),
     onSuccess: (f) => { setFields(f.fields); setSavedAt(Date.now()); qc.invalidateQueries({ queryKey: ['website-forms'] }); toast.ok(`${f.title} saved. The website shows it now.`) },
     onError: (e) => toast.error((e as Error).message || 'Could not save the form'),
@@ -195,7 +196,7 @@ function Builder({ form }: { form: Form }) {
     setActive(j)
   }
   const add = (type: FieldType) => {
-    setFields((l) => [...l, { key: '', label: '', type, required: false, ...(type === 'dropdown' ? { options: [''] } : {}) }])
+    setFields((l) => [...l, { key: '', label: '', type, required: false, ...(type === 'dropdown' || type === 'choice' ? { options: [''] } : {}) }])
     setActive(fields.length)
   }
 
@@ -219,10 +220,10 @@ function Builder({ form }: { form: Form }) {
               <div className="p-5" onFocus={() => setActive(i)} onClick={() => setActive(i)}>
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px]">
                   <Input value={f.label} onChange={(v) => upd(i, { label: v })} placeholder={`Question ${i + 1}`} srLabel={`Question ${i + 1}`} />
-                  <Select value={f.type} onChange={(v) => upd(i, { type: v as FieldType, options: v === 'dropdown' ? (f.options?.length ? f.options : ['']) : undefined })}
+                  <Select value={f.type} onChange={(v) => upd(i, { type: v as FieldType, options: v === 'dropdown' || v === 'choice' ? (f.options?.length ? f.options : ['']) : undefined })}
                     options={TYPES.map((t) => ({ value: t.value, label: t.label }))} />
                 </div>
-                {f.type === 'dropdown' ? (
+                {f.type === 'dropdown' || f.type === 'choice' ? (
                   <div className="mt-3 space-y-2">
                     {(f.options ?? []).map((o, k) => (
                       <div key={k} className="flex items-center gap-2">
@@ -303,6 +304,7 @@ function Preview({ title, description, fields, submit }: { title: string; descri
                 <p className="text-[13px] font-medium">{f.label || `Question ${i + 1}`}{f.required && <span className="text-destructive"> *</span>}</p>
                 {f.type === 'long_text' ? <div className={cn(box, 'h-20')} />
                   : f.type === 'file' ? <div className="mt-1.5 grid h-16 place-items-center rounded-lg border border-dashed text-[12px] text-muted-foreground">Choose a file or drop it here</div>
+                  : f.type === 'choice' ? <div className="mt-1.5 flex flex-wrap gap-2">{(f.options ?? []).filter((o) => o.trim()).map((o) => <span key={o} className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px]"><span className="size-3.5 rounded-full border" />{o}</span>)}</div>
                   : f.type === 'dropdown' ? <div className={cn(box, 'flex items-center justify-between px-3 text-[13px] text-muted-foreground')}>Select<ChevronDown className="size-4" /></div>
                   : <div className={box} />}
               </>
@@ -648,7 +650,7 @@ function Share({ form, school }: { form: Form; school: string }) {
 /* "Show only when": this question appears only when an earlier question's
    answer is one value (for example "Please specify" when Role is Other). */
 function ShowIf({ field, others, onChange }: { field: FormField; others: FormField[]; onChange: (v: FormField['show_if']) => void }) {
-  const choosable = others.filter((o) => (o.type === 'dropdown' && (o.options ?? []).some((x) => x.trim())) || o.type === 'checkbox')
+  const choosable = others.filter((o) => ((o.type === 'dropdown' || o.type === 'choice') && (o.options ?? []).some((x) => x.trim())) || o.type === 'checkbox')
   const [on, setOn] = useState(!!field.show_if)
   if (!choosable.length) return null
   const src = choosable.find((o) => (o.key || o.label) === field.show_if?.key) ?? null

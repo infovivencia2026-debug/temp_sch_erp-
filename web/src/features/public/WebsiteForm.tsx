@@ -8,7 +8,7 @@ import { CheckCircle2, Paperclip, UploadCloud } from 'lucide-react'
    any other website would. It tells the page around it how tall it is, so
    the embed code can size the iframe without a scrollbar. */
 
-type FieldType = 'text' | 'long_text' | 'email' | 'phone' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'file'
+type FieldType = 'text' | 'long_text' | 'email' | 'phone' | 'number' | 'date' | 'dropdown' | 'choice' | 'checkbox' | 'file'
 interface Field { key: string; label: string; type: FieldType; required: boolean; options?: string[]; show_if?: { key: string; value: string } }
 interface Def { school_name: string; color: string; title: string; description: string; fields: Field[]; is_open: boolean; submit_label: string; thanks_message: string }
 
@@ -104,6 +104,19 @@ export default function WebsiteForm() {
                                 <option value="">Select</option>
                                 {(f.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
                               </select>
+                            ) : f.type === 'choice' ? (
+                              <div role="radiogroup" aria-label={f.label} className="flex flex-wrap gap-2.5">
+                                {(f.options ?? []).map((o) => {
+                                  const on = values[f.key] === o
+                                  return (
+                                    <label key={o} className={`flex cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-5 py-2.5 text-[15px] transition ${on ? 'font-semibold' : 'border-[#d5dbe6]'}`}
+                                      style={on ? { borderColor: 'var(--brand)', color: 'var(--brand)' } : undefined}>
+                                      <input type="radio" name={`f-${f.key}`} value={o} checked={on} onChange={() => set(f.key, o)} style={{ accentColor: 'var(--brand)' }} />
+                                      {o}
+                                    </label>
+                                  )
+                                })}
+                              </div>
                             ) : f.type === 'file' ? (
                               <label htmlFor={`f-${f.key}`} className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-[#b8c2d4] bg-[#f6f8fb] px-4 py-7 text-center transition hover:border-[var(--brand)]">
                                 {files[f.key] ? <Paperclip className="size-6" style={{ color: 'var(--brand)' }} /> : <UploadCloud className="size-7 text-slate-400" />}
