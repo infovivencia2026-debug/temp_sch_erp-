@@ -1318,10 +1318,11 @@ export function registerStaff(r: Router): void {
       if (p.user_id && (!bool(p.usable) || req.reset === true)) {
         /* A school administrator's login is reset only by a school administrator; and the
            caller's own account is never reset from a list. */
-        if (p.user_id === c.id.userId || (!callerIsAdmin && (await c.db.prepare(`SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+        /* Reset all never touches a school administrator's login (owner): those keep their password. */
+        if (p.user_id === c.id.userId || ((!callerIsAdmin || req.reset === true) && (await c.db.prepare(`SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
             WHERE ur.user_id = ? AND r.key = 'institution_admin' LIMIT 1`).bind(p.user_id).first()))) {
           out.skipped++
-          out.rows.push({ ...studentCols(p), name: p.name, existing: true, detail: p.user_id === c.id.userId ? 'your own login: change it from your profile' : 'a school administrator: only a school administrator can reset this login' })
+          out.rows.push({ ...studentCols(p), name: p.name, existing: true, detail: p.user_id === c.id.userId ? 'your own login: change it from your profile' : req.reset === true ? 'a school administrator: kept, reset this one on its own' : 'a school administrator: only a school administrator can reset this login' })
           continue
         }
         const { password, known } = kind === 'students' ? studentFirstPassword(p.admission_no) : issuedPassword(p.phone, p.email)
