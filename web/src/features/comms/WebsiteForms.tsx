@@ -402,8 +402,8 @@ function Responses({ form }: { form: Form }) {
   return (
     <>
       <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="secondary" onClick={() => saveExcel(form.title + ' responses', allRows())}>Export Excel</Button>
-        <Button variant="secondary" onClick={() => saveCsv(form.title + ' responses', allRows())}>Export CSV</Button>
+        <div className="w-40"><Select value="" placeholder="Export all" onChange={(v) => v === 'xlsx' ? saveExcel(form.title + ' responses', allRows()) : v === 'csv' && saveCsv(form.title + ' responses', allRows())}
+          options={[{ value: 'xlsx', label: 'Excel' }, { value: 'csv', label: 'CSV' }]} /></div>
       </div>
       <CellGrid cols={3}>
         <Stat label="Responses" value={items.length} tint />
@@ -411,7 +411,8 @@ function Responses({ form }: { form: Form }) {
         <Stat label="Last 7 days" value={items.filter((r) => Date.parse(r.created_at) >= week).length} tint />
       </CellGrid>
       {/* The shortcut chips: All, then each group with its count. */}
-      <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none]" role="tablist" aria-label="Shortcuts">
+      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex min-w-0 gap-3 overflow-x-auto pb-1 [scrollbar-width:none]" role="tablist" aria-label="Shortcuts">
         {[{ id: '', name: 'All', ids: items.map((r) => r.id) }, ...shortcuts].map((s) => {
           const on = (view ?? '') === s.id
           const n = s.id ? s.ids.filter((x) => items.some((r) => r.id === x)).length : items.length
@@ -431,23 +432,28 @@ function Responses({ form }: { form: Form }) {
           <span className="w-full truncate text-[12px] text-muted-foreground">New</span>
         </button>
       </div>
+      {/* Ticked rows: actions sit in the free space beside the chips (owner, 2026-11-17). */}
+      {picked.size > 0 && (
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <span className="text-[14px] font-medium">{picked.size} selected</span>
+          {shortcuts.filter((x) => x.id !== view).length > 0 && (
+            <div className="w-44"><Select value="" placeholder="Move to" onChange={(v) => v && moveTo(v, [...picked])}
+              options={shortcuts.filter((x) => x.id !== view).map((x) => ({ value: x.id, label: x.name }))} /></div>
+          )}
+          {view && <Button variant="secondary" pending={saveShortcuts.isPending} onClick={removeFromView}>Remove from shortcut</Button>}
+          <ConfirmButton tone="danger" confirmLabel="Delete" question={`Delete ${picked.size} response${picked.size > 1 ? 's' : ''} and their files?`}
+            onConfirm={async () => { for (const id of picked) await del.mutateAsync(id); setPicked(new Set()) }}>
+            <Trash2 className="size-4" aria-hidden />Delete
+          </ConfirmButton>
+          <Button variant="ghost" aria-label="Clear selection" onClick={() => setPicked(new Set())}><X className="size-4" aria-hidden /></Button>
+        </div>
+      )}
+      </div>
       {naming && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
           <div className="min-w-0 flex-1 sm:max-w-xs"><Input value={newName} onChange={setNewName} placeholder="Shortcut name, e.g. Shortlist" autoFocus /></div>
           <Button variant="ghost" onClick={() => { setNaming(false); setNewName('') }}>Cancel</Button>
           <Button pending={saveShortcuts.isPending} disabled={!newName.trim()} onClick={createShortcut}>Create</Button>
-        </div>
-      )}
-      {picked.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
-          <span className="text-[14px] font-medium">{picked.size} selected</span>
-          <span className="flex-1" />
-          {shortcuts.filter((x) => x.id !== view).length > 0
-            ? <div className="w-52"><Select value="" placeholder="Move to" onChange={(v) => v && moveTo(v, [...picked])}
-                options={shortcuts.filter((x) => x.id !== view).map((x) => ({ value: x.id, label: x.name }))} /></div>
-            : <span className="text-[13px] text-muted-foreground">Make a shortcut with + first.</span>}
-          {view && <Button variant="secondary" pending={saveShortcuts.isPending} onClick={removeFromView}>Remove from this shortcut</Button>}
-          <Button variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button>
         </div>
       )}
       {view && picked.size === 0 && (
@@ -506,10 +512,9 @@ function Responses({ form }: { form: Form }) {
                 <div className="w-44"><Select value={shortcuts.find((x) => x.ids.includes(open.id))?.id ?? ''} placeholder="Move to"
                   onChange={(v) => v && moveTo(v, [open.id])} options={shortcuts.map((x) => ({ value: x.id, label: x.name }))} /></div>
               )}
-              <Button variant="secondary" onClick={() => saveExcel(fname, table())}>Excel</Button>
-              <Button variant="secondary" onClick={() => printResponse(form.title, name || 'Response', role, when(open.created_at), doc)}>PDF</Button>
-              <Button variant="secondary" onClick={() => saveCsv(fname, table())}>CSV</Button>
-              <Button variant="secondary" onClick={() => setOpenId(null)}>Close</Button>
+              <div className="w-36"><Select value="" placeholder="Export" onChange={(v) => {
+                if (v === 'xlsx') saveExcel(fname, table()); else if (v === 'pdf') printResponse(form.title, name || 'Response', role, when(open.created_at), doc); else if (v === 'csv') saveCsv(fname, table())
+              }} options={[{ value: 'xlsx', label: 'Excel' }, { value: 'pdf', label: 'PDF' }, { value: 'csv', label: 'CSV' }]} /></div>
             </>}>
             <div className="flex flex-col gap-4 rounded-2xl bg-muted/40 p-3 sm:p-4">
               <div className="flex items-center gap-4 rounded-2xl border bg-card p-4">
