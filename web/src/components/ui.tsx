@@ -89,6 +89,7 @@ export const EmbeddedPage = createContext(false)
 
 export function PageHead({
   eyebrow,
+  onEyebrow,
   title,
   description: _unusedDescription,
   actions,
@@ -96,6 +97,8 @@ export function PageHead({
 }: {
   /** The section this screen sits under — rendered as a breadcrumb. */
   eyebrow?: string
+  /** Makes the breadcrumb's first part a link back to the parent list (owner, 2026-11-17: "like Google Drive"). */
+  onEyebrow?: () => void
   title: string
   description?: string
   actions?: ReactNode
@@ -128,7 +131,9 @@ export function PageHead({
       <>
         {createPortal(
           <nav className="flex min-w-0 items-center gap-1 text-[12.5px] text-muted-foreground">
-            <span className="truncate">{eyebrow}</span>
+            {onEyebrow
+              ? <button type="button" onClick={onEyebrow} className="truncate whitespace-nowrap rounded hover:text-foreground hover:underline focus-visible:text-foreground">{eyebrow}</button>
+              : <span className="truncate whitespace-nowrap">{eyebrow}</span>}
             <span aria-hidden className="text-muted-foreground/50">/</span>
             <span className="truncate text-[15px] font-semibold text-foreground">{title}</span>
           </nav>, slot)}
@@ -161,7 +166,9 @@ export function PageHead({
               they are. It wraps between its parts or not at all. */}
           {eyebrow && (
             <nav className="mb-1 flex flex-wrap items-center gap-1 text-[12.5px] text-muted-foreground">
-              <span className="whitespace-nowrap">{eyebrow}</span>
+              {onEyebrow
+              ? <button type="button" onClick={onEyebrow} className="truncate whitespace-nowrap rounded hover:text-foreground hover:underline focus-visible:text-foreground">{eyebrow}</button>
+              : <span className="truncate whitespace-nowrap">{eyebrow}</span>}
               <span aria-hidden className="text-muted-foreground/50">/</span>
               {/* Now the only visible name for the screen, so it carries the
                   weight the h1 used to. Still on the breadcrumb's line — the

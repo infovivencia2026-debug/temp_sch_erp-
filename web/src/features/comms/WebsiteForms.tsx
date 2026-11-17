@@ -136,7 +136,7 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
   ]
   return (
     <>
-      <PageHead eyebrow="Website forms" title={form.title}
+      <PageHead eyebrow="Website forms" onEyebrow={onBack} title={form.title}
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="ghost" onClick={onBack}><ChevronLeft className="size-4" />All forms</Button>
