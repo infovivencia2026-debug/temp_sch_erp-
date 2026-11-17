@@ -21,6 +21,7 @@ const AccountPage = lazy(() => import('@/features/shared/Profile'))
    module behind it, which nobody needs until they open Settings. */
 const SettingsPage = lazy(() => import('@/features/bento/SettingsPage'))
 // A school group's combined report (Seller → School groups); the server decides who may read it.
+const SectionIndex = lazy(() => import('@/features/shared/SectionIndex'))
 const GroupReport = lazy(() => import('@/features/shared/GroupReport'))
 const BillingSchool = lazy(() => import('@/features/seller/BillingSchool'))
 const ConcernsPage = lazy(() => import('@/features/me/MyConcerns'))
@@ -614,6 +615,7 @@ export function AppRoutes({ location }: { location?: string }) {
       <Route path="/go/:sectionSlug/:featureSlug" element={<GoTo />} />
       <Route path="/:roleKey" element={<RoleIndex />} />
       <Route path="/:roleKey/:sectionSlug" element={<FeatureRoute />} />
+      <Route path="/:roleKey/:sectionSlug/all-screens" element={<Suspense fallback={<SkeletonPage />}><SectionIndex /></Suspense>} />
       <Route path="/:roleKey/:sectionSlug/:featureSlug" element={<FeatureRoute />} />
       <Route path="*" element={<Home />} />
     </Routes>

@@ -7,6 +7,7 @@ import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, Ske
 import { ApiError } from '@/lib/api'
 import { QueryClientContext } from '@tanstack/react-query'
 import { useBundleTitle } from '@/lib/bundle-title'
+import { Link, useInRouterContext, useLocation } from 'react-router-dom'
 import { DatePopover, prettyDate } from '@/components/DatePopover'
 import { printDocument } from '@/lib/print'
 import {
@@ -87,6 +88,20 @@ export function CardHeader({
    draw no page padding of their own and the head shrinks to a section label. */
 export const EmbeddedPage = createContext(false)
 
+/* EVERY BREADCRUMB'S FIRST PART OPENS ITS FOLDER (owner, 2026-11-17: "EVERYTHING
+   LIKE THAT IN OUR ERP", like Google Drive). A screen with its own parent list
+   passes onEyebrow; any other screen links to its section's list of screens. */
+const CRUMB = 'truncate whitespace-nowrap rounded hover:text-foreground hover:underline focus-visible:text-foreground'
+function Crumb({ label, onClick }: { label: string; onClick?: () => void }) {
+  if (onClick) return <button type="button" onClick={onClick} className={CRUMB}>{label}</button>
+  return useInRouterContext() ? <SectionCrumb label={label} /> : <span className="truncate whitespace-nowrap">{label}</span>
+}
+function SectionCrumb({ label }: { label: string }) {
+  const parts = useLocation().pathname.split('/').filter(Boolean)
+  if (parts.length < 2 || parts[0] === 'go' || parts[2] === 'all-screens') return <span className="truncate whitespace-nowrap">{label}</span>
+  return <Link to={`/${parts[0]}/${parts[1]}/all-screens`} className={CRUMB}>{label}</Link>
+}
+
 export function PageHead({
   eyebrow,
   onEyebrow,
@@ -131,9 +146,7 @@ export function PageHead({
       <>
         {createPortal(
           <nav className="flex min-w-0 items-center gap-1 text-[12.5px] text-muted-foreground">
-            {onEyebrow
-              ? <button type="button" onClick={onEyebrow} className="truncate whitespace-nowrap rounded hover:text-foreground hover:underline focus-visible:text-foreground">{eyebrow}</button>
-              : <span className="truncate whitespace-nowrap">{eyebrow}</span>}
+            <Crumb label={eyebrow} onClick={onEyebrow} />
             <span aria-hidden className="text-muted-foreground/50">/</span>
             <span className="truncate text-[15px] font-semibold text-foreground">{title}</span>
           </nav>, slot)}
@@ -166,9 +179,7 @@ export function PageHead({
               they are. It wraps between its parts or not at all. */}
           {eyebrow && (
             <nav className="mb-1 flex flex-wrap items-center gap-1 text-[12.5px] text-muted-foreground">
-              {onEyebrow
-              ? <button type="button" onClick={onEyebrow} className="truncate whitespace-nowrap rounded hover:text-foreground hover:underline focus-visible:text-foreground">{eyebrow}</button>
-              : <span className="truncate whitespace-nowrap">{eyebrow}</span>}
+              <Crumb label={eyebrow} onClick={onEyebrow} />
               <span aria-hidden className="text-muted-foreground/50">/</span>
               {/* Now the only visible name for the screen, so it carries the
                   weight the h1 used to. Still on the breadcrumb's line — the
