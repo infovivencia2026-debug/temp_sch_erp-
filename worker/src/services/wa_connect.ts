@@ -214,13 +214,16 @@ export async function importConnectHistory(db: D1Database, inst: string, rows: C
     const convId = await conversationFor(db, inst, phone, dir === 'in' ? (r.name || null) : null, at)
     const kind = String(r.type || 'text').slice(0, 20)
     const text = (r.text || r.caption || (kind === 'template' && r.template ? `Template: ${r.template}` : '')).trim() || null
+    const media = r.media && /^https:\/\//i.test(r.media) ? 'url:' + r.media.slice(0, 1000) : null
     if (dir === 'in') {
-      const dup = await db.prepare(`SELECT 1 AS x FROM wa_messages WHERE conversation_id = ? AND direction = 'in' AND coalesce(text,'') = ?
-          AND abs(strftime('%s', at) - strftime('%s', ?)) <= 120 LIMIT 1`).bind(convId, text ?? '', at).first()
+      const dup = await db.prepare(`SELECT id, media_id FROM wa_messages WHERE conversation_id = ? AND direction = 'in' AND coalesce(text,'') = ?
+          AND abs(strftime('%s', at) - strftime('%s', ?)) <= 120 LIMIT 1`).bind(convId, text ?? '', at).first<{ id: string; media_id: string | null }>()
+      /* A parent's photo the ERP got as a WhatsApp media id, which Meta stops
+         serving: Connect's own saved copy of it is the one that still opens. */
+      if (dup && media && !(dup.media_id ?? '').startsWith('url:')) await db.prepare(`UPDATE wa_messages SET media_id = ? WHERE id = ?`).bind(media, dup.id).run()
       if (dup) { skipped++; continue }
     }
     const key = r.id && r.id.startsWith('wamid.') ? r.id.slice(0, 200) : `connect:${phone}:${sec}:${dir}:${(text ?? '').slice(0, 40)}`
-    const media = r.media && /^https:\/\//i.test(r.media) ? 'url:' + r.media.slice(0, 1000) : null
     const mime = media && (kind === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(r.media ?? '')) ? 'image/jpeg' : null
     const ins = await db.prepare(`INSERT INTO wa_messages (id, institution_id, conversation_id, direction, kind, text, media_id, media_mime, media_name, wa_id, status, at)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (wa_id) DO NOTHING`)
