@@ -235,7 +235,7 @@ export async function importConnectHistory(db: D1Database, inst: string, rows: C
     }
     const key = r.id && r.id.startsWith('wamid.') ? r.id.slice(0, 200) : `connect:${phone}:${sec}:${dir}:${(text ?? '').slice(0, 40)}`
     const mime = media && (kind === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(r.media ?? '')) ? 'image/jpeg' : null
-    const tpl = kind === 'template' && r.template ? tplTag(r.template, r.text ? [r.text] : []) : null
+    const tpl = kind === 'template' && r.template ? tplTag(r.template, text ? [text] : []) : null
     const ins = await db.prepare(`INSERT INTO wa_messages (id, institution_id, conversation_id, direction, kind, text, media_id, media_mime, media_name, wa_id, status, at)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (wa_id) DO NOTHING`)
       .bind(crypto.randomUUID(), inst, convId, dir, kind, text ? trunc(text, 4096) : null, media, mime, tpl ?? (r.fileName || null), key, dir === 'in' ? 'received' : 'sent', at).run()

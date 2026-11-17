@@ -254,7 +254,7 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
   const tplText = (m: ConnectMessage) => {
     if (m.kind !== 'template') return null
     let n = '', p: string[] = m.text ? [m.text] : []
-    if (m.media_name?.startsWith('tpl:')) try { const j = JSON.parse(m.media_name.slice(4)) as { n?: string; p?: string[] }; n = j.n ?? ''; p = j.p ?? p } catch { /* as stored */ }
+    if (m.media_name?.startsWith('tpl:')) try { const j = JSON.parse(m.media_name.slice(4)) as { n?: string; p?: string[] }; n = j.n ?? ''; if (j.p?.length) p = j.p } catch { /* as stored */ }
     const def = n ? tq.data?.items.find((x) => x.name === n) : undefined
     if (!def) return null
     const body = def.body.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, i: string) => p[Number(i) - 1] ?? '')
