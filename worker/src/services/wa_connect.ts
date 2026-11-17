@@ -167,3 +167,31 @@ export async function recordInbound(env: Env, db: D1Database, inst: string, msg:
   }
   return true
 }
+
+/* A message Yajur Connect sent itself (owner, 2026-11-17: "if from that connect
+   messages any type is send I need to see in our ERP connect"). Connect posts a
+   copy of the Graph body it sent; it is stored as an outgoing row, once per wamid.
+   A picture or file sent by link keeps the link as media_id "url:<link>". */
+export interface ConnectSent { to?: string; type?: string; text?: { body?: string }; template?: { name?: string }
+  image?: { link?: string; id?: string; caption?: string }; document?: { link?: string; id?: string; caption?: string; filename?: string }
+  video?: { link?: string; id?: string; caption?: string }; audio?: { link?: string; id?: string } }
+export async function recordConnectSent(db: D1Database, inst: string, msg: ConnectSent, wamid: string | null, atIso: string | null): Promise<boolean> {
+  const phone = normalisePhone(msg.to ?? '')
+  if (!phone) return false
+  const at = atIso && !Number.isNaN(Date.parse(atIso)) ? new Date(atIso).toISOString() : new Date().toISOString()
+  const convId = await conversationFor(db, inst, phone, null, at)
+  const kind = String(msg.type ?? 'text').slice(0, 20)
+  const media = msg.image ?? msg.document ?? msg.video ?? msg.audio
+  const text = msg.text?.body ?? (msg.image?.caption || msg.document?.caption || msg.video?.caption)
+    ?? (kind === 'template' ? `Template: ${msg.template?.name ?? ''}`.trim() : null)
+  const mediaId = media?.id ? media.id : media?.link && /^https:\/\//i.test(media.link) ? 'url:' + media.link.slice(0, 1000) : null
+  const mime = kind === 'image' ? 'image/jpeg' : null
+  const ins = await db.prepare(`INSERT INTO wa_messages (id, institution_id, conversation_id, direction, kind, text, media_id, media_mime, media_name, wa_id, status, at)
+      VALUES (?,?,?,'out',?,?,?,?,?,?,'sent',?) ON CONFLICT (wa_id) DO NOTHING`)
+    .bind(crypto.randomUUID(), inst, convId, kind, text ? trunc(text, 4096) : null, mediaId, mime, msg.document?.filename ?? null, wamid, at).run()
+  if (!ins.meta.changes) return false
+  const preview = text || (PREVIEW_WORD[kind] ?? `[${kind}]`)
+  await db.prepare(`UPDATE wa_conversations SET last_message_at = max(coalesce(last_message_at, ''), ?), last_preview = ?, updated_at = ? WHERE id = ?`)
+    .bind(at, trunc(preview, 140), new Date().toISOString(), convId).run()
+  return true
+}

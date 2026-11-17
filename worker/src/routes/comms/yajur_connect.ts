@@ -218,6 +218,15 @@ export function registerYajurConnect(r: Router): void {
     if (!isUUID(mid)) throw badRequest('bad id')
     const m = await c.db.prepare(`SELECT media_id, media_mime FROM wa_messages WHERE id = ?`).bind(mid).first<{ media_id: string | null; media_mime: string | null }>()
     if (!m?.media_id) throw new HttpError(404, 'no media on this message')
+    // Sent from Yajur Connect by link: fetch that https link (only links Connect itself stored).
+    if (m.media_id.startsWith('url:')) {
+      const link = m.media_id.slice(4)
+      if (!/^https:\/\//i.test(link)) throw new HttpError(404, 'no media on this message')
+      const f = await fetch(link, { signal: AbortSignal.timeout(20_000) })
+      if (!f.ok || !f.body) throw new HttpError(502, 'could not fetch the file')
+      const type = f.headers.get('content-type') || m.media_mime || 'application/octet-stream'
+      return new Response(f.body, { headers: { 'content-type': type, 'cache-control': 'private, max-age=86400', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'" } })
+    }
     const row = await c.db.prepare(`SELECT config, credentials FROM integrations WHERE kind = 'messaging' AND provider = 'whatsapp' AND institution_id IS NOT NULL`)
       .first<{ config: string | null; credentials: ArrayBuffer | null }>()
     const token = row ? await openSecretEnv(c.env, row.credentials) : ''

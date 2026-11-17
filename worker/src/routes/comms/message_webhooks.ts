@@ -5,7 +5,7 @@ import { applyStatus } from '../../services/messaging'
 import { isStartKeyword, isStopKeyword, recordOptOut } from '../../services/delivery'
 import { normaliseRecipient } from '../admin/msg_guard'
 import type { Institution } from '../../tenant'
-import { recordInbound, type WaInboundMessage } from '../../services/wa_connect'
+import { recordConnectSent, recordInbound, type ConnectSent, type WaInboundMessage } from '../../services/wa_connect'
 
 /* Delivery receipts from the providers, on /api/v1/public/webhooks/*. No
    session: each provider proves itself its own way.
@@ -196,6 +196,33 @@ async function storeInbound(env: Env, v: WaValue): Promise<number> {
   return n
 }
 
+/* Yajur Connect posts here a copy of each message it sends, signed like Meta's
+   webhooks with the same app secret: { phone_number_id, message, wamid, at }. */
+async function connectSentWebhook(env: Env, req: Request): Promise<Response> {
+  const appSecret = secret(env, 'WHATSAPP_APP_SECRET')
+  if (!appSecret) return json({ error: 'not configured' }, 503)
+  const body = await req.text()
+  const sig = (req.headers.get('x-hub-signature-256') ?? '').replace(/^sha256=/, '')
+  if (!sig || !safeEqual(sig.toLowerCase(), hex(await hmac(enc.encode(appSecret), body)))) return json({ error: 'bad signature' }, 401)
+  let p: { phone_number_id?: string; message?: ConnectSent; wamid?: string; at?: string }
+  try { p = JSON.parse(body) } catch { return json({ error: 'malformed JSON' }, 400) }
+  if (!p.message?.to) return json({ error: 'message.to is required' }, 400)
+  const pnid = String(p.phone_number_id ?? '').trim()
+  const schools = (await env.CONTROL.prepare(`SELECT * FROM institutions LIMIT 2000`).all<Institution>().catch(() => ({ results: [] as Institution[] }))).results
+  let stored = 0
+  for (const inst of schools) {
+    try {
+      const db = tenantDb(env, inst)
+      const hit = await db.prepare(`SELECT 1 AS x FROM integrations WHERE provider = 'whatsapp' AND kind = 'messaging' AND institution_id IS NOT NULL
+          AND (? = '' OR json_extract(config, '$.phone_number_id') = ?) LIMIT 1`).bind(pnid, pnid).first()
+      if (!hit) continue
+      if (await recordConnectSent(db, inst.id, p.message, p.wamid ? String(p.wamid).slice(0, 200) : null, p.at ?? null)) stored++
+      break
+    } catch (e) { console.warn('connect sent: not stored', inst.id, e) }
+  }
+  return json({ ok: true, stored })
+}
+
 const last10 = (v: string) => v.replace(/[^0-9]/g, '').slice(-10)
 
 /** A STOP (or START) reply from a number. The shared WhatsApp number does not say which
@@ -325,6 +352,7 @@ export async function handleMessageWebhooks(env: Env, req: Request, url: URL, p:
   if (!p.startsWith('/api/v1/public/webhooks/')) return null
   try {
     if (p === '/api/v1/public/webhooks/whatsapp') return await whatsappWebhook(env, req, url, ctx)
+    if (p === '/api/v1/public/webhooks/whatsapp-sent' && req.method === 'POST') return await connectSentWebhook(env, req)
     if (p === '/api/v1/public/webhooks/email') return await emailWebhook(env, req)
     const sms = SMS_PATH.exec(p)
     if (sms && (req.method === 'GET' || req.method === 'POST')) return await smsWebhook(env, req, url, sms[1].toLowerCase(), sms[2].toLowerCase())
