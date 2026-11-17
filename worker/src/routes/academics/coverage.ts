@@ -13,6 +13,14 @@ export const COVERED_SQL = `(
       FROM chapter_progress p JOIN syllabus_units u ON u.id = p.unit_id
      WHERE u.parent_unit_id IS NULL AND u.is_active = 1 AND p.status IN ('completed', 'ongoing')
     UNION ALL
+    -- From its sub-topics: all completed = 1, any started = 0.5.
+    SELECT p.section_id, ch.class_subject_id, ch.id,
+           CASE WHEN sum(p.status = 'completed') = (SELECT count(*) FROM syllabus_units x WHERE x.parent_unit_id = ch.id AND x.is_active = 1) THEN 1.0 ELSE 0.5 END
+      FROM chapter_progress p JOIN syllabus_units s ON s.id = p.unit_id AND s.is_active = 1
+      JOIN syllabus_units ch ON ch.id = s.parent_unit_id
+     WHERE ch.parent_unit_id IS NULL AND ch.is_active = 1 AND p.status IN ('completed', 'ongoing')
+     GROUP BY p.section_id, ch.id
+    UNION ALL
     SELECT lp.section_id, lp.class_subject_id, u.id, 1.0
       FROM lesson_plans lp JOIN lesson_plan_units lpu ON lpu.lesson_plan_id = lp.id
       JOIN syllabus_units u ON u.id = lpu.syllabus_unit_id

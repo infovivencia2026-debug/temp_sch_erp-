@@ -55,7 +55,13 @@ export function registerChapterPlan(r: Router) {
     }
     const chapters = rows.results.filter((v) => !v.parent_unit_id).map((v) => {
       const st = subs.get(v.id) as { status: Status }[] | undefined ?? []
-      const status: Status = v.status ?? 'not_completed'
+      /* A chapter whose sub-topics are all completed is completed, and one
+         with some done is ongoing, without the teacher marking it again
+         (owner, 2026-11-17: "if everything is completed why not completed"). */
+      const own: Status = v.status ?? 'not_completed'
+      const derived: Status = st.length && st.every((s) => s.status === 'completed') ? 'completed'
+        : st.some((s) => s.status !== 'not_completed') ? 'ongoing' : 'not_completed'
+      const status: Status = RANK[derived] > RANK[own] ? derived : own
       /* Progress: the share of sub-topics completed, an ongoing one counting
          half; a chapter marked completed is 100 whatever its sub-topics say. */
       const pct = status === 'completed' ? 100
