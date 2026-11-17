@@ -195,3 +195,43 @@ export async function recordConnectSent(db: D1Database, inst: string, msg: Conne
     .bind(at, trunc(preview, 140), new Date().toISOString(), convId).run()
   return true
 }
+
+/* Yajur Connect's own history (data/messages.json), copied once into the ERP
+   (owner, 2026-11-17: "how about previous sent messages ... also parents sent").
+   Each row is stored once: an outgoing one by its wamid, any other by a key made
+   of phone, time and direction; a parent's message the ERP already has (same
+   chat, same text, within two minutes) is skipped. No bells, no auto-replies. */
+export interface ConnectHistoryRow { id?: string; phone?: string; name?: string; text?: string; type?: string; template?: string
+  media?: string; caption?: string; fileName?: string; dir?: string; at?: number | string }
+export async function importConnectHistory(db: D1Database, inst: string, rows: ConnectHistoryRow[]): Promise<{ stored: number; skipped: number }> {
+  let stored = 0, skipped = 0
+  for (const r of rows) {
+    const phone = normalisePhone(r.phone ?? '')
+    const dir = r.dir === 'in' ? 'in' : r.dir === 'out' ? 'out' : null
+    const sec = typeof r.at === 'number' ? r.at : Number(r.at)
+    if (!phone || !dir || !Number.isFinite(sec) || sec <= 0) { skipped++; continue }
+    const at = new Date((sec < 1e12 ? sec * 1000 : sec)).toISOString()
+    const convId = await conversationFor(db, inst, phone, dir === 'in' ? (r.name || null) : null, at)
+    const kind = String(r.type || 'text').slice(0, 20)
+    const text = (r.text || r.caption || (kind === 'template' && r.template ? `Template: ${r.template}` : '')).trim() || null
+    if (dir === 'in') {
+      const dup = await db.prepare(`SELECT 1 AS x FROM wa_messages WHERE conversation_id = ? AND direction = 'in' AND coalesce(text,'') = ?
+          AND abs(strftime('%s', at) - strftime('%s', ?)) <= 120 LIMIT 1`).bind(convId, text ?? '', at).first()
+      if (dup) { skipped++; continue }
+    }
+    const key = r.id && r.id.startsWith('wamid.') ? r.id.slice(0, 200) : `connect:${phone}:${sec}:${dir}:${(text ?? '').slice(0, 40)}`
+    const media = r.media && /^https:\/\//i.test(r.media) ? 'url:' + r.media.slice(0, 1000) : null
+    const mime = media && (kind === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(r.media ?? '')) ? 'image/jpeg' : null
+    const ins = await db.prepare(`INSERT INTO wa_messages (id, institution_id, conversation_id, direction, kind, text, media_id, media_mime, media_name, wa_id, status, at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (wa_id) DO NOTHING`)
+      .bind(crypto.randomUUID(), inst, convId, dir, kind, text ? trunc(text, 4096) : null, media, mime, r.fileName || null, key, dir === 'in' ? 'received' : 'sent', at).run()
+    if (!ins.meta.changes) { skipped++; continue }
+    stored++
+    const preview = text || (PREVIEW_WORD[kind] ?? `[${kind}]`)
+    await db.prepare(`UPDATE wa_conversations SET last_message_at = CASE WHEN coalesce(last_message_at,'') < ? THEN ? ELSE last_message_at END,
+        last_preview = CASE WHEN coalesce(last_message_at,'') <= ? THEN ? ELSE last_preview END,
+        last_inbound_at = CASE WHEN ? = 'in' AND coalesce(last_inbound_at,'') < ? THEN ? ELSE last_inbound_at END WHERE id = ?`)
+      .bind(at, at, at, trunc(preview, 140), dir, at, at, convId).run()
+  }
+  return { stored, skipped }
+}
