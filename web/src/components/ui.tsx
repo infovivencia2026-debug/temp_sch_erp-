@@ -8,7 +8,7 @@ import { ApiError } from '@/lib/api'
 import { QueryClientContext } from '@tanstack/react-query'
 import { useBundleTitle } from '@/lib/bundle-title'
 import { Link, useInRouterContext, useLocation } from 'react-router-dom'
-import { DatePopover, prettyDate } from '@/components/DatePopover'
+import { DatePopover, toDMY, fromDMY } from '@/components/DatePopover'
 import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, createContext, useContext, Fragment, isValidElement, useEffect, useRef, useState,
@@ -2660,35 +2660,37 @@ export function Input({
    * typing rather than pointing. */
   const dateRef = useRef<HTMLDivElement>(null)
   const [cal, setCal] = useState(false)
+  /* A date is both typed and pointed at (owner, 2026-11-18): the box takes
+     dd-mm-yyyy from the keyboard and the chevron opens our own calendar. While
+     someone is typing we keep their raw text; a complete, real date is parsed
+     to the form's 'YYYY-MM-DD' at once, and on blur the box settles back to the
+     saved value's dd-mm-yyyy. */
+  const [typing, setTyping] = useState(false)
+  const [typed, setTyped] = useState('')
   if (type === 'date' && !disabled) {
     return (
       <div ref={dateRef} className={cn('relative', className)}>
-        {/* A DATE BOX IS A DROPDOWN, NOT AN ACTION.
-
-            This first drew as a bordered control with an icon on the right,
-            which is the shape of the Export button beside it -- and the one
-            thing a person must be able to tell at a glance is which controls
-            DO something and which merely open a list. It is the Select's own
-            markup now: the same `field` box, the same round chevron in the
-            same place, turning over when it opens. */}
+        <input
+          type="text"
+          inputMode="numeric"
+          value={typing ? typed : toDMY(value)}
+          onChange={(e) => { const t = e.target.value; setTyping(true); setTyped(t); const v = fromDMY(t); if (v) onChange(v) }}
+          onFocus={() => { setTyping(true); setTyped(toDMY(value)) }}
+          onBlur={() => { setTyping(false); const v = fromDMY(typed); if (v) onChange(v) }}
+          placeholder={placeholder || 'dd-mm-yyyy'}
+          aria-label={srLabel || 'Date, typed as dd-mm-yyyy'}
+          aria-invalid={ariaInvalid || undefined}
+          className={cn('field w-full pr-11 [@media(pointer:coarse)]:text-[16px]')}
+        />
         <button
           type="button"
           onClick={() => setCal((s) => !s)}
-          aria-label={srLabel || 'Choose a date'}
+          aria-label="Open the calendar"
           aria-expanded={cal}
-          aria-invalid={ariaInvalid || undefined}
-          className={cn('field w-full cursor-text pr-11 text-left [@media(pointer:coarse)]:text-[16px]')}
-        >
-          <span className={cn(!value && 'text-muted-foreground')}>
-            {prettyDate(value) || placeholder || 'Choose a date'}
-          </span>
-        </button>
-        <span
-          aria-hidden
-          className="tap-inline pointer-events-none absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground"
+          className="tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground"
         >
           <ChevronDown className={cn('h-4 w-4 transition-transform', cal && 'rotate-180')} />
-        </span>
+        </button>
         {cal && (
           <DatePopover
             value={value}

@@ -59,6 +59,24 @@ export function prettyDate(v: string): string {
   return p ? `${pad(p.d)} ${SHORT[p.m]} ${p.y}` : ''
 }
 
+/** 'YYYY-MM-DD' to the 'dd-mm-yyyy' a person types; '' when not a full date. */
+export function toDMY(v: string): string {
+  const p = parseISO(v)
+  return p ? `${pad(p.d)}-${pad(p.m + 1)}-${p.y}` : ''
+}
+
+/** A date typed as dd-mm-yyyy (also dd/mm/yyyy or dd.mm.yyyy) back to
+    'YYYY-MM-DD', or '' when it is not a real date. */
+export function fromDMY(v: string): string {
+  const m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/.exec((v || '').trim())
+  if (!m) return ''
+  const d = +m[1], mo = +m[2], y = +m[3]
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return ''
+  const dt = new Date(y, mo - 1, d)
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return ''
+  return iso(y, mo - 1, d)
+}
+
 
 /* ALWAYS BELOW THE FIELD, NEVER ABOVE IT.
 
