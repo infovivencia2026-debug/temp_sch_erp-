@@ -567,7 +567,17 @@ function Responses({ form }: { form: Form }) {
   )
 }
 interface Shortcut { id: string; name: string; ids: string[] }
-const show = (r: Resp, k: string) => { const v = r.data[k]; return v === 'true' ? 'Yes' : v === 'false' ? 'No' : v ?? '' }
+const show = (r: Resp, k: string) => {
+  let v = r.data[k]
+  if (Array.isArray(v)) v = v.join(', ')
+  if (v === 'true') return 'Yes'
+  if (v === 'false') return 'No'
+  if (v == null) return ''
+  /* An unanswered multi-value field arrives as the empty array's text, "[]"
+     (or "{}"/"null"): show nothing rather than the brackets. */
+  const s = String(v).trim()
+  return s === '[]' || s === '{}' || s === 'null' ? '' : s
+}
 /* The careers page's own names for this form's questions (old row labels, then its field names). */
 const ALIASES: Record<string, string[]> = {
   role_you_are_interested_in: ['Post / subject', 'post'],
