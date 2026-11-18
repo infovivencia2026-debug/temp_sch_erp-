@@ -75,6 +75,10 @@ interface Employee {
   joined_on?: string
   status: string
   employment_type?: string
+  /* Teaching or not: set by the server from a subject assignment or a
+     timetable period, so the directory can be split without a new column. */
+  teaches?: number
+  periods_this_week?: number
   /* A login with a staff role and no employee record yet: listed in the
      directory like everyone else, with the one action that fixes it. */
   unlinked?: boolean
@@ -166,6 +170,7 @@ export default function Employees() {
      wrong, so including them is a choice somebody makes rather than the
      silent default. */
   const [expStatus, setExpStatus] = useState('active')
+  const [staffKind, setStaffKind] = useState('all')
   const [expClass, setExpClass] = useState('')
   const classes = useQuery({
     queryKey: ['academics', 'classes'],
@@ -276,6 +281,13 @@ export default function Employees() {
       expStatus === 'all' ? true
         : expStatus === 'active' ? e.status === 'active'
           : e.status !== 'active')
+    /* Teaching or non-teaching comes from the designation (server sets it). A
+       person with no designation sits in neither narrowed view. */
+    .filter((e) => {
+      if (staffKind === 'all') return true
+      if (e.teaches == null) return false
+      return staffKind === 'teaching' ? e.teaches === 1 : e.teaches === 0
+    })
     /* A person the roster knows but the server's list does not is not in the
        class. While that answer is still coming, nothing is hidden. */
     .filter((e) => (inClass && !classFiltered.isLoading ? inClass.has(e.id) : true))
@@ -553,6 +565,13 @@ export default function Employees() {
                     { value: 'active', label: 'Active' },
                     { value: 'inactive', label: 'Inactive (left)' },
                     { value: 'all', label: 'Everyone' },
+                  ]} />
+                </div>
+                <div className="w-[9.5rem]">
+                  <Select value={staffKind} onChange={setStaffKind} options={[
+                    { value: 'all', label: 'All staff' },
+                    { value: 'teaching', label: 'Teaching' },
+                    { value: 'non', label: 'Non-teaching' },
                   ]} />
                 </div>
                 <div className="w-[9.5rem]">

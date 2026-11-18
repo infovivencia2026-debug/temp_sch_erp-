@@ -472,7 +472,20 @@ export function registerStaff(r: Router) {
     const rows = await c.db.prepare(`
       SELECT e.id, e.user_id, e.employee_code, e.staff_number, e.device_user_id, ${fullName('e.first_name', 'e.last_name')} AS full_name,
              d.name AS department, dg.name AS designation, e.phone, e.email, e.photo_file_id, e.joined_on, e.status,
-             (SELECT count(*) FROM timetable_entries te WHERE te.teacher_user_id = e.user_id) AS periods_this_week
+             (SELECT count(*) FROM timetable_entries te WHERE te.teacher_user_id = e.user_id) AS periods_this_week,
+             /* Teaching or not, from the designation: the office-set category
+                wins; otherwise the support roles (driver, aya, cleaner, …) are
+                non-teaching and everyone else teaches. */
+             CASE
+               WHEN dg.category = 'non_teaching' THEN 0
+               WHEN dg.category = 'teaching' THEN 1
+               WHEN dg.name LIKE '%driver%' OR dg.name LIKE '%aya%' OR dg.name LIKE '%aaya%'
+                 OR dg.name LIKE '%cleaner%' OR dg.name LIKE '%janitor%' OR dg.name LIKE '%sweeper%'
+                 OR dg.name LIKE '%peon%' OR dg.name LIKE '%guard%' OR dg.name LIKE '%watchman%'
+                 OR dg.name LIKE '%helper%' OR dg.name LIKE '%maid%' OR dg.name LIKE '%gardener%'
+                 OR dg.name LIKE '%cook%' OR dg.name LIKE '%van boy%' OR dg.name LIKE '%attender%'
+                 OR dg.name LIKE '%security%' OR dg.name LIKE '%bus%' THEN 0
+               ELSE 1 END AS teaches
       ${from} ORDER BY COALESCE(e.employee_code, ''), e.id LIMIT ? OFFSET ?`)
       .bind(status, status, curCode, curCode, curCode, curID, limit + 1, cur ? 0 : offset).all<Record<string, unknown>>()
     let items = rows.results.map((r) => omitNull(r) as unknown as Employee)
