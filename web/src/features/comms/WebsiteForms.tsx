@@ -505,16 +505,16 @@ function Responses({ form }: { form: Form }) {
         const table = (): string[][] => [['Section', 'Question', 'Answer'], ...doc.flatMap((s) => s.items.map(([k, v]) => [s.t, k, v]))]
         const files = cols.map((c) => ({ c, f: fileOf(open, c.key) })).filter((x) => x.f)
         return (
-          <Dialog open initialFocus="panel" onClose={() => setOpenId(null)} title={name || 'Response'}
+          <Dialog open size="xl" initialFocus="panel" onClose={() => setOpenId(null)} title={name || 'Response'}
             description={`${open.source === 'embed' ? 'Embedded form' : 'Website form'} · Submitted ${when(open.created_at)}`}
             footer={<>
               <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this response and its files?" onConfirm={() => del.mutate(open.id)}><Trash2 className="size-4" aria-hidden />Delete</ConfirmButton>
               <span className="flex-1" />
               {shortcuts.length > 0 && (
-                <div className="w-44"><Select value={shortcuts.find((x) => x.ids.includes(open.id))?.id ?? ''} placeholder="Move to"
+                <div className="w-full sm:w-44"><Select value={shortcuts.find((x) => x.ids.includes(open.id))?.id ?? ''} placeholder="Move to"
                   onChange={(v) => v && moveTo(v, [open.id])} options={shortcuts.map((x) => ({ value: x.id, label: x.name }))} /></div>
               )}
-              <div className="w-36"><Select value="" placeholder="Export" onChange={(v) => {
+              <div className="w-full sm:w-36"><Select value="" placeholder="Export" onChange={(v) => {
                 if (v === 'xlsx') saveExcel(fname, table()); else if (v === 'pdf') printResponse(form.title, name || 'Response', role, when(open.created_at), doc); else if (v === 'csv') saveCsv(fname, table())
               }} options={[{ value: 'xlsx', label: 'Excel' }, { value: 'pdf', label: 'PDF' }, { value: 'csv', label: 'CSV' }]} /></div>
             </>}>
