@@ -272,6 +272,8 @@ interface Detail {
   department_id?: string
   designation_id?: string
   employment_type?: string
+  date_of_birth?: string
+  gender?: string
   status: string
   joined_on: string
   confirmed_on?: string
@@ -673,6 +675,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                     ['Designation', d.designation],
                     ['Department', d.department],
                     ['Employment', d.employment_type],
+                    ['Date of birth', d.date_of_birth ? formatDate(d.date_of_birth) : undefined],
                     ['Joined', d.joined_on ? formatDate(d.joined_on) : undefined],
                     ['Confirmed', d.confirmed_on ? formatDate(d.confirmed_on) : undefined],
                     ['Relieved', d.relieved_on ? formatDate(d.relieved_on) : undefined],
