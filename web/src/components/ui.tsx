@@ -1980,8 +1980,16 @@ export function ConfirmButton({
 }) {
   const [asking, setAsking] = useState(false)
 
-  if (!asking) {
-    return (
+  /* THE QUESTION IS A POPUP, EVERYWHERE (owner, 2026-11-18).
+
+     This used to open the confirm inline, a dashed strip beside the trigger
+     that a stray click or a scroll could dismiss without a word. A real
+     centred dialog asks once, plainly -- "Delete this response?" -- with the
+     consequence spelt out and a clear Cancel, the same on a phone and a desk,
+     and nothing else on the screen reachable until it is answered. One change
+     here moves every ConfirmButton in the app. */
+  return (
+    <>
       <Button
         variant={variant}
         size={size}
@@ -1991,48 +1999,38 @@ export function ConfirmButton({
       >
         {children}
       </Button>
-    )
-  }
-
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-md border border-dashed px-1.5 py-1"
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setAsking(false)
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') setAsking(false)
-      }}
-    >
-      <span className="px-1 text-[13px] text-muted-foreground">{question}</span>
-      <button
-        type="button"
-        autoFocus
-        disabled={disabled}
-        onClick={() => {
-          setAsking(false)
-          onConfirm()
-        }}
-        className={cn(
-          'inline-flex items-center gap-1 rounded-sm px-2 py-1 text-[13px] font-medium',
-          'disabled:pointer-events-none disabled:opacity-40',
-          tone === 'danger'
-            ? 'bg-destructive text-white hover:bg-destructive/90'
-            : 'bg-ink text-ink-foreground hover:bg-ink/90',
-        )}
-      >
-        <Check className="h-3 w-3" strokeWidth={3} />
-        {confirmLabel}
-      </button>
-      <button
-        type="button"
-        onClick={() => setAsking(false)}
-        aria-label="Cancel"
-        className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
-    </span>
+      {asking && (
+        <Dialog
+          open
+          size="sm"
+          initialFocus="panel"
+          onClose={() => setAsking(false)}
+          title={label || 'Please confirm'}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setAsking(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                tone={tone}
+                disabled={disabled}
+                onClick={() => {
+                  setAsking(false)
+                  onConfirm()
+                }}
+              >
+                <Check className="h-4 w-4" strokeWidth={3} />
+                {confirmLabel}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-[14.5px] leading-relaxed text-foreground">{question}</p>
+        </Dialog>
+      )}
+    </>
   )
 }
 
