@@ -62,6 +62,8 @@ export const SCHEDULES: Schedule[] = [
       .first().catch(() => null)),
     payload: env0 },
   { name: 'report_digest_daily', spec: '0 7 * * *', kind: 'report:digest_daily', perInstitution: true, payload: env0 },
+  // Staff birthdays (services/background/school-jobs.ts): a note to the office three days ahead, 07:00 school time.
+  { name: 'staff_birthday_reminder', spec: '0 7 * * *', kind: 'hr:birthday_reminder', perInstitution: true, payload: env0 },
   { name: 'report_digest_weekly', spec: '0 7 * * 1', kind: 'report:digest_weekly', perInstitution: true, payload: env0 },
   // AI briefs (services/ai/briefs.ts): the principal's morning brief at 07:00, weekly parent notes on Saturday morning.
   // retired 2026-10-03 (owner): no morning brief, no early warnings.

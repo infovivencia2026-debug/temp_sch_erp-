@@ -47,6 +47,7 @@ const QUEUE_OF: Record<string, string> = {
   'bulk:import': 'bulk', 'export:build': 'bulk',
   'message:send': 'critical', 'message.send': 'critical',
   'attendance:rollup': 'low', 'session:prune': 'low', 'report:digest_daily': 'low',
+  'hr:birthday_reminder': 'low',
   'report:digest_weekly': 'low', 'transport:trip_timeout': 'low',
   'transport:position_retention': 'low', 'security:retention': 'low', 'status:expire': 'low',
 }
