@@ -564,6 +564,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                     ['employee_code', 'Staff code'],
                     ['first_name', 'First name'],
                     ['last_name', 'Last name'],
+                    ['date_of_birth', 'Date of birth'],
                     ['phone', 'Phone'],
                     ['email', 'Personal email'],
                     ['school_email', 'School email'],
@@ -582,7 +583,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                   ] as [string, string][]).map(([k, label]) => (
                     <FormField key={k} label={label}>
                       <Input
-                        type={k.endsWith('_on') ? 'date'
+                        type={k.endsWith('_on') || k === 'date_of_birth' ? 'date'
                           : k === 'experience_years' ? 'number'
                           : k.endsWith('email') ? 'email' : undefined}
                         value={draft[k] ?? ((d[k as keyof Detail] as string | undefined) ?? '')}

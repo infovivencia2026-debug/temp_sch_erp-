@@ -334,12 +334,13 @@ export function registerStaff(r: Router): void {
           emergency_contact_name = CASE WHEN ?20 IS NULL THEN emergency_contact_name ELSE NULLIF(?20, '') END,
           emergency_contact_phone = CASE WHEN ?21 IS NULL THEN emergency_contact_phone ELSE NULLIF(?21, '') END,
           school_email = CASE WHEN ?26 IS NULL THEN school_email ELSE NULLIF(?26, '') END,
+          date_of_birth = CASE WHEN ?27 IS NULL THEN date_of_birth ELSE NULLIF(?27, '') END,
           updated_at = ?22
         WHERE id = ?23`)
         .bind(s('last_name'), s('phone'), s('email'), s('department_id'), s('designation_id'), s('employment_type'), status, s('joined_on'),
           s('confirmed_on'), relieved, has(req, 'device_user_id') ? (str(req.device_user_id).trim().toUpperCase() || null) : null, s('qualification'), exp, s('address'),
           s('bank_account'), s('bank_ifsc'), s('pan'), s('uan'), s('esi_number'), s('emergency_contact_name'), s('emergency_contact_phone'), t, empId, firstName, code,
-          has(req, 'school_email') ? str(req.school_email).trim() : null)
+          has(req, 'school_email') ? str(req.school_email).trim() : null, s('date_of_birth'))
         .run()
     } catch (e) {
       if (e instanceof Error && e.message.includes('employees.institution_id, employees.employee_code')) throw badRequest('another staff record already uses that employee code')
