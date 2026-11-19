@@ -10,7 +10,7 @@ import {
   EmptyState, Button,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
-import { Freshness, ScreenSkeleton } from './screen-state'
+import { ScreenSkeleton } from './screen-state'
 import { ChildSwitch } from './ChildSwitch'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -236,6 +236,22 @@ const thisMonth = () => {
 }
 const monthName = (m: string) =>
   new Date(m + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+
+/* Every month from the earliest mark to now, newest first, so the home's
+   calendar can be flipped back through the term. An empty register still
+   gives the current month, so the picker is never blank. */
+function monthList(days: AttendanceDay[]): string[] {
+  const now = thisMonth()
+  const earliest = days.length ? days.map((d) => d.date.slice(0, 7)).sort()[0] : now
+  const start = earliest < now ? earliest : now
+  const [fy, fm] = start.split('-').map(Number)
+  const [ty, tm] = now.split('-').map(Number)
+  const out: string[] = []
+  for (let y = fy, m = fm; y < ty || (y === ty && m <= tm); m === 12 ? (m = 1, y++) : m++) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`)
+  }
+  return out.reverse()
+}
 
 /* A stronger edge on the key, so each colour reads at a glance. */
 const KEY: Record<string, string> = {
@@ -482,6 +498,10 @@ export default function Portal() {
   const [selected, setSelected] = useState<string | null>(
     () => params.get('student_id') ?? rememberedChild(),
   )
+  /* The month the home's calendar is showing. The attendance figure above it
+     reads the same month, so flipping the calendar back a month moves the
+     percentage with it (Yajur, 2026-11-19). */
+  const [pickedYm, setPickedYm] = useState<string>(thisMonth())
   /* One component serves the dashboard and the attendance register.
 
      The attendance page is asked one question — how often has this child been
@@ -571,7 +591,9 @@ export default function Portal() {
 
   const s = summary.data
   const days = attendance.data?.items ?? []
-  const month = monthFacts(days, thisMonth())
+  const months = monthList(days)
+  const ym = months.includes(pickedYm) ? pickedYm : thisMonth()
+  const month = monthFacts(days, ym)
   /* Each figure opens its own screen, in whichever workspace this is (parent or student). */
   const role = location.pathname.split('/')[1] || 'parent'
   const go = (rest: string) => () => navigate(`/${role}/${rest}${activeId ? `?student_id=${activeId}` : ''}`)
@@ -582,11 +604,12 @@ export default function Portal() {
         /* On the family's own home the crumb led nowhere useful (owner,
            2026-11-19): just the child's name. */
         eyebrow={location.pathname.includes('/home/') ? undefined : t('portal.portal.eyebrow')}
-        title={s?.full_name ?? t('portal.portal.title')}
-        /* Class, section and roll number under the name. It is how a parent
-           recognises their own child on a class list and what the office asks
-           for on the telephone, and it was the one thing this page did not
-           say. */
+        /* The child's name is not the heading (Yajur, 2026-11-19): a parent
+           knows whose home this is. A generic title sits here, and the class
+           and roll stay underneath so the office's reference is still to hand.
+           A guardian of two or more switches child from the control on the
+           right; a parent of one sees no switcher and no name. */
+        title={t('portal.portal.title')}
         description={childLine(kids.find((c) => c.student_id === activeId)) ?? t('portal.portal.description')}
         actions={
           /* The same control the home board uses, so the switcher is one
@@ -602,7 +625,6 @@ export default function Portal() {
           />
         }
       />
-      <Freshness query={summary} />
       <PageBody>
         {/* The weekly AI note about this child, once one has been written. */}
         {activeId && <WeeklyNoteCard studentId={activeId} />}
@@ -689,11 +711,16 @@ export default function Portal() {
               ) : (
                 <Stat label={t('portal.portal.stat_next_exam')} value={s.next_exam ?? '-'} icon={GraduationCap} />
               )}
+              {/* Reads the month the calendar below is showing (Yajur,
+                  2026-11-19): flip the calendar back and this figure follows.
+                  'this month' when it is the current one, else the month's
+                  name, so the number is never read against the wrong month. */}
               <Stat
                 label={t('portal.portal.stat_attendance')}
-                value={`${s.attendance_pct}%`}
+                value={month.pct === null ? '—' : `${month.pct}%`}
                 icon={CalendarCheck}
-                delta={{ value: `${s.present_days} of ${s.total_days} days attended`, positive: s.attendance_pct >= 75 }}
+                delta={{ value: `${month.present} of ${month.marked} days present`, positive: (month.pct ?? 100) >= 75 }}
+                hint={ym === thisMonth() ? 'This month' : monthName(ym)}
                 onClick={go('attendance/attendance')}
               />
             </CellGrid>
@@ -721,13 +748,28 @@ export default function Portal() {
                     ago (owner, 2026-11-19). The next school day stays off. */}
                 <Card>
                   <CardHeader
-                    title={monthName(thisMonth())}
-                    action={month.pct !== null ? (
-                      <span className={cn('text-[12.5px] font-semibold', month.pct >= 75 ? 'text-success' : 'text-destructive')}>{month.pct}% present</span>
-                    ) : undefined}
+                    title={monthName(ym)}
+                    /* The month can be flipped back through the term; the
+                       figure above and this grid move with it. */
+                    action={
+                      <div className="flex items-center gap-2">
+                        {month.pct !== null && (
+                          <span className={cn('text-[12.5px] font-semibold', month.pct >= 75 ? 'text-success' : 'text-destructive')}>{month.pct}% present</span>
+                        )}
+                        {months.length > 1 && (
+                          <PickerMenu
+                            value={ym}
+                            ariaLabel="Month"
+                            align="end"
+                            onChange={setPickedYm}
+                            options={months.map((x) => ({ value: x, label: x === thisMonth() ? `${monthName(x)} · this month` : monthName(x) }))}
+                          />
+                        )}
+                      </div>
+                    }
                   />
                   <div className="px-[var(--card-pad)] pb-4">
-                    <MonthGrid days={month.monthDays} ym={thisMonth()} />
+                    <MonthGrid days={month.monthDays} ym={ym} />
                     <div className="mt-3"><Legend /></div>
                     <button type="button" onClick={go('attendance/attendance')}
                       className="mt-3 text-[12.5px] font-medium text-primary hover:underline">
