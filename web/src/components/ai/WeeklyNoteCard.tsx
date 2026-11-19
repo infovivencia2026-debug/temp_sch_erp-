@@ -1,4 +1,5 @@
 import { useAiFeature } from './useAiStatus'
+import { useSession } from '@/lib/session'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardHeader } from '@/components/ui'
 import { aiApi, AiLabel } from './aiApi'
@@ -23,5 +24,8 @@ function WeeklyNoteCardInner({ studentId }: { studentId?: string }) {
 
 /** Hidden entirely when the school switched this AI feature off. */
 export default function WeeklyNoteCard(props: Parameters<typeof WeeklyNoteCardInner>[0]) {
-  return useAiFeature('parent_weekly') ? <WeeklyNoteCardInner {...props} /> : null
+  /* The endpoint needs self.profile.read; asking without it was a 403 on
+     every home load (owner test, 2026-11-19). */
+  const may = useSession().permissions.includes('self.profile.read')
+  return useAiFeature('parent_weekly') && may ? <WeeklyNoteCardInner {...props} /> : null
 }

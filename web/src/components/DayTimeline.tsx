@@ -144,15 +144,18 @@ export default function DayTimeline({
   return (
     <Shell>
       {/* Sticky head: who, and the day strip. Stays put while the day scrolls. */}
-      <div className="sticky top-0 z-10 rounded-t-[var(--radius-card)] border-b bg-card px-4 pb-2.5 pt-3">
+      <div className={cn('sticky top-0 z-10 rounded-t-[var(--radius-card)] border-b bg-card px-4 pb-2.5 pt-3', todayOnly && !breaks && !who && !where && 'hidden')}>
         {/* No name line when the caller's card already says whose week it is (WeekGrid on a phone). */}
-        {(who || where || live) && (
+        {(who || where || (live && !(todayOnly && !breaks))) && (
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               {who && <div className="truncate text-[15px] font-semibold tracking-[-0.01em]">{who}</div>}
               {where && <div className="text-[12px] font-medium text-muted-foreground">{where}</div>}
             </div>
-            {live && (
+            {live && !(todayOnly && !breaks) && (
+              /* The family home's card header already says "PeriodX in
+                 progress"; a second "now" badge said it twice (owner,
+                 2026-11-19). */
               <Badge tone="success" className="shrink-0">{live.name} now</Badge>
             )}
           </div>

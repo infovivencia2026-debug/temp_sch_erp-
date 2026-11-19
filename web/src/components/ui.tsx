@@ -96,9 +96,13 @@ function Crumb({ label, onClick }: { label: string; onClick?: () => void }) {
   if (onClick) return <button type="button" onClick={onClick} className={CRUMB}>{label}</button>
   return useInRouterContext() ? <SectionCrumb label={label} /> : <span className="truncate whitespace-nowrap">{label}</span>
 }
+const FAMILY = new Set(['parent', 'student'])
 function SectionCrumb({ label }: { label: string }) {
   const parts = useLocation().pathname.split('/').filter(Boolean)
   if (parts.length < 2 || parts[0] === 'go' || parts[2] === 'all-screens') return <span className="truncate whitespace-nowrap">{label}</span>
+  /* A family has one home and no folders (owner, 2026-11-19): the first part
+     goes straight back to the child's dashboard, never a section's list. */
+  if (FAMILY.has(parts[0])) return <Link to={`/${parts[0]}/home/dashboard`} className={CRUMB}>{label}</Link>
   return <Link to={`/${parts[0]}/${parts[1]}/all-screens`} className={CRUMB}>{label}</Link>
 }
 

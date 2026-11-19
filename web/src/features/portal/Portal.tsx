@@ -504,7 +504,9 @@ export default function Portal() {
   return (
     <>
       <PageHead
-        eyebrow={t('portal.portal.eyebrow')}
+        /* On the family's own home the crumb led nowhere useful (owner,
+           2026-11-19): just the child's name. */
+        eyebrow={location.pathname.includes('/home/') ? undefined : t('portal.portal.eyebrow')}
         title={s?.full_name ?? t('portal.portal.title')}
         /* Class, section and roll number under the name. It is how a parent
            recognises their own child on a class list and what the office asks
