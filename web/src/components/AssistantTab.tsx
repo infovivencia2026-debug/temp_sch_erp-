@@ -17,6 +17,7 @@ import { useOpenState } from '@/lib/motion'
 import { ToolSteps } from '@/components/assistant/ToolSteps'
 import { ConfirmCard } from '@/components/assistant/ConfirmCard'
 import { AI_KEY_HREF, useAiStatus, useMarkAiOff } from '@/components/ai/useAiStatus'
+import { ASSISTANT_TOGGLE } from '@/components/assistant/AssistantHeaderButton'
 import { ASK_EVENT, confirmCard, streamAgent, type AgentCard, type ToolStep } from '@/components/assistant/agent'
 
 /* A tiny, safe Markdown render for the bot's answers.
@@ -796,7 +797,11 @@ export function AssistantTab() {
       window.setTimeout(() => askRef.current(q), 0)
     }
     window.addEventListener(ASK_EVENT, onAsk)
-    return () => window.removeEventListener(ASK_EVENT, onAsk)
+    /* The phone header's Assistant button (assistant/AssistantHeaderButton). */
+    const onToggle = () => setOpen((v) => !v)
+    window.addEventListener(ASSISTANT_TOGGLE, onToggle)
+    document.documentElement.dataset.assistant = '1'
+    return () => { window.removeEventListener(ASK_EVENT, onAsk); window.removeEventListener(ASSISTANT_TOGGLE, onToggle); delete document.documentElement.dataset.assistant }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -1201,7 +1206,8 @@ export function AssistantTab() {
              this follows it rather than guessing, and falls back to the old
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
-          `fixed right-4 z-40 grid size-[52px] md:right-6 md:size-16 place-items-center rounded-full
+          /* Phones: no floating orb; the header button opens the panel. */
+          `fixed right-4 z-40 max-md:!hidden grid size-[52px] md:right-6 md:size-16 place-items-center rounded-full
            bg-transparent [filter:drop-shadow(0_6px_14px_rgba(15,23,42,0.18))]
            transition-[transform,filter]
            hover:-translate-y-0.5 hover:[filter:drop-shadow(0_10px_20px_rgba(15,23,42,0.24))]

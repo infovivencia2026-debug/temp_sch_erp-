@@ -1,4 +1,5 @@
 import { useAiFeature } from '@/components/ai/useAiStatus'
+import { AssistantHeaderButton } from './assistant/AssistantHeaderButton'
 import { Anchored } from './AnchoredPanel'
 import { GlassIconButton } from '@/components/ui'
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
@@ -1385,6 +1386,7 @@ export function Shell({
               <div className="hidden md:block"><Notifications /></div>
             )}
             <div className="flex items-center gap-1 md:hidden">
+            <AssistantHeaderButton />
             <Notifications />
             {/* Cycles compact → comfortable → spacious. One control rather
                 than three, because it is a preference set once. */}

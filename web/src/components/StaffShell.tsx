@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { AssistantHeaderButton } from './assistant/AssistantHeaderButton'
 import { LayoutSwitch } from './LayoutSwitch'
 import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
@@ -347,7 +348,7 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
         <div className="flex items-center justify-between gap-2">
           <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={40} />
           {/* Search as an icon beside the bell (owner, 2026-10-27): it opens the palette across the top. */}
-          <div className="flex shrink-0 items-center gap-1"><CommandSearch /><Notifications /></div>
+          <div className="flex shrink-0 items-center gap-1"><AssistantHeaderButton /><CommandSearch /><Notifications /></div>
         </div>
         {dashboard && <div className="min-w-0">
           <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{greet}</p>

@@ -374,7 +374,8 @@ export default function Calendar() {
                       key={`${e.ref_id ?? e.title}-${i}`}
                       title={e.title}
                       className={cn(
-                        'hidden truncate rounded md:block px-1.5 py-[3px] text-[11px] font-semibold',
+                        /* Up to three lines, never cut mid-name (owner, 2026-11-19). */
+                        'hidden line-clamp-3 break-words rounded md:block px-1.5 py-[3px] text-[11px] font-semibold leading-snug',
                         FAMILY[familyOf(e.kind)].chip,
                       )}
                     >

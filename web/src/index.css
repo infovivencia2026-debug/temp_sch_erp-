@@ -5872,3 +5872,7 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 }
 /* Menu sub-items wrap to two lines instead of cutting off ("Homework & acade…"). */
 .nav-sub-label { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* The phone header's Assistant button shows only where the assistant is on. */
+[data-assistant-head] { display: none; }
+@media (max-width: 767.98px) { :root[data-assistant] [data-assistant-head] { display: grid; } }
