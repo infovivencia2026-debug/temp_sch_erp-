@@ -1126,6 +1126,7 @@ export function Table({
   total,
   onExport,
   noExport,
+  noRowHover,
 }: {
   head: Column[]
   children: ReactNode
@@ -1151,6 +1152,10 @@ export function Table({
   /** The screen offers its own Export beside its tools (Take attendance:
       one Export menu, owner 2026-10-26), so the foot does not add a second. */
   noExport?: boolean
+  /** Drop the grey row-hover tint, for a table whose rows are not a link but
+      a set of controls -- Take attendance, where the tint under the cursor
+      read as a flicker rather than "this row is live". */
+  noRowHover?: boolean
   /* MORE ROWS EXIST THAN THIS TABLE WAS HANDED.
 
      A table pages ten at a time through whatever array it was given, which
@@ -1391,6 +1396,7 @@ export function Table({
         ref={tableEl}
         className={cn(
           'responsive-table text-[14px]',
+          noRowHover && 'no-row-hover',
           colClass,
           // A table scrolled sideways must not carry away the column naming
           // the row, so is-wide freezes the first column -- see index.css.

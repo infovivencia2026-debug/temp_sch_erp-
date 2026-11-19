@@ -1060,6 +1060,10 @@
     .responsive-table tbody tr:hover {
       background: hsl(var(--surface-hover) / 0.6);
     }
+    /* A register's rows are controls, not links: no hover tint there. */
+    .responsive-table.no-row-hover tbody tr:hover {
+      background: transparent;
+    }
   }
 
   /* A row of metrics sharing one outline, separated by 1px of the border

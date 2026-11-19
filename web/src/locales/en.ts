@@ -714,7 +714,7 @@ export const en = {
   'portal.report_absence.detail_placeholder': 'Running a temperature since last night',
   'portal.report_absence.sending': 'Telling the school…',
   'portal.report_absence.action_tell': 'Tell the school',
-  'portal.report_absence.sent_ok': 'The class teacher has it.',
+  'portal.report_absence.sent_ok': 'Sent.',
   'portal.report_absence.list_title': 'Already reported',
   'portal.report_absence.list_description': 'Days the school knows about.',
   'portal.report_absence.empty_title': 'Nothing outstanding',

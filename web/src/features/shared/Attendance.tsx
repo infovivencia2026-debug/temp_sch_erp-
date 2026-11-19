@@ -415,7 +415,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               only admission numbers, the rest cut off): the name first, the
               admission number and what is recorded under it, the marks below
               across the full width. Desktop keeps its four columns. */}
-          <Table head={phone ? ['Student'] : ['Admission no.', 'Student', 'Recorded', 'Mark']} empty={!shown.length} noExport>
+          <Table head={phone ? ['Student'] : ['Admission no.', 'Student', 'Recorded', 'Mark']} empty={!shown.length} noExport noRowHover>
             {shown.map((s) => {
               const saved = existing.get(s.id)
               const value = draft[s.id] ?? (saved as Status | undefined) ?? ''
