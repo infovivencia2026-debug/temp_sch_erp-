@@ -508,12 +508,12 @@ function SchoolMessages({ query, onOpen }: {
                       <span className="min-w-0 flex-1 truncate text-[15px] font-semibold group-hover:text-primary">{noStop(c.title)}</span>
                       <span className="shrink-0 text-[12px] font-medium text-muted-foreground">{shortDate(c.published_at)}</span>
                     </div>
-                    <div className="mt-1 flex items-end gap-3">
+                    <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
                       <p className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug text-muted-foreground">
                         {noStop(c.body || c.published_by || 'School office')}
                       </p>
                       {needsMe && (
-                        <span className="shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        <span className="shrink-0 self-start sm:self-auto" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                         <Button
                           size="sm"
                           variant="secondary"
