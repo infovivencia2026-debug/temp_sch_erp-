@@ -311,7 +311,7 @@ export function CommandSearch({ wide = false, fill = false }: { wide?: boolean; 
         data-help-label="Search: type part of a screen's name."
       >
         <Search className={cn('h-5 w-5 sm:h-3.5 sm:w-3.5', wide && 'md:h-4 md:w-4')} />
-        <span className={cn('hidden sm:inline', wide && 'md:flex-1 md:text-left', fill && '!inline min-w-0 flex-1 truncate text-left')}>{wide ? 'Search screens, students, staff…' : 'Search'}</span>
+        <span className={cn('hidden sm:inline', wide && 'md:flex-1 md:text-left', fill && '!inline min-w-0 flex-1 truncate text-left')}>{wide ? (mayReadPeople ? 'Search screens, students, staff…' : 'Search screens…') : 'Search'}</span>
         <kbd className="hidden shrink-0 whitespace-nowrap rounded border px-1 font-mono text-[10px] sm:inline">{shortcutLabel('K')}</kbd>
       </button>
     )

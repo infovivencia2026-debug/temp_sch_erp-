@@ -145,7 +145,10 @@ export default function ThemeSelection() {
       />
       <PageBody>
         <CellGrid cols={3}>
-          <Stat label="Theme" value={THEME_LABEL[stored?.theme ?? 'system']} icon={Palette} />
+          {/* The tile is two columns wide on a phone: "Follow this device" was cut to
+              "Follow this de" at 390 (owner test, 2026-11-19). The picker below keeps
+              the full words. */}
+          <Stat label="Theme" value={{ system: 'Device', light: 'Light', dark: 'Dark' }[stored?.theme ?? 'system'] ?? THEME_LABEL[stored?.theme ?? 'system']} icon={Palette} />
           <Stat
             label="Row height"
             value={(stored?.density ?? 'comfortable').replace(/^./, (c) => c.toUpperCase())}

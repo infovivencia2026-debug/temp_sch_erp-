@@ -488,12 +488,26 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
       {/* THE OWNER'S ORDER (2026-11-09 design): what needs doing right under
           Today, with the day's common jobs beside it; the figures follow. */}
       {afterToday && !attentionFirst && (() => {
-        const quick = [
+        /* A family's own errands. The staff four matched loosely by keyword,
+           so a parent got "Add student" opening Admission status and "Mark
+           attendance" opening their child's report (owner test, 2026-11-19). */
+        const family = role?.key === 'parent' || role?.key === 'student'
+        const quick = (family ? (role?.key === 'parent' ? [
+          ['Fees', 'fees_payments'],
+          ['Apply leave', 'apply_student_leave'],
+          ['Homework', 'homework_academics'],
+          ['Messages', 'communication'],
+        ] : [
+          ['Homework', 'homework_academics homework'],
+          ['Timetable', 'timetable'],
+          ['Results', 'results_report_cards results'],
+          ['Messages', 'communication'],
+        ]) : [
           ['Add student', 'student_admission admissions students'],
           ['Collect fee', 'fee_collection collect'],
           ['Send notice', 'circulars notices announcements'],
           ['Mark attendance', 'student_absentees attendance'],
-        ].map(([label, target]) => ({ label, href: hrefFor(target) })).filter((q) => q.href)
+        ]).map(([label, target]) => ({ label, href: hrefFor(target) })).filter((q) => q.href)
         return (
           <div className="home-act grid items-start gap-5 lg:grid-cols-[1.4fr_1fr]">
             <div className="min-w-0">{items.length > 0 ? attentionBlock : (

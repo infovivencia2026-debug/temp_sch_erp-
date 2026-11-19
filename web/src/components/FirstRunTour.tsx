@@ -112,6 +112,31 @@ function stepsFor(t: Tour): Step[] {
     },
   ]
 
+  // A parent or student has one role and no department: their own words.
+  const family: Step[] = [
+    {
+      icon: LayoutGrid,
+      title: `Welcome to ${t.school_name}`,
+      body:
+        'Everything here is about your child: attendance, homework, timetable, results, fees ' +
+        'and messages from the school. The menu lists each of them.',
+    },
+    {
+      icon: GraduationCap,
+      title: 'Home shows today',
+      body:
+        'It opens on what matters now: today’s classes, homework due, attendance and any fee ' +
+        'outstanding. With more than one child, switch between them at the top.',
+    },
+    {
+      icon: Users,
+      title: 'Search finds any screen',
+      body:
+        'Type part of a screen’s name, such as fees or leave, to go straight to it.',
+    },
+  ]
+
+  if (t.role === 'parent' || t.role === 'student') return family
   return t.is_first_user && t.role === 'institution_admin' ? first : joining
 }
 

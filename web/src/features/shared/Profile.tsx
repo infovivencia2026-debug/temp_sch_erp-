@@ -466,7 +466,9 @@ export default function ProfileView() {
           hr.employees.read and a teacher cannot open them. Renders nothing for
           a signed-in user who has no staff record. */}
       <ConcernsCard />
-      <MyGrowthPanels quiet />
+      {/* Staff only: a parent or student has no employee record, and the three
+          /hr-growth/me/* reads came back 404 on every visit. */}
+      {(session.user?.roles ?? []).some((r) => r !== 'parent' && r !== 'student') && <MyGrowthPanels quiet />}
 
     </PageBody>
   )

@@ -7,6 +7,7 @@ import {
   FormNotice, Select, Textarea, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatDateTime } from '@/lib/utils'
+import { useActiveRole } from '@/lib/catalog'
 
 /* Remarks about staff — one screen, read differently by whoever opens it.
  *
@@ -73,6 +74,8 @@ export default function StaffRemarks({ canWrite = true }: { canWrite?: boolean }
     retry: false,
   })
 
+  const roleKey = useActiveRole()?.key
+  const family = roleKey === 'parent' || roleKey === 'student'
   if (list.isLoading) return <Loading />
   if (list.error) return <ErrorState error={list.error} />
 
@@ -82,7 +85,8 @@ export default function StaffRemarks({ canWrite = true }: { canWrite?: boolean }
   return (
     <>
       <PageHead
-        eyebrow="Staff"
+        /* A parent reaches this from Messages, not from a staff menu. */
+        eyebrow={family ? 'Messages' : 'Staff'}
         title={canWrite ? 'Teacher remarks' : 'Remarks about me'}
         description={
           canWrite
