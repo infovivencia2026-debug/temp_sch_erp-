@@ -598,6 +598,13 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
     else tell = (await c.db.prepare(`SELECT DISTINCT u.id FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
         WHERE u.status = 'active' AND r.key IN ('institution_admin', 'principal')`).all<{ id: string }>()).results.map((x) => x.id)
   }
+  /* The office runs concerns, but the institution admin hears of every one too
+     (Yajur, 2026-11-19: "also the institution admin will get the concerns").
+     Added to whoever already gets the bell; the View button resolves by kind to
+     the admin's own concerns screen. */
+  const admins = (await c.db.prepare(`SELECT DISTINCT u.id FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r ON r.id = ur.role_id
+      WHERE u.status = 'active' AND r.key = 'institution_admin'`).all<{ id: string }>()).results.map((x) => x.id)
+  tell = [...new Set([...tell, ...admins])]
   const link = (await frontDeskMode(c)) ? `/go/parent_concerns?id=${newID}` : `/institution_admin/communication/grievances?id=${newID}`
   for (const u of tell) {
     if (u !== c.id.userId) stmts.push(notify(c, u, 'A new concern has been raised', subject, link, 'support_ticket', newID))
