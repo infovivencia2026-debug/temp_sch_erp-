@@ -853,7 +853,7 @@ export const en = {
   'portal.concerns.category_other': 'Something else',
   'portal.concerns.field_child': 'Which child',
   'portal.concerns.field_child_hint': 'Leave blank if it is not about one child.',
-  'portal.concerns.child_placeholder': 'Not about a particular child',
+  'portal.concerns.child_placeholder': 'No particular child',
   'portal.concerns.field_priority': 'How pressing',
   'portal.concerns.priority_low': 'Whenever you can',
   'portal.concerns.priority_normal': 'Normal',

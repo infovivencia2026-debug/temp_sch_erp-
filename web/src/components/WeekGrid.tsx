@@ -63,12 +63,15 @@ function nowParts() {
 
 function Lesson({ e, live, className }: { e: WeekEntry; live: boolean; className?: string }) {
   return (
-    <div className={cn('flex min-w-0 flex-col gap-0.5 rounded-md border bg-card px-2.5 py-2',
+    /* Words are never split (owner, 2026-11-19: "HEMLATH / A"): lines break
+       between words only, and in a narrow cell the type steps down with the
+       cell's own width (container units) so the longest name still fits. */
+    <div className={cn('flex min-w-0 flex-col gap-0.5 rounded-md border bg-card px-2.5 py-2 [container-type:inline-size]',
       e.mine && 'border-l-[3px] border-l-primary bg-primary/[0.06]',
       live && 'ring-2 ring-primary', className)}>
-      <span className="break-words text-[13px] font-semibold leading-snug [overflow-wrap:anywhere]">{e.title}</span>
+      <span className="text-[min(13px,14cqi)] font-semibold leading-snug [overflow-wrap:normal] [word-break:keep-all]">{e.title}</span>
       {e.detail && (
-        <span className={cn('break-words text-[12px] leading-snug [overflow-wrap:anywhere]', e.unstaffed ? 'text-warning' : 'text-muted-foreground')}>{e.detail}</span>
+        <span className={cn('text-[min(12px,12.5cqi)] leading-snug [overflow-wrap:normal] [word-break:keep-all]', e.unstaffed ? 'text-warning' : 'text-muted-foreground')}>{e.detail}</span>
       )}
       {e.room && <Badge className="mt-1 w-fit">{e.room}</Badge>}
     </div>
