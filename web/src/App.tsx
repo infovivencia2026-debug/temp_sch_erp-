@@ -395,7 +395,11 @@ function FeatureRoute() {
         {homeLanding && feature.key === 'institution_admin.home.dashboard' && (
           <PageBody><HomeExact /></PageBody>
         )}
-        {homeLanding && feature.key !== 'institution_admin.home.dashboard' && (
+        {/* The parent's home as it was a month ago (owner, 2026-11-19): the
+            child's own page, name and class at the top, not under the
+            generic "needs your attention" shell. */}
+        {homeLanding && feature.key === 'parent.home.dashboard' && <Component key={feature.key} />}
+        {homeLanding && feature.key !== 'institution_admin.home.dashboard' && feature.key !== 'parent.home.dashboard' && (
           <PageBody width={timetableHome ? 'full' : undefined}>
             <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} attentionFirst={timetableHome || feature.key === 'student.home.my_day'} noAttention={timetableHome} />
           </PageBody>

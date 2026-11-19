@@ -5,6 +5,8 @@ import type { DayEntry } from '@/components/DayTimeline'
 export interface SummaryPeriod {
   period: string; starts_at?: string; ends_at?: string
   subject: string; teacher?: string; room?: string
+  /* Assembly, Break, Lunch: drawn as a break, never with a subject. */
+  is_break?: boolean
 }
 
 /* The portal summary lists today's periods flat. DayTimeline wants periods and
@@ -17,7 +19,9 @@ export function todayTimeline(rows: SummaryPeriod[], now = new Date()): { period
   const entries: DayEntry[] = []
   rows.forEach((r, i) => {
     const id = `today-${i}`
-    periods.push({ id, name: r.period, sequence: i + 1, starts_at: r.starts_at ?? '', ends_at: r.ends_at ?? '', is_break: false })
+    periods.push({ id, name: r.period, sequence: i + 1, starts_at: r.starts_at ?? '', ends_at: r.ends_at ?? '', is_break: !!r.is_break })
+    /* A break keeps a placeholder entry so the row is drawn; DayTimeline
+       draws an is_break period as its own card, name and minutes only. */
     entries.push({
       weekday, period_id: id, title: r.subject,
       detail: [r.teacher, r.room].filter(Boolean).join(' · ') || undefined,
