@@ -66,9 +66,9 @@ function Lesson({ e, live, className }: { e: WeekEntry; live: boolean; className
     <div className={cn('flex min-w-0 flex-col gap-0.5 rounded-md border bg-card px-2.5 py-2',
       e.mine && 'border-l-[3px] border-l-primary bg-primary/[0.06]',
       live && 'ring-2 ring-primary', className)}>
-      <span className="line-clamp-2 break-words text-[13px] font-semibold leading-snug">{e.title}</span>
+      <span className="break-words text-[13px] font-semibold leading-snug [overflow-wrap:anywhere]">{e.title}</span>
       {e.detail && (
-        <span className={cn('line-clamp-2 break-words text-[12px] leading-snug', e.unstaffed ? 'text-warning' : 'text-muted-foreground')}>{e.detail}</span>
+        <span className={cn('break-words text-[12px] leading-snug [overflow-wrap:anywhere]', e.unstaffed ? 'text-warning' : 'text-muted-foreground')}>{e.detail}</span>
       )}
       {e.room && <Badge className="mt-1 w-fit">{e.room}</Badge>}
     </div>
