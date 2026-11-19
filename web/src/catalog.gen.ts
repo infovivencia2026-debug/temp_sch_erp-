@@ -1961,7 +1961,7 @@ export const ROLES: Role[] = [
         name: 'Messages',
         workspace: 'School',
         features: [
-          { key: 'parent.messages.communication', slug: 'communication', name: 'Communication', scope: 'children', tier: 'core', summary: 'Three tabs on one screen: circulars and announcements from the school, a message to your child\'s class teacher, and any concern you have raised, what you asked, who is handling it and their reply.' },
+          { key: 'parent.messages.communication', slug: 'communication', name: 'Communication', scope: 'children', tier: 'core', summary: 'Two tabs on one screen: any concern you have raised, what you asked, who is handling it and their reply; and circulars and announcements from the school.' },
           { key: 'parent.messages.teacher_remarks', slug: 'teacher_remarks', name: 'Teacher remarks', scope: 'children', tier: 'core', summary: 'Write a remark about one of your child\'s teachers. It reaches the head of department and the teacher.' },
         ],
       },
@@ -1970,7 +1970,7 @@ export const ROLES: Role[] = [
         name: 'School Life',
         workspace: 'School',
         features: [
-          { key: 'parent.school_life.calendar_ptm', slug: 'calendar_ptm', name: 'Calendar & PTM', scope: 'children', tier: 'core', summary: 'Exams, holidays, events, parent-teacher meetings and booking where enabled.' },
+          { key: 'parent.school_life.calendar_ptm', slug: 'calendar_ptm', name: 'Calendar', scope: 'children', tier: 'core', summary: 'Exams, holidays, events and parent-teacher meetings the school has scheduled.' },
         ],
       },
       {

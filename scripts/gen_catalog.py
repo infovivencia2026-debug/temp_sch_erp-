@@ -173,6 +173,11 @@ FEATURE_SLUG_OVERRIDE = {
     # The LMS Admin row landed with the key lms_admin.lms.courses (a grant and a
     # registry entry) before the catalogue was regenerated from the sheet.
     "Courses & material": "courses",
+    # Renamed from "Calendar & PTM" (Yajur, 2026-11-19). The key
+    # parent.school_life.calendar_ptm is a registry entry (family-keys.ts), a
+    # feature icon and a /go/ path, so the slug stays. Scoped to School Life so
+    # the student's own "Calendar" (Notices & Calendar) keeps its own slug.
+    ("School Life", "Calendar"): "calendar_ptm",
 }
 
 
@@ -223,7 +228,10 @@ def main() -> int:
         section = r["Section"].strip()
         feature = r["Feature"].strip()
         sec_slug = slug(section)
-        feat_slug = FEATURE_SLUG_OVERRIDE.get(feature, slug(feature))
+        # A (section, feature) key wins over a bare feature key, so a rename can
+        # be pinned to one role's screen when the same name exists elsewhere.
+        feat_slug = (FEATURE_SLUG_OVERRIDE.get((section, feature))
+                     or FEATURE_SLUG_OVERRIDE.get(feature, slug(feature)))
 
         # role.section.feature is unique by construction and makes a grant
         # trivially role-scoped, which is what the catalog describes.

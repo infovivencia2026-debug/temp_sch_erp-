@@ -8,7 +8,6 @@ import { Freshness, ScreenSkeleton } from './screen-state'
 import { cn } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
-import { PtmBooking } from './PtmBooking'
 
 /* THE SCHOOL YEAR, AS A MONTH AND AS A LIST.
  *
@@ -477,9 +476,9 @@ export default function Calendar() {
           )}
         </div>
 
-        {/* Taking or cancelling a meeting slot. The catalogue's one entry is
-            "Calendar & PTM", so booking sits under the calendar that shows it. */}
-        <PtmBooking children={children} studentId={studentId} />
+        {/* Parents no longer book their own PTM slot (Yajur, 2026-11-19);
+            the school schedules the meeting and it shows on the calendar
+            above. The booking card is gone. */}
       </PageBody>
     </>
   )

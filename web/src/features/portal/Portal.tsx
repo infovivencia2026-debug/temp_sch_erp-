@@ -1,5 +1,3 @@
-import DayTimeline from '@/components/DayTimeline'
-import { todayTimeline } from '@/lib/todayTimeline'
 import { useCallback, useEffect, useState } from 'react'
 import JoinActivities from './JoinActivities'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -14,8 +12,9 @@ import {
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { ChildSwitch } from './ChildSwitch'
-import { formatPaise, cn } from '@/lib/utils'
+import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import type { UseQueryResult } from '@tanstack/react-query'
 import WeeklyNoteCard from '@/components/ai/WeeklyNoteCard'
 
 interface PortalChild {
@@ -35,6 +34,15 @@ interface TodayPeriod {
   period: string; starts_at?: string; ends_at?: string
   subject: string; teacher?: string; room?: string
   is_break?: boolean
+}
+interface SchoolMessage {
+  id: string
+  title: string
+  body?: string
+  published_at: string
+  published_by?: string
+  requires_ack: boolean
+  acknowledged_by_me?: boolean
 }
 interface AttendanceDay {
   date: string
@@ -407,6 +415,67 @@ function rememberedChild(): string | null {
   }
 }
 
+/* MESSAGES FROM SCHOOL, on the home.
+ *
+ * The five most recent circulars, newest first, each opening the Communication
+ * screen's circulars tab where it can be read and acknowledged. A notice still
+ * waiting for this parent's acknowledgement is marked, because that is the one
+ * thing the school needs them to do. */
+function SchoolMessages({ query, onOpen }: {
+  query: UseQueryResult<List<SchoolMessage>>
+  onOpen: () => void
+}) {
+  const rows = query.data?.items ?? []
+  const recent = rows.slice(0, 5)
+  const waiting = rows.filter((r) => r.requires_ack && !r.acknowledged_by_me).length
+  return (
+    <Card>
+      <CardHeader
+        title="Messages from school"
+        description={waiting ? `${waiting} waiting for you to acknowledge` : 'Notices from the school, newest first'}
+        action={
+          rows.length > 0 ? (
+            <button type="button" onClick={onOpen} className="text-[12.5px] font-medium text-primary hover:underline">
+              See all
+            </button>
+          ) : undefined
+        }
+      />
+      {query.isLoading && !query.data ? (
+        <SkeletonTiles count={3} />
+      ) : query.error && !query.data ? (
+        <ErrorState error={query.error} />
+      ) : recent.length === 0 ? (
+        <EmptyState title="Nothing yet" body="Notices from the school will appear here." />
+      ) : (
+        <ul className="divide-y">
+          {recent.map((c) => {
+            const needsMe = c.requires_ack && !c.acknowledged_by_me
+            return (
+              <li key={c.id}>
+                <button type="button" onClick={onOpen} className="flex w-full items-start gap-3 px-[var(--card-pad)] py-3 text-left hover:bg-muted/50">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className={cn('min-w-0 flex-1 truncate text-[14.5px]', needsMe ? 'font-semibold' : 'font-medium')}>{c.title}</span>
+                      <span className="shrink-0 text-[11.5px] text-muted-foreground">{formatDate(c.published_at)}</span>
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground">
+                        {c.body?.replace(/\s+/g, ' ').trim() || c.published_by || 'School office'}
+                      </span>
+                      {needsMe && <span className="shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">acknowledge</span>}
+                    </div>
+                  </div>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
 export default function Portal() {
   const t = useT()
   const [params, setParams] = useSearchParams()
@@ -474,6 +543,14 @@ export default function Portal() {
     enabled: !!activeId,
   })
 
+  /* The school's notices, newest first, shown on the home in place of the
+     day's timetable (Yajur, 2026-11-19): what the school has said is what a
+     parent opens the app for, not a period list they already know. */
+  const circulars = useQuery({
+    queryKey: ['circulars'],
+    queryFn: () => api.get<List<SchoolMessage>>('/api/v1/communication/circulars'),
+  })
+
   if (children.isLoading && !children.data) return <ScreenSkeleton />
   if (children.error && !children.data) return <ScreenError error={children.error} />
 
@@ -498,8 +575,6 @@ export default function Portal() {
   /* Each figure opens its own screen, in whichever workspace this is (parent or student). */
   const role = location.pathname.split('/')[1] || 'parent'
   const go = (rest: string) => () => navigate(`/${role}/${rest}${activeId ? `?student_id=${activeId}` : ''}`)
-  const hhmm = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
-  const nowPeriod = s?.today.find((c) => !c.is_break && c.starts_at && c.ends_at && c.starts_at <= hhmm && hhmm < c.ends_at)
 
   return (
     <>
@@ -578,12 +653,16 @@ export default function Portal() {
                 then today's classes beside what needs paying and this month's
                 attendance. On a phone the column that needs action comes first. */}
             <CellGrid cols={4}>
+              {/* Fees first, attendance last (Yajur, 2026-11-19). The
+                  attendance card opens the month-by-month register (the
+                  calendar with the running total), which the report already
+                  draws with a month picker. */}
               <Stat
-                label={t('portal.portal.stat_attendance')}
-                value={`${s.attendance_pct}%`}
-                icon={CalendarCheck}
-                delta={{ value: `${s.present_days} of ${s.total_days} days attended`, positive: s.attendance_pct >= 75 }}
-                onClick={go('attendance/attendance')}
+                label={t('portal.portal.stat_fees')}
+                value={formatPaise(s.outstanding_paise)}
+                icon={Wallet}
+                hint={s.outstanding_paise ? t('portal.portal.fees_payable') : t('portal.portal.fees_settled')}
+                onClick={go('fees/fees_payments')}
               />
               <Stat
                 label={t('portal.portal.stat_homework')}
@@ -611,30 +690,20 @@ export default function Portal() {
                 <Stat label={t('portal.portal.stat_next_exam')} value={s.next_exam ?? '-'} icon={GraduationCap} />
               )}
               <Stat
-                label={t('portal.portal.stat_fees')}
-                value={formatPaise(s.outstanding_paise)}
-                icon={Wallet}
-                hint={s.outstanding_paise ? t('portal.portal.fees_payable') : t('portal.portal.fees_settled')}
-                onClick={go('fees/fees_payments')}
+                label={t('portal.portal.stat_attendance')}
+                value={`${s.attendance_pct}%`}
+                icon={CalendarCheck}
+                delta={{ value: `${s.present_days} of ${s.total_days} days attended`, positive: s.attendance_pct >= 75 }}
+                onClick={go('attendance/attendance')}
               />
             </CellGrid>
 
             <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
               <div className="order-2 min-w-0 lg:order-1">
-                <Card>
-                  <CardHeader
-                    title={t('portal.portal.today_title')}
-                    description={new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
-                    action={nowPeriod ? <span className="rounded-full bg-primary/10 px-3 py-1 text-[12px] font-semibold text-primary">{nowPeriod.period} in progress</span> : undefined}
-                  />
-                  {s.today.length === 0 ? (
-                    <EmptyState title={t('portal.portal.today_empty_title')} body={t('portal.portal.today_empty_body')} />
-                  ) : (
-                    /* Today as the shared timeline, at every size: the same look as the
-                       teacher home's today (Yajur, 2026-10-24). */
-                    <DayTimeline bare todayOnly breaks={false} who="" where="" {...todayTimeline(s.today)} />
-                  )}
-                </Card>
+                <SchoolMessages
+                  query={circulars}
+                  onOpen={() => navigate(`/${role}/messages/communication?tab=circulars${activeId ? `&student_id=${activeId}` : ''}`)}
+                />
                 <div className="mt-6"><JoinActivities studentId={activeId ?? undefined} /></div>
               </div>
 
