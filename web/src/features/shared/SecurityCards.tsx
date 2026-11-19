@@ -183,10 +183,14 @@ export function MyDevicesCard() {
       <ul className="divide-y">
         {shown.map((s) => (
           <li key={s.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-2.5 text-[13.5px]">
-            <span>
-              <span className="font-medium">{s.device}</span>
-              {s.current && <Badge tone="success">This device</Badge>}
-              {s.ip && <span className="ml-2 font-mono text-[12px] text-muted-foreground">{s.ip}</span>}
+            {/* Device, then the address on its own line: an IPv6 address wrapped
+                into "Windows PC · Chrome" on a phone (owner, 2026-11-19). */}
+            <span className="flex min-w-0 max-w-full flex-col gap-0.5">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="whitespace-nowrap font-medium">{s.device}</span>
+                {s.current && <Badge tone="success">This device</Badge>}
+              </span>
+              {s.ip && <span className="block max-w-full truncate font-mono text-[11.5px] text-muted-foreground" title={s.ip}>{s.ip}</span>}
             </span>
             <span className="text-[12.5px] text-muted-foreground">
               since {formatDateTime(s.created_at)} · last active {formatDateTime(s.last_seen_at)}

@@ -278,7 +278,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
                 <NavLink key={f.key} data-row to={goTo(from, f)} onClick={onNavigate} title={f.summary}
                   className={({ isActive }) => staffItemClass(isActive || !!comboOf(f.slug)?.slugs.includes(here), f.live)}>
                   <LineIcon name={`${f.slug} ${f.name}`} icon={icons[i]} size={20} />
-                  <span className="truncate">{label(f.name)}</span>
+                  <span className="nav-sub-label">{label(f.name)}</span>
                 </NavLink>
               )) })()}
             </StaffNavGroup>
@@ -310,7 +310,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
                   return staffItemClass(on, f.live)
                 }}>
                 <LineIcon name={`${f.slug} ${f.name}`} icon={icons[i]} size={20} />
-                <span className="truncate">{label(f.name)}</span>
+                <span className="nav-sub-label">{label(f.name)}</span>
                 {f.slug === 'concerns_from_parents' && <Count n={concerns} />}
               </NavLink>
             )) })()}
@@ -413,8 +413,11 @@ export function StaffPanelFoot({ employeeCode, onNavigate }: { employeeCode?: st
   const session = useSession()
   const fullName = session.user?.full_name ?? ''
   return (
-    <div className="flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4 max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
-      <div className="xl:hidden"><LayoutSwitch pill /></div>
+    /* Short laptop screens (1024×768, 1366×768) gave the foot 155px and the menu
+       four rows (owner, 2026-11-19): below 820px tall on a computer the Focus |
+       Work pill steps out (Settings still has it) and the padding tightens. */
+    <div className="rail-foot flex shrink-0 flex-col gap-3.5 border-t px-5 pb-5 pt-4 max-sm:px-4 max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+      <div className="rail-foot__switch xl:hidden"><LayoutSwitch pill /></div>
       <StaffProfileCard name={fullName} sub={employeeCode} photoId={session.user?.avatar_key} onNavigate={onNavigate} />
     </div>
   )

@@ -178,3 +178,13 @@
   }
 }
 @media (min-width: 640px) { .float-safe { margin-bottom: env(safe-area-inset-bottom, 0px); } }
+
+/* The assistant orb on phones (owner, 2026-11-19): it sat over the last card's
+   corner and buttons (Apply leave, the sign-in list). The page's foot now also
+   clears the orb — 52px plus its 1.25rem lift — so the last content can always
+   scroll out from under it. Only where the orb is drawn: a screen that has it. */
+@media (max-width: 767.98px) {
+  :root:has([data-assistant-orb]) {
+    --page-foot: calc(var(--dock-reserve) + 16px + 52px + 1.25rem);
+  }
+}
