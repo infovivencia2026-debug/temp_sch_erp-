@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import JoinActivities from './JoinActivities'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PickerMenu } from '@/components/PickerMenu'
-import { CalendarCheck, BookMarked, Wallet, GraduationCap, ArrowRight } from 'lucide-react'
+import { CalendarCheck, BookMarked, Wallet, GraduationCap, ArrowRight, Bell, FileText, CalendarDays, Users, Info, Check } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, SkeletonTiles, ErrorState,
@@ -37,6 +37,7 @@ interface TodayPeriod {
 interface SchoolMessage {
   id: string
   title: string
+  kind?: string
   body?: string
   published_at: string
   published_by?: string
@@ -436,31 +437,45 @@ function rememberedChild(): string | null {
  * screen's circulars tab where it can be read and acknowledged. A notice still
  * waiting for this parent's acknowledgement is marked, because that is the one
  * thing the school needs them to do. */
+/* What a notice is about, read from its kind and title, so each row carries
+   a tinted line icon a parent can scan by (owner design, 2026-11-19). */
+function messageLook(m: SchoolMessage): { icon: typeof Bell; tone: string } {
+  const t = `${m.kind ?? ''} ${m.title}`.toLowerCase()
+  if (/clos|holiday|urgent|alert|leave/.test(t)) return { icon: Bell, tone: 'bg-destructive/10 text-destructive' }
+  if (/exam|test|result|report|date sheet|marks/.test(t)) return { icon: FileText, tone: 'bg-primary/10 text-primary' }
+  if (/meeting|ptm|parent-teacher/.test(t)) return { icon: Users, tone: 'bg-success/10 text-success' }
+  if (/event|day|function|celebrat|trip|sports/.test(t)) return { icon: CalendarDays, tone: 'bg-success/10 text-success' }
+  return { icon: Info, tone: 'bg-muted text-muted-foreground' }
+}
+
+/* Short date, and no full stop closing a line (owner, 2026-11-19). */
+const shortDate = (d: string) => formatDate(d).replace(/\s*\d{4}$/, '')
+const noStop = (t: string) => t.replace(/\s+/g, ' ').trim().replace(/\.+$/, '')
+
+/* MESSAGES FROM SCHOOL, on the home.
+ *
+ * Every notice the school has sent this family, newest first, each a raised
+ * card with an icon for what it is about. A notice waiting for this parent's
+ * acknowledgement carries the Acknowledge button right on the card. On a wide
+ * screen the card is as tall as the calendar beside it and the list scrolls
+ * inside, with no bar drawn. */
 function SchoolMessages({ query, onOpen }: {
   query: UseQueryResult<List<SchoolMessage>>
   onOpen: () => void
 }) {
+  const qc = useQueryClient()
   const rows = query.data?.items ?? []
-  /* Every notice the school has sent this family, newest first (Yajur,
-     2026-11-19): all of them land on the home, not a first few. The list
-     scrolls inside the card when the term has stacked up many. */
-  const waiting = rows.filter((r) => r.requires_ack && !r.acknowledged_by_me).length
+  const ack = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/communication/circulars/${id}/ack`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['circulars'] }),
+  })
   return (
-    /* On a wide screen the card is as tall as the calendar beside it and the
-       list scrolls inside, with no bar drawn (owner, 2026-11-19). */
     <Card className="flex flex-col lg:h-full">
       <CardHeader
         title="Messages from school"
-        description={
-          rows.length === 0 ? 'Notices from the school, newest first'
-            : waiting ? `${waiting} waiting for you to acknowledge · ${rows.length} in all`
-            : `${rows.length} ${rows.length === 1 ? 'notice' : 'notices'}, newest first`
-        }
         action={
           rows.length > 0 ? (
-            <button type="button" onClick={onOpen} className="text-[12.5px] font-medium text-primary hover:underline">
-              Open
-            </button>
+            <Button size="sm" variant="secondary" onClick={onOpen}>Open</Button>
           ) : undefined
         }
       />
@@ -469,27 +484,55 @@ function SchoolMessages({ query, onOpen }: {
       ) : query.error && !query.data ? (
         <ErrorState error={query.error} />
       ) : rows.length === 0 ? (
-        <EmptyState title="Nothing yet" body="Notices from the school will appear here." />
+        <EmptyState title="Nothing yet" body="Notices from the school will appear here" />
       ) : (
-        <ul className="scroll-x max-h-[32rem] min-h-0 flex-1 divide-y overflow-y-auto lg:max-h-none">
+        <ul className="scroll-x max-h-[32rem] min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 pb-3 pt-1 lg:max-h-none">
           {rows.map((c) => {
             const needsMe = c.requires_ack && !c.acknowledged_by_me
+            const done = c.requires_ack && c.acknowledged_by_me
+            const { icon: Icon, tone } = messageLook(c)
             return (
               <li key={c.id}>
-                <button type="button" onClick={onOpen} className="flex w-full items-start gap-3 px-[var(--card-pad)] py-3 text-left hover:bg-muted/50">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={onOpen}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
+                  className="group flex w-full cursor-pointer items-start gap-3 rounded-xl border bg-card px-3.5 py-3 text-left shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                >
+                  <span className={cn('mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl', tone)}>
+                    <Icon className="h-5 w-5" strokeWidth={2.2} />
+                  </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
-                      <span className={cn('min-w-0 flex-1 truncate text-[14.5px]', needsMe ? 'font-semibold' : 'font-medium')}>{c.title}</span>
-                      <span className="shrink-0 text-[11.5px] text-muted-foreground">{formatDate(c.published_at)}</span>
+                      <span className="min-w-0 flex-1 truncate text-[15px] font-semibold group-hover:text-primary">{noStop(c.title)}</span>
+                      <span className="shrink-0 text-[12px] font-medium text-muted-foreground">{shortDate(c.published_at)}</span>
                     </div>
-                    <div className="mt-0.5 flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground">
-                        {c.body?.replace(/\s+/g, ' ').trim() || c.published_by || 'School office'}
-                      </span>
-                      {needsMe && <span className="shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">acknowledge</span>}
+                    <div className="mt-1 flex items-end gap-3">
+                      <p className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug text-muted-foreground">
+                        {noStop(c.body || c.published_by || 'School office')}
+                      </p>
+                      {needsMe && (
+                        <span className="shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="shrink-0 rounded-full border-warning/50 bg-warning/15 text-warning hover:bg-warning/25"
+                          disabled={ack.isPending && ack.variables === c.id}
+                          onClick={() => ack.mutate(c.id)}
+                        >
+                          Acknowledge
+                        </Button>
+                        </span>
+                      )}
+                      {done && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[11.5px] font-semibold text-success">
+                          <Check className="h-3.5 w-3.5" /> Acknowledged
+                        </span>
+                      )}
                     </div>
                   </div>
-                </button>
+                </div>
               </li>
             )
           })}
