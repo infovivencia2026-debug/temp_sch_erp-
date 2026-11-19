@@ -1,4 +1,4 @@
-import { useAiFeature } from './useAiStatus'
+import { useAiFeature, AI_STATUS_KEY } from './useAiStatus'
 import { useSession } from '@/lib/session'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardHeader } from '@/components/ui'
@@ -27,5 +27,10 @@ export default function WeeklyNoteCard(props: Parameters<typeof WeeklyNoteCardIn
   /* The endpoint needs self.profile.read; asking without it was a 403 on
      every home load (owner test, 2026-11-19). */
   const may = useSession().permissions.includes('self.profile.read')
-  return useAiFeature('parent_weekly') && may ? <WeeklyNoteCardInner {...props} /> : null
+  /* Asked only once the school's AI status says the feature is ON. While the
+     status was loading (or refused to a parent) useAiFeature reads "on", and
+     the server's own feature check answered 403 (owner re-check, 2026-11-19). */
+  const status = useQuery({ queryKey: AI_STATUS_KEY, queryFn: aiApi.status, staleTime: 5 * 60_000, retry: false, enabled: may })
+  const on = status.data?.features?.parent_weekly === true
+  return useAiFeature('parent_weekly') && may && on ? <WeeklyNoteCardInner {...props} /> : null
 }

@@ -348,7 +348,7 @@ export default function Calendar() {
                   type="button"
                   onClick={() => setPicked(day)}
                   className={cn(
-                    'flex min-h-[52px] flex-col items-center gap-1 border-b border-r p-1 text-left md:min-h-[104px] md:items-stretch md:p-2 transition-colors last:border-r-0',
+                    'flex min-h-[52px] min-w-0 overflow-hidden flex-col items-center gap-1 border-b border-r p-1 text-left md:min-h-[104px] md:items-stretch md:p-2 transition-colors last:border-r-0',
                     outside ? 'bg-surface-sunken/40 opacity-45' : weekend ? 'bg-surface-sunken/30' : 'bg-card',
                     picked === day && 'ring-2 ring-inset ring-primary',
                     'hover:bg-accent/40',
@@ -375,7 +375,10 @@ export default function Calendar() {
                       title={e.title}
                       className={cn(
                         /* Up to three lines, never cut mid-name (owner, 2026-11-19). */
-                        'hidden line-clamp-3 break-words rounded md:block px-1.5 py-[3px] text-[11px] font-semibold leading-snug',
+                        /* md:line-clamp-3, not line-clamp-3: its display:-webkit-box beat
+                           `hidden`, so phones drew chips that spilled over the
+                           next days (owner re-check, 2026-11-19). */
+                        'hidden max-w-full overflow-hidden md:line-clamp-3 break-words rounded px-1.5 py-[3px] text-[11px] font-semibold leading-snug',
                         FAMILY[familyOf(e.kind)].chip,
                       )}
                     >
