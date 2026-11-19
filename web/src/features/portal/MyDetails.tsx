@@ -130,7 +130,7 @@ export default function MyDetails() {
                     {t('portal.my_details.no_guardian')}
                   </p>
                 )}
-                {d.guardians.map((g, i) => (
+                {d.guardians.map((g) => (
                   <div key={g.id} className="px-5 py-4">
                     <div className="mb-3 flex flex-wrap items-center gap-2">
                       <span className="text-[14px] font-medium">{relationLabel(g.relation, t('portal.my_details.guardian'))}</span>
