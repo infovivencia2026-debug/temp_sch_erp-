@@ -755,24 +755,24 @@ export default function Portal() {
                 {/* The month's attendance beside today, as the home had it a month
                     ago (owner, 2026-11-19). The next school day stays off. */}
                 <Card>
-                  <CardHeader
-                    title={monthName(ym)}
-                    /* The month can be flipped back through the term; the
-                       figure above and this grid move with it. The percentage
-                       lives in the attendance card above, so only the month
-                       dropdown sits here (Yajur, 2026-11-19). */
-                    action={
-                      months.length > 1 ? (
-                        <PickerMenu
-                          value={ym}
-                          ariaLabel="Month"
-                          align="end"
-                          onChange={setPickedYm}
-                          options={months.map((x) => ({ value: x, label: x === thisMonth() ? `${monthName(x)} · this month` : monthName(x) }))}
-                        />
-                      ) : undefined
-                    }
-                  />
+                  {/* Only the month dropdown names the month (Yajur,
+                      2026-11-19): a card title repeating "November 2026" above
+                      a dropdown that already says it was the same name twice.
+                      With a single month on record there is nothing to flip, so
+                      a plain label stands in for the dropdown. */}
+                  <div className="flex items-center justify-between gap-2 px-[var(--card-pad)] pb-2 pt-[var(--card-pad)]">
+                    {months.length > 1 ? (
+                      <PickerMenu
+                        value={ym}
+                        ariaLabel="Month"
+                        align="start"
+                        onChange={setPickedYm}
+                        options={months.map((x) => ({ value: x, label: x === thisMonth() ? `${monthName(x)} · this month` : monthName(x) }))}
+                      />
+                    ) : (
+                      <h3 className="text-[15px] font-semibold">{ym === thisMonth() ? `${monthName(ym)} · this month` : monthName(ym)}</h3>
+                    )}
+                  </div>
                   <div className="px-[var(--card-pad)] pb-4">
                     <MonthGrid days={month.monthDays} ym={ym} />
                     <div className="mt-3"><Legend /></div>
