@@ -442,17 +442,23 @@ function SchoolMessages({ query, onOpen }: {
   onOpen: () => void
 }) {
   const rows = query.data?.items ?? []
-  const recent = rows.slice(0, 5)
+  /* Every notice the school has sent this family, newest first (Yajur,
+     2026-11-19): all of them land on the home, not a first few. The list
+     scrolls inside the card when the term has stacked up many. */
   const waiting = rows.filter((r) => r.requires_ack && !r.acknowledged_by_me).length
   return (
     <Card>
       <CardHeader
         title="Messages from school"
-        description={waiting ? `${waiting} waiting for you to acknowledge` : 'Notices from the school, newest first'}
+        description={
+          rows.length === 0 ? 'Notices from the school, newest first'
+            : waiting ? `${waiting} waiting for you to acknowledge · ${rows.length} in all`
+            : `${rows.length} ${rows.length === 1 ? 'notice' : 'notices'}, newest first`
+        }
         action={
           rows.length > 0 ? (
             <button type="button" onClick={onOpen} className="text-[12.5px] font-medium text-primary hover:underline">
-              See all
+              Open
             </button>
           ) : undefined
         }
@@ -461,11 +467,11 @@ function SchoolMessages({ query, onOpen }: {
         <SkeletonTiles count={3} />
       ) : query.error && !query.data ? (
         <ErrorState error={query.error} />
-      ) : recent.length === 0 ? (
+      ) : rows.length === 0 ? (
         <EmptyState title="Nothing yet" body="Notices from the school will appear here." />
       ) : (
-        <ul className="divide-y">
-          {recent.map((c) => {
+        <ul className="max-h-[32rem] divide-y overflow-y-auto">
+          {rows.map((c) => {
             const needsMe = c.requires_ack && !c.acknowledged_by_me
             return (
               <li key={c.id}>
@@ -604,12 +610,11 @@ export default function Portal() {
         /* On the family's own home the crumb led nowhere useful (owner,
            2026-11-19): just the child's name. */
         eyebrow={location.pathname.includes('/home/') ? undefined : t('portal.portal.eyebrow')}
-        /* The child's name is not the heading (Yajur, 2026-11-19): a parent
-           knows whose home this is. A generic title sits here, and the class
-           and roll stay underneath so the office's reference is still to hand.
-           A guardian of two or more switches child from the control on the
-           right; a parent of one sees no switcher and no name. */
-        title={t('portal.portal.title')}
+        /* The child's name is the heading (Yajur, 2026-11-19), with the class
+           and roll underneath; the name was taken off the left sidebar so it
+           reads in one place only. A guardian of two or more switches child
+           from the control on the right. */
+        title={s?.full_name ?? t('portal.portal.title')}
         description={childLine(kids.find((c) => c.student_id === activeId)) ?? t('portal.portal.description')}
         actions={
           /* The same control the home board uses, so the switcher is one
@@ -750,22 +755,19 @@ export default function Portal() {
                   <CardHeader
                     title={monthName(ym)}
                     /* The month can be flipped back through the term; the
-                       figure above and this grid move with it. */
+                       figure above and this grid move with it. The percentage
+                       lives in the attendance card above, so only the month
+                       dropdown sits here (Yajur, 2026-11-19). */
                     action={
-                      <div className="flex items-center gap-2">
-                        {month.pct !== null && (
-                          <span className={cn('text-[12.5px] font-semibold', month.pct >= 75 ? 'text-success' : 'text-destructive')}>{month.pct}% present</span>
-                        )}
-                        {months.length > 1 && (
-                          <PickerMenu
-                            value={ym}
-                            ariaLabel="Month"
-                            align="end"
-                            onChange={setPickedYm}
-                            options={months.map((x) => ({ value: x, label: x === thisMonth() ? `${monthName(x)} · this month` : monthName(x) }))}
-                          />
-                        )}
-                      </div>
+                      months.length > 1 ? (
+                        <PickerMenu
+                          value={ym}
+                          ariaLabel="Month"
+                          align="end"
+                          onChange={setPickedYm}
+                          options={months.map((x) => ({ value: x, label: x === thisMonth() ? `${monthName(x)} · this month` : monthName(x) }))}
+                        />
+                      ) : undefined
                     }
                   />
                   <div className="px-[var(--card-pad)] pb-4">

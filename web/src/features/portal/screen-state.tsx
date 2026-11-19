@@ -79,13 +79,12 @@ export function Freshness({ query }: { query: Freshable }) {
      is `ago` no longer being the just-now string. */
   const agoOnly = ago === t('portal.fresh.just_now') ? ago : t('portal.fresh.ago', { ago })
 
+  const trouble = !query.isFetching && (offline || failed)
+
   let text: string
-  if (query.isFetching) text = t('portal.fresh.updating')
-  else if (offline) text = t('portal.fresh.offline', { ago: ago.toLowerCase() })
+  if (offline) text = t('portal.fresh.offline', { ago: ago.toLowerCase() })
   else if (failed) text = t('portal.fresh.failed', { ago: ago.toLowerCase() })
   else text = agoOnly
-
-  const trouble = !query.isFetching && (offline || failed)
 
   /* SILENCE IS THE RIGHT REPORT FOR "NOTHING IS WRONG".
 
@@ -96,13 +95,14 @@ export function Freshness({ query }: { query: Freshable }) {
      one time the line matters, when the figures are stale or came from a
      cache with no connection, it had already been trained to be ignored.
 
-     So the line appears only when it has something to say: while a refresh is
-     in flight, or when the data is old, offline or failed. */
-  if (!query.isFetching && !trouble) return null
+     The "Updating…" line is gone entirely (Yajur, 2026-11-19): a refresh in
+     flight is not news, and the owner did not want it flashing on the home.
+     The line now appears only when the data is old, offline or failed. */
+  if (!trouble) return null
   return (
     <p
       className="parent-fresh"
-      data-state={query.isFetching ? 'updating' : trouble ? 'trouble' : 'fresh'}
+      data-state={trouble ? 'trouble' : 'fresh'}
       role="status"
       aria-live="polite"
     >
