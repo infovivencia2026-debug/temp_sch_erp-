@@ -29,8 +29,8 @@ import { useChildren, childOptions } from './use-children'
  * reader and a black-and-white print -- the tint is how you scan it, the word
  * is how you are sure.
  *
- * Booked meetings appear in the calendar; taking or cancelling a slot is the
- * card under it (PtmBooking).
+ * Parent-teacher meetings the school has scheduled appear in the calendar;
+ * parents no longer book or cancel their own slot (Yajur, 2026-11-19).
  */
 
 interface Entry {
