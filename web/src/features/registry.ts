@@ -371,8 +371,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   'parent.consent_permissions.permission_slips': screen(() => import('./portal/Consent')),
 
-  // Circulars · Message teacher · Concerns, as tabs of one row (MessagesHub).
-  'parent.messages.communication': screen(() => import('./portal/MessagesHub')),
+  // Communication is a nav group of two screens (Yajur, 2026-11-19), not one
+  // tabbed/dropdown row: Concerns and Circulars from school each get a menu
+  // entry, the way Academics lists its screens.
+  'parent.communication.concerns': screen(() => import('./portal/Concerns')),
+  'parent.communication.circulars_from_school': screen(() => import('./comms/Circulars')),
   'super_admin.statutory_boards.udise_data_sync': screen(() => import('./compliance/UDISE')),
 
   /* --- the six workspaces added for roles that had permissions and no menu --

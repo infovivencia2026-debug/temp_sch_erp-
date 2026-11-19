@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 24 roles, 488 features.
+// Roles is the catalog: 24 roles, 489 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -2004,12 +2004,13 @@ var Roles = []Role{
 				},
 			},
 			{
-				Slug:      "messages",
-				Name:      "Messages",
+				Slug:      "communication",
+				Name:      "Communication",
 				Workspace: "School",
 				Features: []Feature{
-					{Key: "parent.messages.communication", Slug: "communication", Name: "Communication", Scope: Scope("children"), Tier: Tier("core"), Summary: "Two tabs on one screen: any concern you have raised, what you asked, who is handling it and their reply; and circulars and announcements from the school."},
-					{Key: "parent.messages.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Write a remark about one of your child's teachers. It reaches the head of department and the teacher."},
+					{Key: "parent.communication.concerns", Slug: "concerns", Name: "Concerns", Scope: Scope("children"), Tier: Tier("core"), Summary: "Raise a concern with the front desk and follow it to its reply: what you asked, who is handling it and what they said."},
+					{Key: "parent.communication.circulars_from_school", Slug: "circulars_from_school", Name: "Circulars from school", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every circular and announcement the school has published for your family, newest first, with the ones that ask to be acknowledged marked."},
+					{Key: "parent.communication.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Write a remark about one of your child's teachers. It reaches the head of department and the teacher."},
 				},
 			},
 			{

@@ -239,7 +239,6 @@ export function useNotificationActions() {
      since a family account is never also one of the roles below it), the
      first one this person actually holds wins. */
   const messagesHref = useFeatureHrefAny([
-    'parent.messages.communication',
     'faculty.communication.messages', 'institution_admin.communication.messages', 'hod.communication.messages',
     'hr.communication.messages', 'finance.communication.messages', 'front_office.communication.messages',
     'librarian.communication.messages', 'nurse.communication.messages', 'counsellor.communication.messages',
@@ -250,7 +249,7 @@ export function useNotificationActions() {
   /* A circular is read on the same screen a parent reads it on; staff who
      must acknowledge one have their own circulars desk. */
   const circularHref = useFeatureHrefAny([
-    'parent.messages.communication', 'institution_admin.communication.circulars', 'activity_coord.activities.circulars',
+    'parent.communication.circulars_from_school', 'institution_admin.communication.circulars', 'activity_coord.activities.circulars',
   ])
   /* Each destination under every role that receives it, first held wins
      (lib/notification-link.ts maps the kind to the destination). */
@@ -264,7 +263,7 @@ export function useNotificationActions() {
     homework: useFeatureHrefAny(['parent.academics.homework_academics', 'student.homework.homework_assignments', 'faculty.teaching.homework_classwork', 'hod.teaching.homework_classwork']),
     result: useFeatureHrefAny(['parent.academics.results_report_cards', 'student.exams_results.exams_grades', 'faculty.marks_report_cards.report_cards', 'hod.marks_report_cards.report_cards', 'exam_controller.examinations.report_cards', 'institution_admin.examinations.exams_results']),
     timetable: useFeatureHrefAny(['parent.academics.timetable', 'student.timetable.timetable', 'faculty.timetable.my_timetable', 'hod.timetable.my_timetable']),
-    concern: useFeatureHrefAny(['faculty.communication.concerns_from_parents', 'front_office.communication.parent_concerns', 'institution_admin.communication.grievances', 'hr.welfare.staff_welfare']) ?? '/concerns',
+    concern: useFeatureHrefAny(['parent.communication.concerns', 'faculty.communication.concerns_from_parents', 'front_office.communication.parent_concerns', 'institution_admin.communication.grievances', 'hr.welfare.staff_welfare']) ?? '/concerns',
     questionPapers: useFeatureHrefAny(['faculty.exams.question_papers', 'exam_controller.examinations.exams_papers', 'hod.exams.question_paper_approval', 'institution_admin.exams.question_paper_approval']),
     leaveApprovals: useFeatureHrefAny(['institution_admin.approvals.approvals', 'hr.leave.leave', 'hod.staff.leaves_subs', 'faculty.my_profile.student_leave_requests']),
     leaveSelf: useFeatureHrefAny(['faculty.my_profile.leave_self_service', 'hod.my_profile.leave_self_service', 'hr.my_profile.leave_self_service', 'front_office.my_profile.leave_self_service', 'finance.my_profile.leave_self_service', 'parent.leave_absence.apply_student_leave']),

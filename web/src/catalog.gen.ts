@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 24 roles, 488 features. */
+/** 24 roles, 489 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1957,12 +1957,13 @@ export const ROLES: Role[] = [
         ],
       },
       {
-        slug: 'messages',
-        name: 'Messages',
+        slug: 'communication',
+        name: 'Communication',
         workspace: 'School',
         features: [
-          { key: 'parent.messages.communication', slug: 'communication', name: 'Communication', scope: 'children', tier: 'core', summary: 'Two tabs on one screen: any concern you have raised, what you asked, who is handling it and their reply; and circulars and announcements from the school.' },
-          { key: 'parent.messages.teacher_remarks', slug: 'teacher_remarks', name: 'Teacher remarks', scope: 'children', tier: 'core', summary: 'Write a remark about one of your child\'s teachers. It reaches the head of department and the teacher.' },
+          { key: 'parent.communication.concerns', slug: 'concerns', name: 'Concerns', scope: 'children', tier: 'core', summary: 'Raise a concern with the front desk and follow it to its reply: what you asked, who is handling it and what they said.' },
+          { key: 'parent.communication.circulars_from_school', slug: 'circulars_from_school', name: 'Circulars from school', scope: 'children', tier: 'core', summary: 'Every circular and announcement the school has published for your family, newest first, with the ones that ask to be acknowledged marked.' },
+          { key: 'parent.communication.teacher_remarks', slug: 'teacher_remarks', name: 'Teacher remarks', scope: 'children', tier: 'core', summary: 'Write a remark about one of your child\'s teachers. It reaches the head of department and the teacher.' },
         ],
       },
       {

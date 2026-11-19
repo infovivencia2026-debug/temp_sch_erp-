@@ -11,7 +11,6 @@ import {
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { ScreenSkeleton } from './screen-state'
-import { ChildSwitch } from './ChildSwitch'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import type { UseQueryResult } from '@tanstack/react-query'
@@ -611,24 +610,22 @@ export default function Portal() {
            2026-11-19): just the child's name. */
         eyebrow={location.pathname.includes('/home/') ? undefined : t('portal.portal.eyebrow')}
         /* The child's name is the heading (Yajur, 2026-11-19), with the class
-           and roll underneath; the name was taken off the left sidebar so it
-           reads in one place only. A guardian of two or more switches child
-           from the control on the right. */
+           and roll underneath. A guardian of two or more switches child from a
+           small dropdown right beside the name; a parent of one sees neither a
+           switcher nor a second copy of the name. */
         title={s?.full_name ?? t('portal.portal.title')}
-        description={childLine(kids.find((c) => c.student_id === activeId)) ?? t('portal.portal.description')}
-        actions={
-          /* The same control the home board uses, so the switcher is one
-             thing across the parent's screens: pills on a desk, one small
-             "Switch child" button on a phone. Only a guardian of several
-             ever sees it. */
-          <ChildSwitch
-            kids={kids}
-            activeId={activeId}
-            onChoose={chooseChild}
-            label={t('portal.portal.title')}
-            switchLabel={t('bento.parent_week.switch_child')}
-          />
+        titleAfter={
+          kids.length > 1 ? (
+            <PickerMenu
+              value={activeId ?? ''}
+              ariaLabel={t('bento.parent_week.switch_child')}
+              align="start"
+              onChange={chooseChild}
+              options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}
+            />
+          ) : undefined
         }
+        description={childLine(kids.find((c) => c.student_id === activeId)) ?? t('portal.portal.description')}
       />
       <PageBody>
         {/* The weekly AI note about this child, once one has been written. */}
@@ -734,7 +731,7 @@ export default function Portal() {
               <div className="order-2 min-w-0 lg:order-1">
                 <SchoolMessages
                   query={circulars}
-                  onOpen={() => navigate(`/${role}/messages/communication?tab=circulars${activeId ? `&student_id=${activeId}` : ''}`)}
+                  onOpen={() => navigate(`/${role}/communication/circulars_from_school${activeId ? `?student_id=${activeId}` : ''}`)}
                 />
                 <div className="mt-6"><JoinActivities studentId={activeId ?? undefined} /></div>
               </div>

@@ -110,6 +110,7 @@ export function PageHead({
   eyebrow,
   onEyebrow,
   title,
+  titleAfter,
   description: _unusedDescription,
   actions,
   width = 'operational',
@@ -119,6 +120,9 @@ export function PageHead({
   /** Makes the breadcrumb's first part a link back to the parent list (owner, 2026-11-17: "like Google Drive"). */
   onEyebrow?: () => void
   title: string
+  /** A small control rendered inline, immediately to the right of the title —
+      e.g. a parent's child switcher sitting beside the child's name. */
+  titleAfter?: ReactNode
   description?: string
   actions?: ReactNode
   /** Must match the PageBody beneath it, or the two edges disagree. */
@@ -205,6 +209,11 @@ export function PageHead({
               heading stays as it was. */}
           {eyebrow ? (
             <h1 className="sr-only">{title}</h1>
+          ) : titleAfter ? (
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 data-help-anchor="page-title" className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
+              {titleAfter}
+            </div>
           ) : (
             <h1 data-help-anchor="page-title" className="text-[26px] font-semibold tracking-[-0.02em]">{title}</h1>
           )}

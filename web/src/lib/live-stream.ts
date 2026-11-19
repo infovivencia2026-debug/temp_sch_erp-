@@ -190,8 +190,10 @@ function hrefFor(ev: LiveEvent, me: string | undefined): string | null {
       return `/go/communication/messages?with=${ev.from}`
     case 'parent':
       if (!k.student || !k.parent || !k.teacher) return null
+      // Parents no longer have a teacher-messages screen (Yajur, 2026-11-19),
+      // so a parent reads the message in full; the staff side still opens it.
       return me === k.parent
-        ? `/go/messages/communication?tab=teacher&student_id=${k.student}&teacher_user_id=${k.teacher}`
+        ? null
         : `/go/messages?box=parents&child=${k.student}&with=${k.parent}`
     case 'counselor':
       return k.thread ? `/go/counselling/family_conversations?thread=${k.thread}` : null

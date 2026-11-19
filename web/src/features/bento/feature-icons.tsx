@@ -154,6 +154,8 @@ export const FEATURE_ICONS: Record<string, string> = {
   child_info_portal_sync: 'cloud_sync', // Child Info Portal Sync
   child_remarks: 'rate_review', // Child remarks
   circulars: 'campaign', // Circulars
+  circulars_from_school: 'campaign', // Circulars from school (parent)
+  concerns: 'support_agent', // Concerns (parent)
   website_forms: 'list_alt', // Website forms
   yajur_connect: 'chat_bubble', // Yajur Connect
   class_promotion: 'moving', // Class Promotion

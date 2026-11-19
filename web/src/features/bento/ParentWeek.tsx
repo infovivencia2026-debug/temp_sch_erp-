@@ -203,7 +203,7 @@ export default function ParentWeek() {
   const toFees = useFeatureHref('parent.fees.fees_payments')
   const toHomework = useFeatureHref('parent.academics.homework_academics')
   const toBus = useFeatureHref('parent.my_childs_bus.live_bus_tracking')
-  const toMessages = useFeatureHref('parent.messages.communication')
+  const toMessages = useFeatureHref('parent.communication.circulars_from_school')
   const toResults = useFeatureHref('parent.academics.results_report_cards')
   const toDashboard = useFeatureHref('parent.home.dashboard')
 
@@ -411,7 +411,7 @@ export default function ParentWeek() {
             who={who}
             teachers={teachers.data?.items ?? null}
             failed={!!teachers.error}
-            to={withChild(toMessages) && `${withChild(toMessages)}${activeId ? '&' : '?'}tab=teacher`}
+            to={withChild(toMessages) || undefined}
           />
         )}
       </Widget>

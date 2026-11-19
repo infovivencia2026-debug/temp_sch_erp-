@@ -6,7 +6,7 @@ const hrefs: NoteHrefs = {
   fee: '/parent/fees/fees_payments',
   attendance: '/parent/home/dashboard',
   homework: '/parent/academics/homework_academics',
-  circular: '/parent/messages/communication',
+  circular: '/parent/communication/circulars_from_school',
   messages: '/faculty/communication/messages',
   concern: '/faculty/communication/concerns_from_parents',
   questionPapers: '/faculty/exams/question_papers',

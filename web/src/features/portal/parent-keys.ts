@@ -28,7 +28,7 @@ export const parentKeys = {
   'parent.profile.update_my_details': screen(() => import('./MyDetails')),
   // Report absence + apply leave, as two tabs of one row (AbsenceHub).
   'parent.leave_absence.apply_student_leave': screen(() => import('./AbsenceHub')),
-  'parent.messages.teacher_remarks': screen(() => import('../shared/StaffRemarks')),
+  'parent.communication.teacher_remarks': screen(() => import('../shared/StaffRemarks')),
   /* A student applying for their own leave.
    *
    * This existed only on the parent's menu, so a sixteen-year-old had to ask a
