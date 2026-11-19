@@ -498,11 +498,35 @@ function registerAttendance(r: Router) {
          AND ${pred.sql}
        ORDER BY st.admission_no`).bind(on, section, section, student, student, ...pred.args)
       .all<Omit<AttendanceRow, 'minutes_late' | 'remarks'> & { minutes_late: number | null; remarks: string | null }>()
-    return { items: rows.results.map((v): AttendanceRow => ({
+    const items = rows.results.map((v): AttendanceRow => ({
       id: v.id, student_id: v.student_id, student_name: v.student_name, admission_no: v.admission_no,
       section_id: v.section_id, on_date: v.on_date, status: v.status,
       minutes_late: v.minutes_late ?? undefined, remarks: v.remarks ?? undefined,
-    })) }
+    }))
+    /* A leave the parent applied for is an absence, not its own status (Yajur,
+       2026-11-19: "all those dates show as direct absentee"). For a section the
+       teacher can mark, any student on an applied (pending or approved) leave
+       for the day who has no mark yet shows as absent, so the register is
+       already right; the teacher can still change it before saving. */
+    if (section && canMarkSection(res, section)) {
+      const have = new Set(rows.results.map((v) => v.student_id))
+      const onLeave = await c.db.prepare(`
+        SELECT lr.student_id, ${fullName3('st')} AS student_name, st.admission_no
+          FROM leave_requests lr
+          JOIN enrollments e ON e.student_id = lr.student_id AND e.status = 'active' AND e.section_id = ?
+          JOIN students st ON st.id = lr.student_id
+         WHERE lr.subject_kind = 'student' AND lr.status IN ('pending','approved')
+           AND ? BETWEEN lr.from_date AND lr.to_date`).bind(section, on)
+        .all<{ student_id: string; student_name: string; admission_no: string }>()
+      for (const l of onLeave.results) {
+        if (have.has(l.student_id)) continue
+        have.add(l.student_id)
+        items.push({ id: `leave-${l.student_id}-${on}`, student_id: l.student_id, student_name: l.student_name,
+          admission_no: l.admission_no, section_id: section, on_date: on, status: 'absent' })
+      }
+      items.sort((a, b) => a.admission_no.localeCompare(b.admission_no))
+    }
+    return { items }
   })
 
   /* WHO HAS ALREADY TOLD THE SCHOOL, for one day (and one section): the

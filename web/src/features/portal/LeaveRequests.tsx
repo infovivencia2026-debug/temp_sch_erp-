@@ -4,7 +4,7 @@ import { CalendarOff, Clock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
+  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
@@ -187,7 +187,6 @@ function ApplyForLeave() {
   const { children, studentId, chosen, setChosen } = useChildren()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [half, setHalf] = useState(false)
   const [reason, setReason] = useState('')
 
   const apply = useMutation({
@@ -197,14 +196,13 @@ function ApplyForLeave() {
         from_date: from,
         // The shared endpoint requires both ends. A single day is the same date
         // twice rather than an absent field, which it would reject.
-        to_date: half || !to ? from : to,
-        is_half_day: half,
+        to_date: !to ? from : to,
+        is_half_day: false,
         reason,
       }),
     onSuccess: () => {
       setFrom('')
       setTo('')
-      setHalf(false)
       setReason('')
       qc.invalidateQueries({ queryKey: ['portal-leave'] })
     },
@@ -233,21 +231,11 @@ function ApplyForLeave() {
           <Field label={t('portal.leave_requests.field_first_day')} required>
             <Input type="date" value={from} onChange={setFrom} />
           </Field>
-          {!half && (
-            <Field
-              label={t('portal.leave_requests.field_last_day')}
-              hint={t('portal.leave_requests.field_last_day_hint')}
-            >
-              <Input type="date" value={to} onChange={setTo} />
-            </Field>
-          )}
-          <Field label={t('portal.leave_requests.field_half_day')} wide>
-            <Checkbox
-              checked={half}
-              onChange={setHalf}
-              label={t('portal.leave_requests.half_day_label')}
-              hint={t('portal.leave_requests.half_day_hint')}
-            />
+          <Field
+            label={t('portal.leave_requests.field_last_day')}
+            hint={t('portal.leave_requests.field_last_day_hint')}
+          >
+            <Input type="date" value={to} onChange={setTo} />
           </Field>
           <Field label={t('portal.leave_requests.field_reason')} wide required>
             <Textarea

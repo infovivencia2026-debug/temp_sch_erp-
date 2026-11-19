@@ -422,20 +422,15 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               const recorded = saved
                 ? <Badge tone={TONE[saved]}>{saved}</Badge>
                 : <span className="text-xs text-muted-foreground">Not marked</span>
-              /* The parent already told the school: say so here, so the
-                 child is marked On leave instead of absent and chased. */
+              /* The parent applied for leave: it counts as an absence (not its
+                 own status), already filled in as Absent above; the note says
+                 why so the teacher is not left guessing. */
               const told = informed.get(s.id) && (
                 <span className="mt-1 flex flex-wrap items-center gap-2 text-[12px] font-normal">
                   <span className="rounded-md bg-[#fef3c7] px-2 py-0.5 font-semibold text-[#b45309]">
-                    Leave from parent{informed.get(s.id)!.status === 'approved' ? ' (approved)' : ''}
+                    Leave from parent{informed.get(s.id)!.status === 'approved' ? ' (approved)' : ''} · counts as absent
                   </span>
                   <span className="text-muted-foreground">{informed.get(s.id)!.reason}</span>
-                  {value !== 'leave' && (
-                    <button type="button" onClick={() => setDraft((d) => ({ ...d, [s.id]: 'leave' }))}
-                      className="tap-inline rounded-md border px-2 py-0.5 font-semibold text-primary hover:bg-primary/10">
-                      Mark On leave
-                    </button>
-                  )}
                 </span>
               )
               const markButtons = (
