@@ -446,7 +446,9 @@ function SchoolMessages({ query, onOpen }: {
      scrolls inside the card when the term has stacked up many. */
   const waiting = rows.filter((r) => r.requires_ack && !r.acknowledged_by_me).length
   return (
-    <Card>
+    /* On a wide screen the card is as tall as the calendar beside it and the
+       list scrolls inside, with no bar drawn (owner, 2026-11-19). */
+    <Card className="flex flex-col lg:h-full">
       <CardHeader
         title="Messages from school"
         description={
@@ -469,7 +471,7 @@ function SchoolMessages({ query, onOpen }: {
       ) : rows.length === 0 ? (
         <EmptyState title="Nothing yet" body="Notices from the school will appear here." />
       ) : (
-        <ul className="max-h-[32rem] divide-y overflow-y-auto">
+        <ul className="scroll-x max-h-[32rem] min-h-0 flex-1 divide-y overflow-y-auto lg:max-h-none">
           {rows.map((c) => {
             const needsMe = c.requires_ack && !c.acknowledged_by_me
             return (
@@ -727,14 +729,18 @@ export default function Portal() {
               />
             </CellGrid>
 
-            <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-              <div className="order-2 min-w-0 lg:order-1">
-                <SchoolMessages
-                  query={circulars}
-                  onOpen={() => navigate(`/${role}/communication/circulars_from_school${activeId ? `?student_id=${activeId}` : ''}`)}
-                />
-                <div className="mt-6"><JoinActivities studentId={activeId ?? undefined} /></div>
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+              {/* Taken out of the flow on a wide screen, so the row is exactly
+                  as tall as the calendar column and the messages fill it. */}
+              <div className="relative order-2 min-w-0 lg:order-1">
+                <div className="lg:absolute lg:inset-0">
+                  <SchoolMessages
+                    query={circulars}
+                    onOpen={() => navigate(`/${role}/communication/circulars_from_school${activeId ? `?student_id=${activeId}` : ''}`)}
+                  />
+                </div>
               </div>
+              <div className="order-3 min-w-0 lg:col-start-1"><JoinActivities studentId={activeId ?? undefined} /></div>
 
               <div className="order-1 min-w-0 space-y-6 lg:order-2">
                 {s.outstanding_paise > 0 && (
