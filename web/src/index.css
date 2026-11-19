@@ -5764,7 +5764,9 @@ html[data-reduce-motion] .scrim.search-sheet .search-results > ul > li { animati
     border-color: hsl(var(--primary) / 0.3) !important;
   }
 }
-.cell-grid .cell .stat { font-size: 34px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; margin-top: 10px; }
+/* -0.02em, not -0.04em (Yajur, 2026-11-19): at 800 weight the tighter track
+   pulled the letters of a word-value ("0 pending", "₹0 due") into each other. */
+.cell-grid .cell .stat { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin-top: 10px; }
 .cell-grid .cell p:first-child { font-size: 13.5px; font-weight: 600; }
 @media (max-width: 639px) {
   .cell-grid .cell { padding: 18px; }
