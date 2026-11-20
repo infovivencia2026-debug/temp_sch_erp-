@@ -400,6 +400,29 @@ export function ColourPanel({
 
   const update = (next: Partial<Hsl>) => set(region, channel, { ...current, ...next })
 
+  /* SEE THE CELLS WHILE YOU DRAG (Yajur, 2026-11-20: "when i try to choose it
+     should be live so they can see what colour cells are getting"). set()
+     already paints the live page, but on a phone this panel covers the board,
+     so the change happens unseen. While a colour control is held, body gains
+     [data-colour-preview]; bento-theme.css fades the panel to near-transparent
+     and clears the scrim, so the real cells show the colour as it changes. It
+     is opacity, not visibility, so the control under the finger keeps the drag.
+     The flag is cleared the moment the finger lifts, anywhere on the page. */
+  const previewWhileDragging = () => {
+    if (typeof document === 'undefined') return
+    document.body.dataset.colourPreview = '1'
+    const end = () => {
+      delete document.body.dataset.colourPreview
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+    }
+    window.addEventListener('pointerup', end)
+    window.addEventListener('pointercancel', end)
+  }
+  /* A panel that unmounts mid-drag (the dialog closed) must not leave the page
+     stuck half-faded. */
+  useEffect(() => () => { if (typeof document !== 'undefined') delete document.body.dataset.colourPreview }, [])
+
   /* What the wireframe below shows for one region.
 
      A region somebody has painted shows their colour. A region they have not
@@ -704,7 +727,7 @@ export function ColourPanel({
               <span className="flex-1">Custom colour</span>
               <ChevronDown className="size-4 opacity-60 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
             </summary>
-            <div className="px-3 pb-4 pt-2">
+            <div className="px-3 pb-4 pt-2" onPointerDown={previewWhileDragging}>
               <WheelCanvas value={current} onPick={(h, s) => update({ h, s })} />
               <p className={cn('mt-2 text-center text-[12.5px]', INK)}>
                 {t('bento.colour.wheel_hint')}

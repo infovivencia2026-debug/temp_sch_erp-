@@ -5020,6 +5020,23 @@ html[data-assistant-open] .bento-dots { display: none !important; }
   pointer-events: none;
 }
 
+/* COLOUR PREVIEW PEEK (Yajur, 2026-11-20: "when i try to choose it should be
+   live so they can see what colour cells are getting"). While a colour control
+   is dragged, ColourDialog puts [data-colour-preview] on <body>: the panel
+   fades to near-transparent and the scrim clears, so the cells behind show the
+   colour live. Opacity (not visibility) and no pointer-events change, so the
+   control under the finger keeps receiving the drag; it snaps back on release. */
+body[data-colour-preview] [data-appearance-dialog] {
+  opacity: 0.12 !important;
+  transition: opacity 120ms ease;
+}
+body[data-colour-preview] .appearance-overlay {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transition: background 120ms ease;
+}
+
 /* THE BLURB UNDER "SETTINGS" IS ONE LINE (owner, 2026-10-09: "make the
    context below the setting only in one line some are 2 lines that reflects
    on screen and the screen moves").
