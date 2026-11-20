@@ -172,7 +172,7 @@ export default function Defaulters() {
             <Input
               value={find}
               onChange={setFind}
-              placeholder="Student, admission no., parent or phone"
+              placeholder="Name, adm. no., parent, phone"
               className="w-full sm:w-72"
             />
             <Select
