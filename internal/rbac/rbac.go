@@ -630,9 +630,13 @@ var SystemRoles = []Role{
 	{"student", "Student", []string{
 		SelfProfileRead, SelfProfileWrite, SelfAttendanceRead, SelfFeesRead, SelfWalletRead, TimetableRead}},
 	{"parent", "Parent / Guardian", []string{
+		// View-only identity (Yajur, 2026-11-20): SelfProfileRead but NOT
+		// SelfProfileWrite -- a parent reads their own profile and does not edit
+		// their name, phone or email; the office owns the record. Password
+		// self-change is a separate 'auth'-gated endpoint and is unaffected.
 		// TimetableRead: the child's week. The scope predicate narrows it to the
 		// sections their children sit in (Resolved.TimetablePredicate).
-		SelfProfileRead, SelfProfileWrite, SelfChildrenRead, SelfAttendanceRead, SelfFeesRead, SelfWalletRead, TimetableRead}},
+		SelfProfileRead, SelfChildrenRead, SelfAttendanceRead, SelfFeesRead, SelfWalletRead, TimetableRead}},
 }
 
 func keysExcept(excluded ...string) []string {

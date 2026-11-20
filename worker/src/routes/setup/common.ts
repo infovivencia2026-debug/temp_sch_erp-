@@ -329,7 +329,11 @@ export const SYSTEM_ROLES: Record<string, { name: string; permissions: string[] 
     'students.read.all', 'comms.announcements.write', ...SELF] },
   student: { name: 'Student', permissions: [...SELF, 'self.attendance.read', 'self.fees.read', 'self.wallet.read',
     'academics.timetable.read'] },
-  parent: { name: 'Parent / Guardian', permissions: [...SELF, 'self.children.read', 'self.attendance.read',
+  /* View-only identity (Yajur, 2026-11-20): parents read their own profile but
+     do not edit their name, phone or email — the office owns the record. Note
+     self.profile.read only, NOT ...SELF. Password self-change is unaffected: it
+     is gated on 'auth', not self.profile.write. */
+  parent: { name: 'Parent / Guardian', permissions: ['self.profile.read', 'self.children.read', 'self.attendance.read',
     'self.fees.read', 'self.wallet.read', 'academics.timetable.read'] },
 }
 
