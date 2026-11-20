@@ -712,7 +712,16 @@ async function admissionFeePreview(c: Ctx) {
    up to exactly what was paid. One head on the invoice -- which is every
    invoice this product raises today -- means the head simply takes all of
    it, and a settled bill shows a zero balance instead of two paise. */
-export function assembleFeeHeads(lines: Record<string, unknown>[]): { head: string; year: string; charged_paise: string; paid_paise: string }[] {
+type HeadReceipt = { receipt_no: string; mode: string; paid_on: string }
+export function assembleFeeHeads(lines: Record<string, unknown>[], allocs: Record<string, unknown>[] = []): { head: string; year: string; charged_paise: string; paid_paise: string; due_invoice_ids: string[]; receipts: HeadReceipt[] }[] {
+  // The receipts that settled each bill, and the bills still owing: Student 360 shows both per head (owner, 2026-11-20).
+  const receiptsOf = new Map<string, HeadReceipt[]>()
+  for (const a of allocs) {
+    const list = receiptsOf.get(String(a.invoice_id)) ?? []
+    list.push({ receipt_no: String(a.receipt_no ?? ''), mode: String(a.mode ?? ''), paid_on: String(a.paid_on ?? '') })
+    receiptsOf.set(String(a.invoice_id), list)
+  }
+  const owing = new Set(lines.filter((r) => (Number(r.net_paise) || 0) - (Number(r.paid_paise) || 0) > 0).map((r) => String(r.invoice_id)))
   const byInvoice = new Map<string, { head: string; year: string; line: number; got: number }[]>()
   for (const r of lines) {
     const inv = String(r.invoice_id)
@@ -740,18 +749,21 @@ export function assembleFeeHeads(lines: Record<string, unknown>[]): { head: stri
     share.forEach((sh, i) => { sh.x.got = sh.whole + (i < left ? 1 : 0) })
   }
   // One row per head per academic year: the screen shows a year at a time.
-  const heads = new Map<string, { head: string; year: string; charged: number; paid: number }>()
-  for (const list of byInvoice.values()) {
+  const heads = new Map<string, { head: string; year: string; charged: number; paid: number; due: Set<string>; receipts: Map<string, HeadReceipt> }>()
+  for (const [inv, list] of byInvoice) {
     for (const x of list) {
       const k = x.year + '\u0000' + x.head
-      const h = heads.get(k) ?? { head: x.head, year: x.year, charged: 0, paid: 0 }
+      const h = heads.get(k) ?? { head: x.head, year: x.year, charged: 0, paid: 0, due: new Set<string>(), receipts: new Map<string, HeadReceipt>() }
       h.charged += x.line; h.paid += x.got
+      if (owing.has(inv)) h.due.add(inv)
+      for (const r of receiptsOf.get(inv) ?? []) h.receipts.set(`${r.receipt_no}|${r.paid_on}`, r)
       heads.set(k, h)
     }
   }
   return [...heads.values()]
     .sort((a, b) => b.year.localeCompare(a.year) || a.head.localeCompare(b.head))
-    .map((v) => ({ head: v.head, year: v.year, charged_paise: String(v.charged), paid_paise: String(v.paid) }))
+    .map((v) => ({ head: v.head, year: v.year, charged_paise: String(v.charged), paid_paise: String(v.paid),
+      due_invoice_ids: [...v.due], receipts: [...v.receipts.values()].sort((a, b) => b.paid_on.localeCompare(a.paid_on)) }))
 }
 
 // --- the 360 view ------------------------------------------------------------------------------------
@@ -855,7 +867,7 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
   if (!okRow) throw forbiddenMsg('missing permission: this child is not one you can see')
   const today = indiaToday()
 
-  const [marks, feeHeads, payments, documents, leave, history, priorYears, invoices, coScholastic, concessions, components, activities, crew, remarks] = await batch(c, [
+  const [marks, feeHeads, payments, documents, leave, history, priorYears, invoices, coScholastic, concessions, components, activities, crew, remarks, allocs] = await batch(c, [
     c.db.prepare(`SELECT e.name AS exam, sub.name AS subject, CAST(m.marks_obtained AS TEXT) AS marks, CAST(es.max_marks AS TEXT) AS max, m.grade,
                          m.is_absent AS absent, e.starts_on AS "on", (m.approved_at IS NOT NULL) AS approved
                     FROM marks m JOIN exam_subjects es ON es.id = m.exam_subject_id JOIN exams e ON e.id = es.exam_id
@@ -927,13 +939,16 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
                     LEFT JOIN subjects sub ON sub.id = cs.subject_id LEFT JOIN users u ON u.id = sr.recorded_by
                    WHERE sr.student_id = ? AND (? = 1 OR sr.visible_to_family = 1)
                    ORDER BY sr.observed_on DESC, sr.created_at DESC LIMIT 100`).bind(id, staff),
+    c.db.prepare(`SELECT pa.invoice_id, COALESCE(pm.receipt_no,'') AS receipt_no, pm.mode, pm.paid_on
+                    FROM payment_allocations pa JOIN payments pm ON pm.id = pa.payment_id
+                   WHERE pm.student_id = ? AND pm.status = 'success'`).bind(id),
   ])
   type D = StudentFullDetail
   const rows = (r: D1Result) => r.results as Record<string, unknown>[]
   const as = <T>(r: D1Result) => r.results as T
   return {
     subject_marks: rows(marks).map((m) => ({ ...(m as unknown as D['subject_marks'][number]), absent: bool(m.absent), approved: bool(m.approved) })),
-    fee_heads: assembleFeeHeads(rows(feeHeads)) as D['fee_heads'],
+    fee_heads: assembleFeeHeads(rows(feeHeads), rows(allocs)) as D['fee_heads'],
     payments: as<D['payments']>(payments),
     documents: rows(documents).map((d) => ({ ...(d as unknown as D['documents'][number]), verified: bool(d.verified) })),
     leave: as<D['leave']>(leave),

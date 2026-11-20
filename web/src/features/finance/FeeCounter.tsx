@@ -1,5 +1,6 @@
 import { saveFile } from '@/lib/save-file'
 import { useEffect, Fragment, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, Banknote, Check, Download } from 'lucide-react'
@@ -50,7 +51,11 @@ export default function FeeCounter() {
   const upiPayee = inst?.upi_payee_name || inst?.name || ''
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
-  const [studentId, setStudentId] = useState<string | null>(null)
+  /* Opened from Student 360's Take fee (owner, 2026-11-20): ?student=<id>&invoices=<a,b>
+     picks the child, ticks those bills and fills their balance, so the clerk only picks the mode. */
+  const [params] = useSearchParams()
+  const [studentId, setStudentId] = useState<string | null>(params.get('student'))
+  const [preset, setPreset] = useState<string[] | null>(() => params.get('invoices')?.split(',').filter(Boolean) ?? null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   /* A penalty typed onto one bill. Open on at most one row: two half-filled
      penalty forms is how the wrong family gets charged. */
@@ -162,6 +167,15 @@ export default function FeeCounter() {
   const selectedTotal = dues
     .filter((d) => selected.has(d.invoice_id))
     .reduce((a, d) => a + d.balance_paise, 0)
+
+  useEffect(() => {
+    if (!preset || !l || l.student_id !== studentId) return
+    const pick = new Set(dues.filter((d) => preset.includes(d.invoice_id)).map((d) => d.invoice_id))
+    setSelected(pick)
+    const total = dues.filter((d) => pick.has(d.invoice_id)).reduce((a, d) => a + d.balance_paise, 0)
+    if (total > 0) setAmount((total / 100).toFixed(2))
+    setPreset(null)
+  }, [preset, l, studentId, dues])
 
   const toggle = (id: string) => {
     const next = new Set(selected)

@@ -36,6 +36,7 @@ import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
 import { useOpenState } from '@/lib/motion'
 import Student360Card from '@/components/ai/Student360Card'
+import { useFeatureHref } from '@/features/bento/bento-kit'
 import Timeline from '@/components/Timeline'
 
 /* What GET /students/{id} adds on top of the list row. The editable set is
@@ -348,6 +349,7 @@ export default function StudentProfile() {
     }>>('/api/v1/academics/activities'),
   })
 
+  const takeFeeHref = useFeatureHref('finance.fees.take_fee_payment')
   const detail = useQuery({
     queryKey: ['student-detail', selected],
     enabled: !!selected,
@@ -1562,7 +1564,7 @@ export default function StudentProfile() {
       render: () => (
         <>
         <FeesYear invoices={p.invoices} payments={detail.data?.payments ?? []} outstanding={p.fees.outstanding_paise}
-          breakdown={<FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />} />
+          breakdown={<FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} studentId={selected ?? undefined} takeFeeHref={takeFeeHref} />} />
         {/* The quote, the waivers and the bill, on the record.
 
             All three lived on the admission panel, which exists for ninety

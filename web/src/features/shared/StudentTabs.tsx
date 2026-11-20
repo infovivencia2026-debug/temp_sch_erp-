@@ -1,5 +1,6 @@
 import type { StudentFullDetail } from '@shared/api'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -100,7 +101,8 @@ export function SubjectMarks({ rows, loading }: {
    proportion to what each is worth — a payment lands on an invoice, not on a
    head, and there is no honest way to say which head a part-payment settled.
    The screen says so rather than leaving somebody to work it out. */
-export function FeeLedger({ heads: allHeads, components = [] }: { heads: Detail['fee_heads']; components?: NonNullable<Detail['fee_components']> }) {
+export function FeeLedger({ heads: allHeads, components = [], studentId, takeFeeHref }: { heads: Detail['fee_heads']; components?: NonNullable<Detail['fee_components']>; studentId?: string; takeFeeHref?: string }) {
+  const navigate = useNavigate()
   /* ONE YEAR AT A TIME (owner, 2026-10-12: "make a dropdown year wise and
      show selected year"). Earlier years' dues sat in the same table as this
      year's terms and the total mixed them. The newest year is shown first. */
@@ -149,21 +151,32 @@ export function FeeLedger({ heads: allHeads, components = [] }: { heads: Detail[
           child owes altogether. The foot carries it, and it is the same
           arithmetic as the Outstanding figure at the top of the tab, so the
           two cannot disagree. */}
-      <Table head={['Fee head', 'Charged', 'Paid', 'Balance', 'Status']} empty={false}>
+      <Table head={['Fee type', 'Charged', 'Paid', 'Balance', 'Paid on', 'Mode', 'Receipt no', 'Status', '']} empty={false}>
         {heads.map((h) => {
           const charged = Number(h.charged_paise ?? 0)
           const paid = Number(h.paid_paise ?? 0)
           const due = charged - paid
+          const rc = h.receipts ?? []
           return (
             <tr key={h.head}>
               <Td className="font-medium">{h.head}</Td>
               <Td className="tabular-nums">{formatPaise(charged)}</Td>
               <Td className="tabular-nums">{formatPaise(paid)}</Td>
-              <Td className="tabular-nums">{formatPaise(due)}</Td>
+              <Td className={cn('tabular-nums', due > 0 && 'font-medium text-destructive')}>{formatPaise(due)}</Td>
+              {/* Every receipt that settled this head's bills, one per line (owner, 2026-11-20). */}
+              <Td className="whitespace-nowrap text-muted-foreground">{rc.length ? rc.map((x, i) => <span key={i} className="block">{formatDate(x.paid_on)}</span>) : '-'}</Td>
+              <Td className="whitespace-nowrap capitalize">{rc.length ? rc.map((x, i) => <span key={i} className="block">{x.mode}</span>) : '-'}</Td>
+              <Td className="whitespace-nowrap font-mono text-[12px]">{rc.length ? rc.map((x, i) => <span key={i} className="block">{x.receipt_no || '-'}</span>) : '-'}</Td>
               <Td>
                 <Badge tone={due <= 0 ? 'success' : paid > 0 ? 'warning' : 'neutral'}>
                   {due <= 0 ? 'paid' : paid > 0 ? 'part paid' : 'unpaid'}
                 </Badge>
+              </Td>
+              <Td>
+                {/* Straight to the counter with this head's bills ticked and the amount filled. */}
+                {due > 0 && takeFeeHref && studentId && (h.due_invoice_ids?.length ?? 0) > 0 && (
+                  <Button size="sm" onClick={() => navigate(`${takeFeeHref}?student=${studentId}&invoices=${h.due_invoice_ids!.join(',')}`)}>Take fee</Button>
+                )}
               </Td>
             </tr>
           )
@@ -178,7 +191,9 @@ export function FeeLedger({ heads: allHeads, components = [] }: { heads: Detail[
               <Td className="tabular-nums font-semibold">{formatPaise(charged)}</Td>
               <Td className="tabular-nums font-semibold">{formatPaise(paid)}</Td>
               <Td className={cn('tabular-nums font-semibold', due > 0 && 'text-destructive')}>{formatPaise(due)}</Td>
+              <Td /><Td /><Td />
               <Td>{due <= 0 ? <Badge tone="success">nothing due</Badge> : <Badge tone="warning">outstanding</Badge>}</Td>
+              <Td />
             </tr>
           )
         })()}
