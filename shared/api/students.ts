@@ -79,7 +79,7 @@ export interface StudentFullDetail {
   subject_marks: { exam: string; subject: string; marks?: string; max?: string; grade?: string; absent: boolean; on?: string; approved?: boolean }[]
   /* year: the academic year the bills belong to, so the breakdown can show one year at a time. */
   /* due_invoice_ids: the head's bills with money still owed, for Take fee. receipts: the payments that settled its bills. */
-  fee_heads: { head: string; year?: string; charged_paise?: string; paid_paise?: string; due_invoice_ids?: string[]; receipts?: { receipt_no: string; mode: string; paid_on: string }[] }[]
+  fee_heads: { head: string; year?: string; charged_paise?: string; paid_paise?: string; due_invoice_ids?: string[]; receipts?: { payment_id: string; receipt_no: string; mode: string; paid_on: string; reference: string }[] }[]
   /* Charges this child carries that their class does not: the bus fare from
      the stop they board at. Per instalment, added to every demand raised
      while live. */

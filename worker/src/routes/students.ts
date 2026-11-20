@@ -712,13 +712,13 @@ async function admissionFeePreview(c: Ctx) {
    up to exactly what was paid. One head on the invoice -- which is every
    invoice this product raises today -- means the head simply takes all of
    it, and a settled bill shows a zero balance instead of two paise. */
-type HeadReceipt = { receipt_no: string; mode: string; paid_on: string }
+type HeadReceipt = { payment_id: string; receipt_no: string; mode: string; paid_on: string; reference: string }
 export function assembleFeeHeads(lines: Record<string, unknown>[], allocs: Record<string, unknown>[] = []): { head: string; year: string; charged_paise: string; paid_paise: string; due_invoice_ids: string[]; receipts: HeadReceipt[] }[] {
   // The receipts that settled each bill, and the bills still owing: Student 360 shows both per head (owner, 2026-11-20).
   const receiptsOf = new Map<string, HeadReceipt[]>()
   for (const a of allocs) {
     const list = receiptsOf.get(String(a.invoice_id)) ?? []
-    list.push({ receipt_no: String(a.receipt_no ?? ''), mode: String(a.mode ?? ''), paid_on: String(a.paid_on ?? '') })
+    list.push({ payment_id: String(a.payment_id), receipt_no: String(a.receipt_no ?? ''), mode: String(a.mode ?? ''), paid_on: String(a.paid_on ?? ''), reference: String(a.reference ?? '') })
     receiptsOf.set(String(a.invoice_id), list)
   }
   const owing = new Set(lines.filter((r) => (Number(r.net_paise) || 0) - (Number(r.paid_paise) || 0) > 0).map((r) => String(r.invoice_id)))
@@ -940,7 +940,8 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
                     LEFT JOIN subjects sub ON sub.id = cs.subject_id LEFT JOIN users u ON u.id = sr.recorded_by
                    WHERE sr.student_id = ? AND (? = 1 OR sr.visible_to_family = 1)
                    ORDER BY sr.observed_on DESC, sr.created_at DESC LIMIT 100`).bind(id, staff),
-    c.db.prepare(`SELECT pa.invoice_id, COALESCE(pm.receipt_no,'') AS receipt_no, pm.mode, pm.paid_on
+    c.db.prepare(`SELECT pa.invoice_id, pm.id AS payment_id, COALESCE(pm.receipt_no,'') AS receipt_no, pm.mode, pm.paid_on,
+                         COALESCE(pm.gateway_txn_id, pm.reference_no, '') AS reference
                     FROM payment_allocations pa JOIN payments pm ON pm.id = pa.payment_id
                    WHERE pm.student_id = ? AND pm.status = 'success'`).bind(id),
   ])
