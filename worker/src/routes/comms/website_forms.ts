@@ -296,6 +296,21 @@ export async function handlePublicWebsiteForms(env: Env, req: Request, path: str
        repeated in the full one can be replaced, so a guessed id cannot remove
        anyone else's response. */
     const rep = (inc.meta._replaces ?? '').trim()
+    /* A scored online test (Yajur Quest, owner 2026-11-20) sends the student's
+       registration once and then their progress and score under the same test
+       code. That rewrites the student's one row in place, at any age, so the
+       school sees one line per student and shortcuts keep pointing at it. Only
+       a file-less response of this form carrying the very same test code can
+       be rewritten, so a guessed id cannot touch anyone else's row. */
+    const code = (data.test_code ?? '').trim()
+    if (/^[0-9a-f-]{36}$/i.test(rep) && code && !inc.files.length) {
+      const old = await t.db.prepare(`SELECT data, files FROM website_form_responses WHERE id = ? AND form_id = ?`).bind(rep, f.id).first<{ data: string; files: string }>()
+      const od = old ? (JSON.parse(old.data || '{}') as Record<string, string>) : {}
+      if (old && (JSON.parse(old.files || '[]') as unknown[]).length === 0 && (od.test_code ?? '').trim() === code) {
+        await t.db.prepare(`UPDATE website_form_responses SET data = ? WHERE id = ? AND form_id = ?`).bind(JSON.stringify({ ...od, ...data }), rep, f.id).run()
+        return withCors(json({ ok: true, id: rep, updated: true }, 200))
+      }
+    }
     if (/^[0-9a-f-]{36}$/i.test(rep)) {
       const old = await t.db.prepare(`SELECT data, files, created_at FROM website_form_responses WHERE id = ? AND form_id = ?`).bind(rep, f.id).first<{ data: string; files: string; created_at: string }>()
       if (old && (JSON.parse(old.files || '[]') as unknown[]).length === 0 && Date.now() - Date.parse(old.created_at) < 86400000) {

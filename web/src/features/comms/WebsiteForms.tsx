@@ -353,6 +353,10 @@ function Responses({ form }: { form: Form }) {
   const [view, setView] = useState<string | null>(null)
   const [naming, setNaming] = useState(false)
   const [newName, setNewName] = useState('')
+  const [fGrade, setFGrade] = useState('')
+  const [fStatus, setFStatus] = useState('')
+  const [fScore, setFScore] = useState('')
+  const [fSearch, setFSearch] = useState('')
   const togglePick = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   /* + makes an empty shortcut with a name; applications are MOVED into one,
      by ticking rows or from inside an application (owner, 2026-11-16). */
@@ -401,17 +405,72 @@ function Responses({ form }: { form: Form }) {
     return [['Received', ...use.map((c) => c.label)], ...items.map((r) => [when(r.created_at), ...use.map((c) => cell(r, c.key))])]
   }
 
+  /* SCORED TEST VIEW (owner, 2026-11-20: Yajur Quest "like the preview").
+     A form whose responses carry a test code is an online test: the school
+     reads it as a results board, one row per student, with the score and the
+     subject marks the website sends back. Shortcuts work the same. */
+  const scored = items.some((r) => !!r.data.test_code)
+  const num = (r: Resp, k: string) => { const t = r.data[k]; if (t == null || t === '') return null; const v = Number(t); return Number.isFinite(v) ? v : null }
+  const stateOf = (r: Resp) => {
+    const st = (r.data.status || '').toLowerCase(), pct = num(r, 'pct')
+    if (st === 'submitted' || st === 'finished') return pct != null && pct >= 50 ? 'stage2' : 'finished'
+    if (st === 'started') return 'started'
+    return 'pending'
+  }
+  const STATE: Record<string, { label: string; tone: 'success' | 'warning' | 'neutral' | 'primary' }> = {
+    stage2: { label: 'Stage 2', tone: 'success' }, finished: { label: 'Finished', tone: 'primary' },
+    started: { label: 'Started, not submitted', tone: 'warning' }, pending: { label: 'Not taken yet', tone: 'neutral' },
+  }
+  const done = items.filter((r) => num(r, 'score') != null)
+  const grades = [...new Set(items.map((r) => r.data.applying_for_grade).filter(Boolean))].sort((a, b) => Number(a) - Number(b))
+  const rankOf = (r: Resp) => {
+    const sc = num(r, 'score')
+    if (sc == null) return 0
+    return 1 + done.filter((x) => x.data.applying_for_grade === r.data.applying_for_grade && (num(x, 'score') ?? -1) > sc).length
+  }
+  const q2 = fSearch.trim().toLowerCase()
+  const board = items
+    .filter((r) => !view || (shortcuts.find((s) => s.id === view)?.ids ?? []).includes(r.id))
+    .filter((r) => !fGrade || r.data.applying_for_grade === fGrade)
+    .filter((r) => !fStatus || stateOf(r) === fStatus)
+    .filter((r) => !fScore || (num(r, 'pct') ?? -1) >= 50)
+    .filter((r) => !q2 || [r.data.student_name, r.data.mobile_number, r.data.test_code, r.data.father_s_name].some((v) => (v || '').toLowerCase().includes(q2)))
+    .sort((a, b) => Number(a.data.applying_for_grade || 0) - Number(b.data.applying_for_grade || 0) || (num(b, 'score') ?? -1) - (num(a, 'score') ?? -1))
+  const pcts = done.map((r) => num(r, 'pct') ?? 0)
+  const top = done.reduce((m, r) => Math.max(m, num(r, 'score') ?? 0), 0)
+  const boardRows = () => [['Student', 'Father name', 'Test code', 'Grade', 'Mobile', 'Score', '%', 'Maths', 'English', 'Science', 'Social', 'Minutes', 'Status'],
+    ...board.map((r) => [r.data.student_name || '', r.data.father_s_name || '', r.data.test_code || '', r.data.applying_for_grade || '', r.data.mobile_number || '',
+      r.data.score || '', r.data.pct || '', r.data.maths || '', r.data.english || '', r.data.science || '', r.data.social || '', r.data.minutes || '', STATE[stateOf(r)].label])]
+
   return (
     <>
+      {scored && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-primary to-primary/75 px-5 py-4 text-primary-foreground">
+          <div className="min-w-0">
+            <div className="text-[20px] font-bold leading-tight">{form.title}</div>
+            <div className="text-[14px] opacity-90">{form.description || 'Online test'}</div>
+          </div>
+          <span className="rounded-full bg-primary-foreground/20 px-3 py-1 text-[13px] font-semibold">{form.is_open ? 'Live' : 'Not live'}</span>
+        </div>
+      )}
       <div className="flex flex-wrap justify-end gap-2">
-        <div className="w-40"><Select value="" placeholder="Export all" onChange={(v) => v === 'xlsx' ? saveExcel(form.title + ' responses', allRows()) : v === 'csv' && saveCsv(form.title + ' responses', allRows())}
+        <div className="w-40"><Select value="" placeholder="Export all" onChange={(v) => { const rows = scored ? boardRows() : allRows(); if (v === 'xlsx') saveExcel(form.title + ' responses', rows); else if (v === 'csv') saveCsv(form.title + ' responses', rows) }}
           options={[{ value: 'xlsx', label: 'Excel' }, { value: 'csv', label: 'CSV' }]} /></div>
       </div>
-      <CellGrid cols={3}>
-        <Stat label="Responses" value={items.length} tint />
-        <Stat label="New" value={unread} tint />
-        <Stat label="Last 7 days" value={items.filter((r) => Date.parse(r.created_at) >= week).length} tint />
-      </CellGrid>
+      {scored ? (
+        <CellGrid cols={4}>
+          <Stat label="Registered" value={items.length} tint />
+          <Stat label="Finished" value={done.length} tint />
+          <Stat label="Above 50%" value={pcts.filter((x) => x >= 50).length} tint />
+          <Stat label="Average · top" value={pcts.length ? `${Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length)}% · ${top}/60` : '-'} tint />
+        </CellGrid>
+      ) : (
+        <CellGrid cols={3}>
+          <Stat label="Responses" value={items.length} tint />
+          <Stat label="New" value={unread} tint />
+          <Stat label="Last 7 days" value={items.filter((r) => Date.parse(r.created_at) >= week).length} tint />
+        </CellGrid>
+      )}
       {/* The shortcut chips: All, then each group with its count. */}
       <div className="flex flex-wrap items-center gap-3">
       <div className="flex min-w-0 gap-3 overflow-x-auto pb-1 [scrollbar-width:none]" role="tablist" aria-label="Shortcuts">
@@ -466,6 +525,38 @@ function Responses({ form }: { form: Form }) {
         </div>
       )}
       <FormNotice error={saveShortcuts.error ?? sq.error} />
+      {scored ? (
+        <>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Select value={fGrade} onChange={setFGrade} placeholder="All grades" options={[{ value: '', label: 'All grades' }, ...grades.map((g) => ({ value: g, label: `Grade ${g}` }))]} />
+            <Select value={fStatus} onChange={setFStatus} placeholder="Any status" options={[{ value: '', label: 'Any status' }, ...Object.entries(STATE).map(([k, v]) => ({ value: k, label: v.label }))]} />
+            <Select value={fScore} onChange={setFScore} placeholder="All scores" options={[{ value: '', label: 'All scores' }, { value: '50', label: 'Above 50% only' }]} />
+            <Input value={fSearch} onChange={setFSearch} placeholder="Search name, mobile, code" />
+          </div>
+          <Table head={['', '#', 'Student', 'Grade', 'Mobile', 'Score', 'Maths', 'English', 'Science', 'Social', 'Time', 'Status']}>
+            {board.map((r) => {
+              const rk = rankOf(r), st = STATE[stateOf(r)], sc = num(r, 'score')
+              return (
+                <tr key={r.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenId(r.id)}>
+                  <Td className="w-10"><span onClick={(e) => e.stopPropagation()}><Checkbox label="" srLabel="Select this student" checked={picked.has(r.id)} onChange={() => togglePick(r.id)} /></span></Td>
+                  <Td className="w-12">{rk >= 1 && rk <= 3
+                    ? <Badge tone={rk === 1 ? 'warning' : rk === 2 ? 'info' : 'neutral'}>{rk}</Badge>
+                    : <span className="text-muted-foreground">{rk || '-'}</span>}</Td>
+                  <Td className="min-w-[160px]"><div className="font-semibold">{r.data.student_name}{!r.is_read && <Badge tone="primary" className="ml-2">New</Badge>}</div>
+                    <div className="text-[12.5px] text-muted-foreground">{[r.data.father_s_name, r.data.test_code].filter(Boolean).join(' · ')}</div></Td>
+                  <Td className="tabular-nums">{r.data.applying_for_grade}</Td>
+                  <Td className="whitespace-nowrap tabular-nums">{r.data.mobile_number}</Td>
+                  <Td className="whitespace-nowrap tabular-nums">{sc != null ? <><b>{sc}</b> <span className="text-muted-foreground">({num(r, 'pct') ?? '-'}%)</span></> : '-'}</Td>
+                  {['maths', 'english', 'science', 'social'].map((k) => <Td key={k} className="tabular-nums">{r.data[k] || '-'}</Td>)}
+                  <Td className="whitespace-nowrap tabular-nums">{r.data.minutes ? `${r.data.minutes}m` : '-'}</Td>
+                  <Td><Badge tone={st.tone}>{st.label}</Badge></Td>
+                </tr>
+              )
+            })}
+          </Table>
+          {!board.length && <EmptyState title="No students match" body="Change the grade, status or search above." />}
+        </>
+      ) : (
       <Table head={['', 'Received', ...shownCols.map((c) => c.label), 'Files', '']}>
         {items.filter((r) => !view || (shortcuts.find((s) => s.id === view)?.ids ?? []).includes(r.id)).map((r) => (
           <tr key={r.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenId(r.id)}>
@@ -477,6 +568,7 @@ function Responses({ form }: { form: Form }) {
           </tr>
         ))}
       </Table>
+      )}
       {open && (() => {
         /* The owner's response card (2026-11-08): who and what for on top, the
            answers in titled cards, files as attachments; Delete and Export. */

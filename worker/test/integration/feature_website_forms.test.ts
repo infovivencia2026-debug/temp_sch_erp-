@@ -125,4 +125,21 @@ describe('communication.website_forms', () => {
     expect(ids).toContain(other.id)
     expect(ids.length).toBe(3)
   })
+
+  it('a scored test updates its own row in place by test code', async () => {
+    const f = await api('admin', 'POST', '/comms/website-forms', { title: 'Quest scored' })
+    await api('admin', 'PUT', `/comms/website-forms/${f.body.id}`, { fields: [{ label: 'Student name', type: 'text', required: true }] })
+    const send = (b: Record<string, string>) => call(`/api/v1/public/forms/test/${f.body.slug}`, { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '10.9.9.8' }, body: JSON.stringify(b) })
+    const a = await (await send({ student_name: 'Ravi', test_code: 'QST-1111', status: 'registered' })).json() as { id: string }
+    const b = await (await send({ student_name: 'Sita', test_code: 'QST-2222', status: 'registered' })).json() as { id: string }
+    const u = await send({ student_name: 'Ravi', test_code: 'QST-1111', status: 'submitted', score: '40', _replaces: a.id })
+    expect(u.status).toBe(200)
+    expect(((await u.json()) as { id: string }).id).toBe(a.id)
+    expect((await send({ student_name: 'X', test_code: 'QST-9999', score: '60', _replaces: b.id })).status).toBe(201)
+    const list = await api('admin', 'GET', `/comms/website-forms/${f.body.id}/responses`)
+    const rows = list.body.items as { id: string; data: Record<string, string> }[]
+    expect(rows.find((x) => x.id === a.id)?.data.score).toBe('40')
+    expect(rows.find((x) => x.id === b.id)?.data.test_code).toBe('QST-2222')
+    expect(rows.length).toBe(3)
+  })
 })
