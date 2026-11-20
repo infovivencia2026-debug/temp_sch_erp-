@@ -1053,8 +1053,10 @@
   /* Room for the expand button, which sits in the header row's right end.
      Without it the button was drawn over the last column's name -- "Quota",
      "Available", "Starts" -- on every phone and on any card narrow enough. */
+  /* Two controls now (columns and expand), 32px each with a gap: 84px
+     (owner check, 2026-11-20: "PASS RATE" and "SHARE" under them at 1366). */
   [data-table-expandable] .responsive-table thead th:last-child {
-    padding-right: 44px;
+    padding-right: 84px;
   }
   @media (hover: hover) {
     .responsive-table tbody tr:hover {
@@ -5895,9 +5897,3 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 [data-assistant-head] { display: none; }
 @media (max-width: 1023.98px) { :root[data-assistant] [data-assistant-head] { display: grid; } }
 
-/* The table's corner controls (columns, expand) float over the header's right
-   end from sm up; the last heading kept its text under them ("PASS RATE",
-   "SHARE" at 1366, owner check 2026-11-20). That heading leaves them room. */
-@media (min-width: 640px) {
-  [data-table-expandable] thead th:last-child { padding-right: 84px; }
-}
