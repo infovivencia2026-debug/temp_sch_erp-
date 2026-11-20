@@ -149,10 +149,16 @@ export function registerInvoicing(r: Router): void {
       .bind(fs.academic_year_id, fs.class_id, instalmentNo, studentOnly || null).all<{ student_id: string }>()
 
     const headNames = new Map<string, string>()
+    /* Which of the structure's heads are OPTIONAL (Yajur, 2026-11-20): an
+       optional head — After School ECA, late bus — is billed only to the
+       children whose family chose it (student_fee_optins), not to the whole
+       class. Raising the structure used to put every optional line on every
+       child's invoice, because this run never read the opt-ins. */
+    const optionalHeads = new Set<string>()
     const headIds = [...new Set(run.lines.map((l) => l.head_id))]
     if (headIds.length) {
-      const hs = await c.db.prepare(`SELECT id, name FROM fee_heads WHERE id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(headIds)).all<{ id: string; name: string }>()
-      for (const h of hs.results) headNames.set(h.id, h.name)
+      const hs = await c.db.prepare(`SELECT id, name, optional FROM fee_heads WHERE id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(headIds)).all<{ id: string; name: string; optional: number }>()
+      for (const h of hs.results) { headNames.set(h.id, h.name); if (h.optional) optionalHeads.add(h.id) }
     }
 
     let createdN = 0, arrearsChildren = 0, arrearsPaise = 0
@@ -186,6 +192,19 @@ export function registerInvoicing(r: Router): void {
     const consBy = byStudent(consAll as (Concession & { student_id: string })[])
     const compsBy = byStudent(compsAll as { student_id: string; fee_head_id: string; description: string; amount_paise: number }[])
     const oldBy = byStudent(oldAll as { student_id: string; id: string; invoice_no: string; year_name: string; balance: number }[])
+    /* Who chose each optional head this year, so its line goes only on their
+       invoice. A head with no live opt-in for a child is left off that child. */
+    const optedBy = new Map<string, Set<string>>()
+    if (optionalHeads.size && sids.length) {
+      const opts = await c.db.prepare(`SELECT student_id, fee_head_id FROM student_fee_optins
+          WHERE student_id IN (SELECT value FROM json_each(?1)) AND academic_year_id = ?2 AND ended_on IS NULL
+            AND fee_head_id IN (SELECT value FROM json_each(?3))`)
+        .bind(sidsJSON, fs.academic_year_id, JSON.stringify([...optionalHeads])).all<{ student_id: string; fee_head_id: string }>()
+      for (const o of opts.results) {
+        const s = optedBy.get(o.student_id) ?? new Set<string>()
+        s.add(o.fee_head_id); optedBy.set(o.student_id, s)
+      }
+    }
     let arrearsHead: string | null = null
     if (oldBy.size) arrearsHead = await ensureFeeHead(c, 'arrears', 'Arrears brought forward')
 
@@ -194,8 +213,12 @@ export function registerInvoicing(r: Router): void {
     const plans: Plan[] = []
     for (const sid of sids) {
       const cons = consBy.get(sid) ?? []
-      const lines: Line[] = run.lines.filter((l) => headNames.has(l.head_id)).map((l) => ({
-        head_id: l.head_id, description: headNames.get(l.head_id)!, amount: l.amount_paise, discount: lineDiscount(l.amount_paise, l.head_id, cons) }))
+      const lines: Line[] = run.lines
+        .filter((l) => headNames.has(l.head_id)
+          // An optional head is billed only to a child with a live opt-in for it.
+          && (!optionalHeads.has(l.head_id) || (optedBy.get(sid)?.has(l.head_id) ?? false)))
+        .map((l) => ({
+          head_id: l.head_id, description: headNames.get(l.head_id)!, amount: l.amount_paise, discount: lineDiscount(l.amount_paise, l.head_id, cons) }))
       // The child's own charges (bus fare), priced per instalment covered.
       for (const cp of compsBy.get(sid) ?? []) {
         const amt = p(cp.amount_paise) * run.instalments
