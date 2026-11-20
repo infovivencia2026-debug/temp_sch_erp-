@@ -5897,3 +5897,10 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 [data-assistant-head] { display: none; }
 @media (max-width: 1023.98px) { :root[data-assistant] [data-assistant-head] { display: grid; } }
 
+
+/* A narrow table (half a row of cards, a side panel) puts its corner controls
+   on their own row: fixed-width columns kept "PASS RATE" and "SHARE" under
+   them however much padding the heading had (owner check, 2026-11-20). */
+@container (max-width: 720px) {
+  .table-corner { position: static; justify-content: flex-end; padding: 4px 8px 2px; }
+}

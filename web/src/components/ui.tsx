@@ -1579,13 +1579,13 @@ export function Table({
 
   if (!full) {
     return (
-      <div className="relative" data-table-expandable="">
+      <div className="relative [container-type:inline-size]" data-table-expandable="">
         {/* Beside the expand control, which is the other thing you can do to
             a table as a whole. Same weight, same corner, so the pair reads as
             one set of table controls rather than a new button appearing. */}
         {/* On phones the pair sits in its own row above the table: floated
             over the header it covered the last column's label (320-430). */}
-        <div className="absolute right-2 top-1 z-20 flex items-center gap-1 max-sm:static max-sm:justify-end max-sm:gap-3 max-sm:px-2 max-sm:pb-1 max-sm:pt-1">
+        <div className="table-corner absolute right-2 top-1 z-20 flex items-center gap-1 max-sm:static max-sm:justify-end max-sm:gap-3 max-sm:px-2 max-sm:pb-1 max-sm:pt-1">
         <div>
           <ColumnChooser
             labels={colLabels}
