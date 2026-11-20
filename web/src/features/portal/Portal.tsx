@@ -775,7 +775,7 @@ export default function Portal() {
             <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
               {/* Taken out of the flow on a wide screen, so the row is exactly
                   as tall as the calendar column and the messages fill it. */}
-              <div className="relative order-2 min-w-0 lg:order-1">
+              <div className="relative order-1 min-w-0 lg:order-1">
                 <div className="lg:absolute lg:inset-0">
                   <SchoolMessages
                     query={circulars}
@@ -785,7 +785,7 @@ export default function Portal() {
               </div>
               <div className="order-3 min-w-0 lg:col-start-1"><JoinActivities studentId={activeId ?? undefined} /></div>
 
-              <div className="order-1 min-w-0 space-y-6 lg:order-2">
+              <div className="order-2 min-w-0 space-y-6 lg:order-2">
                 {s.outstanding_paise > 0 && (
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
                     <div className="min-w-0">
