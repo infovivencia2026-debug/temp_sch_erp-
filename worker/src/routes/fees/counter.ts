@@ -1,3 +1,4 @@
+import { ownAttachment } from '../comms/concern_shared'
 import { SchoolPDF, schoolFacts, logoBytes, inr as docINR } from '../../services/document'
 import type { Router } from '../../router'
 import type { Ctx } from '../../router'
@@ -329,7 +330,7 @@ export function registerCounter(r: Router): void {
     /* No password re-check to collect a fee (owner, 2026-10-05): money coming
        IN at the counter; wallet changes and payroll still ask. */
     const req = await readJSON<{ student_id?: string; amount_paise?: unknown; mode?: string; paid_on?: string; reference_no?: string; bank_name?: string;
-      cheque_date?: string; remarks?: string; payer_name?: string; payer_relation?: string; invoice_ids?: string[] }>(c.req)
+      cheque_date?: string; remarks?: string; payer_name?: string; payer_relation?: string; invoice_ids?: string[]; attachment_file_id?: string }>(c.req)
     if (!isUUID(req.student_id)) throw badRequest('student_id must be a uuid')
     const amount = paise(req.amount_paise)
     if (amount <= 0) throw badRequest('amount_paise must be greater than zero')
@@ -380,15 +381,21 @@ export function registerCounter(r: Router): void {
        Found by taking one through the counter rather than by reading. */
     const pdc = mode === 'cheque' || mode === 'dd'
     const status = pdc ? 'pending' : 'success'
+    /* A file with the comment (owner, 2026-11-20): any type, the clerk's own upload, 2 MB at most. */
+    const attachment = await ownAttachment(c, req.attachment_file_id)
+    if (attachment) {
+      const f = await c.db.prepare(`SELECT size_bytes FROM files WHERE id = ?`).bind(attachment).first<{ size_bytes: number | null }>()
+      if ((f?.size_bytes ?? 0) > 2 * 1024 * 1024) throw badRequest('the attached file must be 2 MB or smaller')
+    }
     const number = await nextNumber(c, 'receipt', paidOn)
     const paymentId = crypto.randomUUID()
     const stmts: D1PreparedStatement[] = [
       ...number.stmts,
       c.db.prepare(`INSERT INTO payments (id, institution_id, campus_id, student_id, receipt_no, receipt_seq, receipt_fy, amount_paise, allocated_paise, mode, paid_on,
-                      reference_no, bank_name, cheque_date, status, collected_by, remarks, payer_name, payer_relation, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, 0, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?)`)
+                      reference_no, bank_name, cheque_date, status, collected_by, remarks, payer_name, payer_relation, created_at, attachment_file_id)
+                    VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, 0, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`)
         .bind(paymentId, st.institution_id, st.campus_id, req.student_id, number.text, number.seq, number.fy, amount, mode, paidOn,
-          reference, req.bank_name ?? '', chequeDate, status, c.id.userId, req.remarks ?? '', (req.payer_name ?? '').trim(), (req.payer_relation ?? '').trim(), now()),
+          reference, req.bank_name ?? '', chequeDate, status, c.id.userId, req.remarks ?? '', (req.payer_name ?? '').trim(), (req.payer_relation ?? '').trim(), now(), attachment),
     ]
     let allocated: Allocation[] = []
     let unallocated = amount

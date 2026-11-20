@@ -18,6 +18,7 @@ import { useDebouncedValue } from '@/lib/debounce'
 import { useSession, useCan } from '@/lib/session'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import UpiQr from '@/components/UpiQr'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { upiNote } from '@/lib/upi'
 
 /* The fee counter. A cashier does exactly four things here: find the student,
@@ -66,6 +67,7 @@ export default function FeeCounter() {
   const [mode, setMode] = useState('cash')
   const [reference, setReference] = useState('')
   const [comment, setComment] = useState('')
+  const [attachment, setAttachment] = useState<UploadedFile | null>(null)
   const [bank, setBank] = useState('')
   /* WHO IS ACTUALLY AT THE COUNTER.
    *
@@ -137,6 +139,7 @@ export default function FeeCounter() {
         payer_name: payer.trim() || undefined,
         payer_relation: payerRel.trim() || undefined,
         remarks: comment.trim() || undefined,
+        attachment_file_id: attachment?.file_id,
         invoice_ids: selected.size ? [...selected] : undefined,
       } }),
     onSuccess: async (res) => {
@@ -147,7 +150,7 @@ export default function FeeCounter() {
       // Named, not "Saved": the cashier reads this number back across the
       // counter, and an unconfirmed payment is the one that gets taken twice.
       toast.ok(`Receipt ${res.receipt_no} issued`)
-      setAmount(''); setReference(''); setComment(''); setBank(''); setChequeDate(''); setSelected(new Set())
+      setAmount(''); setReference(''); setComment(''); setAttachment(null); setBank(''); setChequeDate(''); setSelected(new Set())
       setPayer(''); setPayerRel('')
       // Refetched now, not merely marked stale: the history below has to show
       // this payment before the clerk's eye gets there, without a reload.
@@ -294,18 +297,20 @@ export default function FeeCounter() {
                       ? `${l.class_name}-${l.section_name} · ${dues.length} outstanding invoice${dues.length === 1 ? '' : 's'}`
                       : `${dues.length} outstanding`
                   }
+                  action={
+                    <div className="w-48">
+                      <Select
+                        value={view}
+                        onChange={setView}
+                        options={[
+                          { value: 'due', label: 'Outstanding' },
+                          { value: 'all', label: `All fees (${feeLines.length})` },
+                          ...feeTypes.map((t) => ({ value: t, label: t })),
+                        ]}
+                      />
+                    </div>
+                  }
                 />
-                <div className="px-[var(--card-pad)] pb-3">
-                  <Select
-                    value={view}
-                    onChange={setView}
-                    options={[
-                      { value: 'due', label: 'Outstanding' },
-                      { value: 'all', label: `All fees (${feeLines.length})` },
-                      ...feeTypes.map((t) => ({ value: t, label: t })),
-                    ]}
-                  />
-                </div>
                 {view !== 'due' ? (
                   <Table
                     head={['Fee type', 'Year', 'Amount', 'Concession', 'Paid', 'Balance', 'Status']}
@@ -593,6 +598,7 @@ export default function FeeCounter() {
                     <span className="text-[13px] text-muted-foreground">Comment (optional)</span>
                     <Textarea value={comment} onChange={setComment} rows={2} placeholder={mode === 'adjustment' ? 'Why this adjustment' : 'Any note for this payment'} className="mt-1 w-full" />
                   </label>
+                  <FilePicker value={attachment} onChange={setAttachment} label="Attach a file (optional)" hint="Any type, up to 2 MB" maxBytes={2 * 1024 * 1024} />
 
                   {collect.isError && (
                     <p className="text-[13px] text-destructive">

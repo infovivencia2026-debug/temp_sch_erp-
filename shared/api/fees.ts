@@ -42,6 +42,8 @@ export interface CollectPaymentRequest {
   payer_relation?: string
   /** Settle these first; otherwise oldest-due first. */
   invoice_ids?: string[]
+  /** An uploaded file kept with the comment, 2 MB at most. */
+  attachment_file_id?: string
 }
 
 export interface CollectPaymentResult {

@@ -215,7 +215,7 @@ export function Receipts({ rows }: { rows: Detail['payments'] }) {
   return (
     <Card>
       <CardHeader title="Receipts" description="Every payment received for this child." />
-      <Table head={['Receipt', 'Date', 'Amount', 'How', 'Reference', '']} empty={false}>
+      <Table head={['Receipt', 'Date', 'Amount', 'How', 'Reference', 'Comment', '']} empty={false}>
         {rows.map((x, i) => (
           <tr key={`${x.receipt_no}-${i}`}>
             <Td className="font-mono text-[12px]">{x.receipt_no || '-'}</Td>
@@ -223,6 +223,12 @@ export function Receipts({ rows }: { rows: Detail['payments'] }) {
             <Td className="tabular-nums">{formatPaise(Number(x.amount_paise))}</Td>
             <Td>{x.mode}</Td>
             <Td className="font-mono text-[12px] text-muted-foreground">{x.reference || '-'}</Td>
+            <Td className="min-w-[10rem] text-[13px]">
+              {x.remarks || (x.attachment_file_id ? '' : '-')}
+              {x.attachment_file_id && (
+                <a href={`/api/v1/files/${x.attachment_file_id}?inline=1`} target="_blank" rel="noreferrer" className="block font-medium text-primary hover:underline">Open file</a>
+              )}
+            </Td>
             <Td>{x.status !== 'success' && <Badge tone="danger">{x.status}</Badge>}</Td>
           </tr>
         ))}

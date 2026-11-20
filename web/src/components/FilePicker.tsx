@@ -43,6 +43,7 @@ export default function FilePicker({
   hint,
   endpoint = '/api/v1/files',
   accept,
+  maxBytes,
 }: {
   value: UploadedFile | null
   onChange: (f: UploadedFile | null) => void
@@ -53,6 +54,8 @@ export default function FilePicker({
   endpoint?: string
   /** The file input's accept list, e.g. 'image/jpeg,image/png'. */
   accept?: string
+  /** Refused before upload when larger, with the limit said. */
+  maxBytes?: number
 }) {
   const input = useRef<HTMLInputElement>(null)
   const [progress, setProgress] = useState<number | null>(null)
@@ -69,6 +72,7 @@ export default function FilePicker({
 
   function choose(file: File) {
     setError('')
+    if (maxBytes && file.size > maxBytes) { setError(`Too large: ${human(file.size)}. The limit is ${human(maxBytes)}.`); return }
     setPending(file)
     // An image is worth showing rather than describing. Revoked when the
     // choice is replaced or cleared, so a long session does not accumulate

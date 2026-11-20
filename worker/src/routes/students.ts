@@ -890,7 +890,8 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
                     LEFT JOIN academic_years ay ON ay.id = inv.academic_year_id
                    WHERE inv.student_id = ? AND inv.status <> 'cancelled' ORDER BY head`).bind(id),
     c.db.prepare(`SELECT COALESCE(pm.receipt_no,'') AS receipt_no, pm.paid_on, CAST(pm.amount_paise AS TEXT) AS amount_paise, pm.mode,
-                         COALESCE(pm.gateway_txn_id, pm.reference_no, '') AS reference, pm.status
+                         COALESCE(pm.gateway_txn_id, pm.reference_no, '') AS reference, pm.status,
+                         COALESCE(pm.remarks, '') AS remarks, pm.attachment_file_id
                     FROM payments pm WHERE pm.student_id = ? ORDER BY pm.paid_on DESC, pm.created_at DESC LIMIT 100`).bind(id),
     c.db.prepare(`SELECT sd.id, sd.doc_type, sd.file_id, substr(sd.created_at,1,10) AS uploaded_on, (sd.verified_at IS NOT NULL) AS verified,
                          COALESCE(u.full_name,'') AS verified_by, COALESCE(sd.notes,'') AS notes, COALESCE(f.original_name,'') AS filename, COALESCE(f.content_type,'') AS content_type

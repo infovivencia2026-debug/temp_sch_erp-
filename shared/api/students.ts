@@ -84,7 +84,7 @@ export interface StudentFullDetail {
      the stop they board at. Per instalment, added to every demand raised
      while live. */
   fee_components?: { code: string; description: string; fee_head: string; amount_paise: string; valid_from: string; valid_to: string; live: boolean }[]
-  payments: { receipt_no: string; paid_on: string; amount_paise: string; mode: string; reference: string; status: string }[]
+  payments: { receipt_no: string; paid_on: string; amount_paise: string; mode: string; reference: string; status: string; remarks?: string; attachment_file_id?: string | null }[]
   documents: { id: string; doc_type: string; file_id: string; uploaded_on: string; verified: boolean; verified_by: string; notes: string; filename: string; content_type: string }[]
   leave: { from: string; to: string; type: string; reason: string; status: string; applied_by: string; decision_note: string; days: string }[]
   enrolment_history: { year: string; class: string; section: string; roll_no?: string; status: string; from: string; to?: string; remarks: string; promoted: boolean }[]
