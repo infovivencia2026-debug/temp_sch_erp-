@@ -9,7 +9,7 @@ import { printReceipt, receiptHtml } from './receipt-print'
 import A4Frame from '@/components/A4Frame'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Input, SkeletonTable, ErrorState, EmptyState, FormNotice,
+  Table, Td, Badge, Button, Select, Input, Textarea, SkeletonTable, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -35,6 +35,8 @@ const MODES = [
   { value: 'netbanking', label: 'Net banking' },
   { value: 'cheque', label: 'Cheque' },
   { value: 'dd', label: 'Demand draft' },
+  // Not money at the counter: a settlement or correction (owner, 2026-11-20). Kept out of the day's takings.
+  { value: 'adjustment', label: 'Adjustment' },
 ]
 
 export default function FeeCounter() {
@@ -58,6 +60,7 @@ export default function FeeCounter() {
   const [amount, setAmount] = useState('')
   const [mode, setMode] = useState('cash')
   const [reference, setReference] = useState('')
+  const [comment, setComment] = useState('')
   const [bank, setBank] = useState('')
   /* WHO IS ACTUALLY AT THE COUNTER.
    *
@@ -128,6 +131,7 @@ export default function FeeCounter() {
         cheque_date: chequeDate || undefined,
         payer_name: payer.trim() || undefined,
         payer_relation: payerRel.trim() || undefined,
+        remarks: comment.trim() || undefined,
         invoice_ids: selected.size ? [...selected] : undefined,
       } }),
     onSuccess: async (res) => {
@@ -138,7 +142,7 @@ export default function FeeCounter() {
       // Named, not "Saved": the cashier reads this number back across the
       // counter, and an unconfirmed payment is the one that gets taken twice.
       toast.ok(`Receipt ${res.receipt_no} issued`)
-      setAmount(''); setReference(''); setBank(''); setChequeDate(''); setSelected(new Set())
+      setAmount(''); setReference(''); setComment(''); setBank(''); setChequeDate(''); setSelected(new Set())
       setPayer(''); setPayerRel('')
       // Refetched now, not merely marked stale: the history below has to show
       // this payment before the clerk's eye gets there, without a reload.
@@ -530,6 +534,11 @@ export default function FeeCounter() {
                       <Input value={payerRel} onChange={setPayerRel} placeholder="Father, uncle…" className="mt-1 w-full" />
                     </label>
                   </div>
+
+                  <label className="block">
+                    <span className="text-[13px] text-muted-foreground">Comment (optional)</span>
+                    <Textarea value={comment} onChange={setComment} rows={2} placeholder={mode === 'adjustment' ? 'Why this adjustment' : 'Any note for this payment'} className="mt-1 w-full" />
+                  </label>
 
                   {collect.isError && (
                     <p className="text-[13px] text-destructive">
