@@ -153,6 +153,12 @@ export default function FeeCounter() {
 
   const l = ledger.data
   const dues = l?.dues ?? []
+  /* What is on the account by fee type (owner, 2026-11-20: "add a filter to
+     see what fees category are there"). Outstanding is the default view. */
+  const [view, setView] = useState('due')
+  const feeLines = l?.fees ?? []
+  const feeTypes = [...new Set(feeLines.map((x) => x.fee_type))].sort()
+  const shownLines = view === 'all' ? feeLines : feeLines.filter((x) => x.fee_type === view)
   const selectedTotal = dues
     .filter((d) => selected.has(d.invoice_id))
     .reduce((a, d) => a + d.balance_paise, 0)
@@ -275,6 +281,39 @@ export default function FeeCounter() {
                       : `${dues.length} outstanding`
                   }
                 />
+                <div className="px-[var(--card-pad)] pb-3">
+                  <Select
+                    value={view}
+                    onChange={setView}
+                    options={[
+                      { value: 'due', label: 'Outstanding' },
+                      { value: 'all', label: `All fees (${feeLines.length})` },
+                      ...feeTypes.map((t) => ({ value: t, label: t })),
+                    ]}
+                  />
+                </div>
+                {view !== 'due' ? (
+                  <Table
+                    head={['Fee type', 'Year', 'Amount', 'Concession', 'Paid', 'Balance', 'Status']}
+                    empty={!shownLines.length}
+                    emptyLabel="No fees of this type on the account."
+                  >
+                    {shownLines.map((x, i) => (
+                      <tr key={`${x.invoice_no}-${i}`}>
+                        <Td className="min-w-[10rem]">
+                          <span className="font-medium">{x.description}</span>
+                          <span className="block font-mono text-[11.5px] text-muted-foreground">{x.invoice_no}</span>
+                        </Td>
+                        <Td className="whitespace-nowrap text-muted-foreground">{x.year}</Td>
+                        <Td className="whitespace-nowrap tabular-nums">{formatPaise(x.amount_paise)}</Td>
+                        <Td className="whitespace-nowrap tabular-nums">{x.concession_paise ? formatPaise(x.concession_paise) : '—'}</Td>
+                        <Td className="whitespace-nowrap tabular-nums">{formatPaise(x.paid_paise)}</Td>
+                        <Td className="whitespace-nowrap font-medium tabular-nums">{formatPaise(x.balance_paise)}</Td>
+                        <Td><Badge tone={x.balance_paise <= 0 ? 'success' : x.status === 'overdue' ? 'danger' : 'warning'}>{x.balance_paise <= 0 ? 'paid' : x.status}</Badge></Td>
+                      </tr>
+                    ))}
+                  </Table>
+                ) : (
                 <Table
                   head={['', 'Invoice', 'Due', 'Amount', 'Paid', 'Balance', 'Status', '']}
                   empty={!dues.length}
@@ -392,6 +431,7 @@ export default function FeeCounter() {
                     </Fragment>
                   ))}
                 </Table>
+                )}
                 {selected.size > 0 && (
                   <p className="border-t px-5 py-2.5 text-[13px] text-muted-foreground">
                     {selected.size} invoice{selected.size === 1 ? '' : 's'} selected ·{' '}

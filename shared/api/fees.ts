@@ -19,7 +19,14 @@ export interface FeeLedger {
   charged_paise: number; paid_paise: number; balance_paise: number; pending_paise: number
   concessions: { kind: string; percent?: string; amount_paise?: number; reason?: string; fee_head?: string }[]
   dues: FeeDue[]
+  /** Every fee line on the account, paid or not, with its fee type. Paid is the invoice's paid share by amount. */
+  fees?: FeeLine[]
   entries: FeeLedgerEntry[]
+}
+
+export interface FeeLine {
+  invoice_no: string; year: string; fee_type: string; description: string; due_on?: string
+  amount_paise: number; concession_paise: number; paid_paise: number; balance_paise: number; status: string
 }
 
 export interface CollectPaymentRequest {

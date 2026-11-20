@@ -180,6 +180,24 @@ export function registerCounter(r: Router): void {
           FROM refunds rf WHERE rf.student_id = ?1 AND rf.status IN ('approved', 'processed')
       ) x ORDER BY date DESC, kind`).bind(studentId).all<Record<string, unknown>>()
 
+    const lineRows = await c.db.prepare(`
+      SELECT i.id AS iid, i.invoice_no, ay.name AS year, fh.name AS fee_type, COALESCE(il.description, fh.name) AS description,
+             i.due_on, il.amount_paise AS amount, il.discount_paise AS disc, i.net_paise AS net, i.paid_paise AS paid, i.status,
+             (SELECT count(*) FROM invoice_lines x WHERE x.invoice_id = i.id) AS n,
+             (SELECT sum(x.amount_paise) FROM invoice_lines x WHERE x.invoice_id = i.id) AS tot
+        FROM invoices i JOIN invoice_lines il ON il.invoice_id = i.id JOIN fee_heads fh ON fh.id = il.fee_head_id
+        LEFT JOIN academic_years ay ON ay.id = i.academic_year_id
+       WHERE i.student_id = ? AND i.status <> 'cancelled' ORDER BY i.due_on DESC, i.invoice_no`).bind(studentId)
+      .all<{ invoice_no: string; year: string | null; fee_type: string; description: string; due_on: string | null; amount: number; disc: number; net: number | null; paid: number; status: string; n: number; tot: number }>()
+    const fees = lineRows.results.map((x) => {
+      // One line: the invoice's own figures (they include any late fee). Several: the line's share by amount.
+      const toPay = x.n === 1 ? p(x.net ?? x.amount - x.disc) : p(x.amount) - p(x.disc)
+      const paidShare = x.n === 1 ? p(x.paid) : Math.round(p(x.paid) * (x.tot ? p(x.amount) / p(x.tot) : 0))
+      return omitNulls({ invoice_no: x.invoice_no, year: x.year ?? '', fee_type: x.fee_type, description: x.description,
+        due_on: x.due_on ?? undefined, amount_paise: p(x.amount), concession_paise: p(x.disc), paid_paise: paidShare,
+        balance_paise: toPay - paidShare, status: x.status })
+    })
+
     type Entry = FeeLedger['entries'][number]
     const ledger: FeeLedger = omitNulls({
       student_id: studentId, admission_no: head.admission_no, full_name: head.full_name,
@@ -188,6 +206,7 @@ export function registerCounter(r: Router): void {
       concessions: concessions.results.map((x) => omitNulls({ kind: x.kind, percent: x.percent ?? undefined,
         amount_paise: x.amount_paise === null ? undefined : p(x.amount_paise), reason: x.reason ?? undefined, fee_head: x.fee_head ?? undefined })),
       dues: dues as FeeLedger['dues'],
+      fees: fees as FeeLedger['fees'],
       entries: entries.results.map((e) => omitNulls({
         date: String(e.date), kind: String(e.kind), reference: String(e.reference), description: String(e.description ?? ''),
         debit_paise: p(e.debit_paise), credit_paise: p(e.credit_paise), status: String(e.status),
