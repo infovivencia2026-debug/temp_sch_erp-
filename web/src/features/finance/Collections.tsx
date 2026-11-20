@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { useSession } from '@/lib/session'
 import { Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Select, Input, ErrorState } from '@/components/ui'
 import { ExportRows } from '@/components/rows'
 import { formatPaise, formatDate } from '@/lib/utils'
-import { receiptHtml } from './receipt-print'
+import ReceiptDialog from './ReceiptDialog'
 
 /* COLLECTIONS: who paid, how, and to whom (owner, 2026-11-20: "where can we see
    the payments got today and month ... and who and how").
@@ -43,7 +42,6 @@ export default function Collections() {
   const [mode, setMode] = useState('')
   const [collector, setCollector] = useState('')
   const [from, to] = period === 'custom' ? custom : range(period)
-  const inst = useSession().institution
 
   const q = useQuery({
     queryKey: ['fee-collections', from, to, mode, collector],
@@ -61,20 +59,12 @@ export default function Collections() {
   const byStaff = sumBy((r) => r.collector || 'Unknown')
   const held = rows.filter((r) => r.status === 'pending').reduce((a, r) => a + r.amount_paise, 0)
 
-  const openReceipt = async (id: string) => {
-    const w = window.open('', '_blank')
-    try {
-      const r = await api.call('GET /fees/receipts/{id}', { params: { id } })
-      const html = receiptHtml(r, {
-        name: inst?.display_name || r.institution,
-        logoUrl: inst?.logo_key ? `${location.origin}/api/v1/files/${inst.logo_key}?inline=1` : undefined,
-      })
-      if (w) { w.document.open(); w.document.write(html); w.document.close() }
-    } catch { w?.close() }
-  }
+  const [receiptId, setReceiptId] = useState<string | null>(null)
+  const openReceipt = (id: string) => setReceiptId(id)
 
   return (
     <div className="space-y-6">
+      {receiptId && <ReceiptDialog paymentId={receiptId} onClose={() => setReceiptId(null)} />}
       <Card>
         <div className="grid gap-3 p-[var(--card-pad)] sm:grid-cols-2 lg:grid-cols-4">
           <label className="block">

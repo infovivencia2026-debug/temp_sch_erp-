@@ -1,9 +1,8 @@
 import type { StudentFullDetail } from '@shared/api'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSession } from '@/lib/session'
-import { receiptHtml } from '@/features/finance/receipt-print'
-import { useMutation } from '@tanstack/react-query'
+import ReceiptDialog from '@/features/finance/ReceiptDialog'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   Card, CardHeader, FormGrid, Field as FormField, Select, FormNotice,
@@ -105,18 +104,8 @@ export function SubjectMarks({ rows, loading }: {
    The screen says so rather than leaving somebody to work it out. */
 export function FeeLedger({ heads: allHeads, components = [], studentId, takeFeeHref }: { heads: Detail['fee_heads']; components?: NonNullable<Detail['fee_components']>; studentId?: string; takeFeeHref?: string }) {
   const navigate = useNavigate()
-  const inst = useSession().institution
-  const openReceipt = async (id: string) => {
-    const w = window.open('', '_blank')
-    try {
-      const r = await api.call('GET /fees/receipts/{id}', { params: { id } })
-      const html = receiptHtml(r, {
-        name: inst?.display_name || r.institution,
-        logoUrl: inst?.logo_key ? `${location.origin}/api/v1/files/${inst.logo_key}?inline=1` : undefined,
-      })
-      if (w) { w.document.open(); w.document.write(html); w.document.close() }
-    } catch { w?.close() }
-  }
+  const [receiptId, setReceiptId] = useState<string | null>(null)
+  const openReceipt = (id: string) => setReceiptId(id)
   /* ONE YEAR AT A TIME (owner, 2026-10-12: "make a dropdown year wise and
      show selected year"). Earlier years' dues sat in the same table as this
      year's terms and the total mixed them. The newest year is shown first. */
@@ -127,6 +116,7 @@ export function FeeLedger({ heads: allHeads, components = [], studentId, takeFee
   if (allHeads.length === 0 && components.length === 0) return null
   return (
     <>
+    {receiptId && <ReceiptDialog paymentId={receiptId} onClose={() => setReceiptId(null)} />}
     {components.length > 0 && (
       <Card>
         <CardHeader
@@ -728,6 +718,58 @@ export function CoScholastic({ studentID, rows, mayEdit, onChanged }: {
         ))}
       </Table>
       <FormNotice error={save.error} />
+    </Card>
+  )
+}
+
+/* RAISE THIS YEAR'S FEES FOR ONE CHILD (owner, 2026-11-20: "how can we add fee
+   for 1 student after adding directly by add student").
+
+   A child added with Add student never passes through Fee & enrolment, and the
+   class-wide demand run is the wrong tool for one child. This raises every
+   instalment of the class's structure for this child alone, through the same
+   endpoint (concessions applied; a child already billed is skipped). */
+export function RaiseFees({ studentId, classId, onDone }: { studentId: string; classId: string; onDone: () => void }) {
+  const preview = useQuery({
+    queryKey: ['admission-fee', classId],
+    queryFn: () => api.get<{ structure_id: string; structure: string; total_paise: number; instalments: number; has_structure: boolean;
+      heads: { head: string; paise: number; instalment: number }[] }>(`/api/v1/students/fee-preview?class_id=${classId}`),
+  })
+  const raise = useMutation({
+    mutationFn: () => api.call('POST /fees/invoices/generate', { body: {
+      fee_structure_id: preview.data?.structure_id ?? '', instalment_no: 1, all_instalments: true, student_id: studentId,
+    } }),
+    onSuccess: onDone,
+  })
+  const q = preview.data
+  return (
+    <Card>
+      <CardHeader title="No fees raised for this child yet" description={q?.has_structure ? `From the class fee structure: ${q.structure}` : undefined} />
+      <div className="space-y-3 px-[var(--card-pad)] pb-[var(--card-pad)]">
+        {preview.isLoading ? <SkeletonTable rows={3} /> : !q?.has_structure ? (
+          <p className="text-[13px] text-muted-foreground">This class has no fee structure for the year. Set one up under Fees → Class &amp; transport fee setup → Fee structure.</p>
+        ) : (
+          <>
+            <Table head={['Fee type', 'Term', 'Amount']} empty={false}>
+              {q.heads.map((h, i) => (
+                <tr key={i}>
+                  <Td className="font-medium">{h.head}</Td>
+                  <Td>{h.instalment}</Td>
+                  <Td className="tabular-nums">{formatPaise(h.paise)}</Td>
+                </tr>
+              ))}
+              <tr className="border-t-2 bg-muted/40 font-semibold">
+                <Td className="font-semibold">Total</Td><Td />
+                <Td className="tabular-nums font-semibold">{formatPaise(q.total_paise)}</Td>
+              </tr>
+            </Table>
+            <FormNotice error={raise.error} />
+            <Button disabled={raise.isPending} onClick={() => raise.mutate()}>
+              {raise.isPending ? 'Raising…' : "Raise this year's fees"}
+            </Button>
+          </>
+        )}
+      </div>
     </Card>
   )
 }

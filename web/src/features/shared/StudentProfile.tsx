@@ -23,7 +23,7 @@ import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { PhotoViewer } from '@/components/PhotoViewer'
 import {
-  FeeLedger, StudentDocuments, LeaveHistory,
+  FeeLedger, RaiseFees, StudentDocuments, LeaveHistory,
   TransportCrew, Activities, CoScholastic,
 } from './StudentTabs'
 import { RecordBlock, FieldSheet } from './RecordBlock'
@@ -1565,6 +1565,9 @@ export default function StudentProfile() {
         <>
         <FeesYear invoices={p.invoices} payments={detail.data?.payments ?? []} outstanding={p.fees.outstanding_paise}
           breakdown={<FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} studentId={selected ?? undefined} takeFeeHref={takeFeeHref} />} />
+        {detail.data && !detail.data.fee_heads.length && detail.data.class_id && selected && (
+          <RaiseFees studentId={selected} classId={detail.data.class_id} onDone={() => qc.invalidateQueries()} />
+        )}
         {/* The quote, the waivers and the bill, on the record.
 
             All three lived on the admission panel, which exists for ninety

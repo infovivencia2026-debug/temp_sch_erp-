@@ -92,7 +92,22 @@ export default function FeeStructureVersions() {
   }
   const history = useStructureVersions(openId)
 
-  const rows = structures.data?.items ?? []
+  const allRows = structures.data?.items ?? []
+  /* Year and class filters (owner, 2026-11-20: "show this year structure with
+     filter of class wise"). The newest year is the default; picking a class
+     with one structure opens its fee lines straight away. */
+  const years = [...new Set(allRows.map((x) => x.academic_year ?? ''))].filter(Boolean).sort((a, b) => b.localeCompare(a))
+  const [pickedYear, setPickedYear] = useState('')
+  const [pickedClass, setPickedClass] = useState('')
+  const year = years.includes(pickedYear) ? pickedYear : (years[0] ?? '')
+  const inYear = allRows.filter((x) => !year || x.academic_year === year)
+  const classNames = [...new Set(inYear.map((x) => x.class_name ?? 'All classes'))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  const rows = inYear.filter((x) => !pickedClass || (x.class_name ?? 'All classes') === pickedClass)
+  const pickClass = (v: string) => {
+    setPickedClass(v)
+    const one = inYear.filter((x) => (x.class_name ?? 'All classes') === v)
+    setOpenId(v && one.length === 1 ? one[0].id : '')
+  }
   const revised = rows.filter((s) => s.versions > 1).length
   const drafts = rows.filter((s) => s.draft_version).length
   const pinned = rows.reduce((n, s) => n + s.invoices_raised, 0)
@@ -181,6 +196,18 @@ export default function FeeStructureVersions() {
           <CardHeader
             title="Structures"
             description="The live version of each, and how often it has been revised"
+            action={
+              <div className="flex flex-wrap gap-2">
+                {years.length > 0 && (
+                  <div className="w-40">
+                    <Select value={year} onChange={(v) => { setPickedYear(v); setPickedClass(''); setOpenId('') }} options={years.map((y) => ({ value: y, label: y }))} />
+                  </div>
+                )}
+                <div className="w-48">
+                  <Select value={pickedClass} onChange={pickClass} options={[{ value: '', label: 'All classes' }, ...classNames.map((c) => ({ value: c, label: c }))]} />
+                </div>
+              </div>
+            }
           />
           {structures.isLoading ? (
             <Skeleton />
