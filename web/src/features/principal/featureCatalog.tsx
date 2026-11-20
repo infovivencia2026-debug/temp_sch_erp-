@@ -63,7 +63,13 @@ type Status = 'all' | 'active' | 'role' | 'direct' | 'none'
    Student 360 is covered by the one entry. Add a row here to give another
    screen a View/Edit switch. */
 const EDIT_ACTIONS: Record<string, { editKey: string; label: string }> = {
+  /* The "record" screens: they show a person's whole file and carry an edit
+     button. View = read the file; Edit = change it. Keyed by slug so every
+     workspace's copy is covered. */
   student_360: { editKey: 'students.write', label: 'Student records' },
+  staff_360: { editKey: 'hr.employees.write', label: 'Staff records' },
+  staff_overview: { editKey: 'hr.employees.write', label: 'Staff records' },
+  staff_records: { editKey: 'hr.employees.write', label: 'Staff records' },
 }
 
 /* Every built feature as one flat list, each with a switch: on means the

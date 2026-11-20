@@ -30,8 +30,8 @@ export default function ReceiptDialog({ paymentId, onClose }: { paymentId: strin
       }
     >
       {q.isError ? <ErrorState error={q.error} onRetry={() => q.refetch()} />
-        : !html ? <div className="h-[60vh] animate-pulse rounded-xl bg-muted" />
-        : <iframe title="Receipt" srcDoc={html} className="h-[70vh] w-full rounded-xl border bg-white" />}
+        : !html ? <div className="h-[60dvh] animate-pulse rounded-xl bg-muted" />
+        : <iframe title="Receipt" srcDoc={html} className="h-[70dvh] w-full rounded-xl border bg-white" />}
     </Dialog>
   )
 }
