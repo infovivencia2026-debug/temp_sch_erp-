@@ -426,19 +426,26 @@ export default function WorkPatterns() {
                 return (
                   <label
                     key={e.id}
-                    className="flex items-baseline gap-2 border-b py-1.5 text-sm last:border-0"
+                    /* Name on its own line, then what they do and their hours,
+                       the class list cut with an ellipsis: on a phone the three
+                       columns squeezed into each other (owner, 2026-11-20). */
+                    className="flex items-start gap-2 border-b py-1.5 text-sm last:border-0"
                   >
                     <input
                       type="checkbox"
-                      className="self-center"
+                      className="mt-1 shrink-0"
                       checked={on}
                       onChange={() =>
                         setPicked(on ? picked.filter((x) => x !== e.id) : [...picked, e.id])}
                     />
-                    <span className="font-medium">{e.full_name || e.employee_code}</span>
-                    {does && <span className="text-xs text-muted-foreground">{does}</span>}
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {e.pattern || 'No hours'}{e.own_pattern ? '' : ' (inherited)'}
+                    <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-2">
+                      <span className="font-medium">{e.full_name || e.employee_code}</span>
+                      <span className="flex min-w-0 flex-1 items-baseline gap-2 text-xs text-muted-foreground">
+                        {does && <span className="min-w-0 flex-1 truncate">{does}</span>}
+                        <span className="ml-auto shrink-0">
+                          {e.pattern || 'No hours'}{e.own_pattern ? '' : ' (inherited)'}
+                        </span>
+                      </span>
                     </span>
                   </label>
                 )

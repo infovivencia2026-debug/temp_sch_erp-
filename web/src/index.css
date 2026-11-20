@@ -1087,16 +1087,24 @@
     a.cell:hover, button.cell:hover { background: hsl(var(--accent)); }
   }
 
+  /* At the top of a page the bar is the page (owner, 2026-11-20: a lighter
+     strip under the header over the painted ground). Once the work area has
+     scrolled (Shell sets data-scrolled on <html>), it frosts so text sliding
+     under it stays readable. */
   .chrome {
+    background: transparent;
+    border-color: hsl(var(--border));
+    transition: background-color .2s ease, backdrop-filter .2s ease;
+  }
+  :root[data-scrolled] .chrome {
     background: hsl(var(--background) / 0.9);
     backdrop-filter: blur(8px);
-    border-color: hsl(var(--border));
   }
   /* Without backdrop-filter the header is a 90%-opaque strip with the page
      showing faintly through it. Make it fully opaque there, so the chrome reads
      as a solid bar rather than a smear over whatever scrolls beneath. */
   @supports not (backdrop-filter: blur(1px)) {
-    .chrome { background: hsl(var(--background)); }
+    :root[data-scrolled] .chrome { background: hsl(var(--background)); }
   }
 
   /* A field label, and the column header in a table. Sentence case at 12px:
@@ -5885,4 +5893,11 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 
 /* The phone header's Assistant button shows only where the assistant is on. */
 [data-assistant-head] { display: none; }
-@media (max-width: 767.98px) { :root[data-assistant] [data-assistant-head] { display: grid; } }
+@media (max-width: 1023.98px) { :root[data-assistant] [data-assistant-head] { display: grid; } }
+
+/* The table's corner controls (columns, expand) float over the header's right
+   end from sm up; the last heading kept its text under them ("PASS RATE",
+   "SHARE" at 1366, owner check 2026-11-20). That heading leaves them room. */
+@media (min-width: 640px) {
+  [data-table-expandable] thead th:last-child { padding-right: 84px; }
+}

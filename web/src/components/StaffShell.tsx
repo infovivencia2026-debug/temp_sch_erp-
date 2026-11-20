@@ -379,6 +379,9 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
         {/* Focus | Work before the sign-in times, in its own pill look (owner, 2026-10-30); phones, tablets and 1024 laptops keep it in the panel. */}
         <div className="shrink-0 max-xl:hidden"><LayoutSwitch bar /></div>
         {extra}
+        {/* Tablets keep the assistant in the bar too (owner, 2026-11-20): the
+            floating orb sat on an Apply button at 820x1180. CSS shows it below 1024 only. */}
+        <AssistantHeaderButton />
         <Notifications />
       </div>
     </div>

@@ -1207,7 +1207,7 @@ export function AssistantTab() {
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
           /* Phones: no floating orb; the header button opens the panel. */
-          `fixed right-4 z-40 max-md:!hidden grid size-[52px] md:right-6 md:size-16 place-items-center rounded-full
+          `fixed right-4 z-40 max-lg:!hidden grid size-[52px] md:right-6 md:size-16 place-items-center rounded-full
            bg-transparent [filter:drop-shadow(0_6px_14px_rgba(15,23,42,0.18))]
            transition-[transform,filter]
            hover:-translate-y-0.5 hover:[filter:drop-shadow(0_10px_20px_rgba(15,23,42,0.24))]

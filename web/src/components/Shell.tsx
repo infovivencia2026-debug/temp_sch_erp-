@@ -271,6 +271,20 @@ export function Shell({
   renderAt?: (path: string) => ReactNode
 }) {
   const botOn = useAiFeature('assistant_bot')
+  /* The header frosts only once the work area has scrolled (index.css .chrome):
+     at the top it is the page itself, no stripe (owner, 2026-11-20). One
+     listener at capture, so whichever element scrolls (main, a pane) counts. */
+  useEffect(() => {
+    const root = document.documentElement
+    const read = () => {
+      const m = document.querySelector<HTMLElement>('[data-app-scroll]')
+      const y = Math.max(window.scrollY, m?.scrollTop ?? 0)
+      root.toggleAttribute('data-scrolled', y > 2)
+    }
+    read()
+    document.addEventListener('scroll', read, { capture: true, passive: true })
+    return () => { document.removeEventListener('scroll', read, { capture: true }); root.removeAttribute('data-scrolled') }
+  }, [])
   /* Where the last press landed, for the iOS-style launch: Settings grows out
      of the button that opened it (owner, 2026-10-08). See bento-theme.css. */
   useEffect(() => {
@@ -1516,7 +1530,9 @@ export function Shell({
             )}
           >
             {/* Related screens as tabs over the page (staff layout; StaffCombos.tsx). */}
-            {staffNav && <div className="px-4 pt-4 md:px-6"><ComboTabs /></div>}
+            {/* :empty collapses the wrapper when there are no tabs: a 14px blank band
+                sat under the header on every other screen (owner, 2026-11-20). */}
+            {staffNav && <div className="px-4 pt-4 md:px-6 empty:hidden"><ComboTabs /></div>}
             {split && renderAt ? (
               <PaneArea renderAt={renderAt}>{children}</PaneArea>
             ) : (

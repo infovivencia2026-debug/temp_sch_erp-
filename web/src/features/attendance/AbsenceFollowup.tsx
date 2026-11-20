@@ -498,10 +498,11 @@ function CallButton({ label, name, phone, primary }: { label: string; name: stri
   return (
     <a
       href={`tel:${phone}`}
-      className="inline-flex items-center gap-2 rounded-full bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+      /* max-w-full + min-w-0: a long guardian name ran past the card at 360-430 (owner, 2026-11-20). */
+      className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-full bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
     >
       <Phone className="h-3.5 w-3.5 shrink-0" />
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span className="block truncate">
           {label}
           {name && name !== label ? (
