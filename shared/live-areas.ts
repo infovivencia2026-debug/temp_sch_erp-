@@ -96,7 +96,7 @@ export const LIVE_AREAS: Record<string, LiveArea> = {
   },
   comms: {
     tables: /^(announcement[a-z_]*|message_[a-z_]+|messaging_[a-z_]+|parent_teacher_messages|counselor_[a-z_]+|mail_[a-z_]+|sms_gateway_[a-z_]+|notifications|status_[a-z_]+|platform_broadcasts|subject_chat_messages|subject_meeting[a-z_]*|parent_forum_[a-z_]+|call_log|courier_log|driver_notices|student_wall_posts|student_content_moderation|grievance_[a-z_]+|support_ticket[a-z_]*|wa_[a-z_]+)$/,
-    words: ['circular', 'announcement', 'message', 'messaging', 'thread', 'mail', 'inbox', 'sms', 'notification',
+    words: ['circular', 'channel', 'announcement', 'message', 'messaging', 'thread', 'mail', 'inbox', 'sms', 'notification',
       'notif', 'status', 'broadcast', 'comms', 'chat', 'meeting', 'forum', 'parent', 'whatsapp', 'call',
       'courier', 'notice', 'delivery', 'deliveries', 'template', 'rules', 'wall', 'concern', 'helpdesk',
       'grievance', 'ticket', 'counselor', 'leave', 'storage', 'connect'],
