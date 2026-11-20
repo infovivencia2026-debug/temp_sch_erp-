@@ -684,8 +684,10 @@ export default function StudentProfile() {
               <AdmitStudent onDone={() => results.refetch()} />
             </div>
           )}
+          {/* Phones keep the status dropdown only; the tiles filter the same way
+              and took a screen of their own (owner, 2026-11-20). */}
           {counts.data && (
-            <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mb-4 grid gap-3 max-sm:hidden sm:grid-cols-2 lg:grid-cols-4">
               {/* All four filter, including the two that did not.
 
                   A tile showing a number somebody cannot act on is a number
