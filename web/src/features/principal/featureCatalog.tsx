@@ -55,6 +55,17 @@ function entries(items: FeatureItem[]): Entry[] {
 
 type Status = 'all' | 'active' | 'role' | 'direct' | 'none'
 
+/* SCREENS THAT CARRY AN EDIT ACTION (Yajur, 2026-11-20: "like student360
+   action... is that action only viewable or editable, and the institution
+   admin can change that"). A screen on its own is View. The action beside it
+   is the one permission that turns the page's buttons on -- Student 360's Edit
+   is students.write. Keyed by the screen's slug, so every workspace's copy of
+   Student 360 is covered by the one entry. Add a row here to give another
+   screen a View/Edit switch. */
+const EDIT_ACTIONS: Record<string, { editKey: string; label: string }> = {
+  student_360: { editKey: 'students.write', label: 'Student records' },
+}
+
 /* Every built feature as one flat list, each with a switch: on means the
    person can open it. From a role: on and locked, the role is what to change.
    Direct: on, can be turned off. Inactive: off, turning it on grants it to
@@ -129,25 +140,60 @@ export function FeatureAccess({ items, roleGrants, direct, busy, onChange, heade
             {shown.map((e) => {
               const s = stateOf(e)
               const roles = fromRoles(e)
+              /* The edit action for this screen, when it has one and the person
+                 can actually open the screen (an Edit switch on a screen they
+                 cannot reach would grant a power with nowhere to use it). */
+              const slug = e.id.split('.').pop() ?? ''
+              const action = s !== 'none' ? EDIT_ACTIONS[slug] : undefined
+              const editFromRole = action ? (roleGrants.get(action.editKey) ?? []) : []
+              const editOn = action ? (editFromRole.length > 0 || direct.has(action.editKey)) : false
+              const editLocked = editFromRole.length > 0
               return (
-                <li key={e.id} className="flex min-w-0 items-center gap-3 px-[var(--card-pad)] py-2">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] font-medium">{e.name}</span>
-                    <span className="block truncate text-[12.5px] text-muted-foreground">
-                      {s === 'role' ? `From ${roles.join(', ')}` : e.summary || e.workspace}
+                <li key={e.id} className="px-[var(--card-pad)] py-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-medium">{e.name}</span>
+                      <span className="block truncate text-[12.5px] text-muted-foreground">
+                        {s === 'role' ? `From ${roles.join(', ')}` : e.summary || e.workspace}
+                      </span>
+                      <span className="block truncate text-[12px] text-muted-foreground">{e.workspace}</span>
                     </span>
-                    <span className="block truncate text-[12px] text-muted-foreground">{e.workspace}</span>
-                  </span>
-                  <Badge tone={s === 'role' ? 'success' : s === 'direct' ? 'primary' : 'neutral'}>
-                    {s === 'role' ? 'From role' : s === 'direct' ? 'Direct' : 'Inactive'}
-                  </Badge>
-                  <Switch
-                    on={s !== 'none'}
-                    disabled={s === 'role' || busy}
-                    label={e.name}
-                    title={s === 'role' ? 'Given by a role. Change their roles to remove it.' : undefined}
-                    onChange={(on) => onChange(e.keys, on)}
-                  />
+                    <Badge tone={s === 'role' ? 'success' : s === 'direct' ? 'primary' : 'neutral'}>
+                      {s === 'role' ? 'From role' : s === 'direct' ? 'Direct' : 'Inactive'}
+                    </Badge>
+                    <Switch
+                      on={s !== 'none'}
+                      disabled={s === 'role' || busy}
+                      label={e.name}
+                      title={s === 'role' ? 'Given by a role. Change their roles to remove it.' : undefined}
+                      onChange={(on) => onChange(e.keys, on)}
+                    />
+                  </div>
+                  {/* View vs Edit for a screen that carries an action. View =
+                      can open, cannot change; Edit = can change. The admin
+                      flips it here unless a role already grants the edit. */}
+                  {action && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 pl-0.5">
+                      <span className="text-[12px] text-muted-foreground">{action.label}:</span>
+                      <div className={SEG_BAR} role="group" aria-label={`${e.name}: view or edit`}>
+                        <button
+                          type="button" aria-pressed={!editOn} disabled={busy || editLocked}
+                          onClick={() => onChange([action.editKey], false)}
+                          className={cn(segClass(!editOn), 'whitespace-nowrap')}
+                        >View only</button>
+                        <button
+                          type="button" aria-pressed={editOn} disabled={busy || editLocked}
+                          onClick={() => onChange([action.editKey], true)}
+                          className={cn(segClass(editOn), 'whitespace-nowrap')}
+                        >Edit</button>
+                      </div>
+                      {editLocked && (
+                        <span className="text-[11.5px] text-muted-foreground">
+                          Edit from {editFromRole.join(', ')} — change their roles to remove
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </li>
               )
             })}
