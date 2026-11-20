@@ -56,10 +56,29 @@ export function lateListJpeg(rows: Row[], onDate: string) {
   section('Punched in after 8:45', '#2563eb', '#2563eb', '#e8f0fe', late, (r) => hm(r.check_in), 'Nobody was late.')
   section('Not punched in yet', '#dc2626', '#dc2626', '#fde8e8', none, () => 'Not in', 'Everyone has punched in.')
 
-  const a = document.createElement('a')
-  a.download = `Late list ${onDate}.jpg`
-  a.href = c.toDataURL('image/jpeg', 0.92)
-  a.click()
+  /* A real file, not a giant data: URL (Yajur, 2026-11-20: "unable to view and
+     download"). A tall canvas makes a data URL megabytes long, which phones and
+     some browsers refuse to open or save, and a click on a link never added to
+     the page is ignored on others. toBlob + an object URL on an anchor that is
+     actually in the document downloads every time; the URL is revoked after. */
+  const save = (blob: Blob | null) => {
+    if (!blob) { /* canvas too large for a blob: fall back to the data URL */
+      const a = document.createElement('a')
+      a.download = `Late list ${onDate}.jpg`
+      a.href = c.toDataURL('image/jpeg', 0.92)
+      document.body.appendChild(a); a.click(); a.remove()
+      return
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.download = `Late list ${onDate}.jpg`
+    a.href = url
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }
+  c.toBlob(save, 'image/jpeg', 0.92)
 }
 
 function fit(g: CanvasRenderingContext2D, s: string, max: number) {

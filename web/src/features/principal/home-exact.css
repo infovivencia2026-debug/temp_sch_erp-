@@ -4,7 +4,11 @@
   --hx-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px -8px rgba(15,23,42,.10);--hx-up:0 2px 4px rgba(15,23,42,.05),0 18px 40px -12px rgba(79,70,229,.28);
   display:flex;flex-direction:column;gap:22px;color:var(--hx-ink);font-family:'Inter Variable',Inter,ui-sans-serif,system-ui,sans-serif;padding-top:var(--page-top,8px)}
 .hx button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
-.hx-hero{position:relative;overflow:hidden;border-radius:28px;background:#fff;box-shadow:var(--hx-shadow);padding:30px 30px 26px;isolation:isolate}
+/* clip-path as well as overflow:hidden (Yajur, 2026-11-20: "that color is out
+   of box"): on iOS Safari overflow:hidden with a border-radius does NOT clip a
+   child that carries a filter/blur, so the blurred gradient blobs bled past the
+   rounded corners. clip-path with the same radius clips them for real. */
+.hx-hero{position:relative;overflow:hidden;border-radius:28px;clip-path:inset(0 round 28px);background:#fff;box-shadow:var(--hx-shadow);padding:30px 30px 26px;isolation:isolate}
 .hx-blob{position:absolute;z-index:-1;border-radius:50%;filter:blur(38px);opacity:.95;pointer-events:none}
 .hx-blob.b1{width:520px;height:520px;right:-120px;top:-210px;background:radial-gradient(circle at 35% 35%,#5fd3f3,transparent 62%)}
 .hx-blob.b2{width:520px;height:520px;right:-40px;top:-120px;background:radial-gradient(circle at 50% 50%,#4f7cf7,transparent 60%)}

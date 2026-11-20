@@ -138,10 +138,31 @@ export default function StudentIDCard() {
             )}
           </div>
           <div className="flex flex-wrap items-start gap-6 px-5 py-5">
-            <div className="flex h-28 w-24 shrink-0 items-center justify-center rounded-md border bg-muted text-[12px] text-muted-foreground">
-              {card.photo_file_id
-                ? t('portal.student_id_card.photo')
-                : t('portal.student_id_card.no_photo')}
+            {/* The child's actual photo, not the word "Photo" (Yajur,
+                2026-11-20): the file is served inline from the same endpoint
+                the chat avatars use. A missing or broken file falls back to the
+                placeholder text. */}
+            <div className="flex h-28 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-[12px] text-muted-foreground">
+              {card.photo_file_id ? (
+                <img
+                  src={`/api/v1/files/${card.photo_file_id}?inline=1`}
+                  alt={card.full_name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    const img = e.currentTarget
+                    img.style.display = 'none'
+                    const box = img.parentElement
+                    if (box && !box.querySelector('[data-no-photo]')) {
+                      const span = document.createElement('span')
+                      span.dataset.noPhoto = ''
+                      span.textContent = t('portal.student_id_card.no_photo')
+                      box.appendChild(span)
+                    }
+                  }}
+                />
+              ) : (
+                t('portal.student_id_card.no_photo')
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[20px] font-semibold tracking-[-0.01em]">{card.full_name}</p>
