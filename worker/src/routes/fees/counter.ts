@@ -217,6 +217,49 @@ export function registerCounter(r: Router): void {
     return ledger
   })
 
+  /* ---------------------------------------------------------------- collections
+     Who paid, how and to whom, for a day, a month or any range (owner,
+     2026-11-20). Admin and accounts see every collector; a clerk who only
+     takes fees sees the money they took themselves. */
+  r.get('/fees/collections', 'auth', async (c) => {
+    const id = c.id
+    if (!can(id, 'finance.payments.read') && !can(id, 'finance.payments.write')) throw forbidden()
+    const all = can(id, 'finance.export') || can(id, 'finance.refunds.write')
+    if (!all && !id.userId) throw forbidden()
+    const q = c.url.searchParams
+    const from = q.get('from') ?? today(), to = q.get('to') ?? from
+    if (!isDate(from) || !isDate(to)) throw badRequest('from and to must be dates (YYYY-MM-DD)')
+    const mode = q.get('mode') ?? ''
+    const by = all ? (q.get('collector') ?? '') : (id.userId ?? '')
+    // Every parameter is always used, so the bind list never outnumbers the placeholders.
+    const where = ["p.paid_on BETWEEN ?1 AND ?2", "(?3 = '' OR p.mode = ?3)",
+      "(?4 = '' OR (?4 = 'none' AND p.collected_by IS NULL) OR p.collected_by = ?4)"]
+    const rows = await c.db.prepare(`
+      SELECT p.id, p.receipt_no, p.paid_on, p.created_at, p.amount_paise, p.mode, p.status,
+             COALESCE(p.gateway_txn_id, p.reference_no, '') AS reference, COALESCE(p.remarks, '') AS remarks, p.attachment_file_id,
+             p.collected_by, COALESCE(u.full_name, '') AS collector,
+             st.id AS student_id, st.admission_no, ${nameSQL('st')} AS student, ${CLASS_SQL('st')} AS class_name, ${SECTION_SQL('st')} AS section_name,
+             (SELECT REPLACE(group_concat(DISTINCT fh.name), ',', ', ') FROM payment_allocations pa JOIN invoice_lines il ON il.invoice_id = pa.invoice_id
+                JOIN fee_heads fh ON fh.id = il.fee_head_id WHERE pa.payment_id = p.id) AS fee_types
+        FROM payments p JOIN students st ON st.id = p.student_id LEFT JOIN users u ON u.id = p.collected_by
+       WHERE ${where.join(' AND ')}
+       ORDER BY p.paid_on DESC, p.created_at DESC LIMIT 5000`).bind(from, to, mode, by).all<Record<string, unknown>>()
+    const collectors = all ? (await c.db.prepare(`SELECT DISTINCT p.collected_by AS id, COALESCE(u.full_name, '') AS name FROM payments p
+        LEFT JOIN users u ON u.id = p.collected_by WHERE p.collected_by IS NOT NULL ORDER BY name`).all<{ id: string; name: string }>()).results : []
+    return ok({
+      from, to, all,
+      collectors,
+      items: rows.results.map((x) => omitNulls({
+        id: String(x.id), receipt_no: String(x.receipt_no ?? ''), paid_on: String(x.paid_on), at: String(x.created_at ?? ''),
+        amount_paise: p(x.amount_paise as number), mode: String(x.mode ?? ''), status: String(x.status),
+        reference: String(x.reference ?? ''), remarks: String(x.remarks ?? ''), attachment_file_id: (x.attachment_file_id as string | null) ?? undefined,
+        collector: String(x.collector || (x.collected_by ? '' : 'Imported / online')),
+        student_id: String(x.student_id), admission_no: String(x.admission_no ?? ''), student: String(x.student ?? ''),
+        class_name: [x.class_name, x.section_name].filter(Boolean).join('-'), fee_types: String(x.fee_types ?? ''),
+      })),
+    })
+  })
+
   // ---------------------------------------------------------------- UPI code
   r.get('/fees/upi-code', 'auth', async (c) => {
     if (!c.id.institution) throw badRequest("this screen belongs to a school. Sign in against one, or pick a school first - a platform operator's account is not attached to any.")

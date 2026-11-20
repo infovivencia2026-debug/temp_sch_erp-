@@ -10,7 +10,7 @@ import { printReceipt, receiptHtml } from './receipt-print'
 import A4Frame from '@/components/A4Frame'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Input, Textarea, SkeletonTable, ErrorState, EmptyState, FormNotice,
+  Table, Td, Badge, Button, Select, Input, TAB_BAR, tabClass, Textarea, SkeletonTable, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -18,6 +18,7 @@ import { useDebouncedValue } from '@/lib/debounce'
 import { useSession, useCan } from '@/lib/session'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import UpiQr from '@/components/UpiQr'
+import Collections from './Collections'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { upiNote } from '@/lib/upi'
 
@@ -55,6 +56,7 @@ export default function FeeCounter() {
   /* Opened from Student 360's Take fee (owner, 2026-11-20): ?student=<id>&invoices=<a,b>
      picks the child, ticks those bills and fills their balance, so the clerk only picks the mode. */
   const [params] = useSearchParams()
+  const [tab, setTab] = useState<'take' | 'collections'>(params.get('tab') === 'collections' ? 'collections' : 'take')
   const [studentId, setStudentId] = useState<string | null>(params.get('student'))
   const [preset, setPreset] = useState<string[] | null>(() => params.get('invoices')?.split(',').filter(Boolean) ?? null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -234,6 +236,13 @@ export default function FeeCounter() {
         }
       />
       <PageBody>
+        {/* Collections beside the counter (owner, 2026-11-20). */}
+        <div className={cn(TAB_BAR, 'mb-5')} role="tablist">
+          {([['take', 'Take payment'], ['collections', 'Collections']] as const).map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={tab === k} className={tabClass(tab === k)} onClick={() => setTab(k)}>{label}</button>
+          ))}
+        </div>
+        {tab === 'collections' ? <Collections /> : (<>
         {receipt && <ReceiptView receipt={receipt} paymentId={receiptPayment} printNow={printNow} onClose={() => setReceipt(null)} />}
 
         <Card>
@@ -651,6 +660,7 @@ export default function FeeCounter() {
             </Card>
           </>
         ) : null}
+        </>)}
       </PageBody>
     </>
   )
