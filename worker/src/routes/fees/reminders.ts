@@ -2,6 +2,7 @@ import type { Router } from '../../router'
 import { badRequest, bool, isUUID, now, ok, readJSON } from '../../http'
 import { notifyStmt, rupeesFixed, today } from './common'
 import { Messenger, scopeOf, type SendRequest } from '../../services/messaging'
+import { wantsInApp } from '../../services/channel_pick'
 
 /* Port of fee_reminders.go (chase now), fee_reminder_schedule.go (the
    standing plan, one message_trigger_rules row per channel) and
@@ -32,6 +33,9 @@ export function registerReminders(r: Router): void {
     const students: string[] = []
     for (const raw of ids) { const s = String(raw).trim(); if (!isUUID(s)) throw badRequest('every student_id must be a uuid'); students.push(s) }
     const channels = cleanChannels(req.channels)
+    // In app is ticked by default and may be unticked (the list then carries no 'in_app').
+    const inApp = wantsInApp(req.channels)
+    if (!inApp && !channels.length) throw badRequest('choose at least one way to send')
 
     const owing = await c.db.prepare(`
       SELECT st.id, TRIM(st.first_name || COALESCE(' ' || st.last_name, '')) AS name, SUM(inv.net_paise - inv.paid_paise) AS due, MIN(inv.due_on) AS due_on
@@ -62,7 +66,7 @@ export function registerReminders(r: Router): void {
       stmts.push(c.db.prepare(`UPDATE students SET last_fee_reminder_at = ? WHERE id = ?`).bind(now(), o.id))
       for (const pn of people.results) {
         if (!pn.uid) noAccount++
-        else { stmts.push(notifyStmt(c, pn.uid, o.id, 'fee_due', amount + ' outstanding', body, '/go/fees_payments', 'student', o.id)); told++ }
+        else if (inApp) { stmts.push(notifyStmt(c, pn.uid, o.id, 'fee_due', amount + ' outstanding', body, '/go/fees_payments', 'student', o.id)); told++ }
         for (const ch of channels) {
           const to = ch === 'email' ? (pn.email ?? '').trim() : (pn.phone ?? '').trim()
           if (to === '') continue

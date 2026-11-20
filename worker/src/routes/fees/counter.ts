@@ -629,7 +629,9 @@ export function registerCounter(r: Router): void {
              (SELECT gg.full_name FROM student_guardians sg JOIN guardians gg ON gg.id = sg.guardian_id WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1) AS guardian_name,
              (SELECT gg.phone FROM student_guardians sg JOIN guardians gg ON gg.id = sg.guardian_id WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1) AS phone,
              sum(i.net_paise - i.paid_paise) AS balance_paise, min(i.due_on) AS oldest_due, substr(st.last_fee_reminder_at, 1, 16) AS last_reminded,
-             COALESCE(MAX(0, CAST(julianday(?1) - julianday(min(i.due_on)) AS INTEGER)), 0) AS days_overdue
+             COALESCE(MAX(0, CAST(julianday(?1) - julianday(min(i.due_on)) AS INTEGER)), 0) AS days_overdue,
+             (SELECT group_concat(DISTINCT fh.name) FROM invoices i2 JOIN invoice_lines il ON il.invoice_id = i2.id JOIN fee_heads fh ON fh.id = il.fee_head_id
+               WHERE i2.student_id = st.id AND i2.status IN ('unpaid','partial','overdue') AND i2.net_paise > i2.paid_paise) AS fees
         FROM invoices i JOIN students st ON st.id = i.student_id
        WHERE i.status IN ('unpaid','partial','overdue') AND (?2 OR (i.due_on IS NOT NULL AND i.due_on < ?1))
        GROUP BY st.id HAVING sum(i.net_paise - i.paid_paise) > 0
@@ -638,7 +640,8 @@ export function registerCounter(r: Router): void {
       const d = p(v.days_overdue)
       const bucket = d > 90 ? '90+' : d > 60 ? '61-90' : d > 30 ? '31-60' : '0-30'
       return omitNulls({ student_id: v.student_id, admission_no: v.admission_no, full_name: v.full_name, class_name: v.class_name, section_name: v.section_name,
-        guardian_name: v.guardian_name, phone: v.phone, balance_paise: p(v.balance_paise), oldest_due: v.oldest_due, last_reminded: v.last_reminded, days_overdue: d, bucket })
+        guardian_name: v.guardian_name, phone: v.phone, balance_paise: p(v.balance_paise), oldest_due: v.oldest_due, last_reminded: v.last_reminded, days_overdue: d, bucket,
+        fees: v.fees ? String(v.fees).split(',').map((x) => x.trim()).filter(Boolean) : [] })
     })))
   })
 }

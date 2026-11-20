@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChannelEstimate, ChannelPicker, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
 import { api } from '@/lib/api'
 import { useVisibleInterval } from '@/lib/visible'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Select, Input,
-  Field, SkeletonTable, ErrorState, EmptyState, segClass, SEG_BAR } from '@/components/ui'
+  Field, SkeletonTable, ErrorState, EmptyState, segClass, SEG_BAR, Checkbox, ConfirmButton, FormNotice } from '@/components/ui'
 
 /* Student absentees — the monitoring view.
  *
@@ -89,6 +90,83 @@ function isCalled(status: Absentee['call_status']): boolean {
   return status !== 'not_called'
 }
 
+/* TELL THE PARENTS FROM HERE (owner, 2026-11-20).
+
+   Once the register is taken, tick children on the Absent or Present tab, choose
+   how (In app, Yajur Connect, SMS) and send. Each child's family is told once a
+   day: a child already told shows "Told" and is not sent again, whoever pressed
+   Send and on whichever channel. Shown only to staff who may mark or notify. */
+const NOTIFY_PERMS = ['comms.messages.send', 'academics.attendance.write', 'academics.attendance.write.any']
+
+function useCanNotify(): boolean {
+  const session = useQuery({ queryKey: ['session'], queryFn: () => api.call('GET /session') })
+  const perms: string[] = (session.data as { permissions?: string[] } | undefined)?.permissions ?? []
+  return NOTIFY_PERMS.some((p) => perms.includes(p))
+}
+
+function SendToParents({ kind, onDate, picked, total, allIds, onPick, told }: {
+  kind: 'absent' | 'present'
+  onDate: string
+  picked: string[]
+  total: number
+  allIds: string[]
+  onPick: (ids: string[]) => void
+  told: Set<string>
+}) {
+  const qc = useQueryClient()
+  const [channels, setChannels] = useState<Channel[]>(DEFAULT_CHANNELS)
+  const [done, setDone] = useState('')
+  const sendable = picked.filter((id) => !told.has(id))
+  const estimate = useChannelEstimate(['attendance', kind, onDate, sendable.slice().sort().join(',')],
+    { message_type: 'absence', student_ids: sendable, channels }, sendable.length > 0)
+  const send = useMutation({
+    mutationFn: () => api.post<{ children: number; already_told: number; messages_queued: number }>(
+      '/api/v1/attendance-workflow/parent-messages', { on_date: onDate, kind, student_ids: sendable, channels }),
+    onSuccess: (r) => {
+      setDone(`Told ${r.children} ${r.children === 1 ? 'family' : 'families'}` + (r.already_told ? ` · ${r.already_told} already told` : '') + '.')
+      onPick([])
+      qc.invalidateQueries({ queryKey: ['parent-messages', onDate] })
+    },
+  })
+  const fresh = allIds.filter((id) => !told.has(id))
+  return (
+    <Card className="mb-3">
+      <CardHeader
+        title={kind === 'absent' ? 'Tell parents their child is absent' : 'Tell parents their child is present'}
+        description={`${picked.length} of ${total} ticked`}
+        action={
+          <Checkbox
+            checked={fresh.length > 0 && fresh.every((id) => picked.includes(id))}
+            onChange={(on) => onPick(on ? fresh : [])}
+            label={kind === 'absent' ? 'Select all absent' : 'Select all present'}
+            disabled={fresh.length === 0}
+          />
+        }
+      />
+      <div className="space-y-3 p-4">
+        <ChannelPicker value={channels} onChange={setChannels} />
+        {channels.length === 0
+          ? <p className="text-[13px] text-warning">{NOTHING_TICKED}</p>
+          : sendable.length > 0 && estimate.data && <ChannelEstimate e={estimate.data} />}
+        <FormNotice error={send.error} />
+        {done && <p className="text-[13px] text-success">{done}</p>}
+        <div className="flex justify-end">
+          <ConfirmButton
+            variant="primary"
+            size="md"
+            disabled={sendable.length === 0 || channels.length === 0 || send.isPending}
+            confirmLabel="Send"
+            question={`Send to the families of ${sendable.length} ${sendable.length === 1 ? 'child' : 'children'}? Each family is told once today.`}
+            onConfirm={() => send.mutate()}
+          >
+            {send.isPending ? 'Sending…' : `Send to ${sendable.length} ${sendable.length === 1 ? 'family' : 'families'}`}
+          </ConfirmButton>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 export default function StudentAbsentees({ embedded = false }: { embedded?: boolean } = {}) {
   const [onDate, setOnDate] = useState(today)
   const [sectionId, setSectionId] = useState('')
@@ -96,6 +174,16 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
   const [nameQ, setNameQ] = useState('')
   // Default to Absent — that is the actionable side of the day.
   const [tab, setTab] = useState<Tab>('absent')
+  const canNotify = useCanNotify()
+  const [picked, setPicked] = useState<string[]>([])
+  const toggle = (id: string, on: boolean) => setPicked((p) => (on ? [...p.filter((x) => x !== id), id] : p.filter((x) => x !== id)))
+  const toldQ = useQuery({
+    queryKey: ['parent-messages', onDate],
+    queryFn: () => api.get<{ told_absent: string[]; told_present: string[] }>(`/api/v1/attendance-workflow/parent-messages?on_date=${onDate}`),
+    enabled: canNotify,
+  })
+  const toldAbsent = new Set(toldQ.data?.told_absent ?? [])
+  const toldPresent = new Set(toldQ.data?.told_present ?? [])
 
   const params = new URLSearchParams({ on_date: onDate })
   if (sectionId) params.set('section_id', sectionId)
@@ -193,7 +281,7 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
               type="button"
               role="tab"
               aria-selected={tab === t}
-              onClick={() => setTab(t)}
+              onClick={() => { setTab(t); setPicked([]) }}
               className={
                 tab === t
                   ? segClass(true)
@@ -222,15 +310,27 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
             />
           )
         ) : tab === 'present' ? (
+          <>
+          {canNotify && (
+            <SendToParents kind="present" onDate={onDate} picked={picked} total={presentRows.length}
+              allIds={presentRows.map((p) => p.student_id)} onPick={setPicked} told={toldPresent} />
+          )}
           <Card>
             <CardHeader title="Present" description={`${presentTotal} present`} />
             <Table
-              head={['Student', 'Admission No', 'Class', 'Section']}
+              head={[...(canNotify ? ['Send'] : []), 'Student', 'Admission No', 'Class', 'Section']}
               empty={presentRows.length === 0}
               emptyLabel={nq ? `No present child matches “${nameQ}” on this day.` : 'Nobody marked present for this day.'}
             >
               {presentRows.map((p) => (
                 <tr key={p.student_id}>
+                  {canNotify && (
+                    <Td>
+                      {toldPresent.has(p.student_id)
+                        ? <Badge tone="success">Told</Badge>
+                        : <Checkbox checked={picked.includes(p.student_id)} onChange={(on) => toggle(p.student_id, on)} label="" srLabel={`Tell the family of ${p.name}`} />}
+                    </Td>
+                  )}
                   <Td className="font-medium">{p.name}</Td>
                   <Td className="font-mono text-[12px] text-muted-foreground">{p.admission_no}</Td>
                   <Td>{p.class_name}</Td>
@@ -239,14 +339,20 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
               ))}
             </Table>
           </Card>
+          </>
         ) : (
+          <>
+          {canNotify && (
+            <SendToParents kind="absent" onDate={onDate} picked={picked} total={rows.length}
+              allIds={rows.map((r) => r.student_id)} onPick={setPicked} told={toldAbsent} />
+          )}
           <Card>
             <CardHeader
               title="Absentees"
               description={`${total} absent · ${pending} pending · ${called} called`}
             />
             <Table
-              head={['Student', 'Admission No', 'Class', 'Section', 'Status', 'Called by', 'Parent response']}
+              head={[...(canNotify ? ['Send'] : []), 'Student', 'Admission No', 'Class', 'Section', 'Status', 'Called by', 'Parent response']}
               empty={rows.length === 0}
               emptyLabel={nq ? `No absentee matches “${nameQ}” on this day.` : 'Nobody is marked absent for this day.'}
             >
@@ -254,6 +360,13 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
                 const done = isCalled(r.call_status)
                 return (
                   <tr key={r.student_id}>
+                    {canNotify && (
+                      <Td>
+                        {toldAbsent.has(r.student_id)
+                          ? <Badge tone="success">Told</Badge>
+                          : <Checkbox checked={picked.includes(r.student_id)} onChange={(on) => toggle(r.student_id, on)} label="" srLabel={`Tell the family of ${r.name}`} />}
+                      </Td>
+                    )}
                     <Td className="font-medium">{r.name}</Td>
                     <Td className="font-mono text-[12px] text-muted-foreground">{r.admission_no}</Td>
                     <Td>{r.class_name}</Td>
@@ -270,6 +383,7 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
               })}
             </Table>
           </Card>
+          </>
         )}
     </>
   )

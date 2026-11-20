@@ -1165,6 +1165,8 @@ interface MessageSendJob {
       With it, the same key to the same person on the same channel is queued once, ever. */
   dedupe_key?: string
   student_id?: string
+  /** Send on this one channel only, not the message type's ladder (a channel the sender ticked). */
+  exact?: boolean
 }
 registerJob<MessageSendJob>('message:send', async (env, job) => {
   const inst = job.institution_id ?? (job.payload as { institution_id?: string }).institution_id
@@ -1188,6 +1190,7 @@ export function messageSendRequest(p: MessageSendJob, jobId: string | null): Sen
   const dk = (p.dedupe_key ?? '').trim()
   return {
     channel: p.channel, template_code: p.template_key, vars: p.vars, to_user_id: p.to_user_id || null, student_id: p.student_id || null,
+    exact_channel: p.exact ? true : undefined,
     // A notice's fan-out names its notice, so the delivery screen can count it.
     source_kind: p.source_kind || 'queue_task', source_id: p.source_id || (dk ? null : jobId),
     occurrence_key: dk ? `${dk}:${p.to_user_id}:${p.channel}` : p.source_kind ? `${p.to_user_id}:${p.channel}` : p.template_key,
@@ -1197,7 +1200,7 @@ export function messageSendRequest(p: MessageSendJob, jobId: string | null): Sen
 
 /** Go's s.Queue.Enqueue(TypeMessageSend, ...) for many recipients: one 'message:send' job each. */
 export async function enqueueMessageSends(env: Env, inst: string,
-  items: { channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown>; source_kind?: string; source_id?: string; dedupe_key?: string; student_id?: string }[]): Promise<void> {
+  items: { channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown>; source_kind?: string; source_id?: string; dedupe_key?: string; student_id?: string; exact?: boolean }[]): Promise<void> {
   if (!items.length) return
   await enqueueMany(env, items.map((i) => ({ type: 'message:send', institution_id: inst,
     payload: { institution_id: inst, ...i, job_id: crypto.randomUUID() } as Record<string, unknown> })))

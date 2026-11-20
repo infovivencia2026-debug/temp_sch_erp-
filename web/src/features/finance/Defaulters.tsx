@@ -4,8 +4,9 @@ import { Phone } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid,
-  Table, Td, Button, Input, Select, Loading, ErrorState, ExportButton, useSort, FormNotice,
+  Table, Td, Button, Input, Select, Loading, ErrorState, ExportButton, useSort, FormNotice, Checkbox, ConfirmButton,
 } from '@/components/ui'
+import { ChannelEstimate, ChannelPicker, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 
 interface Schedule {
@@ -27,6 +28,8 @@ interface Defaulter {
      in a week and stop reading any of them. */
   last_reminded?: string
   balance_paise: number; oldest_due?: string; days_overdue: number; bucket: string
+  /** The fee heads still unpaid on this family's bills (Tuition, Transport ...). */
+  fees?: string[]
 }
 
 const BUCKETS = ['0-30', '31-60', '61-90', '90+'] as const
@@ -37,9 +40,11 @@ export default function Defaulters() {
   const qc = useQueryClient()
   const [bucket, setBucket] = useState('')
   const [picked, setPicked] = useState<Record<string, boolean>>({})
-  /* The app alert always goes; these cost money per message, so they are
-     chosen per send rather than assumed. */
-  const [channels, setChannels] = useState<Record<string, boolean>>({})
+  /* How the reminder goes out: In app ticked by default, Yajur Connect, SMS and
+     email when ticked (owner, 2026-11-20). The paid ones cost money per message,
+     so they are chosen per send rather than assumed. */
+  const [channels, setChannels] = useState<Channel[]>(DEFAULT_CHANNELS)
+  const [feeType, setFeeType] = useState('')
   const [sent, setSent] = useState('')
   const [find, setFind] = useState('')
 
@@ -73,10 +78,10 @@ export default function Defaulters() {
       api.post<{ told: number; messages_queued: number; no_account: number }>(
         '/api/v1/fees/reminders/send', {
           student_ids: ids,
-          channels: Object.keys(channels).filter((k) => channels[k]),
+          channels,
         }),
     onSuccess: (r) => {
-      const paid = Object.keys(channels).filter((k) => channels[k])
+      const paid = channels.filter((k) => k !== 'in_app').map((k) => ({ whatsapp: 'Yajur Connect', sms: 'SMS', email: 'email' } as Record<string, string>)[k])
       /* Said in full, because "Reminded 0 people in the app" about a send
          that texted eleven families reads as a broken button. A family with
          no login is reachable by SMS and not by the bell. */
@@ -90,7 +95,7 @@ export default function Defaulters() {
           : '')
         + '.'
         + (r.told === 0 && r.messages_queued === 0
-          ? ' Nothing was sent: these families have no app account, and no channel was ticked.'
+          ? ' Nothing was sent: these families have no app account, and neither Yajur Connect nor SMS was ticked.'
           : ''),
       )
       setPicked({})
@@ -117,18 +122,23 @@ export default function Defaulters() {
   const all = data?.items ?? []
 
   const needle = find.trim().toLowerCase()
+  const feeTypes = [...new Set(all.flatMap((d) => d.fees ?? []))].sort()
   const rows = all
     .filter((d) => (bucket ? d.bucket === bucket : true))
+    .filter((d) => (feeType ? (d.fees ?? []).includes(feeType) : true))
     .filter((d) =>
       !needle
       || d.full_name.toLowerCase().includes(needle)
       || d.admission_no.toLowerCase().includes(needle)
-      || (d.guardian_name ?? '').toLowerCase().includes(needle))
+      || (d.guardian_name ?? '').toLowerCase().includes(needle)
+      || (d.phone ?? '').includes(needle))
 
   const ticked = rows.filter((d) => picked[d.student_id])
   // Nothing ticked means everybody on screen — the same rule the report card
   // queues follow, so one habit works across the product.
   const toRemind = ticked.length ? ticked : rows
+  const estimate = useChannelEstimate(['fees', toRemind.map((d) => d.student_id).sort().join(',')],
+    { message_type: 'fees', student_ids: toRemind.map((d) => d.student_id), channels }, toRemind.length > 0)
   /* Biggest balance first by default.
 
      A defaulter list read in admission-number order is a list nobody works
@@ -162,8 +172,14 @@ export default function Defaulters() {
             <Input
               value={find}
               onChange={setFind}
-              placeholder="Find a student, admission no. or parent"
+              placeholder="Student, admission no., parent or phone"
               className="w-full sm:w-72"
+            />
+            <Select
+              value={feeType}
+              onChange={setFeeType}
+              placeholder="All fee types"
+              options={[{ value: '', label: 'All fee types' }, ...feeTypes.map((f) => ({ value: f, label: f }))]}
             />
             <ExportButton report="defaulters" />
             <Select
@@ -209,25 +225,13 @@ export default function Defaulters() {
                   row of five boxes with their labels above them, which reads
                   as a form rather than as a sentence about what will happen. */}
               <div>
-                <p className="eyebrow mb-2">Send messages via</p>
-                <div className="flex flex-wrap items-center gap-4 text-[13px]">
-                  {(['whatsapp', 'sms', 'email'] as const).map((ch) => (
-                    <label key={ch} className="flex items-center gap-1.5">
-                      <input
-                        type="checkbox"
-                        checked={plan.channels.includes(ch)}
-                        onChange={(e) =>
-                          setSched({
-                            ...plan,
-                            channels: e.target.checked
-                              ? [...plan.channels, ch]
-                              : plan.channels.filter((x) => x !== ch),
-                          })}
-                      />
-                      {ch === 'sms' ? 'SMS' : ch === 'whatsapp' ? 'WhatsApp' : 'Email'}
-                    </label>
-                  ))}
-                </div>
+                                {/* The automatic plan always posts in the app; the paid ways are ticked here. */}
+                <ChannelPicker
+                  email
+                  lockInApp
+                  value={['in_app', ...(plan.channels as Channel[])]}
+                  onChange={(v) => setSched({ ...plan, channels: v.filter((x) => x !== 'in_app') })}
+                />
               </div>
 
               <div>
@@ -260,7 +264,7 @@ export default function Defaulters() {
 
               <p className="rounded-xl border bg-muted/30 p-3 text-[12.5px] text-muted-foreground">
                 {plan.active && plan.channels.length > 0
-                  ? `Parents and the student get a ${plan.channels.join(' and ')} reminder ${plan.days_before} day${plan.days_before === 1 ? '' : 's'} before the instalment is due`
+                  ? `Parents and the student get a ${plan.channels.map((c) => ({ whatsapp: 'Yajur Connect', sms: 'SMS', email: 'email' } as Record<string, string>)[c] ?? c).join(' and ')} reminder ${plan.days_before} day${plan.days_before === 1 ? '' : 's'} before the instalment is due`
                     + (plan.repeat_days > 0
                       ? `, then every ${plan.repeat_days} days, ${plan.max_attempts} time${plan.max_attempts === 1 ? '' : 's'} at most. `
                       : '. ')
@@ -325,39 +329,31 @@ export default function Defaulters() {
               owes now, whether the date has passed or not. */}
           <CardHeader
             title="Who owes"
-            action={
-              <div className="flex flex-wrap items-center gap-3">
-                {(['sms', 'whatsapp', 'email'] as const).map((ch) => (
-                  <label key={ch} className="flex items-center gap-1.5 text-[13px]">
-                    <input
-                      type="checkbox"
-                      checked={!!channels[ch]}
-                      onChange={(e) => setChannels({ ...channels, [ch]: e.target.checked })}
-                    />
-                    {ch === 'sms' ? 'SMS' : ch === 'whatsapp' ? 'WhatsApp' : 'Email'}
-                  </label>
-                ))}
-                <Button
-                  size="sm"
-                  disabled={remind.isPending || toRemind.length === 0}
-                  onClick={() => remind.mutate(toRemind.map((d) => d.student_id))}
-                >
-                  {remind.isPending
-                    ? 'Sending…'
-                    : ticked.length
-                      ? `Remind ${ticked.length} selected`
-                      : `Remind all ${rows.length} shown`}
-                </Button>
-              </div>
-            }
+            description={`${rows.length} of ${all.length} · ${formatPaise(rows.reduce((a, d) => a + d.balance_paise, 0))} due`}
           />
+          <div className="space-y-3 px-5 pt-4">
+            <ChannelPicker email value={channels} onChange={setChannels} />
+            {channels.length === 0
+              ? <p className="text-[13px] text-warning">{NOTHING_TICKED}</p>
+              : estimate.data && <ChannelEstimate e={estimate.data} />}
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <ConfirmButton
+                variant="primary"
+                size="md"
+                disabled={remind.isPending || toRemind.length === 0 || channels.length === 0}
+                confirmLabel="Send reminders"
+                question={`Remind the families of ${toRemind.length} ${toRemind.length === 1 ? 'student' : 'students'}? One reminder per family contact today.`}
+                onConfirm={() => remind.mutate(toRemind.map((d) => d.student_id))}
+              >
+                {remind.isPending
+                  ? 'Sending…'
+                  : ticked.length
+                    ? `Remind ${ticked.length} selected`
+                    : `Remind all ${rows.length} shown`}
+              </ConfirmButton>
+            </div>
+          </div>
           {/* Said next to the button, because it is what the button will do. */}
-          <p className="px-5 pt-3 text-[13px] text-muted-foreground">
-            {rows.length} of {all.length} ·{' '}
-            {formatPaise(rows.reduce((a, d) => a + d.balance_paise, 0))} overdue.
-            The app alert always goes to the parent and the student; the boxes
-            above are what the school pays for.
-          </p>
           <div className="px-5">
             <FormNotice error={remind.error} ok={sent} />
           </div>
@@ -369,14 +365,15 @@ export default function Defaulters() {
             <>
             <Table
               head={[
-                '',
-                { label: 'Admission no.', key: 'admission_no' },
+                'Pick',
+                { label: 'Adm. no', key: 'admission_no' },
                 { label: 'Student', key: 'full_name' },
                 { label: 'Class', key: 'class_name' },
                 'Guardian',
+                'Fee',
+                { label: 'Amount due', key: 'balance_paise', align: 'right' },
                 { label: 'Oldest due', key: 'oldest_due' },
-                { label: 'Overdue', key: 'days_overdue' },
-                { label: 'Balance', key: 'balance_paise' },
+                { label: 'Days late', key: 'days_overdue' },
                 'Last reminded',
                 '',
               ]}
@@ -387,12 +384,11 @@ export default function Defaulters() {
               {sort.sorted.map((d) => (
                 <tr key={d.student_id}>
                   <Td>
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={!!picked[d.student_id]}
-                      onChange={(e) =>
-                        setPicked({ ...picked, [d.student_id]: e.target.checked })}
-                      aria-label={`Select ${d.full_name}`}
+                      onChange={(on) => setPicked({ ...picked, [d.student_id]: on })}
+                      label=""
+                      srLabel={`Select ${d.full_name}`}
                     />
                   </Td>
                   <Td className="whitespace-nowrap font-mono text-[12px]">{d.admission_no}</Td>
@@ -406,11 +402,12 @@ export default function Defaulters() {
                       </a>
                     )}
                   </Td>
-                  <Td className="text-muted-foreground">{formatDate(d.oldest_due)}</Td>
-                  <Td>{d.days_overdue}d</Td>
-                  <Td className="whitespace-nowrap font-medium tabular-nums">
+                  <Td className="text-[12.5px]">{d.fees?.length ? d.fees.join(', ') : '-'}</Td>
+                  <Td className="whitespace-nowrap text-right font-medium tabular-nums">
                     {formatPaise(d.balance_paise)}
                   </Td>
+                  <Td className="whitespace-nowrap text-muted-foreground">{formatDate(d.oldest_due)}</Td>
+                  <Td className="whitespace-nowrap">{d.days_overdue}d</Td>
                   {/* So nobody sends a fourth reminder in a week to the family
                       who has been reading all of them. */}
                   <Td className="whitespace-nowrap text-[12.5px] text-muted-foreground">
@@ -420,14 +417,15 @@ export default function Defaulters() {
                     {/* One family, without ticking anything. The commonest
                         send is a single reminder to the family somebody has
                         just been reading about. */}
-                    <Button
-                      size="sm"
+                    <ConfirmButton
                       variant="ghost"
-                      disabled={remind.isPending}
-                      onClick={() => remind.mutate([d.student_id])}
+                      disabled={remind.isPending || channels.length === 0}
+                      confirmLabel="Send reminder"
+                      question={`Remind the family of ${d.full_name}?`}
+                      onConfirm={() => remind.mutate([d.student_id])}
                     >
                       Remind
-                    </Button>
+                    </ConfirmButton>
                   </Td>
                 </tr>
               ))}

@@ -236,7 +236,7 @@ export interface ChannelHealth {
   cost_paise: number
 }
 
-const LABELS: Record<string, string> = { in_app: 'In-app', push: 'Push (app notifications)', whatsapp: 'WhatsApp', sms: 'SMS', email: 'Email' }
+const LABELS: Record<string, string> = { in_app: 'In-app', push: 'Push (app notifications)', whatsapp: 'Yajur Connect', sms: 'SMS', email: 'Email' }
 
 /** Per channel: is it really live? Provider configured, and credit where metered. */
 export async function channelStatus(env: Env, db: D1Database, inst: string): Promise<ChannelHealth[]> {

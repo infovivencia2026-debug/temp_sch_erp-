@@ -2060,6 +2060,7 @@ export function Checkbox({
   label,
   hint,
   srLabel,
+  disabled,
 }: {
   checked: boolean
   onChange: (v: boolean) => void
@@ -2076,12 +2077,15 @@ export function Checkbox({
      gets charged money. Name it here instead: invisible, and the only name the
      control has. */
   srLabel?: string
+  /** Shown but not changeable, e.g. a channel that is not set up yet. */
+  disabled?: boolean
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-start gap-2 text-[13px]">
+    <label className={cn('inline-flex items-start gap-2 text-[13px]', disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
         aria-label={srLabel || undefined}
         className="mt-0.5 h-[15px] w-[15px] shrink-0 accent-primary"

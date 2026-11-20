@@ -11,7 +11,7 @@ import {
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSMSGateway } from '../communication/sms-gateway-lib'
-import { EstimateLine, type Estimate } from '../communication/delivery-lib'
+import { ChannelEstimate, ChannelPicker, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
 import { PendingApprovals } from '../communication/SmsGateway'
 import WriteWithAI from '@/components/ai/WriteWithAI'
 import TranslateNotice from '@/components/ai/TranslateNotice'
@@ -82,7 +82,8 @@ export default function Circulars() {
      as 'all' and the fan-out ran over guardians regardless — a notice for
      students was delivered to their parents. */
   const [audience, setAudience] = useState('all')
-  const [notify, setNotify] = useState(true)
+  // How it goes out: In app ticked by default, Yajur Connect and SMS when ticked (owner, 2026-11-20).
+  const [channels, setChannels] = useState<Channel[]>(DEFAULT_CHANNELS)
   const [requiresAck, setRequiresAck] = useState(true)
   /* The attachment, uploaded before the circular is published.
    *
@@ -139,14 +140,9 @@ export default function Circulars() {
   })
   /* Before sending: who it reaches on which channel, what it costs, and a
      plain warning when a channel is not live (services/delivery.ts). */
-  const estimate = useQuery({
-    queryKey: ['circular-estimate', audience, [...sectionIds].sort().join(',')],
-    queryFn: () => api.post<Estimate>('/api/v1/admin/messaging/estimate', {
-      message_type: 'notice', audience_role: audience, section_ids: [...sectionIds],
-    }),
-    enabled: canPublish && notify,
-    staleTime: 60_000,
-  })
+  const estimate = useChannelEstimate(['circular', audience, [...sectionIds].sort().join(',')], {
+    message_type: 'notice', audience_role: audience, section_ids: [...sectionIds], channels,
+  }, canPublish)
   const publish = useMutation({
     mutationFn: () =>
       api.post<{
@@ -157,7 +153,7 @@ export default function Circulars() {
         {
           title, body, section_ids: [...sectionIds],
           audience_role: audience,
-          requires_ack: requiresAck, notify,
+          requires_ack: requiresAck, channels,
           attachment_file_id: file?.id ?? '',
         },
       ),
@@ -365,27 +361,12 @@ export default function Circulars() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {/* The portal copy is not optional and never was: publishing
-                    writes it. These three are extra routes on top, which is
-                    what "also" means -- so they are shown as three things that
-                    can be switched on rather than four checkboxes of which one
-                    is a different kind of thing entirely. */}
-                <span className="w-16 shrink-0 text-[13px] text-muted-foreground">Also</span>
-                <button
-                  type="button" onClick={() => setNotify(!notify)} aria-pressed={notify}
-                  className={cn(
-                    'rounded-md border px-2.5 py-1 text-[13px] transition-colors',
-                    notify ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
-                  )}
-                >
-                  Notify families
-                </button>
-                <span className="text-[13px] text-muted-foreground">
-                  The portal copy always goes. Notifying uses the school’s delivery rules: app push first, then WhatsApp, then SMS.
-                </span>
-              </div>
-              {notify && estimate.data && <EstimateLine e={estimate.data} />}
+              {/* The portal copy always goes; these are the ways families are told about it. */}
+              <ChannelPicker value={channels} onChange={setChannels} />
+              {channels.length === 0
+                ? <p className="text-[13px] text-warning">{NOTHING_TICKED}</p>
+                : estimate.data && <ChannelEstimate e={estimate.data} />}
+
             </div>
 
             {/* Acknowledgement is not a delivery channel and no longer sits in
@@ -413,7 +394,7 @@ export default function Circulars() {
                 {audience === 'students' ? 'students' : audience === 'parents' ? 'guardians' : 'recipients'}
                 {publish.data.sms_queued > 0 && `, ${publish.data.sms_queued} SMS queued`}
                 {publish.data.email_queued > 0 && `, ${publish.data.email_queued} emails queued`}
-                {publish.data.whatsapp_queued > 0 && `, ${publish.data.whatsapp_queued} WhatsApp queued`}.
+                {publish.data.whatsapp_queued > 0 && `, ${publish.data.whatsapp_queued} Yajur Connect queued`}.
               </p>
             )}
             {publish.isSuccess && publish.data.without_login > 0 && (
@@ -428,7 +409,7 @@ export default function Circulars() {
                 {publish.data.without_login} of them have no login and
                 {publish.data.sms_queued + publish.data.email_queued + publish.data.whatsapp_queued > 0
                   ? ' were reached only by the message you ticked.'
-                  : ' saw nothing, tick SMS, email or WhatsApp to reach them, or issue logins on School setup → Students.'}
+                  : ' saw nothing, tick Yajur Connect or SMS to reach them, or issue logins on School setup → Students.'}
               </p>
             )}
             {publish.isSuccess && publish.data.unreachable_children > 0 && (
@@ -457,9 +438,9 @@ export default function Circulars() {
                 {!title.trim() || !body.trim()
                   ? 'A title and a body are needed before this can go out.'
                   : summarisePublish(audience, sectionIds.size,
-                      [notify && 'app, WhatsApp or SMS by the delivery rules'])}
+                      [channels.length ? channels.map((c) => ({ in_app: 'the app', whatsapp: 'Yajur Connect', sms: 'SMS', email: 'email' })[c]).join(', ') : false])}
               </p>
-              <Button type="submit" disabled={!title.trim() || !body.trim() || publish.isPending}>
+              <Button type="submit" disabled={!title.trim() || !body.trim() || channels.length === 0 || publish.isPending}>
                 <Send className="h-4 w-4" />
                 {publish.isPending ? 'Publishing…' : 'Publish circular'}
               </Button>

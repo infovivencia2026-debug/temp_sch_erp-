@@ -6,7 +6,8 @@ import {
   MESSAGE_TYPES, channelStatus, cleanLadder, loadPolicies, loadSettings, looksEmail, phoneOf, pricesOf, validClock,
   type ChannelHealth,
 } from '../../services/delivery'
-import { circularRecipients } from '../payroll'
+import { circularContactOnly, circularRecipients } from '../payroll'
+import { explicitCounts, pickChannels, wantsInApp, type Person } from '../../services/channel_pick'
 import { smsReportKey } from './message_webhooks'
 
 /* The school's delivery rules, the honest channel status, cost estimates,
@@ -53,8 +54,11 @@ async function rules(c: Ctx) {
 /** Who a notice would reach and on which rung, and what it would cost. */
 async function estimate(c: Ctx) {
   requireAny(c, SEND, ANNOUNCE)
-  const req = await readJSON<{ message_type?: string; audience_role?: string; section_ids?: string[]; user_ids?: string[] }>(c.req)
+  const req = await readJSON<{ message_type?: string; audience_role?: string; section_ids?: string[]; user_ids?: string[]; student_ids?: string[]; channels?: string[] }>(c.req)
   const typeKey = MESSAGE_TYPES.some((t) => t.key === req.message_type) ? req.message_type! : 'notice'
+  // Ticked channels (In app always, plus the paid ones ticked): every person is counted on each
+  // ticked channel that reaches them, rather than on the first rung of the ladder.
+  if (Array.isArray(req.channels)) return explicitEstimate(c, req, typeKey)
   let users: string[] = []
   if (Array.isArray(req.user_ids) && req.user_ids.length) {
     users = req.user_ids.filter(isUUID).slice(0, 5000)
@@ -98,6 +102,47 @@ async function estimate(c: Ctx) {
     note: pol.mode === 'digest' ? 'Non-urgent: this goes in each family’s daily digest, so it shares one message with the rest of the day’s notices. The estimate is the most it could add.' : undefined,
     channels, warnings,
   }
+}
+
+async function explicitEstimate(c: Ctx, req: { audience_role?: string; section_ids?: string[]; user_ids?: string[]; student_ids?: string[]; channels?: string[] }, typeKey: string) {
+  const people: Person[] = []
+  const ids = (xs: unknown) => (Array.isArray(xs) ? xs.map(String).filter(isUUID).slice(0, 5000) : [])
+  const studentIds = ids(req.student_ids), userIds = ids(req.user_ids)
+  if (studentIds.length) {
+    for (let i = 0; i < studentIds.length; i += 90) {
+      const rows = (await c.db.prepare(`SELECT g.user_id AS uid, g.phone, g.email FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+          WHERE sg.student_id IN (SELECT value FROM json_each(?)) AND NOT sg.portal_blocked`).bind(JSON.stringify(studentIds.slice(i, i + 90))).all<Person>()).results
+      people.push(...rows)
+    }
+  } else if (userIds.length) {
+    for (let i = 0; i < userIds.length; i += 90) {
+      people.push(...(await c.db.prepare(`SELECT id AS uid, phone, email FROM users WHERE id IN (SELECT value FROM json_each(?))`)
+        .bind(JSON.stringify(userIds.slice(i, i + 90))).all<Person>()).results)
+    }
+  } else {
+    const audience = req.audience_role || 'parents'
+    if (!['all', 'parents', 'students', 'staff', 'everyone'].includes(audience)) throw badRequest('unknown audience')
+    const sections = (req.section_ids ?? []).filter(isUUID)
+    const rc = circularRecipients(sections)
+    const uids = (await c.db.prepare(rc.sql).bind(audience, ...rc.args).all<{ user_id: string }>()).results.map((r) => r.user_id).filter(Boolean)
+    for (let i = 0; i < uids.length; i += 90) {
+      people.push(...(await c.db.prepare(`SELECT id AS uid, phone, email FROM users WHERE id IN (SELECT value FROM json_each(?))`)
+        .bind(JSON.stringify(uids.slice(i, i + 90))).all<Person>()).results)
+    }
+    if (audience !== 'staff') {
+      const co = circularContactOnly(sections)
+      for (const r of (await c.db.prepare(co.sql).bind(audience, ...co.args).all<{ phone: string; email: string }>()).results) people.push({ uid: null, phone: r.phone, email: r.email })
+    }
+  }
+  const channels = await channelStatus(c.env, c.db, institutionId(c))
+  const live = Object.fromEntries(channels.map((x) => [x.channel, x.live]))
+  const picked = pickChannels(req.channels, live)
+  const inApp = wantsInApp(req.channels)
+  const counts = explicitCounts(people, picked, pricesOf(c.env), inApp)
+  const warnings = healthWarnings(channels)
+  const noLogin = people.filter((p) => !p.uid).length
+  if (noLogin > 0 && !picked.length) warnings.unshift(`${noLogin} have no app login: tick Yajur Connect or SMS to reach them.`)
+  return { message_type: typeKey, mode: 'instant', ladder: [...(inApp ? ['in_app'] : []), ...picked], ...counts, picked, explicit: true, prices_paise: pricesOf(c.env), channels, warnings }
 }
 
 // --- delivery receipts per notice ------------------------------------------

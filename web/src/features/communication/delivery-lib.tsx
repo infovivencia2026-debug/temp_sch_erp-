@@ -28,10 +28,12 @@ export interface Estimate {
   estimated_cost_paise: number
   note?: string
   warnings: string[]
+  /** Set when the estimate followed ticked channels rather than the ladder. */
+  explicit?: boolean
 }
 
 export const CHANNEL_NAMES: Record<string, string> = {
-  in_app: 'In-app + push', push: 'Push', whatsapp: 'WhatsApp', sms: 'SMS', email: 'Email', in_app_only: 'In-app only', digest: 'Digest',
+  in_app: 'In app', push: 'Push', whatsapp: 'Yajur Connect', sms: 'SMS', email: 'Email', in_app_only: 'In-app only', digest: 'Digest',
 }
 
 export const rupees = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

@@ -1,5 +1,7 @@
 import type { Router } from '../../router'
-import { enqueueMessageSends } from '../../services/messaging'
+import { Messenger, enqueueMessageSends, scopeOf } from '../../services/messaging'
+import { pickChannels, wantsInApp } from '../../services/channel_pick'
+import { channelStatus, liveMap, phoneOf } from '../../services/delivery'
 import { json } from '../../env'
 import { HttpError, badRequest, created, forbidden, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { can } from '../../identity'
@@ -115,6 +117,89 @@ export function registerAttendanceWorkflow(r: Router) {
     await enqueueMessageSends(c.env, c.id.institution!.id, targets.map((t) => ({ channel: 'sms', template_key: 'attendance.absent', to_user_id: t.user_id,
       vars: { student: t.student, date: day }, student_id: t.student_id, source_kind: 'absence_alert', dedupe_key: `absence:${day}:${t.student_id}` })))
     return json({ absent_students: targets.length, messages_queued: targets.length }, 202)
+  })
+
+  /* PRESENT & ABSENT: tell the parents from the day's list (owner, 2026-11-20).
+
+     After the register is taken, the office ticks children on the Absent or Present
+     tab and the channels to use (In app, Yajur Connect, SMS) and sends. Keyed per
+     child per day on the same key the absence button and the automatic alert use,
+     so a child's absence is told once, however many people press Send. */
+  const PARENT_MSG = ['comms.messages.send', 'academics.attendance.write', 'academics.attendance.write.any']
+  const toldKey = (kind: string, day: string, sid: string) => `${kind === 'present' ? 'present' : 'absence'}:${day}:${sid}`
+  r.get('/attendance-workflow/parent-messages', 'auth', async (c) => {
+    if (!PARENT_MSG.some((p) => can(c.id, p))) throw forbidden()
+    const day = c.url.searchParams.get('on_date') || todayIST()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw badRequest('on_date must be a date')
+    const rows = (await c.db.prepare(`
+      SELECT DISTINCT CASE WHEN idempotency_key LIKE 'dk:present:%' THEN 'present' ELSE 'absent' END AS kind,
+             substr(idempotency_key, length('dk:absence:') + 12, 36) AS sid_a, substr(idempotency_key, length('dk:present:') + 12, 36) AS sid_p
+        FROM message_log WHERE idempotency_key LIKE 'dk:absence:' || ?1 || ':%' OR idempotency_key LIKE 'dk:present:' || ?1 || ':%'
+      UNION
+      SELECT DISTINCT 'absent', source_id, source_id FROM message_log
+       WHERE source_kind = 'absence_alert' AND occurrence_key LIKE ?1 || ':%'`).bind(day)
+      .all<{ kind: string; sid_a: string; sid_p: string }>()).results
+    const absent = new Set<string>(), present = new Set<string>()
+    for (const r of rows) (r.kind === 'present' ? present.add(r.sid_p) : absent.add(r.sid_a))
+    return ok({ on_date: day, told_absent: [...absent].filter(isUUIDish), told_present: [...present].filter(isUUIDish) })
+  })
+
+  r.post('/attendance-workflow/parent-messages', 'auth', async (c) => {
+    if (!PARENT_MSG.some((p) => can(c.id, p))) throw forbidden()
+    const req = await readJSON<{ on_date?: string; kind?: string; student_ids?: string[]; channels?: string[] }>(c.req)
+    const day = (req.on_date ?? '').trim() || todayIST()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw badRequest('on_date must be a date')
+    const kind = req.kind === 'present' ? 'present' : 'absent'
+    const ids = (req.student_ids ?? []).map(String).filter(isUUIDish).slice(0, 2000)
+    if (!ids.length) throw badRequest('tick at least one child')
+    const inst = c.id.institution!.id
+    const paid = pickChannels(req.channels, liveMap(await channelStatus(c.env, c.db, inst)))
+    const inApp = wantsInApp(req.channels)
+    if (!inApp && !paid.length) throw badRequest('choose at least one way to send')
+    // Only children really marked so that day; a period-wise register has a row per period.
+    const kids = (await c.db.prepare(`SELECT DISTINCT st.id, trim(COALESCE(st.first_name,'') || ' ' || COALESCE(st.last_name,'')) AS name
+        FROM student_attendance sa JOIN students st ON st.id = sa.student_id
+       WHERE substr(sa.on_date,1,10) = ? AND sa.status = ? AND st.id IN (SELECT value FROM json_each(?))`)
+      .bind(day, kind, JSON.stringify(ids)).all<{ id: string; name: string }>()).results
+    const jobs: Parameters<typeof enqueueMessageSends>[2] = []
+    const ms = new Messenger(scopeOf(c))
+    let direct = 0
+    let already = 0
+    for (const k of kids) {
+      const key = toldKey(kind, day, k.id)
+      // Told once: a family already told about this child today (by anyone, any channel) is not told again.
+      const told = await c.db.prepare(`SELECT 1 FROM message_log WHERE substr(idempotency_key, 1, length(?1)) = ?1 OR (?2 = 'absent' AND source_kind = 'absence_alert' AND source_id = ?3 AND occurrence_key LIKE ?4) LIMIT 1`)
+        .bind(`dk:${key}:`, kind, k.id, `${day}:%`).first()
+      if (told) { already++; continue }
+      const template = kind === 'absent' ? 'attendance.absent' : 'messaging.direct'
+      const vars = kind === 'absent' ? { student: k.name, date: day } : { text: `${k.name} was marked present on ${day}.`, subject: 'Attendance' }
+      const people = (await c.db.prepare(`SELECT g.user_id AS uid, g.phone FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+          WHERE sg.student_id = ? AND NOT sg.portal_blocked`).bind(k.id).all<{ uid: string | null; phone: string | null }>()).results
+      const phones = new Set<string>()
+      for (const p of people) {
+        if (p.uid) {
+          for (const ch of [...(inApp ? ['in_app'] : []), ...paid]) {
+            jobs.push({ channel: ch, template_key: template, to_user_id: p.uid, vars, student_id: k.id, source_kind: 'absence_alert', source_id: k.id, dedupe_key: key, exact: true })
+          }
+          const ph = phoneOf(p.phone); if (ph) phones.add(ph)
+        } else {
+          const ph = phoneOf(p.phone)
+          if (!ph || phones.has(ph)) continue
+          phones.add(ph)
+          for (const ch of paid) {
+            if (ch === 'email') continue
+            try {
+              const r2 = await ms.queue({ channel: ch, template_code: template, vars, recipient: ph, student_id: k.id, source_kind: 'absence_alert', source_id: k.id,
+                occurrence_key: `${day}:${ph}`, idempotency_key: `dk:${key}:${ph}:${ch}`, exact_channel: true })
+              if (!r2.duplicate) direct++
+            } catch { /* a channel this contact cannot take */ }
+          }
+        }
+      }
+    }
+    if (jobs.length) await enqueueMessageSends(c.env, inst, jobs)
+    if (direct) await ms.kick()
+    return json({ children: kids.length - already, already_told: already, skipped: ids.length - kids.length, messages_queued: jobs.length + direct, channels: [...(inApp ? ['in_app'] : []), ...paid] }, 202)
   })
 
   /* /operations/dashboard carries RequireAnyPermission over the four operations reads; the router

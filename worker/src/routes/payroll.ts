@@ -1,5 +1,7 @@
 import type { Router, Ctx } from '../router'
 import { Messenger, enqueueMessageSends, scopeOf } from '../services/messaging'
+import { pickChannels, wantsInApp } from '../services/channel_pick'
+import { channelStatus, liveMap } from '../services/delivery'
 import { normalisePhone } from './admin/msg_guard'
 import { HttpError, badRequest, bool, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
 import { school } from './school'
@@ -62,7 +64,7 @@ export function circularRecipients(sections: string[]): { sql: string; args: unk
   return { sql, args: [all, js(sections), js(sections)] }
 }
 
-function circularContactOnly(sections: string[]): { sql: string; args: unknown[] } {
+export function circularContactOnly(sections: string[]): { sql: string; args: unknown[] } {
   const all = sections.length === 0 ? 1 : 0
   const sql = `
     SELECT COALESCE(g.phone,'') AS phone, COALESCE(g.email,'') AS email
@@ -193,7 +195,7 @@ function registerCommunication(r: Router) {
 
   r.post('/communication/circulars', ANNOUNCEMENTS_WRITE, async (c) => {
     const req = await readJSON<{ title?: string; body?: string; kind?: string; audience_role?: string; section_ids?: string[]; requires_ack?: boolean
-      send_sms?: boolean; send_email?: boolean; send_whatsapp?: boolean; notify?: boolean; attachment_file_id?: string }>(c.req)
+      send_sms?: boolean; send_email?: boolean; send_whatsapp?: boolean; notify?: boolean; attachment_file_id?: string; channels?: string[] }>(c.req)
     const title = req.title ?? '', body = req.body ?? ''
     if (title.trim() === '' || body.trim() === '') throw badRequest('title and body are required')
     const kind = req.kind || 'circular'
@@ -235,16 +237,21 @@ function registerCommunication(r: Router) {
     }
     // notify: the school's ladder for notices (services/delivery.ts) picks the channel; the three
     // send_* flags are kept for older clients and go through the same ladder.
-    const channels = req.notify ? ['auto'] : [req.send_sms && 'sms', req.send_email && 'email', req.send_whatsapp && 'whatsapp'].filter(Boolean) as string[]
+    // Ticked channels (the compose screen's boxes): In app always, then each ticked paid channel
+    // that is live, sent on that channel itself rather than the ladder.
+    const ticked = Array.isArray(req.channels)
+    const exact = ticked ? pickChannels(req.channels, liveMap(await channelStatus(c.env, c.db, inst))) : []
+    const channels = ticked ? [...(wantsInApp(req.channels) ? ['in_app'] : []), ...exact]
+      : req.notify ? ['auto'] : [req.send_sms && 'sms', req.send_email && 'email', req.send_whatsapp && 'whatsapp'].filter(Boolean) as string[]
     if (channels.length) {
       // The fan-out, as publishCircular: a message:send job per account per channel, then the
       // families with no account queued directly by address. Failures are swallowed, as Go.
       let msgBody = body
       if (attachment !== '') msgBody += '\n\nAttached: ' + new URL(c.req.url).origin + '/api/v1/files/' + attachment
-      const queued: Record<string, number> = { sms: 0, email: 0, whatsapp: 0, auto: 0 }
+      const queued: Record<string, number> = { sms: 0, email: 0, whatsapp: 0, auto: 0, in_app: 0 }
       try {
         const to = (await c.db.prepare(rc.sql).bind(audience, ...rc.args).all<{ user_id: string }>()).results
-        const jobs = to.filter((u) => u.user_id).flatMap((u) => channels.map((ch) => ({ channel: ch, template_key: 'announcement.published', to_user_id: u.user_id, vars: { title, body: msgBody }, source_kind: 'announcement', source_id: annId })))
+        const jobs = to.filter((u) => u.user_id).flatMap((u) => channels.map((ch) => ({ channel: ch, template_key: 'announcement.published', to_user_id: u.user_id, vars: { title, body: msgBody }, source_kind: 'announcement', source_id: annId, exact: ticked })))
         try { await enqueueMessageSends(c.env, inst, jobs); for (const j of jobs) queued[j.channel]++ } catch { /* not queued */ }
         if (audience !== 'staff') {
           const co = circularContactOnly(sections)
@@ -261,13 +268,14 @@ function registerCommunication(r: Router) {
             }
             const ms = new Messenger(scopeOf(c))
             for (const ct of contacts) for (const ch of channels) {
+              if (ch === 'in_app') continue
               const addr = ch === 'email' ? ct.email : ct.phone
               if (!addr) continue
               const norm = ch === 'email' ? addr.trim().toLowerCase() : normalisePhone(addr) || addr.trim()
               if (taken.has(norm)) continue
               try {
                 const r2 = await ms.queue({ channel: ch, template_code: 'announcement.published', vars: { title, body: msgBody }, recipient: addr,
-                  source_kind: 'announcement', source_id: annId, occurrence_key: norm })
+                  source_kind: 'announcement', source_id: annId, occurrence_key: norm, exact_channel: ticked || undefined })
                 if (!r2.duplicate) queued[ch]++
               } catch { /* as Go: err != nil is skipped */ }
             }
@@ -275,7 +283,7 @@ function registerCommunication(r: Router) {
           }
         }
       } catch (e) { console.warn('circular fan-out', e) }
-      out.sms_queued = queued.sms; out.email_queued = queued.email; out.whatsapp_queued = queued.whatsapp; out.notified = queued.auto
+      out.sms_queued = queued.sms; out.email_queued = queued.email; out.whatsapp_queued = queued.whatsapp; out.notified = queued.auto + queued.in_app
     }
     return created(out)
   })

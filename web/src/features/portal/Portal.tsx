@@ -44,6 +44,15 @@ interface SchoolMessage {
   requires_ack: boolean
   acknowledged_by_me?: boolean
 }
+/** A bell entry, as /portal/notifications returns it; fee reminders and attendance messages reach the home through it. */
+interface FamilyNote {
+  id: string
+  kind: string
+  title: string
+  body?: string
+  link?: string
+  created_at: string
+}
 interface AttendanceDay {
   date: string
   status: string
@@ -459,12 +468,36 @@ const noStop = (t: string) => t.replace(/\s+/g, ' ').trim().replace(/\.+$/, '')
  * acknowledgement carries the Acknowledge button right on the card. On a wide
  * screen the card is as tall as the calendar beside it and the list scrolls
  * inside, with no bar drawn. */
-function SchoolMessages({ query, onOpen }: {
+/* WHAT THE SCHOOL SENT, OF THREE KINDS (owner, 2026-11-20): circulars, fee
+   reminders and attendance messages, newest first, each labelled, each opening
+   its own screen. Fee and attendance messages are the family's bell entries. */
+type HomeItem =
+  | { key: string; type: 'Circular'; at: string; c: SchoolMessage }
+  | { key: string; type: 'Fees' | 'Attendance'; at: string; n: FamilyNote; link: string }
+
+function noteType(n: FamilyNote): 'Fees' | 'Attendance' | null {
+  const k = (n.kind ?? '').toLowerCase()
+  if (k.startsWith('fee')) return 'Fees'
+  if (k.startsWith('attendance') || k.startsWith('absen') || (k === 'messaging.direct' && n.title === 'Attendance')) return 'Attendance'
+  return null
+}
+
+function SchoolMessages({ query, notes, onOpen, onGo }: {
   query: UseQueryResult<List<SchoolMessage>>
+  notes: FamilyNote[]
   onOpen: () => void
+  onGo: (link: string) => void
 }) {
   const qc = useQueryClient()
-  const rows = query.data?.items ?? []
+  const items: HomeItem[] = [
+    ...(query.data?.items ?? []).map((c): HomeItem => ({ key: 'c' + c.id, type: 'Circular', at: c.published_at, c })),
+    ...notes.flatMap((n): HomeItem[] => {
+      const type = noteType(n)
+      if (!type) return []
+      return [{ key: 'n' + n.id, type, at: n.created_at, n, link: n.link || (type === 'Fees' ? '/parent/fees/fees_payments' : '/parent/attendance/attendance') }]
+    }),
+  ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+  const rows = items
   const ack = useMutation({
     mutationFn: (id: string) => api.post(`/api/v1/communication/circulars/${id}/ack`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['circulars'] }),
@@ -487,17 +520,22 @@ function SchoolMessages({ query, onOpen }: {
         <EmptyState title="Nothing yet" body="Notices from the school will appear here" />
       ) : (
         <ul className="scroll-x max-h-[32rem] min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 pb-3 pt-1 lg:max-h-none">
-          {rows.map((c) => {
-            const needsMe = c.requires_ack && !c.acknowledged_by_me
-            const done = c.requires_ack && c.acknowledged_by_me
-            const { icon: Icon, tone } = messageLook(c)
+          {rows.map((item) => {
+            const c = item.type === 'Circular' ? item.c : null
+            const title = c ? c.title : item.type !== 'Circular' ? item.n.title : ''
+            const body = c ? (c.body || c.published_by || 'School office') : item.type !== 'Circular' ? (item.n.body ?? '') : ''
+            const needsMe = !!c && c.requires_ack && !c.acknowledged_by_me
+            const done = !!c && c.requires_ack && c.acknowledged_by_me
+            const { icon: Icon, tone } = c ? messageLook(c)
+              : item.type === 'Fees' ? { icon: Wallet, tone: 'bg-warning/10 text-warning' } : { icon: CalendarCheck, tone: 'bg-success/10 text-success' }
+            const open = () => (item.type === 'Circular' ? onOpen() : onGo(item.link))
             return (
-              <li key={c.id}>
+              <li key={item.key}>
                 <div
                   role="button"
                   tabIndex={0}
-                  onClick={onOpen}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
+                  onClick={open}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } }}
                   className="group flex w-full cursor-pointer items-start gap-3 rounded-xl border bg-card px-3.5 py-3 text-left shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                 >
                   <span className={cn('mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl', tone)}>
@@ -505,12 +543,13 @@ function SchoolMessages({ query, onOpen }: {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
-                      <span className="min-w-0 flex-1 truncate text-[15px] font-semibold group-hover:text-primary">{noStop(c.title)}</span>
-                      <span className="shrink-0 text-[12px] font-medium text-muted-foreground">{shortDate(c.published_at)}</span>
+                      <span className="min-w-0 flex-1 truncate text-[15px] font-semibold group-hover:text-primary">{noStop(title)}</span>
+                      <span className="shrink-0 text-[12px] font-medium text-muted-foreground">{shortDate(item.at)}</span>
                     </div>
+                    <span className="mt-0.5 inline-block rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{item.type}</span>
                     <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
                       <p className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug text-muted-foreground">
-                        {noStop(c.body || c.published_by || 'School office')}
+                        {noStop(body)}
                       </p>
                       {needsMe && (
                         <span className="shrink-0 self-start sm:self-auto" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -518,8 +557,8 @@ function SchoolMessages({ query, onOpen }: {
                           size="sm"
                           variant="secondary"
                           className="shrink-0 rounded-full border-warning/50 bg-warning/15 text-warning hover:bg-warning/25"
-                          disabled={ack.isPending && ack.variables === c.id}
-                          onClick={() => ack.mutate(c.id)}
+                          disabled={ack.isPending && ack.variables === c!.id}
+                          onClick={() => ack.mutate(c!.id)}
                         >
                           Acknowledge
                         </Button>
@@ -619,6 +658,11 @@ export default function Portal() {
   const circulars = useQuery({
     queryKey: ['circulars'],
     queryFn: () => api.get<List<SchoolMessage>>('/api/v1/communication/circulars'),
+  })
+  /* Fee reminders and attendance messages, from the family's bell. */
+  const schoolNotes = useQuery({
+    queryKey: ['portal-school-notes', selected],
+    queryFn: () => api.get<{ items: FamilyNote[] }>(`/api/v1/portal/notifications${selected ? `?student_id=${selected}` : ''}`),
   })
 
   if (children.isLoading && !children.data) return <ScreenSkeleton />
@@ -779,6 +823,8 @@ export default function Portal() {
                 <div className="lg:absolute lg:inset-0">
                   <SchoolMessages
                     query={circulars}
+                    notes={schoolNotes.data?.items ?? []}
+                    onGo={(link) => navigate(link + (activeId && !link.includes('?') ? `?student_id=${activeId}` : ''))}
                     onOpen={() => navigate(`/${role}/communication/circulars_from_school${activeId ? `?student_id=${activeId}` : ''}`)}
                   />
                 </div>
