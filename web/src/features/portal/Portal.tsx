@@ -116,7 +116,7 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
      a bar four inches wide and the month read as a bar chart of nothing. A
      month is a small object; it should look like one. */
   return (
-    <div className={large ? 'mt-1' : 'mt-2 max-w-[22rem]'}>
+    <div className={large ? 'mt-1' : 'mt-2'}>
       <div className={cn('grid grid-cols-7 text-center', large ? 'gap-1.5' : 'gap-1')}>
         {/* 11px, not 10. The cells below are 46px square and had room to
             spare; the header naming them was the smallest text on the parent's
