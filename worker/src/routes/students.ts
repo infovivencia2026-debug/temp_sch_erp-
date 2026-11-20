@@ -679,8 +679,12 @@ async function admissionFeePreview(c: Ctx) {
     SELECT fs.id, fs.name FROM fee_structures fs
      WHERE fs.is_active = 1 AND (fs.class_id = ? OR fs.class_id IS NULL)
        AND EXISTS (SELECT 1 FROM fee_structure_items i WHERE i.fee_structure_id = fs.id)
-     ORDER BY ((SELECT COALESCE(sum(i.amount_paise), 0) FROM fee_structure_items i WHERE i.fee_structure_id = fs.id) > 0) DESC,
-              (fs.class_id = ?) DESC, fs.created_at DESC LIMIT 1`).bind(classId, classId).first<{ id: string; name: string }>()
+     ORDER BY (fs.class_id = ?) DESC,
+              /* The class's main fee, not the newest structure: a class can also
+                 carry an opt-in one (After School ECA), and picking that by date
+                 quoted and raised ₹10,000 instead of the tuition (2026-11-20). */
+              (SELECT COALESCE(sum(i.amount_paise), 0) FROM fee_structure_items i WHERE i.fee_structure_id = fs.id) DESC,
+              fs.created_at DESC LIMIT 1`).bind(classId, classId).first<{ id: string; name: string }>()
   const heads: { head: string; paise: number; instalment: number }[] = []
   let total = 0, instalments = 0, structureName = '', draftName = '', structureId = NIL_UUID
   if (!fs) {
