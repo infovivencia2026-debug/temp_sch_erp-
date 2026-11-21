@@ -4,7 +4,7 @@ import { useLocation, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, CircleDot, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
-  Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X, FolderOpen, BellDot, CalendarClock,
+  Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X, FolderOpen, BellDot, CalendarClock, Pencil,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/Toast'
@@ -377,6 +377,8 @@ function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) 
      moved into a shortcut, New = unopened, Last 7 days = recent. */
   const [quick, setQuick] = useState<'' | 'all' | 'new' | 'week'>('')
   const [naming, setNaming] = useState(false)
+  const [editing, setEditing] = useState<Shortcut | null>(null)
+  const [editName, setEditName] = useState('')
   const [newName, setNewName] = useState('')
   const [fGrade, setFGrade] = useState('')
   const [fStatus, setFStatus] = useState('')
@@ -533,6 +535,12 @@ function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) 
               <FolderOpen className={cn('size-5 shrink-0', on ? '' : 'text-primary')} aria-hidden />
               <span className="whitespace-nowrap text-[14px] font-semibold">{s.name}</span>
               <span className={cn('rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums', on ? 'bg-primary-foreground/20' : 'bg-primary/10 text-primary')}>{n}</span>
+              <span role="button" tabIndex={0} aria-label={`Rename or delete ${s.name}`}
+                onClick={(e) => { e.stopPropagation(); setEditName(s.name); setEditing(s) }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setEditName(s.name); setEditing(s) } }}
+                className={cn('-mr-1 grid size-8 place-items-center rounded-lg', on ? 'hover:bg-primary-foreground/20' : 'text-muted-foreground hover:bg-primary/10 hover:text-primary')}>
+                <Pencil className="size-4" aria-hidden />
+              </span>
             </button>
           )
         })}
@@ -565,12 +573,17 @@ function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) 
           <Button pending={saveShortcuts.isPending} disabled={!newName.trim()} onClick={createShortcut}>Create</Button>
         </div>
       )}
-      {view && picked.size === 0 && (
-        <div className="flex justify-end">
-          <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this shortcut? The applications stay." onConfirm={() => deleteShortcut(view)}>
-            <Trash2 className="size-4" aria-hidden />Delete shortcut
-          </ConfirmButton>
-        </div>
+      {/* Pencil on a shortcut: rename it or delete it (owner, 2026-11-21). */}
+      {editing && (
+        <Dialog open size="sm" onClose={() => setEditing(null)} title="Edit shortcut"
+          footer={<>
+            <ConfirmButton tone="danger" confirmLabel="Delete" question={`Delete ${editing.name}? The applications go back to All.`}
+              onConfirm={() => { deleteShortcut(editing.id); setEditing(null) }}><Trash2 className="size-4" aria-hidden />Delete</ConfirmButton>
+            <Button pending={saveShortcuts.isPending} disabled={!editName.trim()}
+              onClick={() => saveShortcuts.mutate(shortcuts.map((x) => (x.id === editing.id ? { ...x, name: editName.trim() } : x)), { onSuccess: () => setEditing(null) })}>Save</Button>
+          </>}>
+          <Input value={editName} onChange={setEditName} placeholder="Shortcut name" autoFocus />
+        </Dialog>
       )}
       <FormNotice error={saveShortcuts.error ?? sq.error} />
       {scored ? (
