@@ -371,7 +371,7 @@ function Responses({ form }: { form: Form }) {
   const [view, setView] = useState<string | null>(null)
   /* The number cards filter the list (owner, 2026-11-21): Responses = not yet
      moved into a shortcut, New = unopened, Last 7 days = recent. */
-  const [quick, setQuick] = useState<'' | 'new' | 'week'>('')
+  const [quick, setQuick] = useState<'' | 'all' | 'new' | 'week'>('')
   const [naming, setNaming] = useState(false)
   const [newName, setNewName] = useState('')
   const [fGrade, setFGrade] = useState('')
@@ -423,12 +423,13 @@ function Responses({ form }: { form: Form }) {
      (owner, 2026-11-21: "they are going to the same again and again"). */
   const sorted = new Set(shortcuts.flatMap((x) => x.ids))
   const inView = (r: Resp) =>
-    quick === 'new' ? !r.is_read
+    quick === 'all' ? true
+      : quick === 'new' ? !r.is_read
       : quick === 'week' ? new Date(r.created_at).toLocaleDateString('en-CA') === todayIso
       : view ? (shortcuts.find((x) => x.id === view)?.ids ?? []).includes(r.id)
       : !sorted.has(r.id)
   const shown = items.filter(inView)
-  const pickCard = (k: '' | 'new' | 'week') => { setQuick(k); setView(null); setPicked(new Set()) }
+  const pickCard = (k: '' | 'all' | 'new' | 'week') => { setQuick(k); setView(null); setPicked(new Set()) }
   const open = items.find((r) => r.id === openId) ?? null
   const cell = (r: Resp, k: string) => fileOf(r, k)?.name ?? val(r, k)
   const allRows = () => {
@@ -490,19 +491,20 @@ function Responses({ form }: { form: Form }) {
       </div>
       {scored ? (
         <CellGrid cols={4}>
-          <Stat label="Registered" icon={Inbox} value={items.length} hint={sorted.size ? `${sorted.size} moved to shortcuts` : undefined} tint onClick={() => pickCard('')} active={!quick && !view} />
+          <Stat label="Registered" icon={Inbox} value={items.length} hint={sorted.size ? `${sorted.size} in shortcuts` : undefined} tint onClick={() => pickCard('all')} active={quick === 'all'} />
           <Stat label="Finished" value={done.length} tint />
           <Stat label="Above 50%" value={pcts.filter((x) => x >= 50).length} tint />
           <Stat label="Average · top" value={pcts.length ? `${Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length)}% · ${top}/60` : '-'} tint />
         </CellGrid>
       ) : (
         <CellGrid cols={3}>
-          <Stat label="Responses" icon={Inbox} value={items.length} hint={sorted.size ? `${items.filter((x) => !sorted.has(x.id)).length} to sort · ${sorted.size} in shortcuts` : 'All received'} tint onClick={() => pickCard('')} active={!quick && !view} />
+          <Stat label="Responses" icon={Inbox} value={items.length} hint={sorted.size ? `${items.filter((x) => !sorted.has(x.id)).length} to sort · ${sorted.size} in shortcuts` : 'All received'} tint onClick={() => pickCard('all')} active={quick === 'all'} />
           <Stat label="New" icon={BellDot} value={unread} hint={unread ? `Oldest unopened ${when(items.filter((x) => !x.is_read).at(-1)!.created_at)}` : 'All opened'} tint onClick={() => pickCard('new')} active={quick === 'new'} />
           {/* Today, with when the last one came in (owner, 2026-11-21: a date in
               place of Last 7 days). */}
-          <Stat label="Today" icon={CalendarClock} value={items.filter((r) => new Date(r.created_at).toLocaleDateString('en-CA') === todayIso).length}
-            hint={items[0] ? `Last received ${when(items[0].created_at)}` : 'Nothing yet'} tint onClick={() => pickCard('week')} active={quick === 'week'} />
+          {/* When the newest response came in (owner, 2026-11-21). Click: today's. */}
+          <Stat label="Last received" icon={CalendarClock} value={items[0] ? formatDate(items[0].created_at) : '-'}
+            hint={`${items.filter((r) => new Date(r.created_at).toLocaleDateString('en-CA') === todayIso).length} today`} tint onClick={() => pickCard('week')} active={quick === 'week'} />
         </CellGrid>
       )}
       {/* The shortcut chips: All, then each group with its count. */}
@@ -510,6 +512,15 @@ function Responses({ form }: { form: Form }) {
       <div className="flex min-w-0 gap-3 overflow-x-auto pb-1 [scrollbar-width:none]" role="tablist" aria-label="Shortcuts">
         {/* Shortcuts as full-name chips with their count (owner, 2026-11-21: the
             names were cut to a few letters). "All" is the Responses card now. */}
+        {/* All = the responses not moved into any shortcut (owner, 2026-11-21). */}
+        <button type="button" role="tab" aria-selected={!view && !quick} onClick={() => pickCard('')}
+          className="flex w-[72px] shrink-0 flex-col items-center gap-1 text-center">
+          <span className={cn('grid size-14 place-items-center rounded-full border-2 text-[18px] font-bold transition-colors',
+            !view && !quick ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/40 bg-primary/10 text-primary')}>
+            {items.filter((x) => !sorted.has(x.id)).length}
+          </span>
+          <span className={cn('text-[12px]', !view && !quick ? 'font-semibold text-foreground' : 'text-muted-foreground')}>All</span>
+        </button>
         {shortcuts.map((s) => {
           const on = view === s.id
           const n = s.ids.filter((x) => items.some((r) => r.id === x)).length
