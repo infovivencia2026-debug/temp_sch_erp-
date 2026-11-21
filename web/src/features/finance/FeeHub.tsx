@@ -701,13 +701,13 @@ function Transactions({ hub }: { hub: Hub }) {
           ))}
         </Table>
       ) : (
-        <Table head={['S.No', 'Receipt date', 'Entry', 'Transaction ID / Receipt no', 'Receiving account', 'Mode', 'Fee paid', 'Total', 'Status', 'Actions']} empty={!rows.length} emptyLabel="No receipts here.">
+        <Table wide head={['S.No', 'Receipt date', 'Entry', 'Transaction ID / Receipt no', 'Receiving account', 'Mode', 'Fee paid', 'Total', 'Status', 'Actions']} empty={!rows.length} emptyLabel="No receipts here.">
           {rows.map((r, i) => (
             <tr key={r.id}>
               <Td>{i + 1}</Td>
               <Td className="whitespace-nowrap">{formatDate(r.paid_on)}</Td>
               <Td className="whitespace-nowrap text-muted-foreground">{time(r.created_at)}<span className="block">{r.collector ? `by ${r.collector}` : ''}</span></Td>
-              <Td className="font-mono text-[12px]">{r.txn_id || '-'}<button type="button" className="block text-primary hover:underline" onClick={() => setView(r.id)}>Rec. no {r.receipt_no || '-'}</button></Td>
+              <Td className="whitespace-nowrap font-mono text-[12px]">{r.txn_id || '-'}<button type="button" className="block text-primary hover:underline" onClick={() => setView(r.id)}>Rec. no {r.receipt_no || '-'}</button></Td>
               <Td>{r.receiving_account || '-'}</Td>
               <Td className="whitespace-nowrap">{modeName(r.mode)}{r.reference && <span className="block font-mono text-[11.5px] text-muted-foreground">{r.mode === 'cheque' || r.mode === 'dd' ? 'No' : 'UTR'} {r.reference}</span>}</Td>
               <Td className="min-w-[12rem]">{r.lines.length ? r.lines.map((x, k) => (
