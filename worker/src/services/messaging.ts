@@ -1,4 +1,5 @@
 import type { Env } from '../env'
+import { CONNECT_ALIAS, connectVars } from './channel_pick'
 import type { Ctx } from '../router'
 import { institutionById, tenantDb } from '../tenant'
 import { enqueue, enqueueMany, registerJob, type Job } from './jobs'
@@ -833,9 +834,13 @@ const waCleanParam = (v: string) => v.replace(waWhitespace, ' ').trim()
 
 export async function whatsappSendFor(db: D1Database, code: string, vars: Record<string, unknown>): Promise<WATemplateSend | null> {
   if (code.trim() === '') return null
-  const r = await db.prepare(`SELECT wa_template_name, wa_language, wa_params FROM message_templates WHERE code = ? AND channel = 'whatsapp' AND is_active = 1`)
-    .bind(code).first<{ wa_template_name: string | null; wa_language: string | null; wa_params: string | null }>()
+  const row = (k: string) => db.prepare(`SELECT wa_template_name, wa_language, wa_params FROM message_templates WHERE code = ? AND channel = 'whatsapp' AND is_active = 1`)
+    .bind(k).first<{ wa_template_name: string | null; wa_language: string | null; wa_params: string | null }>()
+  let r = await row(code)
+  // No WhatsApp mapping of its own: the Connect template for that message, if the school has one.
+  if ((!r || (r.wa_template_name ?? '').trim() === '') && CONNECT_ALIAS[code]) { code = CONNECT_ALIAS[code]; r = await row(code) }
   if (!r || (r.wa_template_name ?? '').trim() === '') return null
+  if (code.startsWith('connect_')) vars = connectVars(vars)
   let params: string[] = []
   if (r.wa_params) {
     try { const v = JSON.parse(r.wa_params); if (!Array.isArray(v)) throw new Error(); params = v.map(String) } catch { throw new Error(`template "${code}": stored parameter mapping is not a list`) }

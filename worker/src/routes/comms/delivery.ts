@@ -7,7 +7,8 @@ import {
   type ChannelHealth,
 } from '../../services/delivery'
 import { circularContactOnly, circularRecipients } from '../payroll'
-import { explicitCounts, pickChannels, wantsInApp, type Person } from '../../services/channel_pick'
+import { testGuardians } from '../../services/test_send'
+import { explicitCounts, pickChannels, wantsInApp, type Person, ALERT_GUARDIANS, ALERT_TYPES, CONNECT_FOR, connectReady } from '../../services/channel_pick'
 import { smsReportKey } from './message_webhooks'
 
 /* The school's delivery rules, the honest channel status, cost estimates,
@@ -104,14 +105,25 @@ async function estimate(c: Ctx) {
   }
 }
 
-async function explicitEstimate(c: Ctx, req: { audience_role?: string; section_ids?: string[]; user_ids?: string[]; student_ids?: string[]; channels?: string[] }, typeKey: string) {
+async function explicitEstimate(c: Ctx, req: { kind?: string; test?: boolean; audience_role?: string; section_ids?: string[]; user_ids?: string[]; student_ids?: string[]; channels?: string[] }, typeKey: string) {
   const people: Person[] = []
   const ids = (xs: unknown) => (Array.isArray(xs) ? xs.map(String).filter(isUUID).slice(0, 5000) : [])
   const studentIds = ids(req.student_ids), userIds = ids(req.user_ids)
-  if (studentIds.length) {
+  const alert = ALERT_TYPES.has(typeKey)
+  const primaryOnly = alert && !!(await c.db.prepare(`SELECT alerts_primary_only FROM institutions WHERE id = ?`).bind(institutionId(c)).first<{ alerts_primary_only: number }>())?.alerts_primary_only
+  if (req.test) {
+    // A test send reaches only the school's test parents, whatever was picked.
+    const seen = new Set<string>()
+    for (const g of await testGuardians(c.db)) {
+      const k = g.uid ?? g.phone ?? g.email ?? ''
+      if (seen.has(k)) continue
+      seen.add(k)
+      people.push({ uid: g.uid, phone: g.phone, email: g.email })
+    }
+  } else if (studentIds.length) {
     for (let i = 0; i < studentIds.length; i += 90) {
       const rows = (await c.db.prepare(`SELECT g.user_id AS uid, g.phone, g.email FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
-          WHERE sg.student_id IN (SELECT value FROM json_each(?)) AND NOT sg.portal_blocked`).bind(JSON.stringify(studentIds.slice(i, i + 90))).all<Person>()).results
+          WHERE sg.student_id IN (SELECT value FROM json_each(?)) AND NOT sg.portal_blocked${alert ? ` AND ${ALERT_GUARDIANS}` : ''}`).bind(JSON.stringify(studentIds.slice(i, i + 90))).all<Person>()).results
       people.push(...rows)
     }
   } else if (userIds.length) {
@@ -138,11 +150,13 @@ async function explicitEstimate(c: Ctx, req: { audience_role?: string; section_i
   const live = Object.fromEntries(channels.map((x) => [x.channel, x.live]))
   const picked = pickChannels(req.channels, live)
   const inApp = wantsInApp(req.channels)
+  const connectCode = CONNECT_FOR[req.kind === 'present' ? 'present' : typeKey] ?? null
+  const connectOk = connectCode ? await connectReady(c.db, connectCode) : false
   const counts = explicitCounts(people, picked, pricesOf(c.env), inApp)
   const warnings = healthWarnings(channels)
   const noLogin = people.filter((p) => !p.uid).length
   if (noLogin > 0 && !picked.length) warnings.unshift(`${noLogin} have no app login: tick Yajur Connect or SMS to reach them.`)
-  return { message_type: typeKey, mode: 'instant', ladder: [...(inApp ? ['in_app'] : []), ...picked], ...counts, picked, explicit: true, prices_paise: pricesOf(c.env), channels, warnings }
+  return { message_type: typeKey, mode: 'instant', ladder: [...(inApp ? ['in_app'] : []), ...picked], ...counts, picked, explicit: true, test: !!req.test, connect_template: connectCode, connect_ready: connectOk, goes_to: primaryOnly ? 'primary' : 'all', prices_paise: pricesOf(c.env), channels, warnings }
 }
 
 // --- delivery receipts per notice ------------------------------------------

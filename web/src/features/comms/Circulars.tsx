@@ -11,7 +11,7 @@ import {
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSMSGateway } from '../communication/sms-gateway-lib'
-import { ChannelEstimate, ChannelPicker, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
+import { ChannelEstimate, ChannelPicker, TestSendTick, sendTo, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
 import { PendingApprovals } from '../communication/SmsGateway'
 import WriteWithAI from '@/components/ai/WriteWithAI'
 import TranslateNotice from '@/components/ai/TranslateNotice'
@@ -84,6 +84,7 @@ export default function Circulars() {
   const [audience, setAudience] = useState('all')
   // How it goes out: In app ticked by default, Yajur Connect and SMS when ticked (owner, 2026-11-20).
   const [channels, setChannels] = useState<Channel[]>(DEFAULT_CHANNELS)
+  const [test, setTest] = useState(false)
   const [requiresAck, setRequiresAck] = useState(true)
   /* The attachment, uploaded before the circular is published.
    *
@@ -141,7 +142,7 @@ export default function Circulars() {
   /* Before sending: who it reaches on which channel, what it costs, and a
      plain warning when a channel is not live (services/delivery.ts). */
   const estimate = useChannelEstimate(['circular', audience, [...sectionIds].sort().join(',')], {
-    message_type: 'notice', audience_role: audience, section_ids: [...sectionIds], channels,
+    message_type: 'notice', audience_role: audience, section_ids: [...sectionIds], channels, test,
   }, canPublish)
   const publish = useMutation({
     mutationFn: () =>
@@ -153,7 +154,7 @@ export default function Circulars() {
         {
           title, body, section_ids: [...sectionIds],
           audience_role: audience,
-          requires_ack: requiresAck, channels,
+          requires_ack: requiresAck, channels, test,
           attachment_file_id: file?.id ?? '',
         },
       ),
@@ -195,9 +196,9 @@ export default function Circulars() {
         <>
         <CellGrid cols={3}>
           <Stat label="Circulars" value={rows.length} />
-          <Stat label="Awaiting acknowledgement"
+          <Stat label="Awaiting reply"
             value={rows.filter((r) => r.requires_ack && r.acknowledgements === 0).length} />
-          <Stat label="Total acknowledgements" value={rows.reduce((a, r) => a + r.acknowledgements, 0)} />
+          <Stat label="Acknowledged" value={rows.reduce((a, r) => a + r.acknowledgements, 0)} />
         </CellGrid>
 
         {canPublish && (
@@ -280,7 +281,7 @@ export default function Circulars() {
                 alike: both narrow who this reaches. */}
             <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="w-16 shrink-0 text-[13px] text-muted-foreground">Send to</span>
+                <span className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-16">Send to</span>
                 <Select
                   value={audience}
                   onChange={setAudience}
@@ -295,7 +296,7 @@ export default function Circulars() {
               </div>
 
               <div className="flex flex-wrap items-start gap-2">
-                <span className="w-16 shrink-0 pt-1.5 text-[13px] text-muted-foreground">Sections</span>
+                <span className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-16 sm:pt-1.5">Sections</span>
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                     {/* The state of the filter, said as a sentence rather than
@@ -346,7 +347,7 @@ export default function Circulars() {
                             key={sec.id} type="button" onClick={() => toggle(sec.id)}
                             aria-pressed={sectionIds.has(sec.id)}
                             className={cn(
-                              'min-w-[2.25rem] rounded-md border px-2 py-1 text-[13px] transition-colors',
+                              'min-h-[44px] min-w-[2.75rem] rounded-md border px-2 py-1 text-[14px] transition-colors sm:min-h-0 sm:min-w-[2.25rem] sm:text-[13px]',
                               sectionIds.has(sec.id)
                                 ? 'border-primary bg-primary text-primary-foreground'
                                 : 'hover:bg-accent',
@@ -361,11 +362,12 @@ export default function Circulars() {
                 </div>
               </div>
 
-              {/* The portal copy always goes; these are the ways families are told about it. */}
-              <ChannelPicker value={channels} onChange={setChannels} />
+              {/* The portal copy always goes; these are the ways parents are told about it. */}
+              <ChannelPicker value={channels} onChange={setChannels} estimate={channels.length ? estimate.data : undefined} />
               {channels.length === 0
                 ? <p className="text-[13px] text-warning">{NOTHING_TICKED}</p>
                 : estimate.data && <ChannelEstimate e={estimate.data} />}
+              <TestSendTick on={test} onChange={setTest} />
 
             </div>
 
@@ -442,7 +444,7 @@ export default function Circulars() {
               </p>
               <Button type="submit" disabled={!title.trim() || !body.trim() || channels.length === 0 || publish.isPending}>
                 <Send className="h-4 w-4" />
-                {publish.isPending ? 'Publishing…' : 'Publish circular'}
+                {publish.isPending ? 'Publishing…' : test ? sendTo(estimate.data?.recipients ?? 0, true) : estimate.data ? `Publish to ${estimate.data.recipients} ${estimate.data.recipients === 1 ? 'person' : 'people'}` : 'Publish circular'}
               </Button>
             </div>
           </form>

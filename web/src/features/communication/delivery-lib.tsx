@@ -30,6 +30,11 @@ export interface Estimate {
   warnings: string[]
   /** Set when the estimate followed ticked channels rather than the ladder. */
   explicit?: boolean
+  /** Who among a child's parents hears: Privacy's primary-only rule, or everyone linked. */
+  goes_to?: 'primary' | 'all'
+  /** The approved Yajur Connect template this message goes by, and whether the school has it. */
+  connect_template?: string | null
+  connect_ready?: boolean
 }
 
 export const CHANNEL_NAMES: Record<string, string> = {

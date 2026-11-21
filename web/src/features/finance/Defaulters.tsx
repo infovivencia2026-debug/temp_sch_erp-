@@ -4,9 +4,9 @@ import { Phone } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid,
-  Table, Td, Button, Input, Select, Loading, ErrorState, ExportButton, useSort, FormNotice, Checkbox, ConfirmButton,
+  Table, Td, Button, Input, Select, Loading, ErrorState, ExportButton, useSort, FormNotice, ConfirmButton,
 } from '@/components/ui'
-import { ChannelEstimate, ChannelPicker, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
+import { ChannelEstimate, ChannelPicker, TickChip, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 
 interface Schedule {
@@ -45,6 +45,9 @@ export default function Defaulters() {
      so they are chosen per send rather than assumed. */
   const [channels, setChannels] = useState<Channel[]>(DEFAULT_CHANNELS)
   const [feeType, setFeeType] = useState('')
+  /* The filter lists every fee head the school has (Tuition, Transport, each activity),
+     not only the ones that happen to be unpaid today. */
+  const heads = useQuery({ queryKey: ['fee-heads'], queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/setup/fee-heads'), staleTime: 300_000 })
   const [sent, setSent] = useState('')
   const [find, setFind] = useState('')
 
@@ -95,7 +98,7 @@ export default function Defaulters() {
           : '')
         + '.'
         + (r.told === 0 && r.messages_queued === 0
-          ? ' Nothing was sent: these families have no app account, and neither Yajur Connect nor SMS was ticked.'
+          ? ' Nothing was sent: these parents have no app account, and neither Yajur Connect nor SMS was ticked.'
           : ''),
       )
       setPicked({})
@@ -122,7 +125,7 @@ export default function Defaulters() {
   const all = data?.items ?? []
 
   const needle = find.trim().toLowerCase()
-  const feeTypes = [...new Set(all.flatMap((d) => d.fees ?? []))].sort()
+  const feeTypes = [...new Set([...(heads.data?.items ?? []).map((h) => h.name), ...all.flatMap((d) => d.fees ?? [])])].sort((x, y) => x.localeCompare(y))
   const rows = all
     .filter((d) => (bucket ? d.bucket === bucket : true))
     .filter((d) => (feeType ? (d.fees ?? []).includes(feeType) : true))
@@ -139,6 +142,7 @@ export default function Defaulters() {
   const toRemind = ticked.length ? ticked : rows
   const estimate = useChannelEstimate(['fees', toRemind.map((d) => d.student_id).sort().join(',')],
     { message_type: 'fees', student_ids: toRemind.map((d) => d.student_id), channels }, toRemind.length > 0)
+  const parents = estimate.data?.recipients ?? toRemind.length
   /* Biggest balance first by default.
 
      A defaulter list read in admission-number order is a list nobody works
@@ -162,32 +166,7 @@ export default function Defaulters() {
         description="Balances past their due date, bucketed by age, with the guardian to contact. Not the same figure as the fee overview's outstanding, which is this year's bills whether due yet or not."
         actions={
           <>
-            {/* Finding one child in six hundred.
-
-                An accountant opens this because a parent is at the counter or
-                on the telephone, not to read the whole list — and the list is
-                sorted by money, which is the wrong order for finding a name.
-                Name, admission number and the guardian all match, because
-                which of the three they have to hand depends on who rang. */}
-            <Input
-              value={find}
-              onChange={setFind}
-              placeholder="Name, adm. no., parent, phone"
-              className="w-full sm:w-72"
-            />
-            <Select
-              value={feeType}
-              onChange={setFeeType}
-              placeholder="All fee types"
-              options={[{ value: '', label: 'All fee types' }, ...feeTypes.map((f) => ({ value: f, label: f }))]}
-            />
             <ExportButton report="defaulters" />
-            <Select
-              value={bucket}
-              onChange={setBucket}
-              placeholder="All buckets"
-              options={BUCKETS.map((b) => ({ value: b, label: `${b} days` }))}
-            />
           </>
         }
       />
@@ -331,8 +310,35 @@ export default function Defaulters() {
             title="Who owes"
             description={`${rows.length} of ${all.length} · ${formatPaise(rows.reduce((a, d) => a + d.balance_paise, 0))} due`}
           />
+          <div className="grid grid-cols-1 gap-2 px-5 pt-4 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+            {/* Finding one child in six hundred.
+
+                An accountant opens this because a parent is at the counter or
+                on the telephone, not to read the whole list — and the list is
+                sorted by money, which is the wrong order for finding a name.
+                Name, admission number and the guardian all match, because
+                which of the three they have to hand depends on who rang. */}
+            <Input
+              value={find}
+              onChange={setFind}
+              placeholder="Name, adm. no., parent, phone"
+              className="w-full sm:w-72"
+            />
+            <Select
+              value={feeType}
+              onChange={setFeeType}
+              placeholder="All fees"
+              options={[{ value: '', label: 'All fees' }, ...feeTypes.map((f) => ({ value: f, label: f }))]}
+            />
+            <Select
+              value={bucket}
+              onChange={setBucket}
+              placeholder="All buckets"
+              options={BUCKETS.map((b) => ({ value: b, label: `${b} days` }))}
+            />
+          </div>
           <div className="space-y-3 px-5 pt-4">
-            <ChannelPicker email value={channels} onChange={setChannels} />
+            <ChannelPicker email value={channels} onChange={setChannels} estimate={channels.length && toRemind.length ? estimate.data : undefined} />
             {channels.length === 0
               ? <p className="text-[13px] text-warning">{NOTHING_TICKED}</p>
               : estimate.data && <ChannelEstimate e={estimate.data} />}
@@ -342,14 +348,14 @@ export default function Defaulters() {
                 size="md"
                 disabled={remind.isPending || toRemind.length === 0 || channels.length === 0}
                 confirmLabel="Send reminders"
-                question={`Remind the families of ${toRemind.length} ${toRemind.length === 1 ? 'student' : 'students'}? One reminder per family contact today.`}
+                question={`Remind ${parents} ${parents === 1 ? 'parent' : 'parents'} of ${toRemind.length} ${toRemind.length === 1 ? 'student' : 'students'}? One reminder per parent today.`}
                 onConfirm={() => remind.mutate(toRemind.map((d) => d.student_id))}
               >
                 {remind.isPending
                   ? 'Sending…'
                   : ticked.length
-                    ? `Remind ${ticked.length} selected`
-                    : `Remind all ${rows.length} shown`}
+                    ? `Remind ${ticked.length} selected · ${parents} ${parents === 1 ? 'parent' : 'parents'}`
+                    : `Remind all ${rows.length} shown · ${parents} ${parents === 1 ? 'parent' : 'parents'}`}
               </ConfirmButton>
             </div>
           </div>
@@ -384,10 +390,9 @@ export default function Defaulters() {
               {sort.sorted.map((d) => (
                 <tr key={d.student_id}>
                   <Td>
-                    <Checkbox
-                      checked={!!picked[d.student_id]}
+                    <TickChip
+                      on={!!picked[d.student_id]}
                       onChange={(on) => setPicked({ ...picked, [d.student_id]: on })}
-                      label=""
                       srLabel={`Select ${d.full_name}`}
                     />
                   </Td>
@@ -421,7 +426,7 @@ export default function Defaulters() {
                       variant="ghost"
                       disabled={remind.isPending || channels.length === 0}
                       confirmLabel="Send reminder"
-                      question={`Remind the family of ${d.full_name}?`}
+                      question={`Remind the parents of ${d.full_name}?`}
                       onConfirm={() => remind.mutate([d.student_id])}
                     >
                       Remind

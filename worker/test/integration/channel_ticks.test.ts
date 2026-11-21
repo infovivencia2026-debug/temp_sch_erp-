@@ -79,3 +79,16 @@ describe('present & absent: tell the parents', { timeout: 120_000 }, () => {
     expect(first.body.channels).toEqual(['in_app'])
   })
 })
+
+describe('who hears: Privacy primary-only', { timeout: 120_000 }, () => {
+  it('an absence estimate says which rule applies; a circular goes to every linked parent', async () => {
+    for (const on of [1, 0]) {
+      await E.TENANT_TEST.prepare(`UPDATE institutions SET alerts_primary_only = ?`).bind(on).run()
+      const r = await api('admin', 'POST', '/admin/messaging/estimate', { message_type: 'absence', student_ids: [IDS.child], channels: ['in_app'] })
+      expect(r.status).toBe(200)
+      expect(r.body.goes_to).toBe(on ? 'primary' : 'all')
+    }
+    const c = await api('admin', 'POST', '/admin/messaging/estimate', { message_type: 'notice', audience_role: 'parents', channels: ['in_app'] })
+    expect(c.body.goes_to).toBe('all')
+  })
+})

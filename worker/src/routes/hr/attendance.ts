@@ -1,6 +1,8 @@
 import type { Router } from '../../router'
 import { Messenger, enqueueMessageSends, scopeOf } from '../../services/messaging'
-import { pickChannels, wantsInApp } from '../../services/channel_pick'
+import { testGuardians } from '../../services/test_send'
+import { CONNECT_FOR, connectReady } from '../../services/channel_pick'
+import { pickChannels, wantsInApp, ALERT_GUARDIANS } from '../../services/channel_pick'
 import { channelStatus, liveMap, phoneOf } from '../../services/delivery'
 import { json } from '../../env'
 import { HttpError, badRequest, created, forbidden, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
@@ -146,16 +148,52 @@ export function registerAttendanceWorkflow(r: Router) {
 
   r.post('/attendance-workflow/parent-messages', 'auth', async (c) => {
     if (!PARENT_MSG.some((p) => can(c.id, p))) throw forbidden()
-    const req = await readJSON<{ on_date?: string; kind?: string; student_ids?: string[]; channels?: string[] }>(c.req)
+    const req = await readJSON<{ on_date?: string; kind?: string; student_ids?: string[]; channels?: string[]; test?: boolean }>(c.req)
     const day = (req.on_date ?? '').trim() || todayIST()
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw badRequest('on_date must be a date')
     const kind = req.kind === 'present' ? 'present' : 'absent'
     const ids = (req.student_ids ?? []).map(String).filter(isUUIDish).slice(0, 2000)
-    if (!ids.length) throw badRequest('tick at least one child')
+    if (!ids.length && !req.test) throw badRequest('tick at least one child')
     const inst = c.id.institution!.id
-    const paid = pickChannels(req.channels, liveMap(await channelStatus(c.env, c.db, inst)))
+    let paid = pickChannels(req.channels, liveMap(await channelStatus(c.env, c.db, inst)))
+    // Yajur Connect only through its approved template (absence, or the general circular for "present").
+    const connectCode = CONNECT_FOR[kind === 'absent' ? 'absence' : 'present']
+    const connectMissing = paid.includes('whatsapp') && !(await connectReady(c.db, connectCode))
+    if (connectMissing) paid = paid.filter((x) => x !== 'whatsapp')
     const inApp = wantsInApp(req.channels)
-    if (!inApp && !paid.length) throw badRequest('choose at least one way to send')
+    if (!inApp && !paid.length) throw badRequest(connectMissing ? 'there is no Yajur Connect template for this message: set one in Message Channels → Wording' : 'choose at least one way to send')
+    const pick = (ch: string, template: string, vars: Record<string, unknown>, parent: string | null, cls: string) =>
+      ch === 'whatsapp'
+        ? { code: connectCode, vars: kind === 'absent'
+            ? { parent_name: parent || 'Parent', student_name: vars.student, class: cls || '-', date: vars.date }
+            : { parent_name: parent || 'Parent', message: String(vars.text) } }
+        : { code: template, vars }
+    const classOf = async (sid: string) => (await c.db.prepare(`SELECT cl.name || COALESCE('-' || se.name, '') AS n FROM enrollments en JOIN classes cl ON cl.id = en.class_id
+        LEFT JOIN sections se ON se.id = en.section_id WHERE en.student_id = ? AND en.status = 'active' ORDER BY en.enrolled_on DESC LIMIT 1`).bind(sid).first<{ n: string }>())?.n ?? ''
+    /* A test send goes to the school's test parents only, about their own
+       linked child, whatever was ticked; it is never counted as "told". */
+    const tests = req.test ? await testGuardians(c.db) : []
+    if (req.test && !tests.length) throw badRequest('no test parent: add their number to the allowlist in Message Channels')
+    if (req.test) {
+      const testKids = [...new Set(tests.map((t) => t.student_id))]
+      const names = (await c.db.prepare(`SELECT id, trim(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) AS name FROM students WHERE id IN (SELECT value FROM json_each(?))`)
+        .bind(JSON.stringify(testKids)).all<{ id: string; name: string }>()).results
+      const jobs: Parameters<typeof enqueueMessageSends>[2] = []
+      const run = uuid()
+      for (const k of names) {
+        const template = kind === 'absent' ? 'attendance.absent' : 'messaging.direct'
+        const vars = kind === 'absent' ? { student: k.name, date: day } : { text: `${k.name} was marked present on ${day}.`, subject: 'Attendance' }
+        const cls = await classOf(k.id)
+        for (const t of tests.filter((x) => x.student_id === k.id && x.uid)) {
+          for (const ch of [...(inApp ? ['in_app'] : []), ...paid]) {
+            const m = pick(ch, template, vars, t.name, cls)
+            jobs.push({ channel: ch, template_key: m.code, to_user_id: t.uid!, vars: m.vars, student_id: k.id, source_kind: 'absence_test', source_id: k.id, dedupe_key: `test:${run}:${k.id}`, exact: true })
+          }
+        }
+      }
+      if (jobs.length) await enqueueMessageSends(c.env, inst, jobs)
+      return json({ connect_missing: connectMissing || undefined, test: true, children: names.length, already_told: 0, skipped: 0, messages_queued: jobs.length, channels: [...(inApp ? ['in_app'] : []), ...paid] }, 202)
+    }
     // Only children really marked so that day; a period-wise register has a row per period.
     const kids = (await c.db.prepare(`SELECT DISTINCT st.id, trim(COALESCE(st.first_name,'') || ' ' || COALESCE(st.last_name,'')) AS name
         FROM student_attendance sa JOIN students st ON st.id = sa.student_id
@@ -173,13 +211,15 @@ export function registerAttendanceWorkflow(r: Router) {
       if (told) { already++; continue }
       const template = kind === 'absent' ? 'attendance.absent' : 'messaging.direct'
       const vars = kind === 'absent' ? { student: k.name, date: day } : { text: `${k.name} was marked present on ${day}.`, subject: 'Attendance' }
-      const people = (await c.db.prepare(`SELECT g.user_id AS uid, g.phone FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
-          WHERE sg.student_id = ? AND NOT sg.portal_blocked`).bind(k.id).all<{ uid: string | null; phone: string | null }>()).results
+      const people = (await c.db.prepare(`SELECT g.user_id AS uid, g.phone, g.full_name AS name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+          WHERE sg.student_id = ? AND NOT sg.portal_blocked AND ${ALERT_GUARDIANS}`).bind(k.id).all<{ uid: string | null; phone: string | null; name: string | null }>()).results
+      const cls = paid.includes('whatsapp') ? await classOf(k.id) : ''
       const phones = new Set<string>()
       for (const p of people) {
         if (p.uid) {
           for (const ch of [...(inApp ? ['in_app'] : []), ...paid]) {
-            jobs.push({ channel: ch, template_key: template, to_user_id: p.uid, vars, student_id: k.id, source_kind: 'absence_alert', source_id: k.id, dedupe_key: key, exact: true })
+            const m = pick(ch, template, vars, p.name, cls)
+            jobs.push({ channel: ch, template_key: m.code, to_user_id: p.uid, vars: m.vars, student_id: k.id, source_kind: 'absence_alert', source_id: k.id, dedupe_key: key, exact: true })
           }
           const ph = phoneOf(p.phone); if (ph) phones.add(ph)
         } else {
@@ -189,7 +229,8 @@ export function registerAttendanceWorkflow(r: Router) {
           for (const ch of paid) {
             if (ch === 'email') continue
             try {
-              const r2 = await ms.queue({ channel: ch, template_code: template, vars, recipient: ph, student_id: k.id, source_kind: 'absence_alert', source_id: k.id,
+              const m = pick(ch, template, vars, p.name, cls)
+              const r2 = await ms.queue({ channel: ch, template_code: m.code, vars: m.vars, recipient: ph, student_id: k.id, source_kind: 'absence_alert', source_id: k.id,
                 occurrence_key: `${day}:${ph}`, idempotency_key: `dk:${key}:${ph}:${ch}`, exact_channel: true })
               if (!r2.duplicate) direct++
             } catch { /* a channel this contact cannot take */ }
@@ -199,7 +240,7 @@ export function registerAttendanceWorkflow(r: Router) {
     }
     if (jobs.length) await enqueueMessageSends(c.env, inst, jobs)
     if (direct) await ms.kick()
-    return json({ children: kids.length - already, already_told: already, skipped: ids.length - kids.length, messages_queued: jobs.length + direct, channels: [...(inApp ? ['in_app'] : []), ...paid] }, 202)
+    return json({ connect_missing: connectMissing || undefined, children: kids.length - already, already_told: already, skipped: ids.length - kids.length, messages_queued: jobs.length + direct, channels: [...(inApp ? ['in_app'] : []), ...paid] }, 202)
   })
 
   /* /operations/dashboard carries RequireAnyPermission over the four operations reads; the router
