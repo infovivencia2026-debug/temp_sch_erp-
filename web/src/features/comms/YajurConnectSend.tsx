@@ -101,7 +101,7 @@ function Compose({ templates, code, setCode, values, setValues, image, setImage 
 const missing = (t: ConnectSendTemplate | undefined, values: Record<string, string>) =>
   !t || t.fields.some((f) => !MERGE_FIELDS.includes(f) && !(values[f] ?? '').trim())
 
-export function SendTab({ onOpenChat }: { onOpenChat: (id: string) => void }) {
+export function SendTab({ onOpenChat, initialCode = '' }: { onOpenChat: (id: string) => void; initialCode?: string }) {
   const [mode, setMode] = useState<'one' | 'many' | 'test'>('one')
   const templates = useQuery({ queryKey: ['connect', 'send-templates'], queryFn: () => api.call('GET /comms/yajur-connect/send/templates'), staleTime: 60_000 })
   if (templates.isLoading) return <Loading />
@@ -115,17 +115,17 @@ export function SendTab({ onOpenChat }: { onOpenChat: (id: string) => void }) {
         <button type="button" role="tab" aria-selected={mode === 'many'} className={segClass(mode === 'many')} onClick={() => setMode('many')}>Broadcast</button>
         <button type="button" role="tab" aria-selected={mode === 'test'} className={segClass(mode === 'test')} onClick={() => setMode('test')}>Test</button>
       </div>
-      {mode === 'one' ? <OneParent templates={list} onOpenChat={onOpenChat} /> : mode === 'many' ? <Broadcast templates={list} /> : <TestSend templates={list} />}
+      {mode === 'one' ? <OneParent templates={list} onOpenChat={onOpenChat} initialCode={initialCode} /> : mode === 'many' ? <Broadcast templates={list} initialCode={initialCode} /> : <TestSend templates={list} initialCode={initialCode} />}
     </div>
     </SchoolName.Provider>
   )
 }
 
-function OneParent({ templates, onOpenChat }: { templates: ConnectSendTemplate[]; onOpenChat: (id: string) => void }) {
+function OneParent({ templates, onOpenChat, initialCode = '' }: { templates: ConnectSendTemplate[]; onOpenChat: (id: string) => void; initialCode?: string }) {
   const qc = useQueryClient()
   const [q, setQ] = useState('')
   const [who, setWho] = useState<ConnectPerson | null>(null)
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(templates.some((x) => x.code === initialCode) ? initialCode : '')
   const [values, setValues] = useState<Record<string, string>>({})
   const [image, setImage] = useState('')
   const [term, setTerm] = useState('')
@@ -196,9 +196,9 @@ function OneParent({ templates, onOpenChat }: { templates: ConnectSendTemplate[]
 const TEST_WHO = { parent_name: 'Test', student_name: 'Test', class: 'Test' }
 
 /** One template to a number on the school's test list; no student is involved. */
-function TestSend({ templates }: { templates: ConnectSendTemplate[] }) {
+function TestSend({ templates, initialCode = '' }: { templates: ConnectSendTemplate[]; initialCode?: string }) {
   const [phone, setPhone] = useState('')
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(templates.some((x) => x.code === initialCode) ? initialCode : '')
   const [values, setValues] = useState<Record<string, string>>({})
   const [image, setImage] = useState('')
   const numbers = useQuery({ queryKey: ['connect', 'test-numbers'], queryFn: () => api.call('GET /comms/yajur-connect/send/test-numbers'), staleTime: 60_000 })
@@ -234,10 +234,10 @@ function TestSend({ templates }: { templates: ConnectSendTemplate[] }) {
   )
 }
 
-function Broadcast({ templates }: { templates: ConnectSendTemplate[] }) {
+function Broadcast({ templates, initialCode = '' }: { templates: ConnectSendTemplate[]; initialCode?: string }) {
   const qc = useQueryClient()
   const [name, setName] = useState('')
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(templates.some((x) => x.code === initialCode) ? initialCode : '')
   const [values, setValues] = useState<Record<string, string>>({})
   const [image, setImage] = useState('')
   const [scope, setScope] = useState<ConnectAudience['scope']>('school')

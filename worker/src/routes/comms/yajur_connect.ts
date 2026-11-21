@@ -18,6 +18,7 @@ import { CONNECT_SOURCE, queueChatText, recordOutbound } from '../../services/wa
 import { connectLabel } from '../../services/wa_send'
 import { registerYajurConnectSend } from './yajur_connect_send'
 import { registerYajurConnectLog } from './yajur_connect_log'
+import { registerYajurConnectTemplates } from './yajur_connect_templates'
 import type {
   ConnectAutoReply, ConnectAutoReplyBody, ConnectContact, ConnectConversation, ConnectMatch, ConnectMessage, ConnectState, ConnectTemplate,
 } from '@shared/api/feature_yajur_connect'
@@ -151,6 +152,7 @@ export function registerYajurConnect(r: Router): void {
   // Sending first: its fixed paths (send, campaigns, schedules) must win over /{id}.
   registerYajurConnectSend(r)
   registerYajurConnectLog(r, READ)
+  registerYajurConnectTemplates(r)
   r.typed('GET /comms/yajur-connect', READ, async (c) => {
     const q = (c.url.searchParams.get('q') ?? '').trim().slice(0, 80)
     const state = c.url.searchParams.get('state') ?? 'open'

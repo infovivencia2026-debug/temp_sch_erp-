@@ -10,6 +10,7 @@ import {
 } from '@/components/ui'
 import { CampaignsTab, ScheduledTab, SendTab } from './YajurConnectSend'
 import { LogTab } from './YajurConnectLog'
+import { TemplatesTab } from './YajurConnectTemplates'
 import { ChatThread, type ChatMessage } from '@/components/Chat'
 import { ConversationPane, PersonAvatar } from '@/components/ChatScreen'
 import { cn, formatDateTime } from '@/lib/utils'
@@ -27,9 +28,9 @@ const VIEWS: { key: View; label: string }[] = [{ key: 'open', label: 'Open' }, {
 const MATCH_LABEL: Record<ConnectMatch, string> = { exact: 'Is exactly', starts: 'Starts with', contains: 'Contains' }
 const PAUSED = 'Sending is paused: the recipient guard is on and the test list is empty, so replies, auto-replies and broadcasts are blocked and will not be sent later.'
 const NOT_ON_LIST = 'Test mode: this number is not on the test list, so messages to it are blocked.'
-type Tab = 'chats' | 'send' | 'campaigns' | 'scheduled' | 'log' | 'rules'
+type Tab = 'chats' | 'send' | 'templates' | 'campaigns' | 'scheduled' | 'log' | 'rules'
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'chats', label: 'Chats' }, { key: 'send', label: 'Send' }, { key: 'campaigns', label: 'Campaigns' }, { key: 'scheduled', label: 'Scheduled' },
+  { key: 'chats', label: 'Chats' }, { key: 'send', label: 'Send' }, { key: 'templates', label: 'Templates' }, { key: 'campaigns', label: 'Campaigns' }, { key: 'scheduled', label: 'Scheduled' },
   { key: 'log', label: 'Log' }, { key: 'rules', label: 'Auto-replies' },
 ]
 
@@ -122,7 +123,7 @@ export default function YajurConnect() {
   const items = list.data?.items ?? []
   const canWrite = !!list.data?.can_write
   // Readers get the chats and the log; the sending tabs are for comms.connect.write.
-  const tabs = canWrite ? TABS : TABS.filter((t) => t.key === 'chats' || t.key === 'log')
+  const tabs = canWrite ? TABS : TABS.filter((t) => t.key === 'chats' || t.key === 'log' || t.key === 'templates')
   const tab: Tab = tabParam && tabs.some((t) => t.key === tabParam) ? tabParam : 'chats'
 
   return (
@@ -138,7 +139,8 @@ export default function YajurConnect() {
             ))}
           </div>
         )}
-        {tab === 'send' ? <SendTab onOpenChat={setOpenId} />
+        {tab === 'send' ? <SendTab onOpenChat={setOpenId} initialCode={params.get('template') ?? ''} />
+          : tab === 'templates' ? <TemplatesTab onUse={(code) => { const next = new URLSearchParams(params); next.set('tab', 'send'); next.set('template', code); setParams(next, { replace: true }) }} />
           : tab === 'campaigns' ? <CampaignsTab />
           : tab === 'scheduled' ? <ScheduledTab />
           : tab === 'log' ? <LogTab />
