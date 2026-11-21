@@ -729,7 +729,43 @@ const show = (r: Resp, k: string) => {
   /* An unanswered multi-value field arrives as the empty array's text, "[]"
      (or "{}"/"null"): show nothing rather than the brackets. */
   const s = String(v).trim()
-  return s === '[]' || s === '{}' || s === 'null' ? '' : s
+  if (s === '[]' || s === '{}' || s === 'null') return ''
+  /* The new careers page sends lists (jobs, academics, languages, children ...)
+     as JSON text; shown raw it was brackets and quotes (owner, 2026-11-21).
+     Each entry becomes one readable line. */
+  if (s.startsWith('[') || s.startsWith('{')) {
+    try {
+      const parsed: unknown = JSON.parse(s)
+      const list = (Array.isArray(parsed) ? parsed : [parsed]).filter((x) => x != null)
+      return list.map((x) => entryLine(k, x)).filter(Boolean).join('
+')
+    } catch { /* not JSON: shown as typed */ }
+  }
+  return s
+}
+const fieldOf = (o: Record<string, unknown>, k: string) => (o[k] == null ? '' : String(o[k]).trim())
+function entryLine(key: string, x: unknown): string {
+  if (typeof x !== 'object') return String(x)
+  const o = x as Record<string, unknown>
+  const join = (...p: string[]) => p.filter(Boolean).join(', ')
+  if (key === 'jobs' || 'organisation' in o) {
+    const span = [fieldOf(o, 'from'), o.current ? 'present' : fieldOf(o, 'to')].filter(Boolean).join(' to ')
+    const pay = fieldOf(o, 'grossSalary') || fieldOf(o, 'salary')
+    const why = fieldOf(o, 'reason')
+    return join(span, fieldOf(o, 'position'), fieldOf(o, 'organisation'), pay ? `Rs ${pay}` : '') + (why ? ` (left: ${why})` : '')
+  }
+  if (key === 'academics' || 'exam' in o) {
+    const pct = fieldOf(o, 'percent')
+    return join(fieldOf(o, 'exam'), fieldOf(o, 'institution'), fieldOf(o, 'year'), fieldOf(o, 'subjects'), fieldOf(o, 'division'), pct ? `${pct}%` : '')
+  }
+  if (key === 'languages' || ('read' in o && 'write' in o)) {
+    const can = ['read', 'write', 'speak', 'understand'].filter((c) => o[c] === true || o[c] === 'true')
+    return `${fieldOf(o, 'name')}${can.length ? ` (${can.join(', ')})` : ''}`
+  }
+  return Object.entries(o)
+    .filter(([, v]) => v !== '' && v != null && v !== false && v !== 'false')
+    .map(([k2, v]) => (v === true || v === 'true' ? k2 : `${k2}: ${String(v)}`))
+    .join(', ')
 }
 /* The careers page's own names for this form's questions (old row labels, then its field names). */
 const ALIASES: Record<string, string[]> = {
