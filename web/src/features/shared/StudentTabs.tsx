@@ -736,9 +736,17 @@ export function RaiseFees({ studentId, classId, onDone }: { studentId: string; c
       heads: { head: string; paise: number; instalment: number }[] }>(`/api/v1/students/fee-preview?class_id=${classId}`),
   })
   const raise = useMutation({
-    mutationFn: () => api.call('POST /fees/invoices/generate', { body: {
-      fee_structure_id: preview.data?.structure_id ?? '', instalment_no: 1, all_instalments: true, student_id: studentId,
-    } }),
+    /* One bill per term, as every other child has (Term 1, 2, 3). all_instalments
+       folded the year into a single "Term 1" bill, which a later class-wide Term 2
+       run would then charge again (2026-11-20, found on the test student). */
+    mutationFn: async () => {
+      const terms = [...new Set((preview.data?.heads ?? []).map((h) => h.instalment))].sort((a, b) => a - b)
+      for (const t of terms) {
+        await api.call('POST /fees/invoices/generate', { body: {
+          fee_structure_id: preview.data?.structure_id ?? '', instalment_no: t, student_id: studentId,
+        } })
+      }
+    },
     onSuccess: onDone,
   })
   const q = preview.data
