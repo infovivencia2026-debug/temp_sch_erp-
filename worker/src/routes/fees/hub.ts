@@ -78,6 +78,13 @@ async function replan(c: Ctx, studentId: string, from: string, structureId: stri
       WHERE fsi.fee_structure_id = ?1 AND fsi.amount_paise > 0 AND (?2 = '' OR fsi.fee_head_id = ?2) AND COALESCE(fsi.due_on, ?3) >= ?3 ORDER BY fsi.instalment_no`)
     .bind(fs.id, headId ?? '', from).all<{ fee_head_id: string; instalment_no: number; amount_paise: number; due_on: string | null; name: string }>()).results
   const ids = touched.map((b) => b.id)
+  /* An instalment the child keeps a bill for (before the date, or on a bill not
+     touched) is not billed again from the new plan. */
+  const kept = new Set((await c.db.prepare(`SELECT DISTINCT i.instalment_no FROM invoices i JOIN invoice_lines il ON il.invoice_id = i.id
+      WHERE i.student_id = ?1 AND i.academic_year_id = ?2 AND i.status <> 'cancelled' AND i.instalment_no IS NOT NULL AND (?3 = '' OR il.fee_head_id = ?3)
+        AND i.id NOT IN (SELECT value FROM json_each(?4))`).bind(studentId, fs.academic_year_id, headId ?? '', JSON.stringify(ids)).all<{ instalment_no: number }>()).results.map((x) => x.instalment_no))
+  for (let k = items.length - 1; k >= 0; k--) if (kept.has(items[k].instalment_no)) items.splice(k, 1)
+  if (!ids.length && !items.length) throw new HttpError(409, 'nothing to change: every instalment of this fee is already billed before that date', { code: 'nothing_to_replan' })
   const allocs = ids.length ? (await c.db.prepare(`SELECT payment_id, sum(amount_paise) AS amt FROM payment_allocations WHERE invoice_id IN (SELECT value FROM json_each(?)) GROUP BY payment_id`)
     .bind(JSON.stringify(ids)).all<{ payment_id: string; amt: number }>()).results : []
   const groups = new Map<number, typeof items>()
