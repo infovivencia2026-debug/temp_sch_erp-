@@ -142,7 +142,11 @@ const WRITE_BY_SLUG: Record<string, { editKey: string; label: string }> = {
      mail/inbox screens are self-service and carry no admin Edit. */
   circulars: { editKey: 'comms.announcements.write', label: 'Circulars' },
   circulars_from_school: { editKey: 'comms.announcements.write', label: 'Circulars' },
-  school_achievements_showcase: { editKey: 'comms.announcements.write', label: 'Showcase' },
+  /* The showcase is a students-domain screen: its entries read students.read
+     and edit students.write (only publish/unpublish uses announcements.write),
+     so Edit here is students.write. The person also needs Student records view
+     to open the list, since write does not imply read. */
+  school_achievements_showcase: { editKey: 'students.write', label: 'Student records' },
   grievances: { editKey: 'office.front_desk.write', label: 'Grievances' },
   concerns: { editKey: 'office.front_desk.write', label: 'Concerns' },
   concerns_from_parents: { editKey: 'office.front_desk.write', label: 'Concerns' },
