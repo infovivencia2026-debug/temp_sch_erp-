@@ -297,6 +297,17 @@ const FEATURE_UNLOCKS: Record<string, string[]> = {
   homework_assignments: ['academics.homework.write'],
   /* Substitutions given on its own opened an empty page (Yajur, 2026-11-06): the board reads and writes the timetable. */
   substitutions: ['academics.timetable.read', 'academics.timetable.write'],
+  /* ADMIN / FINANCE SCREENS whose list needs a read permission the plain
+     feature grant did not carry, so handing someone the screen left them on
+     "your login is not allowed to see this" (Yajur, 2026-11-21). Each unlock is
+     the exact read its route checks; the Edit switch grants the write on top. */
+  logins_access: ['access.users.read'],
+  roles_permissions: ['access.roles.read'],
+  privacy: ['access.users.read'],
+  interaction_log: ['admin.audit.read'],
+  student_wallets: ['finance.wallet.read'],
+  branding: ['institution.read'],
+  period_close: ['institution.read'],
 }
 const featureSlug = (key: string) => key.slice(key.lastIndexOf('.') + 1)
 

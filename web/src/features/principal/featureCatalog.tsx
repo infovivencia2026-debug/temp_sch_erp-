@@ -153,7 +153,29 @@ const WRITE_BY_SLUG: Record<string, { editKey: string; label: string }> = {
   parent_concerns: { editKey: 'office.front_desk.write', label: 'Concerns' },
   yajur_connect: { editKey: 'comms.connect.write', label: 'Connect' },
   mail_addresses: { editKey: 'comms.mail.manage', label: 'Address book' },
+  /* STAFF-WORKSPACE ADMIN SCREENS. They sit under the `staff` section but are
+     NOT employee-record edits, so hr.employees.write is the wrong key — each
+     gates on its own permission (audited against worker/src/routes, 2026-11-21). */
+  logins_access: { editKey: 'access.users.write', label: 'Logins' },
+  roles_permissions: { editKey: 'access.roles.write', label: 'Roles' },
+  privacy: { editKey: 'access.users.write', label: 'Privacy' },
+  branding: { editKey: 'institution.settings.write', label: 'Branding' },
+  leaves_subs: { editKey: 'hr.leave.approve', label: 'Leave approvals' },
+  /* FEES GRAB-BAG. Taking a payment, topping up a wallet and correcting a
+     receipt are NOT finance.fees.write — they are their own powers. */
+  take_fee_payment: { editKey: 'finance.payments.write', label: 'Take payment' },
+  fee_corrections: { editKey: 'finance.payments.write', label: 'Corrections' },
+  student_wallets: { editKey: 'finance.wallet.manage', label: 'Wallet' },
+  period_close: { editKey: 'institution.settings.write', label: 'Period close' },
+  /* Report cards are generated/published, not marks-entered. */
+  report_cards: { editKey: 'academics.reportcards.generate', label: 'Report cards' },
 }
+
+/* Screens that are read-only, or whose edit power we have not verified: they get
+   NO Edit switch at all, rather than a wrong one. The interaction log is an
+   audit view (admin.audit.read, no write); teacher remarks' write key is
+   ambiguous between marks and conduct, so it is left off until confirmed. */
+const NO_EDIT_SLUGS = new Set(['interaction_log', 'teacher_remarks'])
 
 /* The edit action for a feature: its own slug wins, else its section. The key
    is role.section.slug. `attendance` is the one section serving two screens —
@@ -162,6 +184,7 @@ const WRITE_BY_SLUG: Record<string, { editKey: string; label: string }> = {
 function editActionFor(key: string, workspace: string): { editKey: string; label: string } | undefined {
   const parts = key.split('.')
   const slug = parts[parts.length - 1] ?? ''
+  if (NO_EDIT_SLUGS.has(slug)) return undefined
   const bySlug = WRITE_BY_SLUG[slug]
   if (bySlug) return bySlug
   const section = parts[1] ?? ''
