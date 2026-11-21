@@ -1,6 +1,7 @@
 import type { Router } from '../router'
 import { registerBackoffice } from './fees/backoffice'
 import { registerCounter } from './fees/counter'
+import { registerFeeHub } from './fees/hub'
 import { registerInvoicing } from './fees/invoicing'
 import { registerRefunds } from './fees/refunds'
 import { registerReminders } from './fees/reminders'
@@ -39,6 +40,7 @@ export function registerFees(r: Router): void {
 
   // /fees — the counter
   registerCounter(r)
+  registerFeeHub(r)
   registerInvoicing(r)
   registerReminders(r)
   registerRefunds(r)

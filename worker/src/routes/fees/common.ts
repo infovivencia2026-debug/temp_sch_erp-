@@ -175,6 +175,7 @@ export function requireAny(c: Ctx, ...perms: string[]): void {
 export function syncInvoice(c: Ctx, invoiceId: string): D1PreparedStatement[] {
   const t = today()
   return [
+    fillLineAllocations(c, invoiceId),
     c.db.prepare(`UPDATE invoices SET paid_paise = COALESCE((SELECT sum(amount_paise) FROM payment_allocations WHERE invoice_id = ?1), 0),
                       updated_at = ?2 WHERE id = ?1`).bind(invoiceId, now()),
     c.db.prepare(`UPDATE invoices SET status = CASE
@@ -184,6 +185,36 @@ export function syncInvoice(c: Ctx, invoiceId: string): D1PreparedStatement[] {
         WHEN due_on IS NOT NULL AND due_on < ?2 THEN 'overdue'
         ELSE 'unpaid' END WHERE id = ?1`).bind(invoiceId, t),
   ]
+}
+
+/**
+ * Fee-line allocations (0135): any allocation on this invoice that has no
+ * line rows yet (every path that writes payment_allocations calls
+ * syncInvoice after) is spread over the invoice's lines in billing order,
+ * against what each line still has unpaid. The same rule as the 0135
+ * backfill. An allocation the counter split by hand already has its rows
+ * and is left alone. Anything beyond the lines' total is one row with no line.
+ */
+export function fillLineAllocations(c: Ctx, invoiceId: string): D1PreparedStatement {
+  return c.db.prepare(`INSERT INTO payment_line_allocations (institution_id, payment_allocation_id, payment_id, invoice_id, invoice_line_id, fee_head_id, amount_paise, source)
+    WITH lc AS (
+      SELECT il.id, il.invoice_id, il.fee_head_id,
+             max(max(il.amount_paise - il.discount_paise, 0) - COALESCE((SELECT sum(x.amount_paise) FROM payment_line_allocations x WHERE x.invoice_line_id = il.id), 0), 0) AS cap, il.rowid AS rid
+        FROM invoice_lines il WHERE il.invoice_id = ?1
+    ), l3 AS (SELECT id, invoice_id, fee_head_id, cap, sum(cap) OVER (ORDER BY rid) AS hi FROM lc),
+    l2 AS (SELECT id, invoice_id, fee_head_id, hi - cap AS lo, hi FROM l3),
+    tot AS (SELECT COALESCE(max(hi), 0) AS t FROM l3),
+    na AS (
+      SELECT pa.id, pa.institution_id, pa.payment_id, pa.invoice_id, pa.amount_paise,
+             sum(pa.amount_paise) OVER (ORDER BY p.paid_on, p.created_at, pa.created_at, pa.id) AS hi
+        FROM payment_allocations pa JOIN payments p ON p.id = pa.payment_id
+       WHERE pa.invoice_id = ?1 AND NOT EXISTS (SELECT 1 FROM payment_line_allocations x WHERE x.payment_allocation_id = pa.id)
+    ), a2 AS (SELECT id, institution_id, payment_id, invoice_id, hi - amount_paise AS lo, hi FROM na)
+    SELECT a2.institution_id, a2.id, a2.payment_id, a2.invoice_id, l2.id, l2.fee_head_id, min(a2.hi, l2.hi) - max(a2.lo, l2.lo), 'auto'
+      FROM a2 JOIN l2 ON 1 = 1 WHERE min(a2.hi, l2.hi) > max(a2.lo, l2.lo)
+    UNION ALL
+    SELECT a2.institution_id, a2.id, a2.payment_id, a2.invoice_id, NULL, NULL, a2.hi - max(a2.lo, tot.t), 'auto'
+      FROM a2, tot WHERE a2.hi > tot.t`).bind(invoiceId)
 }
 
 /** sync_payment_allocated (00002): allocated_paise = sum(allocations). */

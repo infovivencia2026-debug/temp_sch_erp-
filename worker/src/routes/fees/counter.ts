@@ -64,6 +64,79 @@ export async function allocate(c: Ctx, studentId: string, paymentId: string, amo
   return { allocated, unallocated: remaining, stmts }
 }
 
+export interface LinePick { invoice_line_id: string; amount_paise: number }
+
+/**
+ * Explicit fee-line allocation (0135): the counter ticked these fee lines and
+ * typed what goes on each. One payment_allocations row per invoice (the sum
+ * of its picked lines) plus one payment_line_allocations row per line, then
+ * the invoice sync. Every line must be the student's, on a bill still open,
+ * and not paid past its amount.
+ */
+export async function allocateLines(c: Ctx, studentId: string, paymentId: string, picks: LinePick[]):
+  Promise<{ allocated: Allocation[]; total: number; stmts: D1PreparedStatement[] }> {
+  if (!picks.length) throw badRequest('tick at least one fee line')
+  const ids = picks.map((x) => x.invoice_line_id)
+  if (new Set(ids).size !== ids.length) throw badRequest('a fee line is listed twice')
+  const rows = await c.db.prepare(`
+    SELECT il.id, il.invoice_id, il.fee_head_id, i.invoice_no, i.student_id, i.status,
+           max(il.amount_paise - il.discount_paise, 0) - COALESCE((SELECT sum(x.amount_paise) FROM payment_line_allocations x WHERE x.invoice_line_id = il.id), 0) AS left_paise,
+           i.net_paise - i.paid_paise AS invoice_left
+      FROM invoice_lines il JOIN invoices i ON i.id = il.invoice_id
+     WHERE il.id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(ids))
+    .all<{ id: string; invoice_id: string; fee_head_id: string; invoice_no: string; student_id: string; status: string; left_paise: number; invoice_left: number }>()
+  const byId = new Map(rows.results.map((r) => [r.id, r]))
+  const perInvoice = new Map<string, { no: string; amt: number; left: number }>()
+  for (const pk of picks) {
+    const r = byId.get(pk.invoice_line_id)
+    if (!r || r.student_id !== studentId) throw badRequest("that fee line is not this student's")
+    if (r.status === 'cancelled' || r.status === 'paid') throw badRequest(`bill ${r.invoice_no} is already settled`)
+    if (pk.amount_paise <= 0) throw badRequest('each ticked line needs an amount above nought')
+    if (pk.amount_paise > p(r.left_paise)) throw new HttpError(409, `That is more than is left on a ${r.invoice_no} line: at most ₹${rupeesFixed(p(r.left_paise))}.`, { code: 'over_payment' })
+    const e = perInvoice.get(r.invoice_id) ?? { no: r.invoice_no, amt: 0, left: p(r.invoice_left) }
+    e.amt += pk.amount_paise; perInvoice.set(r.invoice_id, e)
+  }
+  const stmts: D1PreparedStatement[] = []
+  const allocated: Allocation[] = []
+  const inst = school(c).id
+  let total = 0
+  for (const [invoiceId, e] of perInvoice) {
+    if (e.amt > e.left) throw new HttpError(409, `That is more than is owed on ${e.no}: at most ₹${rupeesFixed(e.left)}.`, { code: 'over_payment' })
+    const allocId = crypto.randomUUID()
+    stmts.push(c.db.prepare(`INSERT INTO payment_allocations (id, institution_id, payment_id, invoice_id, amount_paise, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(allocId, inst, paymentId, invoiceId, e.amt, now()))
+    for (const pk of picks) {
+      const r = byId.get(pk.invoice_line_id)!
+      if (r.invoice_id !== invoiceId) continue
+      stmts.push(c.db.prepare(`INSERT INTO payment_line_allocations (institution_id, payment_allocation_id, payment_id, invoice_id, invoice_line_id, fee_head_id, amount_paise, source)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, 'explicit')`).bind(inst, allocId, paymentId, invoiceId, r.id, r.fee_head_id, pk.amount_paise))
+    }
+    stmts.push(...syncInvoice(c, invoiceId))
+    allocated.push({ invoice_id: invoiceId, invoice_no: e.no, amount_paise: e.amt })
+    total += e.amt
+  }
+  stmts.push(syncPayment(c, paymentId))
+  return { allocated, total, stmts }
+}
+
+/** A transaction ID beside the receipt number: T + IST time to the second + 6 hex. */
+export function txnId(paymentId: string): string {
+  const ist = new Date(Date.now() + 330 * 60000).toISOString()
+  return 'T' + ist.slice(0, 19).replace(/[-T:]/g, '') + paymentId.replace(/-/g, '').slice(0, 6).toUpperCase()
+}
+
+/**
+ * UTR rules (owner, 2026-11-21): a UPI UTR is 12 digits; no UTR (UPI, NEFT,
+ * card) is accepted twice while the first receipt stands.
+ */
+export async function checkUTR(c: Ctx, mode: string, reference: string, exceptPaymentId = ''): Promise<void> {
+  if (!['upi', 'neft', 'card', 'netbanking'].includes(mode) || reference === '') return
+  if (mode === 'upi' && !/^\d{12}$/.test(reference)) throw badRequest('a UPI UTR is 12 digits')
+  const dup = await c.db.prepare(`SELECT receipt_no FROM payments WHERE reference_no = ? AND mode IN ('upi','neft','card','netbanking')
+      AND status IN ('success','pending') AND id <> ? LIMIT 1`).bind(reference, exceptPaymentId).first<{ receipt_no: string | null }>()
+  if (dup) throw new HttpError(409, `This UTR is already on receipt ${dup.receipt_no ?? '-'}. A UTR can be used once.`, { code: 'duplicate_utr' })
+}
+
 /**
  * fees.Collect: record a payment under the school's receipt series and
  * allocate it (unless post-dated). Returns the statements for the caller's
@@ -373,9 +446,18 @@ export function registerCounter(r: Router): void {
     /* No password re-check to collect a fee (owner, 2026-10-05): money coming
        IN at the counter; wallet changes and payroll still ask. */
     const req = await readJSON<{ student_id?: string; amount_paise?: unknown; mode?: string; paid_on?: string; reference_no?: string; bank_name?: string;
-      cheque_date?: string; remarks?: string; payer_name?: string; payer_relation?: string; invoice_ids?: string[]; attachment_file_id?: string }>(c.req)
+      cheque_date?: string; remarks?: string; payer_name?: string; payer_relation?: string; invoice_ids?: string[]; attachment_file_id?: string
+      lines?: { invoice_line_id?: unknown; amount_paise?: unknown }[]; receiving_account?: string }>(c.req)
     if (!isUUID(req.student_id)) throw badRequest('student_id must be a uuid')
-    const amount = paise(req.amount_paise)
+    /* Ticked fee lines with their own amounts (Fees all in one place): the
+       receipt amount is their sum, and the money lands on exactly those lines. */
+    const picks: LinePick[] = []
+    for (const l of req.lines ?? []) {
+      if (!isUUID(l.invoice_line_id)) throw badRequest('lines[].invoice_line_id must be a uuid')
+      picks.push({ invoice_line_id: l.invoice_line_id as string, amount_paise: paise(l.amount_paise, 'lines[].amount_paise') })
+    }
+    const amount = picks.length ? picks.reduce((s, x) => s + x.amount_paise, 0) : paise(req.amount_paise)
+    if (picks.length && req.amount_paise !== undefined && paise(req.amount_paise) !== amount) throw badRequest('amount_paise must equal the sum of the ticked lines')
     if (amount <= 0) throw badRequest('amount_paise must be greater than zero')
     const mode = req.mode ?? ''
     if (!VALID_MODES.has(mode)) throw badRequest('unsupported payment mode: ' + mode)
@@ -400,6 +482,8 @@ export function registerCounter(r: Router): void {
        here as well as on the screen because the counter is not the only way
        in -- the assistant posts to this same endpoint. */
     if (mode === 'upi' && reference === '') throw badRequest('a UPI payment needs its UTR: it is what the bank statement is matched on')
+    await checkUTR(c, mode, reference)
+    const account = (req.receiving_account ?? '').trim().slice(0, 120)
     const invoiceIds: string[] = []
     for (const raw of req.invoice_ids ?? []) { if (!isUUID(raw)) throw badRequest('invoice_ids must be uuids'); invoiceIds.push(raw) }
 
@@ -424,6 +508,8 @@ export function registerCounter(r: Router): void {
        Found by taking one through the counter rather than by reading. */
     const pdc = mode === 'cheque' || mode === 'dd'
     const status = pdc ? 'pending' : 'success'
+    // Check the picks now, so a held cheque cannot be saved against lines it could never pay.
+    if (picks.length) await allocateLines(c, req.student_id, crypto.randomUUID(), picks)
     /* A file with the comment (owner, 2026-11-20): any type, the clerk's own upload, 2 MB at most. */
     const attachment = await ownAttachment(c, req.attachment_file_id)
     if (attachment) {
@@ -435,14 +521,18 @@ export function registerCounter(r: Router): void {
     const stmts: D1PreparedStatement[] = [
       ...number.stmts,
       c.db.prepare(`INSERT INTO payments (id, institution_id, campus_id, student_id, receipt_no, receipt_seq, receipt_fy, amount_paise, allocated_paise, mode, paid_on,
-                      reference_no, bank_name, cheque_date, status, collected_by, remarks, payer_name, payer_relation, created_at, attachment_file_id)
-                    VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, 0, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`)
+                      reference_no, bank_name, cheque_date, status, collected_by, remarks, payer_name, payer_relation, created_at, attachment_file_id, txn_id, receiving_account, line_plan)
+                    VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, 0, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), ?)`)
         .bind(paymentId, st.institution_id, st.campus_id, req.student_id, number.text, number.seq, number.fy, amount, mode, paidOn,
-          reference, req.bank_name ?? '', chequeDate, status, c.id.userId, req.remarks ?? '', (req.payer_name ?? '').trim(), (req.payer_relation ?? '').trim(), now(), attachment),
+          reference, req.bank_name ?? '', chequeDate, status, c.id.userId, req.remarks ?? '', (req.payer_name ?? '').trim(), (req.payer_relation ?? '').trim(), now(), attachment,
+          txnId(paymentId), account, picks.length ? JSON.stringify(picks) : null),
     ]
     let allocated: Allocation[] = []
     let unallocated = amount
-    if (!pdc) {
+    if (!pdc && picks.length) {
+      const a = await allocateLines(c, req.student_id, paymentId, picks)
+      allocated = a.allocated; unallocated = amount - a.total; stmts.push(...a.stmts)
+    } else if (!pdc) {
       const a = await allocate(c, req.student_id, paymentId, amount, invoiceIds)
       allocated = a.allocated; unallocated = a.unallocated; stmts.push(...a.stmts)
     }
@@ -474,7 +564,14 @@ export function registerCounter(r: Router): void {
         FROM payments p JOIN students st ON st.id = p.student_id JOIN institutions i ON i.id = p.institution_id
         LEFT JOIN users u ON u.id = p.collected_by WHERE p.id = ?`).bind(paymentId).first<Record<string, unknown>>()
     if (!row) throw notFound()
-    const lines = await c.db.prepare(`
+    /* Each fee and instalment the receipt paid (0135 line rows); a payment
+       with none (pending cheque) falls back to its bills. */
+    let lines = await c.db.prepare(`
+      SELECT i.invoice_no, sum(x.amount_paise) AS amount_paise,
+             COALESCE(fh.name, 'Late fee / other') || CASE WHEN i.instalment_no IS NOT NULL THEN ' (Instalment ' || i.instalment_no || ')' ELSE '' END AS particulars
+        FROM payment_line_allocations x JOIN invoices i ON i.id = x.invoice_id LEFT JOIN fee_heads fh ON fh.id = x.fee_head_id
+       WHERE x.payment_id = ? GROUP BY i.id, x.fee_head_id ORDER BY min(x.rowid)`).bind(paymentId).all<Record<string, unknown>>()
+    if (!lines.results.length) lines = await c.db.prepare(`
       SELECT i.invoice_no, pa.amount_paise,
              COALESCE((SELECT REPLACE(group_concat(DISTINCT fh.name), ',', ', ') FROM invoice_lines il JOIN fee_heads fh ON fh.id = il.fee_head_id WHERE il.invoice_id = i.id), 'Fee') AS particulars
         FROM payment_allocations pa JOIN invoices i ON i.id = pa.invoice_id WHERE pa.payment_id = ?`).bind(paymentId).all<Record<string, unknown>>()
@@ -568,10 +665,16 @@ export function registerCounter(r: Router): void {
   // ---------------------------------------------------------------- cheques
   r.post('/fees/payments/{id}/clear', 'finance.payments.write', async (c) => {
     const paymentId = uuidParam(c.params.id)
-    const pay = await c.db.prepare(`SELECT student_id, amount_paise FROM payments WHERE id = ? AND status = 'pending'`).bind(paymentId).first<{ student_id: string; amount_paise: number }>()
+    const pay = await c.db.prepare(`SELECT student_id, amount_paise, line_plan FROM payments WHERE id = ? AND status = 'pending'`).bind(paymentId).first<{ student_id: string; amount_paise: number; line_plan: string | null }>()
     if (!pay) throw badRequest('no pending payment with that id')
-    const a = await allocate(c, pay.student_id, paymentId, p(pay.amount_paise), [])
-    await c.db.batch([c.db.prepare(`UPDATE payments SET status = 'success' WHERE id = ?`).bind(paymentId), ...a.stmts])
+    /* A cheque taken against ticked fee lines lands on those lines when it
+       clears; if they were paid some other way meanwhile, oldest dues first. */
+    let planned: D1PreparedStatement[] | null = null
+    if (pay.line_plan) {
+      try { planned = (await allocateLines(c, pay.student_id, paymentId, JSON.parse(pay.line_plan) as LinePick[])).stmts } catch { planned = null }
+    }
+    const stmtsA = planned ?? (await allocate(c, pay.student_id, paymentId, p(pay.amount_paise), [])).stmts
+    await c.db.batch([c.db.prepare(`UPDATE payments SET status = 'success' WHERE id = ?`).bind(paymentId), ...stmtsA])
     return ok({ id: paymentId, status: 'success' })
   })
 

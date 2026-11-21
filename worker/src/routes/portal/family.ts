@@ -1,6 +1,7 @@
 import type { Router, Ctx } from '../../router'
 import { badRequest, bool, forbidden, isUUID, notFound, now, ok, readJSON, uuid, HttpError } from '../../http'
 import { indexLogin } from '../setup/common'
+import { fillLineAllocations } from '../fees/common'
 import { can } from '../../identity'
 import { tenantDb, type Institution } from '../../tenant'
 import {
@@ -641,6 +642,7 @@ async function portalSimulatedPay(c: Ctx): Promise<Response> {
     // Triggers: payment_allocations_sync (sync_invoice_paid, with invoices_touch)
     // and payment_allocations_sync_payment (sync_payment_allocated).
     for (const inv of touched) {
+      stmts.push(fillLineAllocations(c, inv))
       stmts.push(c.db.prepare(`UPDATE invoices SET paid_paise = COALESCE((SELECT sum(amount_paise) FROM payment_allocations WHERE invoice_id = ?1), 0),
           updated_at = ?2 WHERE id = ?1`).bind(inv, t))
       stmts.push(c.db.prepare(`UPDATE invoices SET status = CASE

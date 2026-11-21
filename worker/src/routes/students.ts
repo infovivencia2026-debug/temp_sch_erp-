@@ -708,9 +708,11 @@ async function admissionFeePreview(c: Ctx) {
   })
 }
 
-/* A BILL IS SETTLED, NOT A LINE OF IT.
+/* WHAT EACH HEAD GOT.
 
-   A payment lands on an invoice; this works out how much of it each head on
+   Since 0135 a payment is written against the fee lines it paid, and those
+   figures are used as they are. For a bill with no line rows, a payment
+   landed on the invoice; this works out how much of it each head on
    that invoice got. Every line takes its whole-paise share, and the paise
    left over by the division go to the largest lines first, so the shares add
    up to exactly what was paid. One head on the invoice -- which is every
@@ -733,7 +735,18 @@ export function assembleFeeHeads(lines: Record<string, unknown>[], allocs: Recor
     list.push({ head: String(r.head), year: String(r.year ?? ''), line: Number(r.line_paise) || 0, got: 0 })
     byInvoice.set(inv, list)
   }
+  /* Since 0135 a payment lands on the fee line it paid: where the bill has
+     line allocations, each head takes exactly what was put on it. The share
+     below is only for a bill that has none. */
+  const exact = new Set(lines.filter((r) => Number(r.inv_rows) > 0).map((r) => String(r.invoice_id)))
+  for (const inv of exact) byInvoice.set(inv, [])
   for (const r of lines) {
+    if (!exact.has(String(r.invoice_id))) continue
+    const line = Number(r.line_paise) || 0
+    byInvoice.get(String(r.invoice_id))!.push({ head: String(r.head), year: String(r.year ?? ''), line, got: Math.min(line, Math.max(0, Number(r.line_got) || 0)) })
+  }
+  for (const r of lines) {
+    if (exact.has(String(r.invoice_id))) continue
     const list = byInvoice.get(String(r.invoice_id))!
     if (list.some((x) => x.got !== 0)) continue
     const paid = Math.max(0, Number(r.paid_paise) || 0)
@@ -889,7 +902,9 @@ async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
     c.db.prepare(`SELECT CASE WHEN inv.instalment_no IN (1,2,3) THEN 'Term ' || inv.instalment_no || COALESCE(' · ' || fh.name, '')
                               ELSE COALESCE(fh.name, il.description, 'Other') END AS head, il.invoice_id,
                          (il.amount_paise - il.discount_paise) AS line_paise, inv.net_paise, inv.paid_paise,
-                         COALESCE(ay.name, '') AS year
+                         COALESCE(ay.name, '') AS year,
+                         COALESCE((SELECT sum(x.amount_paise) FROM payment_line_allocations x WHERE x.invoice_line_id = il.id), 0) AS line_got,
+                         (SELECT count(*) FROM payment_line_allocations x WHERE x.invoice_id = il.invoice_id) AS inv_rows
                     FROM invoice_lines il JOIN invoices inv ON inv.id = il.invoice_id LEFT JOIN fee_heads fh ON fh.id = il.fee_head_id
                     LEFT JOIN academic_years ay ON ay.id = inv.academic_year_id
                    WHERE inv.student_id = ? AND inv.status <> 'cancelled' ORDER BY head`).bind(id),

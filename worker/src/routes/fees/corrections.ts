@@ -56,29 +56,8 @@ async function payment(c: Ctx, id: string) {
 }
 const note = (old: string | null, line: string) => (old && old.trim() !== '' ? old + ' | ' : '') + line
 
-export function registerCorrections(r: Router): void {
-  /* Payments a correction can act on: recent receipts for one child, or the
-     online payments still pending at the gateway. */
-  r.get('/finance/corrections/payments', 'finance.payments.read', fin(async (c) => {
-    const q = c.url.searchParams
-    const student = (q.get('student_id') ?? '').trim()
-    const pending = q.get('pending') === '1'
-    if (student && !isUUID(student)) throw badRequest('student_id must be a uuid')
-    const rows = await c.db.prepare(`
-      SELECT p.id, p.receipt_no, p.amount_paise, p.allocated_paise, p.mode, p.paid_on, p.status, p.gateway, p.gateway_txn_id, p.reference_no, p.remarks,
-             TRIM(COALESCE(st.first_name,'') || ' ' || COALESCE(st.last_name,'')) AS student_name, st.admission_no, p.student_id
-        FROM payments p JOIN students st ON st.id = p.student_id
-       WHERE (?1 = '' OR p.student_id = ?1)
-         AND (?2 = 0 OR (p.status = 'pending' AND p.mode NOT IN ('cheque','dd')))
-       ORDER BY p.paid_on DESC, p.created_at DESC LIMIT 200`).bind(student, pending ? 1 : 0).all<Record<string, unknown>>()
-    return ok({ items: rows.results.map((v) => ({ ...v, amount_paise: Number(v.amount_paise), allocated_paise: Number(v.allocated_paise ?? 0) })) })
-  }))
-
-  r.post('/finance/corrections/payments/{id}/void', APPROVE, fin(async (c) => {
-    const id = uuidParam(c.params.id)
-    await requireFresh(c)
-    const req = await readJSON<{ reason?: unknown }>(c.req)
-    const why = strongReason(req.reason)
+/** Void a receipt (also run when a Cancel request is approved). */
+export async function voidPayment(c: Ctx, id: string, why: string) {
     const p = await payment(c, id)
     if (p.status === 'cancelled') throw new HttpError(409, 'this receipt is already void', { code: 'already_void' })
     if (p.status === 'bounced') throw new HttpError(409, 'a bounced cheque is already off the books', { code: 'bounced' })
@@ -96,15 +75,11 @@ export function registerCorrections(r: Router): void {
     stmts.push(syncPayment(c, id))
     stmts.push(...await tellAdmins(c, id, p.student_id, `Receipt ${p.receipt_no} voided`, `₹${Math.trunc(p.amount_paise / 100)} taken off the books. Reason: ${why}`))
     await c.db.batch(stmts)
-    return ok({ id, status: 'cancelled', receipt_no: p.receipt_no })
-  }))
+    return { id, status: 'cancelled', receipt_no: p.receipt_no }
+}
 
-  r.post('/finance/corrections/payments/{id}/move', APPROVE, fin(async (c) => {
-    const id = uuidParam(c.params.id)
-    await requireFresh(c)
-    const req = await readJSON<{ to_student_id?: unknown; reason?: unknown }>(c.req)
-    const why = strongReason(req.reason)
-    const to = typeof req.to_student_id === 'string' ? req.to_student_id : ''
+/** Move a receipt to another child (also run when a Transfer request is approved). */
+export async function movePayment(c: Ctx, id: string, to: string, why: string) {
     if (!isUUID(to)) throw badRequest('to_student_id must name a child')
     const p = await payment(c, id)
     if (p.student_id === to) throw badRequest('that receipt is already against this child')
@@ -130,7 +105,41 @@ export function registerCorrections(r: Router): void {
     const a = await allocate(c, target.id, id, p.amount_paise, []).catch(() => null)
     if (a) await c.db.batch(a.stmts)
     else await c.db.batch([syncPayment(c, id)])
-    return ok({ id, moved_to: target.id, allocated_paise: a ? p.amount_paise - a.unallocated : 0, unallocated_paise: a ? a.unallocated : p.amount_paise })
+    return ({ id, moved_to: target.id, allocated_paise: a ? p.amount_paise - a.unallocated : 0, unallocated_paise: a ? a.unallocated : p.amount_paise })
+}
+
+export function registerCorrections(r: Router): void {
+  /* Payments a correction can act on: recent receipts for one child, or the
+     online payments still pending at the gateway. */
+  r.get('/finance/corrections/payments', 'finance.payments.read', fin(async (c) => {
+    const q = c.url.searchParams
+    const student = (q.get('student_id') ?? '').trim()
+    const pending = q.get('pending') === '1'
+    if (student && !isUUID(student)) throw badRequest('student_id must be a uuid')
+    const rows = await c.db.prepare(`
+      SELECT p.id, p.receipt_no, p.amount_paise, p.allocated_paise, p.mode, p.paid_on, p.status, p.gateway, p.gateway_txn_id, p.reference_no, p.remarks,
+             TRIM(COALESCE(st.first_name,'') || ' ' || COALESCE(st.last_name,'')) AS student_name, st.admission_no, p.student_id
+        FROM payments p JOIN students st ON st.id = p.student_id
+       WHERE (?1 = '' OR p.student_id = ?1)
+         AND (?2 = 0 OR (p.status = 'pending' AND p.mode NOT IN ('cheque','dd')))
+       ORDER BY p.paid_on DESC, p.created_at DESC LIMIT 200`).bind(student, pending ? 1 : 0).all<Record<string, unknown>>()
+    return ok({ items: rows.results.map((v) => ({ ...v, amount_paise: Number(v.amount_paise), allocated_paise: Number(v.allocated_paise ?? 0) })) })
+  }))
+
+  r.post('/finance/corrections/payments/{id}/void', APPROVE, fin(async (c) => {
+    const id = uuidParam(c.params.id)
+    await requireFresh(c)
+    const req = await readJSON<{ reason?: unknown }>(c.req)
+    return ok(await voidPayment(c, id, strongReason(req.reason)))
+  }))
+
+  r.post('/finance/corrections/payments/{id}/move', APPROVE, fin(async (c) => {
+    const id = uuidParam(c.params.id)
+    await requireFresh(c)
+    const req = await readJSON<{ to_student_id?: unknown; reason?: unknown }>(c.req)
+    const why = strongReason(req.reason)
+    const to = typeof req.to_student_id === 'string' ? req.to_student_id : ''
+    return ok(await movePayment(c, id, to, why))
   }))
 
   r.post('/finance/corrections/payments/{id}/force-success', APPROVE, fin(async (c) => {
