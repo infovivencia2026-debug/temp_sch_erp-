@@ -53,6 +53,13 @@ export default function PaneArea({
            name, and it is the only thing separating two halves that are
            otherwise identical. */
         'grid h-full min-h-0 gap-px bg-foreground/25',
+        /* ONE PANE AT A TIME ON A PHONE. Two registers side by side need a desk;
+           on a phone the grid crammed them into ~180px columns whose height did
+           not resolve, so staff 360 and every other split screen could not be
+           scrolled (Yajur phone view, 2026-11-21). Below md only the focused
+           pane shows, full width and height, and its close button steps back to
+           the one beside it. */
+        'max-md:!block',
         paths.length === 2 && dir === 'row' && 'grid-cols-2',
         paths.length === 2 && dir === 'col' && 'grid-rows-2',
         // Three panes in a row are each too narrow for a register, so three
@@ -78,6 +85,8 @@ export default function PaneArea({
           className={cn(
             'relative flex min-h-0 min-w-0 flex-col overflow-hidden bg-background',
             'transition-[box-shadow]',
+            // Phone: only the focused pane is on screen, and it fills it.
+            i === focus ? 'max-md:!h-full' : 'max-md:!hidden',
             // The focused pane is named by the address bar, and which one that
             // is has to be visible: a keystroke that navigates has to land
             // somewhere predictable. An inset line rather than a border, so

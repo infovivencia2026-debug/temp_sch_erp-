@@ -860,6 +860,16 @@
      long name took most of the screen and was cut hard at the frame's edge.
      Capped at 55% of the width; the text and its direct lines truncate. */
   @media (max-width: 640px) {
+    /* A ROW OF BUTTONS MUST NOT SIT ON TOP OF THE NAME. On a desk the last
+       column (Reset, Roles, Deactivate) is pinned to the right so it is not cut
+       off; on a phone that pinned column is wider than the gap left beside the
+       frozen name, so the two sticky columns overlap and the buttons cover the
+       name entirely (Yajur phone view, 2026-11-21). On a phone the name wins:
+       the action column is unpinned and scrolls into view instead. */
+    .responsive-table.is-wide tbody td:last-child:has(button, a[role=button]) {
+      position: static;
+      box-shadow: none;
+    }
     .responsive-table tbody td:first-child:not([colspan]) {
       max-width: 55vw;
       overflow: hidden;
