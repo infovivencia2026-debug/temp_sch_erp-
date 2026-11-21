@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, CircleDot, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
-  Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X,
+  Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X, FolderOpen, BellDot, CalendarClock,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/Toast'
@@ -351,6 +351,9 @@ function Responses({ form }: { form: Form }) {
   })
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [view, setView] = useState<string | null>(null)
+  /* The number cards filter the list (owner, 2026-11-21): Responses = not yet
+     moved into a shortcut, New = unopened, Last 7 days = recent. */
+  const [quick, setQuick] = useState<'' | 'new' | 'week'>('')
   const [naming, setNaming] = useState(false)
   const [newName, setNewName] = useState('')
   const [fGrade, setFGrade] = useState('')
@@ -397,12 +400,22 @@ function Responses({ form }: { form: Form }) {
   const cols = [...form.fields.map((f) => ({ key: f.key, label: f.label })), ...extra.map((k) => ({ key: k, label: k }))]
   const filled = (r: Resp, k: string) => !!val(r, k) || !!fileOf(r, k)
   const shownCols = cols.filter((c) => items.some((r) => filled(r, c.key))).slice(0, 4)
-  const week = Date.now() - 7 * 86400000
+  const todayIso = new Date().toLocaleDateString('en-CA')
+  /* A response moved into a shortcut lives there, not under Responses again
+     (owner, 2026-11-21: "they are going to the same again and again"). */
+  const sorted = new Set(shortcuts.flatMap((x) => x.ids))
+  const inView = (r: Resp) =>
+    quick === 'new' ? !r.is_read
+      : quick === 'week' ? new Date(r.created_at).toLocaleDateString('en-CA') === todayIso
+      : view ? (shortcuts.find((x) => x.id === view)?.ids ?? []).includes(r.id)
+      : !sorted.has(r.id)
+  const shown = items.filter(inView)
+  const pickCard = (k: '' | 'new' | 'week') => { setQuick(k); setView(null); setPicked(new Set()) }
   const open = items.find((r) => r.id === openId) ?? null
   const cell = (r: Resp, k: string) => fileOf(r, k)?.name ?? val(r, k)
   const allRows = () => {
     const use = cols.filter((c) => !INTERNAL.has(c.key) && items.some((r) => filled(r, c.key)))
-    return [['Received', ...use.map((c) => c.label)], ...items.map((r) => [when(r.created_at), ...use.map((c) => cell(r, c.key))])]
+    return [['Received', ...use.map((c) => c.label)], ...shown.map((r) => [when(r.created_at), ...use.map((c) => cell(r, c.key))])]
   }
 
   /* SCORED TEST VIEW (owner, 2026-11-20: Yajur Quest "like the preview").
@@ -430,7 +443,7 @@ function Responses({ form }: { form: Form }) {
   }
   const q2 = fSearch.trim().toLowerCase()
   const board = items
-    .filter((r) => !view || (shortcuts.find((s) => s.id === view)?.ids ?? []).includes(r.id))
+    .filter(inView)
     .filter((r) => !fGrade || r.data.applying_for_grade === fGrade)
     .filter((r) => !fStatus || stateOf(r) === fStatus)
     .filter((r) => !fScore || (num(r, 'pct') ?? -1) >= 50)
@@ -454,43 +467,47 @@ function Responses({ form }: { form: Form }) {
         </div>
       )}
       <div className="flex flex-wrap justify-end gap-2">
-        <div className="w-40"><Select value="" placeholder="Export all" onChange={(v) => { const rows = scored ? boardRows() : allRows(); if (v === 'xlsx') saveExcel(form.title + ' responses', rows); else if (v === 'csv') saveCsv(form.title + ' responses', rows) }}
+        <div className="w-44"><Select value="" placeholder={`Export ${scored ? board.length : shown.length}`} onChange={(v) => { const rows = scored ? boardRows() : allRows(); if (v === 'xlsx') saveExcel(form.title + ' responses', rows); else if (v === 'csv') saveCsv(form.title + ' responses', rows) }}
           options={[{ value: 'xlsx', label: 'Excel' }, { value: 'csv', label: 'CSV' }]} /></div>
       </div>
       {scored ? (
         <CellGrid cols={4}>
-          <Stat label="Registered" value={items.length} tint />
+          <Stat label="Registered" icon={Inbox} value={items.filter((x) => !sorted.has(x.id)).length} hint={sorted.size ? `${sorted.size} moved to shortcuts` : undefined} tint onClick={() => pickCard('')} active={!quick && !view} />
           <Stat label="Finished" value={done.length} tint />
           <Stat label="Above 50%" value={pcts.filter((x) => x >= 50).length} tint />
           <Stat label="Average · top" value={pcts.length ? `${Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length)}% · ${top}/60` : '-'} tint />
         </CellGrid>
       ) : (
         <CellGrid cols={3}>
-          <Stat label="Responses" value={items.length} tint />
-          <Stat label="New" value={unread} tint />
-          <Stat label="Last 7 days" value={items.filter((r) => Date.parse(r.created_at) >= week).length} tint />
+          <Stat label="Responses" icon={Inbox} value={items.filter((x) => !sorted.has(x.id)).length} hint={sorted.size ? `${sorted.size} moved to shortcuts` : 'Not moved to a shortcut'} tint onClick={() => pickCard('')} active={!quick && !view} />
+          <Stat label="New" icon={BellDot} value={unread} hint={unread ? `Oldest unopened ${when(items.filter((x) => !x.is_read).at(-1)!.created_at)}` : 'All opened'} tint onClick={() => pickCard('new')} active={quick === 'new'} />
+          {/* Today, with when the last one came in (owner, 2026-11-21: a date in
+              place of Last 7 days). */}
+          <Stat label="Today" icon={CalendarClock} value={items.filter((r) => new Date(r.created_at).toLocaleDateString('en-CA') === todayIso).length}
+            hint={items[0] ? `Last received ${when(items[0].created_at)}` : 'Nothing yet'} tint onClick={() => pickCard('week')} active={quick === 'week'} />
         </CellGrid>
       )}
       {/* The shortcut chips: All, then each group with its count. */}
       <div className="flex flex-wrap items-center gap-3">
       <div className="flex min-w-0 gap-3 overflow-x-auto pb-1 [scrollbar-width:none]" role="tablist" aria-label="Shortcuts">
-        {[{ id: '', name: 'All', ids: items.map((r) => r.id) }, ...shortcuts].map((s) => {
-          const on = (view ?? '') === s.id
-          const n = s.id ? s.ids.filter((x) => items.some((r) => r.id === x)).length : items.length
+        {/* Shortcuts as full-name chips with their count (owner, 2026-11-21: the
+            names were cut to a few letters). "All" is the Responses card now. */}
+        {shortcuts.map((s) => {
+          const on = view === s.id
+          const n = s.ids.filter((x) => items.some((r) => r.id === x)).length
           return (
-            <button key={s.id || 'all'} type="button" role="tab" aria-selected={on} onClick={() => { setView(s.id || null); setPicked(new Set()) }}
-              className="flex w-[72px] shrink-0 flex-col items-center gap-1 text-center">
-              <span className={cn('grid size-14 place-items-center rounded-full border-2 text-[18px] font-bold transition-colors',
-                on ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/40 bg-primary/10 text-primary')}>
-                {s.id ? s.name.trim().slice(0, 1).toUpperCase() : n}
-              </span>
-              <span className={cn('w-full truncate text-[12px]', on ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{s.name}{s.id ? ` · ${n}` : ''}</span>
+            <button key={s.id} type="button" role="tab" aria-selected={on} onClick={() => { setQuick(''); setView(on ? null : s.id); setPicked(new Set()) }}
+              className={cn('flex min-h-12 shrink-0 items-center gap-2.5 rounded-xl border-2 px-3.5 py-2 text-left transition-colors',
+                on ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/30 bg-primary/5 text-foreground hover:border-primary/60')}>
+              <FolderOpen className={cn('size-5 shrink-0', on ? '' : 'text-primary')} aria-hidden />
+              <span className="whitespace-nowrap text-[14px] font-semibold">{s.name}</span>
+              <span className={cn('rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums', on ? 'bg-primary-foreground/20' : 'bg-primary/10 text-primary')}>{n}</span>
             </button>
           )
         })}
-        <button type="button" onClick={() => setNaming(true)} aria-label="Add a shortcut" className="flex w-[72px] shrink-0 flex-col items-center gap-1 text-center">
-          <span className="grid size-14 place-items-center rounded-full border-2 border-dashed border-primary/50 text-primary"><Plus className="size-6" aria-hidden /></span>
-          <span className="w-full truncate text-[12px] text-muted-foreground">New</span>
+        <button type="button" onClick={() => setNaming(true)} aria-label="Add a shortcut"
+          className="flex min-h-12 shrink-0 items-center gap-2 rounded-xl border-2 border-dashed border-primary/50 px-3.5 py-2 text-[14px] font-medium text-primary hover:bg-primary/5">
+          <Plus className="size-5" aria-hidden />New shortcut
         </button>
       </div>
       {/* Ticked rows: actions sit in the free space beside the chips (owner, 2026-11-17). */}
@@ -558,7 +575,7 @@ function Responses({ form }: { form: Form }) {
         </>
       ) : (
       <Table head={['', 'Received', ...shownCols.map((c) => c.label), 'Files', '']}>
-        {items.filter((r) => !view || (shortcuts.find((s) => s.id === view)?.ids ?? []).includes(r.id)).map((r) => (
+        {shown.map((r) => (
           <tr key={r.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenId(r.id)}>
             <Td className="w-10" ><span onClick={(e) => e.stopPropagation()}><Checkbox label="" srLabel="Select this application" checked={picked.has(r.id)} onChange={() => togglePick(r.id)} /></span></Td>
             <Td className="whitespace-nowrap tabular-nums">{when(r.created_at)}{!r.is_read && <Badge tone="primary" className="ml-2">New</Badge>}</Td>
