@@ -421,7 +421,7 @@ function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) 
   const val = (r: Resp, k: string) => show(r, k) || (ALIASES[k] ?? []).map((a) => show(r, a)).find(Boolean) || ''
   const fileOf = (r: Resp, k: string) => r.files.find((x) => x.key === k) ?? r.files.find((x) => (ALIASES[k] ?? []).includes(x.key))
   const extra = [...new Set(items.flatMap((r) => [...Object.keys(r.data), ...r.files.map((x) => x.key)]))].filter((k) => !known.includes(k) && !aliasOf(k))
-  const cols = [...form.fields.map((f) => ({ key: f.key, label: f.label })), ...extra.map((k) => ({ key: k, label: k }))]
+  const cols = [...form.fields.map((f) => ({ key: f.key, label: f.label })), ...extra.map((k) => ({ key: k, label: niceKey(k) }))]
   const filled = (r: Resp, k: string) => !!val(r, k) || !!fileOf(r, k)
   const shownCols = cols.filter((c) => items.some((r) => filled(r, c.key))).slice(0, 4)
   const todayIso = new Date().toLocaleDateString('en-CA')
@@ -915,4 +915,13 @@ function sentAt(r: Resp): string {
   if (!m || !mo) return r.created_at
   const d = new Date(`${m[3]}-${mo}-${m[1].padStart(2, '0')}T${(m[4] ?? '00').padStart(2, '0')}:${m[5] ?? '00'}:00+05:30`)
   return Number.isNaN(d.getTime()) ? r.created_at : d.toISOString()
+}
+
+/* A question the form does not know by name shows a readable label, not the
+   website's field name (owner, 2026-11-21: "sameAddress", "place"). */
+const KEY_LABELS: Record<string, string> = { sameAddress: 'Same as current address', place: 'Place' }
+function niceKey(k: string): string {
+  if (KEY_LABELS[k]) return KEY_LABELS[k]
+  const words = k.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').trim().toLowerCase()
+  return words ? words[0].toUpperCase() + words.slice(1) : k
 }
