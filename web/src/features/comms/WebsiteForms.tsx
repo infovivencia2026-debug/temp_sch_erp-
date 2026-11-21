@@ -490,14 +490,14 @@ function Responses({ form }: { form: Form }) {
       </div>
       {scored ? (
         <CellGrid cols={4}>
-          <Stat label="Registered" icon={Inbox} value={items.filter((x) => !sorted.has(x.id)).length} hint={sorted.size ? `${sorted.size} moved to shortcuts` : undefined} tint onClick={() => pickCard('')} active={!quick && !view} />
+          <Stat label="Registered" icon={Inbox} value={items.length} hint={sorted.size ? `${sorted.size} moved to shortcuts` : undefined} tint onClick={() => pickCard('')} active={!quick && !view} />
           <Stat label="Finished" value={done.length} tint />
           <Stat label="Above 50%" value={pcts.filter((x) => x >= 50).length} tint />
           <Stat label="Average · top" value={pcts.length ? `${Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length)}% · ${top}/60` : '-'} tint />
         </CellGrid>
       ) : (
         <CellGrid cols={3}>
-          <Stat label="Responses" icon={Inbox} value={items.filter((x) => !sorted.has(x.id)).length} hint={sorted.size ? `${sorted.size} moved to shortcuts` : 'Not moved to a shortcut'} tint onClick={() => pickCard('')} active={!quick && !view} />
+          <Stat label="Responses" icon={Inbox} value={items.length} hint={sorted.size ? `${items.filter((x) => !sorted.has(x.id)).length} to sort · ${sorted.size} in shortcuts` : 'All received'} tint onClick={() => pickCard('')} active={!quick && !view} />
           <Stat label="New" icon={BellDot} value={unread} hint={unread ? `Oldest unopened ${when(items.filter((x) => !x.is_read).at(-1)!.created_at)}` : 'All opened'} tint onClick={() => pickCard('new')} active={quick === 'new'} />
           {/* Today, with when the last one came in (owner, 2026-11-21: a date in
               place of Last 7 days). */}
