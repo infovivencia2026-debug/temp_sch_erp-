@@ -70,6 +70,7 @@ const EDIT_ACTIONS: Record<string, { editKey: string; label: string }> = {
   staff_360: { editKey: 'hr.employees.write', label: 'Staff records' },
   staff_overview: { editKey: 'hr.employees.write', label: 'Staff records' },
   staff_records: { editKey: 'hr.employees.write', label: 'Staff records' },
+  website_forms: { editKey: 'comms.website_forms.write', label: 'Edit forms' },
 }
 
 /* Every built feature as one flat list, each with a switch: on means the

@@ -12,7 +12,8 @@
 import type { Ctx, Router } from '../../router'
 import type { Env } from '../../env'
 import { json } from '../../env'
-import { HttpError, badRequest, created, isUUID, now, ok, readJSON, uuid } from '../../http'
+import { HttpError, badRequest, created, forbidden, isUUID, now, ok, readJSON, uuid } from '../../http'
+import { can, type Identity } from '../../identity'
 import { allTenants, callerAddress, goError, goInternal, goNotFound, rateLimited, type Tenant } from './public_common'
 import { baseName, extOf, putObject, refuseSize, refuseUpload, sha256, uploadKey } from '../../services/files'
 
@@ -22,7 +23,13 @@ type FieldType = typeof FIELD_TYPES[number]
 export interface FormField { key: string; label: string; type: FieldType; required: boolean; options?: string[]; show_if?: { key: string; value: string } }
 interface FormRow { id: string; slug: string; title: string; description: string | null; fields: string; submit_label: string | null; thanks_message: string | null; is_open: number; created_at: string; updated_at: string }
 
-const READ = 'institution.read', WRITE = 'institution.settings.write'
+const READ = 'institution.read'
+/* Editing forms: the forms' own permission (owner, 2026-11-21: Edit on Website
+   forms for one staff member) or, as before, school settings. */
+const WRITE = 'auth'
+function mayEditForms(c: { id: Identity }) {
+  if (!can(c.id, 'comms.website_forms.write') && !can(c.id, 'institution.settings.write')) throw forbidden()
+}
 const MAX_FILE = 8 * 1024 * 1024
 
 const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'form'
@@ -82,6 +89,7 @@ export function registerWebsiteForms(r: Router): void {
   })
 
   r.post('/comms/website-forms', WRITE, async (c) => {
+    mayEditForms(c)
     const b = await readJSON(c.req)
     const title = String(b.title ?? '').trim()
     if (!title) throw badRequest('give the form a name')
@@ -95,6 +103,7 @@ export function registerWebsiteForms(r: Router): void {
   })
 
   r.put('/comms/website-forms/{id}', WRITE, async (c) => {
+    mayEditForms(c)
     const f = await formOr404(c, c.params.id)
     const b = await readJSON(c.req)
     const title = b.title === undefined ? f.title : String(b.title).trim().slice(0, 120)
@@ -120,6 +129,7 @@ export function registerWebsiteForms(r: Router): void {
   /* Delete a form with all its responses, or one response. Their files are
      marked deleted, so no link to them opens again. */
   r.del('/comms/website-forms/{id}', WRITE, async (c) => {
+    mayEditForms(c)
     const f = await formOr404(c, c.params.id)
     await c.db.batch([
       c.db.prepare(`UPDATE files SET deleted_at = ? WHERE owner_type = 'website_form_response' AND owner_id IN (SELECT id FROM website_form_responses WHERE form_id = ?)`).bind(now(), f.id),
@@ -130,6 +140,7 @@ export function registerWebsiteForms(r: Router): void {
   })
 
   r.del('/comms/website-forms/{id}/responses/{rid}', WRITE, async (c) => {
+    mayEditForms(c)
     const f = await formOr404(c, c.params.id)
     if (!isUUID(c.params.rid)) throw badRequest('invalid response id')
     const res = await c.db.batch([
