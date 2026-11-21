@@ -500,8 +500,14 @@ export default function StaffRecord({ employeeID, onClose }: {
   const shell = (body: React.ReactNode) => createPortal(
     /* z-[90], above the maximised-table view (z-80) as well as the ordinary
        page, and below the printable card viewer (z-100) that prints from here. */
-    <div className="vv-screen-phone fixed inset-0 z-[90] overflow-y-auto bg-background">
-      {body}
+    /* The scroll lives on an INNER layer, not this one. On a phone the global
+       .vv-screen-phone rule forces `overflow: visible` on the outer layer (for
+       the background strip below iOS's visual-viewport edge), which silently
+       cancelled an `overflow-y-auto` here and left Staff 360 unscrollable
+       (Yajur phone, 2026-11-21). The outer layer keeps its height and strip; a
+       full-height child does the scrolling. */
+    <div className="vv-screen-phone fixed inset-0 z-[90] bg-background">
+      <div className="h-full overflow-y-auto">{body}</div>
       {report && <CardViewer card={report} onClose={() => setReport(null)} />}
       {viewingPhoto && d?.photo_file_id && (
         <PhotoViewer src={`/api/v1/files/${d.photo_file_id}?inline=1`} name={`${d.full_name}'s photo`}
