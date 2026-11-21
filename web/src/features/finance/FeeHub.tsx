@@ -305,7 +305,10 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
       ) : undefined} />
       <ol className="grid gap-2 p-[var(--card-pad)] pb-0 sm:grid-cols-3">
         {steps.map((s, i) => (
-          <li key={s} className={cn('rounded-md border px-3 py-2 text-center text-[13px] font-medium', step === i + 1 ? 'border-primary bg-accent text-foreground' : 'text-muted-foreground')}>{s}</li>
+          <li key={s}>
+            <button type="button" aria-current={step === i + 1 ? 'step' : undefined} onClick={() => setStep((i + 1) as 1 | 2 | 3)}
+              className={cn('w-full rounded-md border px-3 py-2 text-center text-[13px] font-medium transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', step === i + 1 ? 'border-primary bg-accent text-foreground' : 'text-muted-foreground')}>{s}</button>
+          </li>
         ))}
       </ol>
       {dialog === 'qr' && <QrDialog hub={hub} amount={total} onClose={() => setDialog('')} />}
@@ -351,12 +354,19 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
         </>
       )}
 
-      {step === 2 && (
+      {step === 2 && !picked.length && (
+        <div className="space-y-3 p-[var(--card-pad)]">
+          <p className="text-[14px]">Tick the fees to pay in step 1 to take a new payment. Every receipt this student has is below.</p>
+          <Button variant="secondary" onClick={() => setStep(1)}>Go to fee details</Button>
+        </div>
+      )}
+
+      {step === 2 && picked.length > 0 && (
         <div className="space-y-4 p-[var(--card-pad)]">
           <p className="text-[14px]">Receipt amount <b className="tabular-nums">{formatPaise(total)}</b> for {picked.length} fee line{picked.length === 1 ? '' : 's'}.</p>
           <FormGrid>
             <Field label="Payment mode">
-              <Select value={mode} onChange={(v) => { setMode(v); setUtr('') }} options={['cash', 'upi', 'card', 'neft', 'cheque', 'dd', 'wallet', 'adjustment'].map((m) => ({ value: m, label: modeName(m) }))} />
+              <Select value={mode} onChange={(v) => { setMode(v); setUtr(''); save.reset() }} options={['cash', 'upi', 'card', 'neft', 'cheque', 'dd', 'wallet', 'adjustment'].map((m) => ({ value: m, label: modeName(m) }))} />
             </Field>
             {needsUtr && <Field label="UTR / transaction no" required hint={mode === 'upi' ? '12 digits. A UTR is accepted once.' : 'A UTR is accepted once.'}><Input value={utr} onChange={setUtr} /></Field>}
             {isCheque && <Field label={mode === 'dd' ? 'DD no' : 'Cheque no'} required><Input value={utr} onChange={setUtr} /></Field>}
@@ -392,14 +402,62 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
         </div>
       )}
 
-      {step === 3 && done && (
-        <div className="space-y-4 p-[var(--card-pad)]">
-          <p className="text-[14px]">Receipt <b className="font-mono">{done.receipt.receipt_no}</b>{done.receipt.txn_id ? <> · Transaction ID <span className="font-mono">{done.receipt.txn_id}</span></> : null} issued for <b>{formatPaise(done.receipt.amount_paise)}</b>.</p>
-          <ReceiptActions id={done.id} receipt={done.receipt} school={school} />
-          <Button variant="ghost" onClick={() => { setDone(null); setStep(1) }}>New receipt</Button>
-        </div>
+      {step === 2 && (
+        <>
+          <div className="border-t px-[var(--card-pad)] pt-4 text-[14px] font-semibold">All receipts for this student</div>
+          <IssuedReceipts hub={hub} />
+        </>
+      )}
+
+      {step === 3 && (
+        <>
+          {done && (
+            <div className="space-y-4 p-[var(--card-pad)]">
+              <p className="text-[14px]">Receipt <b className="font-mono">{done.receipt.receipt_no}</b>{done.receipt.txn_id ? <> · Transaction ID <span className="font-mono">{done.receipt.txn_id}</span></> : null} issued for <b>{formatPaise(done.receipt.amount_paise)}</b>.</p>
+              <ReceiptActions id={done.id} receipt={done.receipt} school={school} />
+              <Button variant="ghost" onClick={() => { setDone(null); setStep(1) }}>New receipt</Button>
+            </div>
+          )}
+          <div className="border-t px-[var(--card-pad)] pt-4 text-[14px] font-semibold">Reprint a receipt</div>
+          <IssuedReceipts hub={hub} />
+        </>
       )}
     </Card>
+  )
+}
+
+/* Step 3 (owner, 2026-11-21): every receipt this child has, to open, print or save again. */
+function IssuedReceipts({ hub }: { hub: Hub }) {
+  const school = useSchool()
+  const [view, setView] = useState<string | null>(null)
+  const get = (id: string) => api.call('GET /fees/receipts/{id}', { params: { id } })
+  return (
+    <>
+      {view && <ReceiptDialog paymentId={view} onClose={() => setView(null)} />}
+      <Table head={['Date', 'Receipt no', 'Transaction ID', 'Amount', 'Mode', 'UTR / cheque', 'Paid for', 'Taken by', 'Status', '']} empty={!hub.receipts.length} emptyLabel="No receipts issued yet.">
+        {hub.receipts.map((r) => (
+          <tr key={r.id}>
+            <Td className="whitespace-nowrap">{formatDate(r.paid_on)}</Td>
+            <Td className="font-mono text-[12px]">{r.receipt_no || '-'}</Td>
+            <Td className="font-mono text-[12px]">{r.txn_id || '-'}</Td>
+            <Td className="whitespace-nowrap tabular-nums">{formatPaise(r.amount_paise)}</Td>
+            <Td className="whitespace-nowrap">{modeName(r.mode)}</Td>
+            <Td className="whitespace-nowrap font-mono text-[12px]">{r.reference || '-'}</Td>
+            <Td className="min-w-[11rem]">{r.lines.length ? r.lines.map((x, k) => <span key={k} className="block">{x.fee_type} - {inst(x.instalment_no)}{x.year ? ` (${x.year})` : ''}: {formatPaise(x.amount_paise)}</span>) : '-'}</Td>
+            <Td className="whitespace-nowrap">{r.collector || '-'}</Td>
+            <Td><Badge tone={r.status === 'success' ? 'success' : r.status === 'pending' ? 'warning' : 'danger'}>{r.status === 'success' ? 'Paid' : r.status === 'pending' ? 'Cheque held' : r.status === 'bounced' ? 'Bounced' : 'Cancelled'}</Badge></Td>
+            <Td>
+              <div className="flex flex-wrap gap-1">
+                <Button size="sm" variant="ghost" onClick={() => setView(r.id)}>View</Button>
+                <Button size="sm" variant="ghost" onClick={() => void get(r.id).then((x) => printHtml(receiptTwoCopiesHtml(x, school)))}>Print</Button>
+                <Button size="sm" variant="ghost" onClick={() => void get(r.id).then((x) => printHtml(thermalHtml(x, school)))}>Thermal</Button>
+                <Button size="sm" variant="ghost" onClick={() => void saveFile(`/api/v1/fees/receipts/${r.id}/pdf`, `receipt-${r.receipt_no}.pdf`)}>PDF</Button>
+              </div>
+            </Td>
+          </tr>
+        ))}
+      </Table>
+    </>
   )
 }
 
