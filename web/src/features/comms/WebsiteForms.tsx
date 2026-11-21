@@ -737,8 +737,7 @@ const show = (r: Resp, k: string) => {
     try {
       const parsed: unknown = JSON.parse(s)
       const list = (Array.isArray(parsed) ? parsed : [parsed]).filter((x) => x != null)
-      return list.map((x) => entryLine(k, x)).filter(Boolean).join('
-')
+      return list.map((x) => entryLine(k, x)).filter(Boolean).join('\n')
     } catch { /* not JSON: shown as typed */ }
   }
   return s
