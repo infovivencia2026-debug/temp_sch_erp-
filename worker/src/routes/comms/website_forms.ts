@@ -23,7 +23,15 @@ type FieldType = typeof FIELD_TYPES[number]
 export interface FormField { key: string; label: string; type: FieldType; required: boolean; options?: string[]; show_if?: { key: string; value: string } }
 interface FormRow { id: string; slug: string; title: string; description: string | null; fields: string; submit_label: string | null; thanks_message: string | null; is_open: number; created_at: string; updated_at: string }
 
-const READ = 'institution.read'
+/* Opening the forms screen: school readers as before, OR anyone granted the
+   forms' own permission — without this a staff member given only Edit on
+   Website forms (comms.website_forms.write) could not even open the list, since
+   write does not imply institution.read (owner, 2026-11-21). The route guard is
+   'auth' and the real check is mayViewForms, so the forms permission counts. */
+const READ = 'auth'
+function mayViewForms(c: { id: Identity }) {
+  if (!can(c.id, 'institution.read') && !can(c.id, 'comms.website_forms.write') && !can(c.id, 'institution.settings.write')) throw forbidden()
+}
 /* Editing forms: the forms' own permission (owner, 2026-11-21: Edit on Website
    forms for one staff member) or, as before, school settings. */
 const WRITE = 'auth'
@@ -81,6 +89,7 @@ async function formOr404(c: Ctx, id: string) {
 
 export function registerWebsiteForms(r: Router): void {
   r.get('/comms/website-forms', READ, async (c) => {
+    mayViewForms(c)
     const rows = await c.db.prepare(`SELECT f.*, (SELECT count(*) FROM website_form_responses x WHERE x.form_id = f.id) AS responses,
         (SELECT count(*) FROM website_form_responses x WHERE x.form_id = f.id AND x.is_read = 0) AS unread
         FROM website_forms f ORDER BY f.created_at DESC`).all<FormRow & { responses: number; unread: number }>()
@@ -117,6 +126,7 @@ export function registerWebsiteForms(r: Router): void {
   })
 
   r.get('/comms/website-forms/{id}/responses', READ, async (c) => {
+    mayViewForms(c)
     const f = await formOr404(c, c.params.id)
     const rows = await c.db.prepare(`SELECT id, data, files, source, page_url, is_read, created_at FROM website_form_responses WHERE form_id = ? ORDER BY created_at DESC LIMIT 2000`)
       .bind(f.id).all<{ id: string; data: string; files: string; source: string; page_url: string | null; is_read: number; created_at: string }>()
@@ -153,6 +163,7 @@ export function registerWebsiteForms(r: Router): void {
 
   /* One application read: the form's "new" count drops by one (owner, 2026-11-10). */
   r.post('/comms/website-forms/{id}/responses/{rid}/read', READ, async (c) => {
+    mayViewForms(c)
     const f = await formOr404(c, c.params.id)
     await c.db.prepare(`UPDATE website_form_responses SET is_read = 1 WHERE form_id = ? AND id = ?`).bind(f.id, c.params.rid).run()
     return ok({ ok: true })
@@ -163,6 +174,7 @@ export function registerWebsiteForms(r: Router): void {
      kept in module_settings so no new table is needed. */
   const shortcutKey = (formId: string) => `wf_shortcuts:${formId}`
   r.get('/comms/website-forms/{id}/shortcuts', READ, async (c) => {
+    mayViewForms(c)
     const f = await formOr404(c, c.params.id)
     const row = await c.db.prepare(`SELECT config FROM module_settings WHERE module = ?`).bind(shortcutKey(f.id)).first<{ config: string | null }>()
     let items: unknown = []
@@ -170,6 +182,7 @@ export function registerWebsiteForms(r: Router): void {
     return ok({ items })
   })
   r.put('/comms/website-forms/{id}/shortcuts', READ, async (c) => {
+    mayViewForms(c)
     const f = await formOr404(c, c.params.id)
     const b = await readJSON<{ items?: { id?: unknown; name?: unknown; ids?: unknown }[] }>(c.req)
     if (!Array.isArray(b.items) || b.items.length > 50) throw badRequest('items is a list of at most 50 shortcuts')
@@ -186,6 +199,7 @@ export function registerWebsiteForms(r: Router): void {
   })
 
   r.post('/comms/website-forms/{id}/responses/read', READ, async (c) => {
+    mayViewForms(c)
     const f = await formOr404(c, c.params.id)
     await c.db.prepare(`UPDATE website_form_responses SET is_read = 1 WHERE form_id = ? AND is_read = 0`).bind(f.id).run()
     return ok({ ok: true })
