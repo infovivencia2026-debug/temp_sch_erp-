@@ -405,9 +405,11 @@ export default function StudentProfile() {
   const [editingDetails, setEditingDetails] = useState(false)
   const recordExit = useMutation({
     mutationFn: (v: { status: string; exit_date: string; reason: string }) =>
-      api.post(`/api/v1/students/${selected}/exit`, v),
-    onSuccess: () => {
+      api.post<{ outstanding_paise?: number }>(`/api/v1/students/${selected}/exit`, v),
+    onSuccess: (r) => {
       setExiting(false)
+      // Removing is never blocked by dues; say what stays on the account.
+      if (r?.outstanding_paise) toast.ok(`Removed. ${formatPaise(r.outstanding_paise)} fees still pending on their account`)
       qc.invalidateQueries({ queryKey: ['student-profile', selected] })
       qc.invalidateQueries({ queryKey: ['profile-search'] })
     },

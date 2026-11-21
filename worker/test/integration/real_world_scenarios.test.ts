@@ -271,10 +271,13 @@ describe('the roll', () => {
     expect((await api('admin', 'POST', `/students/${IDS.otherChild}/exit`, { status: 'transferred', exit_date: isoDay(30) })).status).toBe(400)
   })
 
-  it('a child with dues is not quietly let go', async () => {
-    // Diya still owes 5,00,000 on INV-2. The office should be told before recording her as left.
+  it('a child with dues can leave, and the dues stay on the account', async () => {
+    // Diya still owes 5,00,000 on INV-2. Owner, 2026-11-21: removing her is not blocked; the bill stays.
     const r = await api('admin', 'POST', `/students/${IDS.otherChild}/exit`, { status: 'transferred', exit_date: isoDay(0), reason: 'moved city' })
-    expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect((r.body as { outstanding_paise: number }).outstanding_paise).toBeGreaterThan(0)
+    await T().prepare(`UPDATE students SET status = 'active', exit_date = NULL WHERE id = ?`).bind(IDS.otherChild).run()
+    await T().prepare(`UPDATE enrollments SET status = 'active' WHERE student_id = ?`).bind(IDS.otherChild).run()
   })
 
   it('after a child leaves, nobody can collect a fee against them', async () => {

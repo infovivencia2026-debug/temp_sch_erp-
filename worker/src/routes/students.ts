@@ -634,18 +634,18 @@ async function recordStudentExit(c: Ctx) {
   const pred = studentPredicate(await resolveScope(c), 'st')
   const due = await c.db.prepare(`SELECT COALESCE(sum(COALESCE(net_paise, 0) - paid_paise), 0) AS n FROM invoices
       WHERE student_id = ? AND status NOT IN ('cancelled', 'paid')`).bind(id).first<{ n: number }>()
+  /* Dues never stop a child being removed (owner, 2026-11-21: "let them remove
+     but still show their fee is pending on their account"). The bills stay as
+     they are, so the inactive child's ledger and every dues list still show
+     what is owed; the answer says how much, for the office's toast. */
   const owed = Number(due?.n ?? 0)
-  if (owed > 0 && !req.settle_later) {
-    throw new HttpError(409, `this child still owes ₹${(owed / 100).toLocaleString('en-IN')}. Collect it first, or choose to settle later and say why.`, { code: 'student_has_dues', outstanding_paise: owed })
-  }
-  if (owed > 0 && !str(req.reason).trim()) throw badRequest('say why the child is leaving with dues unpaid; it goes on the ledger')
   const res = await c.db.prepare(`UPDATE students SET status = ?, exit_date = COALESCE(?, ?), exit_reason = ?, updated_at = ?
      WHERE id IN (SELECT st.id FROM students st WHERE st.id = ? AND ${pred.sql})`)
     .bind(status, nullStr(exitDate), indiaToday(), nullStr(str(req.reason)), now(), id, ...pred.args).run()
   if (!res.meta.changes) throw forbiddenMsg('missing permission: this child is not one you can edit')
   await c.db.prepare(`UPDATE enrollments SET status = ? WHERE student_id = ? AND status = 'active'`).bind(status, id).run()
   const ended = await endFamilyAccess(c, id)
-  return ok({ status, logins_ended: ended })
+  return ok({ status, logins_ended: ended, outstanding_paise: owed })
 }
 
 async function suspendStudent(c: Ctx) {
