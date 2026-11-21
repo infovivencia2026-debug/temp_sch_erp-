@@ -6,7 +6,7 @@ import { formatDateTime, cn } from '@/lib/utils'
 import {
   Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice, PageBody,
 } from '@/components/ui'
-import { useCan, useSession } from '@/lib/session'
+import { useSession } from '@/lib/session'
 import { MyGrowthPanels } from '@/features/hr/MyGrowth'
 import { PhotoViewer } from '@/components/PhotoViewer'
 import { TwoFactorCard, MyDevicesCard, MySessionActivityCard } from './SecurityCards'
@@ -93,8 +93,9 @@ import { ConcernsCard } from '@/features/me/MyConcerns'
 
 export default function ProfileView() {
   const session = useSession()
-  // Without self.profile.write the record is read-only: the office keeps it.
-  const canEdit = useCan()('self.profile.write')
+  /* Identity and profile is read-only for everyone, staff and parents alike
+     (owner, 2026-11-21: "remove the pencil"). The office keeps the record. */
+  const canEdit = false
   const qc = useQueryClient()
   const [viewingPhoto, setViewingPhoto] = useState(false)
   const { data, isLoading, error } = useQuery({
