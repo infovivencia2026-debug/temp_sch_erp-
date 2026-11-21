@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Select, ErrorState, SkeletonTable, PrintButton, Button, TAB_BAR, tabClass } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Select, ErrorState, SkeletonTable, PrintButton, Button, TAB_BAR, tabClass, Field, Input, FormNotice } from '@/components/ui'
+import { useToast } from '@/components/Toast'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useFeatureHref } from '@/features/bento/bento-kit'
 
@@ -101,15 +102,55 @@ export default function FeeSetupHub() {
           )}
           {tab === 'next' && (
             <Table head={['Step', 'What happens', '']} empty={false}>
-              <tr><Td>1</Td><Td>Copy this year's fee types and plans to next year and change the amounts.</Td><Td>{edit}</Td></tr>
+              <tr><Td>1</Td><Td>Copy this year's fee plans to next year with an increase (below), then fine-tune amounts.</Td><Td>{edit}</Td></tr>
               <tr><Td>2</Td><Td>Start next year and move the classes on.</Td><Td>{rolloverHref && <Button size="sm" variant="outline" onClick={() => go(rolloverHref)}>Year rollover</Button>}</Td></tr>
               <tr><Td>3</Td><Td>Promote the students to their new class.</Td><Td>{promoteHref && <Button size="sm" variant="outline" onClick={() => go(promoteHref)}>Class promotion</Button>}</Td></tr>
               <tr><Td>4</Td><Td>Raise next year's fees. Unpaid bills from this year are carried onto the first new bill as arrears.</Td><Td>{edit}</Td></tr>
             </Table>
           )}
+          {tab === 'next' && <CopyPlans years={s?.years ?? []} />}
           {tab !== 'next' && edit && <div className="px-[var(--card-pad)] pb-4">{edit}</div>}
         </>
       )}
     </Card>
+  )
+}
+
+/* Copy plans to another year with a % increase (owner, 2026-11-21): preview first, then copy.
+   A plan already in the target year (same name and class) is left alone. */
+function CopyPlans({ years }: { years: Setup['years'] }) {
+  const toast = useToast()
+  const cur = years.find((y) => Number(y.is_current))?.id ?? ''
+  const [from, setFrom] = useState(cur)
+  const [to, setTo] = useState('')
+  const [pct, setPct] = useState('8')
+  type Row = { plan: string; class_name: string; skipped: boolean; old_paise: number; new_paise: number; instalments: number }
+  const run = useMutation({
+    mutationFn: (dry: boolean) => api.post<{ plans: Row[]; copied?: number }>('/api/v1/fees/hub/copy-plans', { from_year: from || cur, to_year: to, percent: Number(pct), dry_run: dry }),
+    onSuccess: (r, dry) => { if (!dry) toast.ok(`Copied ${r.copied ?? 0} plan${r.copied === 1 ? '' : 's'}`) },
+  })
+  const opts = years.map((y) => ({ value: y.id, label: y.name }))
+  return (
+    <div className="space-y-3 border-t p-[var(--card-pad)]">
+      <div className="text-[14px] font-semibold">Copy plans to another year</div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="From year"><Select value={from || cur} onChange={setFrom} options={opts} /></Field>
+        <Field label="To year"><Select value={to} onChange={setTo} placeholder="Choose" options={opts.filter((o) => o.value !== (from || cur))} /></Field>
+        <Field label="Increase (%)"><Input value={pct} onChange={setPct} type="number" /></Field>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" disabled={!to || run.isPending} onClick={() => run.mutate(true)}>Preview</Button>
+        <Button needsNetwork disabled={!to || !run.data || run.isPending} onClick={() => run.mutate(false)}>Copy plans</Button>
+      </div>
+      <FormNotice error={run.error} />
+      {run.data && (
+        <Table head={['Plan', 'Class', 'Instalments', 'Now', 'After increase', '']} empty={!run.data.plans.length} emptyLabel="No plans in that year.">
+          {run.data.plans.map((r, i) => (
+            <tr key={i}><Td className="font-medium">{r.plan}</Td><Td>{r.class_name}</Td><Td>{r.instalments}</Td><Td className="tabular-nums">{formatPaise(r.old_paise)}</Td>
+              <Td className="tabular-nums">{formatPaise(r.new_paise)}</Td><Td>{r.skipped && <Badge tone="neutral">Already there</Badge>}</Td></tr>
+          ))}
+        </Table>
+      )}
+    </div>
   )
 }

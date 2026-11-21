@@ -14,6 +14,7 @@ import { useSession } from '@/lib/session'
 import { upiNote } from '@/lib/upi'
 import UpiQr from '@/components/UpiQr'
 import { printFeeStatement } from './fee-statement'
+import IHavePaid from './IHavePaid'
 
 /* The family's own bill.
 
@@ -469,6 +470,7 @@ export default function PortalFees() {
             </p>
           )}
         </Card>
+        {child && <IHavePaid studentId={child} />}
       </PageBody>
     </>
   )

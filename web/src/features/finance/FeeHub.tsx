@@ -51,6 +51,7 @@ interface Hub {
   concessions: { id: string; kind: string; percent: string | null; amount_paise: number | null; reason: string | null; status: string; created_at: string; approved_at: string | null; fee_type: string; requested_by: string; approved_by: string }[]
   refunds: { id: string; amount_paise: number; reason: string | null; status: string; mode: string | null; created_at: string }[]
   fines: { id: string; rule_name: string; amount_paise: number; days_overdue: number; status: string; as_of: string; invoice_no: string }[]
+  offline: { id: string; amount_paise: number; mode: string; reference_no: string | null; paid_on: string; attachment_file_id: string | null; lines: string[]; note: string | null; status: string; reject_reason: string | null; created_at: string; receipt_no: string | null }[]
   available: { fee_head_id: string; fee_type: string; optional: boolean; plans: { structure_id: string; plan: string; class_name: string; amount_paise: number; instalments: number }[] }[]
 }
 
@@ -63,7 +64,7 @@ const STATUS = { paid: ['Paid', 'success'], part_paid: ['Part paid', 'warning'],
 function LineStatus({ s }: { s: Line['status'] }) { return <Badge tone={STATUS[s][1]}>{STATUS[s][0]}</Badge> }
 const inst = (n: number | null) => (n ? `Instalment ${n}` : 'One-off')
 const KIND_LABEL: Record<string, string> = {
-  cancel: 'Cancel receipt', change: 'Change receipt', remove_fee: 'Remove fee', edit_amount: 'Edit fee amount', transfer: 'Move money to another student', class_change: 'Change class / section',
+  cancel: 'Cancel receipt', change: 'Change receipt', remove_fee: 'Remove fee', edit_amount: 'Edit fee amount', transfer: 'Move money to another student', class_change: 'Change class / section', plan_change: 'Change fee plan',
 }
 const ACTION_LABEL: Record<string, string> = {
   'fee.assign': 'Plan assigned', 'fee.misc': 'Misc. fee added', 'fee.due_date': 'Due date changed', 'fee.remove': 'Fee removed', 'fee.edit_amount': 'Fee amount changed',
@@ -252,7 +253,8 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
   const [remarks, setRemarks] = useState('')
   const [file, setFile] = useState<UploadedFile | null>(null)
   const [done, setDone] = useState<{ id: string; receipt: FeeReceipt } | null>(null)
-  const [dialog, setDialog] = useState<'' | 'qr' | 'fine' | 'scholarship'>('')
+  const [dialog, setDialog] = useState<'' | 'qr' | 'fine' | 'scholarship' | 'offline'>('')
+  const [offlineId, setOfflineId] = useState<string | null>(null)
   const accounts = useQuery({ queryKey: ['bank-accounts'], queryFn: () => api.get<{ items: { id: string; label: string; bank_name: string }[] }>('/api/v1/finance/banking/accounts').catch(() => ({ items: [] })) })
   const yearName = (id: string) => hub.years.find((y) => y.id === id)?.name ?? ''
   const label = (y: { id: string; name: string; starts_on: string }) => {
@@ -282,10 +284,11 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
       payer_name: payer.trim() || undefined, payer_relation: relation || undefined, remarks: remarks.trim() || undefined, attachment_file_id: file?.file_id,
       receiving_account: account || undefined,
       lines: amounts.map((x) => ({ invoice_line_id: x.l.line_id, amount_paise: x.paise })),
+      offline_id: offlineId ?? undefined,
     } as never }),
     onSuccess: async (res) => {
       const r = await api.call('GET /fees/receipts/{id}', { params: { id: res.payment_id } })
-      setDone({ id: res.payment_id, receipt: r })
+      setDone({ id: res.payment_id, receipt: r }); setOfflineId(null)
       setStep(3)
       toast.ok(`Receipt ${res.receipt_no} issued`)
       setPay({}); setUtr(''); setBank(''); setChequeDate(''); setRemarks(''); setFile(null); setPayer(''); setRelation('')
@@ -300,6 +303,7 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => setDialog('qr')}>QR code / payment link</Button>
           <Button size="sm" variant="outline" onClick={() => setDialog('fine')}>Manage / view fine</Button>
+          <Button size="sm" variant="outline" onClick={() => setDialog('offline')}>Offline payments{hub.offline.some((o) => o.status === 'pending') ? ` (${hub.offline.filter((o) => o.status === 'pending').length})` : ''}</Button>
           <Button size="sm" variant="outline" onClick={() => setDialog('scholarship')}>View scholarship</Button>
         </div>
       ) : undefined} />
@@ -314,6 +318,18 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
       {dialog === 'qr' && <QrDialog hub={hub} amount={total} onClose={() => setDialog('')} />}
       {dialog === 'fine' && <FineDialog hub={hub} onClose={() => setDialog('')} />}
       {dialog === 'scholarship' && <ScholarshipDialog hub={hub} onClose={() => setDialog('')} />}
+      {dialog === 'offline' && <OfflineDialog hub={hub} onClose={() => setDialog('')} onReceipt={(o) => {
+        /* Prefill from what the family reported: their fee lines (oldest first) up to the amount, mode, UTR and date. */
+        let left = o.amount_paise
+        const pick: Record<string, string> = {}
+        const want = o.lines.length ? hub.lines.filter((l) => o.lines.includes(l.line_id)) : hub.lines
+        for (const l of want.filter((x) => x.balance_paise > 0)) { if (left <= 0) break; const a = Math.min(left, l.balance_paise); pick[l.line_id] = (a / 100).toFixed(2); left -= a }
+        const first = want.find((l) => pick[l.line_id] !== undefined)
+        if (first) setYear(first.academic_year_id)
+        setPay(pick); setMode(o.mode); setUtr(o.reference_no ?? ''); setPaidOn(o.paid_on); setRemarks(o.note ? `Reported by the family: ${o.note}` : 'Reported by the family')
+        setOfflineId(o.id); setDialog(''); setStep(2)
+      }} />}
+      {offlineId && <p className="mx-[var(--card-pad)] mt-3 rounded-md border px-3 py-2 text-[13px]">Making the receipt for a payment the family reported. <button type="button" className="font-medium text-primary hover:underline" onClick={() => setOfflineId(null)}>Stop</button></p>}
 
       {step === 1 && (
         <>
@@ -536,6 +552,46 @@ function FineDialog({ hub, onClose }: { hub: Hub; onClose: () => void }) {
   )
 }
 
+function OfflineDialog({ hub, onClose, onReceipt }: { hub: Hub; onClose: () => void; onReceipt: (o: Hub['offline'][number]) => void }) {
+  const toast = useToast()
+  const refresh = useRefresh(hub.student.id)
+  const [rejecting, setRejecting] = useState<string | null>(null)
+  const [reason, setReason] = useState('')
+  const reject = useMutation({
+    mutationFn: (id: string) => api.post(`/api/v1/fees/hub/offline/${id}/reject`, { reason: reason.trim() }),
+    onSuccess: async () => { toast.ok('Rejected. The family sees the reason in the app.'); setRejecting(null); setReason(''); await refresh() },
+  })
+  const feeOf = (ids: string[]) => ids.map((id) => hub.lines.find((l) => l.line_id === id)).filter(Boolean).map((l) => `${l!.fee_type} - ${inst(l!.instalment_no)}`).join(', ')
+  return (
+    <Dialog onClose={onClose} title="Offline payments reported by the family" width="60rem" footer={<Button variant="secondary" onClick={onClose}>Close</Button>}>
+      <Table head={['Reported', 'Paid on', 'Amount', 'Mode', 'UTR / cheque', 'For', 'Proof', 'Status', '']} empty={!hub.offline.length} emptyLabel="The family has not reported any payment.">
+        {hub.offline.map((o) => (
+          <tr key={o.id}>
+            <Td className="whitespace-nowrap">{time(o.created_at)}</Td><Td className="whitespace-nowrap">{formatDate(o.paid_on)}</Td>
+            <Td className="whitespace-nowrap tabular-nums">{formatPaise(o.amount_paise)}</Td><Td className="whitespace-nowrap">{modeName(o.mode)}</Td>
+            <Td className="whitespace-nowrap font-mono text-[12px]">{o.reference_no || '-'}</Td><Td className="min-w-[9rem]">{feeOf(o.lines) || 'Not said'}{o.note && <span className="block text-[12px] text-muted-foreground">{o.note}</span>}</Td>
+            <Td>{o.attachment_file_id ? <a href={`/api/v1/files/${o.attachment_file_id}?inline=1`} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">Open</a> : '-'}</Td>
+            <Td><Badge tone={o.status === 'receipted' ? 'success' : o.status === 'rejected' ? 'danger' : 'warning'}>{o.status === 'receipted' ? `Receipt ${o.receipt_no ?? ''}` : o.status === 'rejected' ? 'Rejected' : 'Waiting'}</Badge>{o.reject_reason && <span className="block text-[12px] text-muted-foreground">{o.reject_reason}</span>}</Td>
+            <Td>{o.status === 'pending' && (
+              <div className="flex flex-wrap gap-1">
+                <Button size="sm" onClick={() => onReceipt(o)}>Generate receipt</Button>
+                <Button size="sm" variant="ghost" tone="danger" onClick={() => setRejecting(o.id)}>Reject</Button>
+              </div>
+            )}</Td>
+          </tr>
+        ))}
+      </Table>
+      {rejecting && (
+        <div className="mt-4 space-y-2">
+          <Field label="Reason the family will see (at least 5 characters)"><Input value={reason} onChange={setReason} /></Field>
+          <FormNotice error={reject.error} />
+          <div className="flex gap-2"><Button tone="danger" disabled={reason.trim().length < 5 || reject.isPending} onClick={() => reject.mutate(rejecting)}>Reject this payment</Button><Button variant="ghost" onClick={() => setRejecting(null)}>Back</Button></div>
+        </div>
+      )}
+    </Dialog>
+  )
+}
+
 function ScholarshipDialog({ hub, onClose }: { hub: Hub; onClose: () => void }) {
   return (
     <Dialog onClose={onClose} title="Scholarships and concessions" width="48rem" footer={<Button variant="secondary" onClick={onClose}>Close</Button>}>
@@ -701,7 +757,7 @@ function Transactions({ hub }: { hub: Hub }) {
           ))}
         </Table>
       ) : (
-        <Table wide head={['S.No', 'Receipt date', 'Entry', 'Transaction ID / Receipt no', 'Receiving account', 'Mode', 'Fee paid', 'Total', 'Status', 'Actions']} empty={!rows.length} emptyLabel="No receipts here.">
+        <Table wide head={['S.No', 'Receipt date', 'Entry', 'Transaction ID / Receipt no', 'Receiving account', 'Mode', 'Fee paid', 'Total', 'Actions', 'Status']} empty={!rows.length} emptyLabel="No receipts here.">
           {rows.map((r, i) => (
             <tr key={r.id}>
               <Td>{i + 1}</Td>
@@ -714,7 +770,6 @@ function Transactions({ hub }: { hub: Hub }) {
                 <span key={k} className="flex justify-between gap-3"><span>{x.fee_type} - {inst(x.instalment_no)}</span><span className="tabular-nums">{formatPaise(x.amount_paise)}</span></span>
               )) : <span className="text-muted-foreground">{r.status === 'pending' ? 'Lands on the fee lines when it clears' : '-'}</span>}</Td>
               <Td className="whitespace-nowrap font-medium tabular-nums">{formatPaise(r.amount_paise)}</Td>
-              <Td><Badge tone={r.status === 'success' ? 'success' : r.status === 'pending' ? 'warning' : 'danger'}>{tab === 'online' ? onlineStatus(r) : r.status === 'success' ? 'Paid' : r.status === 'pending' ? 'Cheque held' : r.status === 'bounced' ? 'Bounced' : 'Cancelled'}</Badge></Td>
               <Td>
                 <div className="flex flex-wrap gap-1">
                   <Button size="sm" variant="ghost" onClick={() => void print(r.id)}>Print</Button>
@@ -726,6 +781,7 @@ function Transactions({ hub }: { hub: Hub }) {
                   </>}
                 </div>
               </Td>
+              <Td><Badge tone={r.status === 'success' ? 'success' : r.status === 'pending' ? 'warning' : 'danger'}>{tab === 'online' ? onlineStatus(r) : r.status === 'success' ? 'Paid' : r.status === 'pending' ? 'Cheque held' : r.status === 'bounced' ? 'Bounced' : 'Cancelled'}</Badge></Td>
             </tr>
           ))}
           {rows.length > 0 && <tr className="border-t-2 bg-muted/40 font-semibold"><Td colSpan={7}>Total</Td><Td className="tabular-nums">{formatPaise(rows.filter((r) => r.status === 'success').reduce((a, r) => a + r.amount_paise, 0))}</Td><Td colSpan={2} /></tr>}
@@ -759,7 +815,7 @@ function FeeManagement({ hub }: { hub: Hub }) {
   const toast = useToast()
   const refresh = useRefresh(hub.student.id)
   const [year, setYear] = useYear(hub)
-  const [tab, setTab] = useState<'regular' | 'misc' | 'log'>('regular')
+  const [tab, setTab] = useState<'regular' | 'misc' | 'plan' | 'log'>('regular')
   const [plan, setPlan] = useState<Record<string, string>>({})
   const lines = hub.lines.filter((l) => l.academic_year_id === year)
   const assigned = useMemo(() => {
@@ -775,7 +831,7 @@ function FeeManagement({ hub }: { hub: Hub }) {
   return (
     <Card>
       <CardHeader title="Fee management" action={<div className="flex flex-wrap items-center gap-2"><YearPick hub={hub} value={year} onChange={setYear} /><PrintButton scope="card" title="Fee management" subtitle={hub.student.full_name} /></div>} />
-      <SubTabs value={tab} onChange={setTab} tabs={[['regular', 'Regular fee'], ['misc', 'Misc. fee'], ['log', 'Fee log']] as const} />
+      <SubTabs value={tab} onChange={setTab} tabs={[['regular', 'Regular fee'], ['misc', 'Misc. fee'], ['plan', 'Change fee plan'], ['log', 'Fee log']] as const} />
       {tab === 'regular' && (
         <>
           <Table head={['S.No', 'Fee type', 'Instalments', 'Fee amount', 'Concession', 'Paid', 'Balance', 'Status']} empty={!assigned.length} emptyLabel="No fees assigned for this year.">
@@ -803,6 +859,7 @@ function FeeManagement({ hub }: { hub: Hub }) {
         </>
       )}
       {tab === 'misc' && <MiscFee hub={hub} />}
+      {tab === 'plan' && <PlanChange hub={hub} year={year} />}
       {tab === 'log' && (
         <Table head={['When', 'Who', 'What', 'Before', 'After', 'IP']} empty={!hub.logs.length} emptyLabel="No changes yet.">
           {hub.logs.map((g, i) => (
@@ -812,6 +869,30 @@ function FeeManagement({ hub }: { hub: Hub }) {
         </Table>
       )}
     </Card>
+  )
+}
+
+/* Change a fee's plan from a date (a bus route change): the bills from that date are raised
+   again from the new plan and money already paid on them moves over. Waits for approval. */
+function PlanChange({ hub, year }: { hub: Hub; year: string }) {
+  const setup = useQuery({ queryKey: ['fee-hub-setup', year], queryFn: () => api.get<{ plans: { id: string; name: string; class_name: string; items: { fee_type: string; amount_paise: number }[] }[] }>(`/api/v1/fees/hub/setup?year=${year}`) })
+  const heads = [...new Map(hub.lines.filter((l) => l.academic_year_id === year).map((l) => [l.fee_head_id, l.fee_type])).entries()]
+  const [head, setHead] = useState('')
+  const [plan, setPlan] = useState('')
+  const [from, setFrom] = useState(todayISO())
+  const headName = heads.find(([id]) => id === head)?.[1] ?? ''
+  const plans = (setup.data?.plans ?? []).filter((pl) => pl.items.some((i) => i.fee_type === headName))
+  const chosen = plans.find((pl) => pl.id === plan)
+  return (
+    <div className="space-y-3 p-[var(--card-pad)]">
+      <p className="text-[13px] text-muted-foreground">Bills for this fee due on or after the date are cancelled and raised again from the new plan; money paid on them moves to the new bills. Earlier bills stay as they are.</p>
+      <FormGrid>
+        <Field label="Fee type"><Select value={head} onChange={(v) => { setHead(v); setPlan('') }} placeholder="Choose" options={heads.map(([id, n]) => ({ value: id, label: n }))} /></Field>
+        <Field label="New plan"><Select value={plan} onChange={setPlan} placeholder="Choose" options={plans.map((pl) => ({ value: pl.id, label: `${pl.name} (${pl.class_name}) · ${formatPaise(pl.items.filter((i) => i.fee_type === headName).reduce((a, i) => a + i.amount_paise, 0))}` }))} /></Field>
+        <Field label="From date"><Input type="date" value={from} onChange={setFrom} /></Field>
+      </FormGrid>
+      {head && chosen && <RequestForm hub={hub} kind="plan_change" payload={{ fee_head_id: head, structure_id: plan, from, fee_type: headName, plan: chosen.name }} label="Send for approval" onDone={() => { setHead(''); setPlan('') }} />}
+    </div>
   )
 }
 
@@ -939,18 +1020,25 @@ function Transfer({ hub }: { hub: Hub }) {
   const classes = useQuery({ queryKey: ['classes'], queryFn: () => api.get<{ items: { id: string; name: string }[] }>('/api/v1/academics/classes') })
   const [section, setSection] = useState('')
   const r = hub.receipts.find((x) => x.id === receipt)
+  const [part, setPart] = useState('')
+  const [toLine, setToLine] = useState('')
+  const [useNew, setUseNew] = useState(false)
+  const [from, setFrom] = useState(todayISO())
+  const moveAmt = r ? Math.min(r.amount_paise, part ? rupeesToPaise(part) : r.amount_paise) : 0
   const className = (id: string) => classes.data?.items.find((c) => c.id === id)?.name ?? ''
-  const moves = hub.requests.filter((x) => x.kind === 'transfer' || x.kind === 'class_change')
+  const moves = hub.requests.filter((x) => x.kind === 'transfer' || x.kind === 'class_change' || x.kind === 'plan_change')
   return (
     <Card>
       <CardHeader title="Transfer" />
       <SubTabs value={tab} onChange={setTab} tabs={[['money', 'Move money to another student'], ['class', 'Change class / section'], ['log', 'Transfer log']] as const} />
       {tab === 'money' && (
         <div className="space-y-4 p-[var(--card-pad)]">
-          <p className="text-[13px] text-muted-foreground">Paid for the wrong child, or a sibling adjustment. The whole receipt moves, keeping its number, and lands on the other child's oldest dues once approved.</p>
+          <p className="text-[13px] text-muted-foreground">Paid for the wrong child, or a sibling adjustment. Move the whole receipt or part of it. The receipt keeps its number; the part moved goes on the other child as an adjustment, on the fee you choose or their oldest dues, once approved.</p>
           <FormGrid>
             <Field label="From receipt"><Select value={receipt} onChange={setReceipt} placeholder="Choose" options={hub.receipts.filter((x) => x.status === 'success').map((x) => ({ value: x.id, label: `${x.receipt_no} · ${formatDate(x.paid_on)} · ${formatPaise(x.amount_paise)}` }))} /></Field>
             <Field label="To student"><Input value={q} onChange={setQ} placeholder="Name or admission no." /></Field>
+            {r && <Field label="Amount to move (₹)" hint={`Up to ${formatPaise(r.amount_paise)}; leave as is to move the whole receipt`}><Input value={part || (r.amount_paise / 100).toFixed(2)} onChange={setPart} type="number" /></Field>}
+            {r && to && target.data && <Field label="Put it on"><Select value={toLine} onChange={setToLine} options={[{ value: '', label: 'Their oldest dues' }, ...target.data.lines.filter((l) => l.balance_paise > 0).map((l) => ({ value: l.line_id, label: `${l.fee_type} - ${inst(l.instalment_no)} · ${formatPaise(l.balance_paise)}` }))]} /></Field>}
           </FormGrid>
           {needle.length >= 2 && (
             <Table head={['Admission no.', 'Name', 'Class', '']} loading={found.isLoading} empty={!found.data?.items.filter((s) => s.id !== hub.student.id).length} emptyLabel="No other student matches.">
@@ -964,18 +1052,22 @@ function Transfer({ hub }: { hub: Hub }) {
             <>
               <Table head={['', 'This student', target.data.student.full_name]} empty={false}>
                 <tr><Td>Balance now</Td><Td className="tabular-nums">{formatPaise(hub.totals.balance_paise)}</Td><Td className="tabular-nums">{formatPaise(target.data.totals.balance_paise)}</Td></tr>
-                <tr><Td>After transfer</Td><Td className="tabular-nums">{formatPaise(hub.totals.balance_paise + r.amount_paise)}</Td><Td className="tabular-nums">{formatPaise(target.data.totals.balance_paise - r.amount_paise)}</Td></tr>
+                <tr><Td>After transfer</Td><Td className="tabular-nums">{formatPaise(hub.totals.balance_paise + moveAmt)}</Td><Td className="tabular-nums">{formatPaise(target.data.totals.balance_paise - moveAmt)}</Td></tr>
               </Table>
-              <RequestForm hub={hub} kind="transfer" payment={r.id} payload={{ to_student_id: to, to_name: target.data.student.full_name, amount_paise: r.amount_paise }} label="Send for approval" minReason={10} onDone={() => { setReceipt(''); setTo(null); setQ('') }} />
+              <RequestForm hub={hub} kind="transfer" payment={r.id} payload={{ to_student_id: to, to_name: target.data.student.full_name, amount_paise: moveAmt, to_line_id: toLine || undefined }} label="Send for approval" minReason={10} extra={moveAmt > 0} onDone={() => { setReceipt(''); setTo(null); setQ(''); setPart(''); setToLine('') }} />
             </>
           )}
         </div>
       )}
       {tab === 'class' && (
         <div className="space-y-4 p-[var(--card-pad)]">
-          <p className="text-[13px] text-muted-foreground">Now {hub.student.class_name}-{hub.student.section_name}. The child keeps the same fees; money already paid stays on them. Raise a different plan afterwards under Fee management if the new class costs differently.</p>
-          <Field label="Move to section"><Select value={section} onChange={setSection} placeholder="Choose" options={(sections.data?.items ?? []).filter((s) => s.id !== hub.student.section_id).map((s) => ({ value: s.id, label: `${className(s.class_id)} - ${s.name}` }))} /></Field>
-          {section && <RequestForm hub={hub} kind="class_change" payload={{ section_id: section }} label="Send for approval" onDone={() => setSection('')} />}
+          <p className="text-[13px] text-muted-foreground">Now {hub.student.class_name}-{hub.student.section_name}. Keep the same fees, or switch to the new class's plan from a date: bills from that date are raised again from the new plan and money already paid on them moves onto the new bills.</p>
+          <FormGrid>
+            <Field label="Move to section"><Select value={section} onChange={setSection} placeholder="Choose" options={(sections.data?.items ?? []).filter((s) => s.id !== hub.student.section_id).map((s) => ({ value: s.id, label: `${className(s.class_id)} - ${s.name}` }))} /></Field>
+            <Field label="Fee plan"><Select value={useNew ? 'new' : 'same'} onChange={(v) => setUseNew(v === 'new')} options={[{ value: 'same', label: 'Keep same fees' }, { value: 'new', label: "Use the new class's plan" }]} /></Field>
+            {useNew && <Field label="From date"><Input type="date" value={from} onChange={setFrom} /></Field>}
+          </FormGrid>
+          {section && <RequestForm hub={hub} kind="class_change" payload={{ section_id: section, use_new_plan: useNew, from: useNew ? from : undefined }} label="Send for approval" onDone={() => setSection('')} />}
         </div>
       )}
       {tab === 'log' && <Requests rows={moves} embedded />}
@@ -997,6 +1089,8 @@ export function Requests({ rows, embedded, all }: { rows: Req[]; embedded?: bool
   const detail = (r: Req) => {
     const p = r.payload
     if (r.kind === 'transfer') return `${r.receipt_no ?? ''} to ${String(p.to_name ?? '')} ${p.amount_paise ? formatPaise(Number(p.amount_paise)) : ''}`
+    if (r.kind === 'plan_change') return `${String(p.fee_type ?? '')} to ${String(p.plan ?? '')} from ${p.from ? formatDate(String(p.from)) : ''}`
+    if (r.kind === 'class_change') return p.use_new_plan ? `New class plan from ${formatDate(String(p.from ?? ''))}` : 'Same fees'
     if (r.kind === 'edit_amount') return `New amount ${formatPaise(Number(p.amount_paise ?? 0))}`
     if (r.kind === 'change') return `${r.receipt_no ?? ''}: ${modeName(String(p.mode ?? ''))} ${String(p.reference_no ?? '')} ${p.paid_on ? formatDate(String(p.paid_on)) : ''}`
     return r.receipt_no ?? ''

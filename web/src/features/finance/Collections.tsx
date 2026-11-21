@@ -163,7 +163,7 @@ export default function Collections() {
                   <Td className="min-w-[8rem] text-[13px]">{r.fee_types || '-'}</Td>
                   <Td className="whitespace-nowrap font-medium tabular-nums">
                     {formatPaise(r.amount_paise)}
-                    {r.status !== 'success' && <Badge tone={r.status === 'pending' ? 'warning' : 'danger'} className="ml-2">{r.status}</Badge>}
+                    {r.status !== 'success' && <span className="block"><Badge tone={r.status === 'pending' ? 'warning' : 'danger'}>{r.status}</Badge></span>}
                   </Td>
                   <Td className="whitespace-nowrap">{modeName(r.mode)}</Td>
                   <Td className="whitespace-nowrap font-mono text-[12px] text-muted-foreground">{r.reference || '-'}</Td>
