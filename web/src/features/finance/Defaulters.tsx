@@ -4,7 +4,7 @@ import { Phone } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid,
-  Table, Td, Button, Input, Select, Loading, ErrorState, ExportButton, useSort, FormNotice, ConfirmButton,
+  Table, Td, Badge, Button, Input, Select, Loading, ErrorState, ExportButton, useSort, FormNotice, ConfirmButton,
 } from '@/components/ui'
 import { ChannelEstimate, ChannelPicker, TickChip, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
@@ -30,6 +30,8 @@ interface Defaulter {
   balance_paise: number; oldest_due?: string; days_overdue: number; bucket: string
   /** The fee heads still unpaid on this family's bills (Tuition, Transport ...). */
   fees?: string[]
+  /** The child has left the school; the dues stay. */
+  left?: boolean; exit_date?: string
 }
 
 const BUCKETS = ['0-30', '31-60', '61-90', '90+'] as const
@@ -397,7 +399,10 @@ export default function Defaulters() {
                     />
                   </Td>
                   <Td className="whitespace-nowrap font-mono text-[12px]">{d.admission_no}</Td>
-                  <Td className="font-medium">{d.full_name}</Td>
+                  <Td className="font-medium">
+                    {d.full_name}
+                    {d.left && <Badge tone="neutral" className="ml-2">Left{d.exit_date ? ` ${formatDate(d.exit_date)}` : ''}</Badge>}
+                  </Td>
                   <Td>{d.class_name ? `${d.class_name}-${d.section_name}` : '-'}</Td>
                   <Td>
                     {d.guardian_name ?? '-'}

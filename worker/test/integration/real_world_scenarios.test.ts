@@ -280,11 +280,12 @@ describe('the roll', () => {
     await T().prepare(`UPDATE enrollments SET status = 'active' WHERE student_id = ?`).bind(IDS.otherChild).run()
   })
 
-  it('after a child leaves, nobody can collect a fee against them', async () => {
+  it('after a child leaves, only their pending dues can be collected, nothing more', async () => {
     await T().prepare(`UPDATE students SET status = 'transferred', exit_date = ? WHERE id = ?`).bind(isoDay(0), IDS.otherChild).run()
     await T().prepare(`UPDATE enrollments SET status = 'transferred' WHERE student_id = ?`).bind(IDS.otherChild).run()
-    const r = await api('finance', 'POST', '/fees/payments', { student_id: IDS.otherChild, amount_paise: 1000, mode: 'cash' })
+    const r = await api('finance', 'POST', '/fees/payments', { student_id: IDS.otherChild, amount_paise: 999_999_999, mode: 'cash' })
     expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(JSON.stringify(r.body)).toContain('over_payment')
     await T().prepare(`UPDATE students SET status = 'active', exit_date = NULL WHERE id = ?`).bind(IDS.otherChild).run()
     await T().prepare(`UPDATE enrollments SET status = 'active' WHERE student_id = ?`).bind(IDS.otherChild).run()
   })

@@ -406,9 +406,9 @@ export function registerCounter(r: Router): void {
     const st = await c.db.prepare(`SELECT institution_id, campus_id, status FROM students WHERE id = ?`).bind(req.student_id)
       .first<{ institution_id: string; campus_id: string; status: string }>()
     if (!st) throw notFound()
-    if (st.status !== 'active' && st.status !== 'suspended') {
-      throw new HttpError(409, `this child has left the school (${st.status}). Money against an old account is settled from the student's record, not the counter.`, { code: 'student_left' })
-    }
+    /* A child who has left can still settle what they owe (owner, 2026-11-21:
+       "allow"). Only their pending bills: the over-payment check below caps
+       the amount at what is outstanding, so nothing new is charged. */
     await requireOpenPeriod(c, paidOn)
     /* Never more than is owed (2026-10-12): an amount above the dues was taken
        as a receipt and left the account in credit with no one deciding it. */
@@ -626,6 +626,7 @@ export function registerCounter(r: Router): void {
     const t = today()
     const rows = await c.db.prepare(`
       SELECT st.id AS student_id, st.admission_no, ${nameSQL('st')} AS full_name, ${CLASS_SQL('st')} AS class_name, ${SECTION_SQL('st')} AS section_name,
+             st.status AS student_status, st.exit_date,
              (SELECT gg.full_name FROM student_guardians sg JOIN guardians gg ON gg.id = sg.guardian_id WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1) AS guardian_name,
              (SELECT gg.phone FROM student_guardians sg JOIN guardians gg ON gg.id = sg.guardian_id WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1) AS phone,
              sum(i.net_paise - i.paid_paise) AS balance_paise, min(i.due_on) AS oldest_due, substr(st.last_fee_reminder_at, 1, 16) AS last_reminded,
@@ -641,7 +642,10 @@ export function registerCounter(r: Router): void {
       const bucket = d > 90 ? '90+' : d > 60 ? '61-90' : d > 30 ? '31-60' : '0-30'
       return omitNulls({ student_id: v.student_id, admission_no: v.admission_no, full_name: v.full_name, class_name: v.class_name, section_name: v.section_name,
         guardian_name: v.guardian_name, phone: v.phone, balance_paise: p(v.balance_paise), oldest_due: v.oldest_due, last_reminded: v.last_reminded, days_overdue: d, bucket,
-        fees: v.fees ? String(v.fees).split(',').map((x) => x.trim()).filter(Boolean) : [] })
+        fees: v.fees ? String(v.fees).split(',').map((x) => x.trim()).filter(Boolean) : [],
+        // A child who has left keeps their dues on this list, marked as left (owner, 2026-11-21).
+        left: v.student_status !== 'active' && v.student_status !== 'suspended' ? true : undefined,
+        exit_date: v.student_status !== 'active' && v.student_status !== 'suspended' ? (v.exit_date ?? undefined) : undefined })
     })))
   })
 }

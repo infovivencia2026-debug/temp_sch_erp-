@@ -259,7 +259,7 @@ export default function FeeCounter() {
               {(results.data?.items ?? []).map((s) => (
                 <tr key={s.id} className={cn(s.id === studentId && 'bg-accent')}>
                   <Td className="font-mono text-[12px]">{s.admission_no}</Td>
-                  <Td className="font-medium">{s.full_name}</Td>
+                  <Td className="font-medium">{s.full_name}{s.status !== 'active' && s.status !== 'suspended' && <Badge tone="neutral" className="ml-2">Left</Badge>}</Td>
                   <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '-'}</Td>
                   <Td>
                     <Button size="sm" variant={s.id === studentId ? 'ink' : 'outline'}
