@@ -67,6 +67,12 @@ export interface FeeReceipt {
   collected_by: string | null
   financial_year: string
   lines: { invoice_no: string; amount_paise: number; particulars: string }[]
+  /** Extra to the receipt number (0135); absent on very old rows. */
+  txn_id?: string | null
+  receiving_account?: string | null
+  bank_name?: string | null
+  cheque_date?: string | null
+  payer_name?: string | null
 }
 
 export interface GenerateInvoicesRequest {

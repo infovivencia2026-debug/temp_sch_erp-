@@ -52,7 +52,7 @@ td .inv { font-size: 12px; color: #888; margin-top: 2px; }
 </style></head><body><div class="receipt-container">
 <div class="header"><div class="school-info">${school.logoUrl ? `<img class="logo" src="${esc(school.logoUrl)}" alt="">` : ''}<div class="school-text"><h1>${esc(school.name)}</h1>${school.sub ? `<p>${esc(school.sub)}</p>` : ''}</div></div>
 <div class="receipt-title"><h2>Fee Receipt</h2><p>Academic Year ${esc(r.financial_year)}</p></div></div>
-<div class="meta-info"><div>Receipt No: <strong>${esc(r.receipt_no)}</strong></div><div>Date: <strong>${day(r.paid_on)}</strong></div></div>
+<div class="meta-info"><div>Receipt No: <strong>${esc(r.receipt_no)}</strong>${r.txn_id ? `<div style="font-size:11px;color:#666">Transaction ID: ${esc(r.txn_id)}</div>` : ''}</div><div>Date: <strong>${day(r.paid_on)}</strong></div></div>
 <div class="details-grid">
 <div class="detail-item"><div class="detail-label">Student Name:</div><div class="detail-value">${esc(r.student_name)}</div></div>
 <div class="detail-item"><div class="detail-label">Admission No:</div><div class="detail-value">${esc(r.admission_no)}</div></div>
@@ -93,4 +93,32 @@ export function printHtml(html: string): void {
   void doc.fonts?.ready
   if (img && !img.complete) { img.onload = go; img.onerror = go; window.setTimeout(() => { if (frame.isConnected && !img.complete) go() }, 3000) }
   else window.setTimeout(go, 50)
+}
+
+/* PARENT COPY AND OFFICE COPY (Fees all in one place, 2026-11-21): the same
+   receipt twice, each on its own A4 sheet and labelled, from one print. */
+export function receiptTwoCopiesHtml(r: FeeReceipt, school: { name: string; sub?: string; logoUrl?: string }): string {
+  const one = receiptHtml(r, school)
+  const head = one.slice(0, one.indexOf('<body>'))
+  const body = one.slice(one.indexOf('<body>') + 6, one.lastIndexOf('</body>'))
+  const tag = (t: string) => `<div style="text-align:right;font:600 12px 'Segoe UI',Arial,sans-serif;color:#666;padding:16px 50px 0">${t}</div>`
+  return `${head}<body>${tag('Parent copy')}${body}<div style="break-before:page"></div>${tag('Office copy')}${body}</body></html>`
+}
+
+/* THE SAME RECEIPT FOR AN 80 MM THERMAL PRINTER: one narrow column, no logo. */
+export function thermalHtml(r: FeeReceipt, school: { name: string }): string {
+  const klass = [r.class_name, r.section_name].filter(Boolean).join('-')
+  const lines = (r.lines.length ? r.lines : [{ particulars: 'Fee Payment', invoice_no: '', amount_paise: r.amount_paise }])
+    .map((l) => `<tr><td>${esc(l.particulars || 'Fee Payment')}</td><td class="r">${rupees(l.amount_paise)}</td></tr>`).join('')
+  const mode = (r.mode || '').toUpperCase() + (r.reference_no ? ` ${esc(r.reference_no)}` : '')
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt ${esc(r.receipt_no)}</title><style>
+@page { size: 80mm auto; margin: 3mm; }
+body { font: 12px/1.35 "Courier New", monospace; width: 74mm; margin: 0; color: #000; }
+h1 { font-size: 14px; text-align: center; margin: 0 0 4px; } .c { text-align: center; } .r { text-align: right; white-space: nowrap; }
+table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; } hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+</style></head><body><h1>${esc(school.name)}</h1><div class="c">FEE RECEIPT</div><hr>
+<div>Receipt: ${esc(r.receipt_no)}</div>${r.txn_id ? `<div>Txn: ${esc(r.txn_id)}</div>` : ''}<div>Date: ${day(r.paid_on)}</div>
+<div>${esc(r.student_name)} (${esc(r.admission_no)})</div>${klass ? `<div>Class: ${esc(klass)}</div>` : ''}<hr>
+<table>${lines}</table><hr><table><tr><td><b>Total</b></td><td class="r"><b>${rupees(r.amount_paise)}</b></td></tr></table>
+<div>Mode: ${mode}</div><div>${esc(r.amount_words)}</div><hr><div class="c">Received by ${esc(r.collected_by || '')}</div></body></html>`
 }

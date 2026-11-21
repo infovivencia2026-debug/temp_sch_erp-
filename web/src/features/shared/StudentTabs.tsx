@@ -140,7 +140,7 @@ export function FeeLedger({ heads: allHeads, components = [], studentId, takeFee
     <Card>
       <CardHeader
         title="What the fees are for"
-        description="Paid is spread across an invoice's heads in proportion, a payment settles a bill, not a particular line of it."
+        description="Paid is what each receipt put on the fee line. Bills paid before line-wise receipts are shared across their heads in proportion."
         action={years.length > 1 && years[0] ? (
           <div className="w-40">
             <Select value={year} onChange={setPickedYear} options={years.map((y) => ({ value: y, label: y }))} />

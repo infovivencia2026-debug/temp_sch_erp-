@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Select, Input, ErrorState } from '@/components/ui'
+import { Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Select, Input, ErrorState, Button, Checkbox, Dialog, PrintButton } from '@/components/ui'
 import { ExportRows } from '@/components/rows'
 import { formatPaise, formatDate } from '@/lib/utils'
 import ReceiptDialog from './ReceiptDialog'
@@ -181,8 +181,114 @@ export default function Collections() {
               ))}
             </Table>
           </Card>
+          <DaySheet from={from} to={to} mode={mode} collector={collector} onReceipt={openReceipt} />
         </>
       )}
     </div>
   )
 }
+
+/* THE FEE DAY SHEET (owner's preview, 2026-11-21): one row per fee line a
+   receipt paid, with its UTR and who took it, filtered by class, fee type
+   and account on top of the period, mode and staff above. Cancelled and
+   bounced receipts are one row each and count only in their own totals. */
+interface SheetRow {
+  payment_id: string; txn_id: string | null; receipt_no: string; paid_on: string; created_at: string; mode: string; status: string; reference: string
+  account: string; remarks: string; gateway: string | null; collector: string; student_id: string; admission_no: string; student: string
+  class_name: string | null; section_name: string | null; class_id: string | null; fee_head_id: string | null; fee_type: string | null; instalment_no: number | null; amount_paise: number
+}
+const SHEET_COLS = ['S.No', 'Admission no', 'Student', 'Class', 'Receipt no', 'Transaction ID', 'Receipt date', 'Fee type', 'Mode', 'UTR / cheque', 'Account', 'Taken by', 'Remarks', 'Amount'] as const
+type SheetCol = typeof SHEET_COLS[number]
+function DaySheet({ from, to, mode, collector, onReceipt }: { from: string; to: string; mode: string; collector: string; onReceipt: (id: string) => void }) {
+  const [klass, setKlass] = useState('')
+  const [head, setHead] = useState('')
+  const [account, setAccount] = useState('')
+  const [type, setType] = useState('active')
+  const [dateType, setDateType] = useState('receipt')
+  const [hidden, setHidden] = useState<Set<string>>(() => { try { return new Set(JSON.parse(localStorage.getItem('erp.daysheet.hidden') ?? '[]') as string[]) } catch { return new Set() } })
+  const [choose, setChoose] = useState(false)
+  const q = useQuery({
+    queryKey: ['fee-day-sheet', from, to, mode, collector, dateType],
+    queryFn: () => api.get<{ items: SheetRow[] }>(`/api/v1/fees/hub/day-sheet?from=${from}&to=${to}&mode=${encodeURIComponent(mode)}&collector=${encodeURIComponent(collector)}&date_type=${dateType}`),
+  })
+  const all = q.data?.items ?? []
+  const pick = (k: 'class_id' | 'fee_head_id' | 'account', label: 'class_name' | 'fee_type' | 'account') =>
+    [...new Map(all.filter((r) => r[k]).map((r) => [String(r[k]), String(r[label] ?? '')])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  const live = (r: SheetRow) => r.status === 'success'
+  const inFilter = (r: SheetRow) => (!klass || r.class_id === klass) && (!head || r.fee_head_id === head) && (!account || r.account === account)
+  const rows = all.filter((r) => (type === 'active' ? r.status !== 'cancelled' : r.status === 'cancelled') && inFilter(r))
+  const sum = (f: (r: SheetRow) => boolean) => all.filter((r) => inFilter(r) && f(r)).reduce((a, r) => a + r.amount_paise, 0)
+  const gross = sum(live), cancelled = sum((r) => r.status === 'cancelled'), bounced = sum((r) => r.status === 'bounced')
+  const online = sum((r) => live(r) && (!!r.gateway || r.mode === 'online')), counter = gross - online
+  const byHead = new Map<string, number>()
+  for (const r of rows.filter(live)) { const k = r.fee_type ?? 'Unallocated'; byHead.set(k, (byHead.get(k) ?? 0) + r.amount_paise) }
+  const cols = SHEET_COLS.filter((c) => !hidden.has(c))
+  const show = (c: SheetCol) => !hidden.has(c)
+  const setH = (n: Set<string>) => { setHidden(n); try { localStorage.setItem('erp.daysheet.hidden', JSON.stringify([...n])) } catch { /* private mode */ } }
+  const opt = (label: string, list: [string, string][]) => [{ value: '', label }, ...list.map(([value, l]) => ({ value, label: l }))]
+  return (
+    <>
+      <Card>
+        <CardHeader title="Fee day sheet" action={
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => setChoose(true)}>Columns</Button>
+            <PrintButton scope="card" title="Fee day sheet" subtitle={from === to ? formatDate(from) : `${formatDate(from)} to ${formatDate(to)}`} />
+          </div>
+        } />
+        {choose && (
+          <Dialog onClose={() => setChoose(false)} title="Columns" footer={<Button onClick={() => setChoose(false)}>Done</Button>}>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {SHEET_COLS.map((c) => <Checkbox key={c} label={c} checked={!hidden.has(c)} onChange={(v) => { const n = new Set(hidden); if (v) n.delete(c); else n.add(c); setH(n) }} />)}
+            </div>
+          </Dialog>
+        )}
+        <div className="grid gap-3 p-[var(--card-pad)] sm:grid-cols-2 lg:grid-cols-5">
+          <label className="block"><span className="text-[13px] text-muted-foreground">Class</span><div className="mt-1"><Select value={klass} onChange={setKlass} options={opt('All classes', pick('class_id', 'class_name'))} /></div></label>
+          <label className="block"><span className="text-[13px] text-muted-foreground">Fee type</span><div className="mt-1"><Select value={head} onChange={setHead} options={opt('All fee types', pick('fee_head_id', 'fee_type'))} /></div></label>
+          <label className="block"><span className="text-[13px] text-muted-foreground">Receiving account</span><div className="mt-1"><Select value={account} onChange={setAccount} options={opt('All accounts', pick('account', 'account'))} /></div></label>
+          <label className="block"><span className="text-[13px] text-muted-foreground">Type</span><div className="mt-1"><Select value={type} onChange={setType} options={[{ value: 'active', label: 'All active (incl. cheque bounce)' }, { value: 'cancelled', label: 'Cancelled only' }]} /></div></label>
+          <label className="block"><span className="text-[13px] text-muted-foreground">Date type</span><div className="mt-1"><Select value={dateType} onChange={setDateType} options={[{ value: 'receipt', label: 'Receipt date' }, { value: 'entry', label: 'Entry date' }]} /></div></label>
+        </div>
+        {q.isError ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : (
+          <Table loading={q.isLoading} head={[...cols]} empty={!rows.length} emptyLabel="No fee lines in this period.">
+            {rows.map((r, i) => (
+              <tr key={`${r.payment_id}-${i}`}>
+                {show('S.No') && <Td>{i + 1}</Td>}
+                {show('Admission no') && <Td className="font-mono text-[12px]">{r.admission_no}</Td>}
+                {show('Student') && <Td className="min-w-[9rem] font-medium">{r.student}</Td>}
+                {show('Class') && <Td className="whitespace-nowrap">{[r.class_name, r.section_name].filter(Boolean).join('-') || '-'}</Td>}
+                {show('Receipt no') && <Td className="font-mono text-[12px]"><button type="button" className="text-primary hover:underline" onClick={() => onReceipt(r.payment_id)}>{r.receipt_no || 'View'}</button></Td>}
+                {show('Transaction ID') && <Td className="font-mono text-[12px]">{r.txn_id || '-'}</Td>}
+                {show('Receipt date') && <Td className="whitespace-nowrap">{formatDate(r.paid_on)}</Td>}
+                {show('Fee type') && <Td className="min-w-[9rem]">{r.fee_type ? `${r.fee_type}${r.instalment_no ? ` (Instalment ${r.instalment_no})` : ''}` : r.status === 'pending' ? 'Cheque held' : '-'}</Td>}
+                {show('Mode') && <Td className="whitespace-nowrap">{modeName(r.mode)}{r.status !== 'success' && <Badge tone={r.status === 'pending' ? 'warning' : 'danger'} className="ml-2">{r.status === 'pending' ? 'Held' : r.status === 'bounced' ? 'Bounced' : 'Cancelled'}</Badge>}</Td>}
+                {show('UTR / cheque') && <Td className="whitespace-nowrap font-mono text-[12px]">{r.reference || '-'}</Td>}
+                {show('Account') && <Td>{r.account || '-'}</Td>}
+                {show('Taken by') && <Td className="whitespace-nowrap">{r.collector || '-'}</Td>}
+                {show('Remarks') && <Td className="min-w-[8rem] text-[13px]">{r.remarks || '-'}</Td>}
+                {show('Amount') && <Td className="whitespace-nowrap font-medium tabular-nums">{formatPaise(r.amount_paise)}</Td>}
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader title="Totals" />
+          <Table head={['', 'Amount']} empty={false}>
+            {([['Gross collection', gross], ['Cancelled', cancelled], ['Cheque bounce', bounced], ['Online gateway', online], ['Counter (manual)', counter], ['Net collection', gross]] as const).map(([k, v]) => (
+              <tr key={k} className={k === 'Net collection' ? 'border-t-2 bg-muted/40 font-semibold' : ''}><Td className="font-medium">{k}</Td><Td className="tabular-nums">{formatPaise(v)}</Td></tr>
+            ))}
+          </Table>
+        </Card>
+        <Card>
+          <CardHeader title="By fee type" />
+          <Table head={['Fee type', 'Amount']} empty={!byHead.size} emptyLabel="Nothing collected.">
+            {[...byHead.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => <tr key={k}><Td className="font-medium">{k}</Td><Td className="tabular-nums">{formatPaise(v)}</Td></tr>)}
+          </Table>
+        </Card>
+      </div>
+    </>
+  )
+}
+

@@ -1,3 +1,4 @@
+import { StudentFeeAccount } from '@/features/finance/FeeHub'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Anchored } from '@/components/AnchoredPanel'
 import { useSearchParams, useNavigate } from 'react-router-dom'
@@ -1571,6 +1572,7 @@ export default function StudentProfile() {
         <>
         <FeesYear invoices={p.invoices} payments={detail.data?.payments ?? []} outstanding={p.fees.outstanding_paise}
           breakdown={<FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} studentId={selected ?? undefined} takeFeeHref={takeFeeHref} />} />
+        {selected && <StudentFeeAccount studentId={selected} />}
         {detail.data && !detail.data.fee_heads.length && detail.data.class_id && selected && (
           <RaiseFees studentId={selected} classId={detail.data.class_id} onDone={() => qc.invalidateQueries()} />
         )}

@@ -559,6 +559,7 @@ export function registerCounter(r: Router): void {
     const paymentId = uuidParam(c.params.id)
     const row = await c.db.prepare(`
       SELECT COALESCE(p.receipt_no, '-') AS receipt_no, p.amount_paise, p.mode, p.status, p.paid_on, p.reference_no,
+             p.txn_id, p.receiving_account, p.bank_name, p.cheque_date, p.payer_name,
              ${nameSQL('st')} AS student_name, st.admission_no, i.name AS institution, ${CLASS_SQL('st')} AS class_name, ${SECTION_SQL('st')} AS section_name,
              u.full_name AS collected_by
         FROM payments p JOIN students st ON st.id = p.student_id JOIN institutions i ON i.id = p.institution_id
@@ -584,6 +585,7 @@ export function registerCounter(r: Router): void {
       class_name: n(row.class_name), section_name: n(row.section_name), collected_by: n(row.collected_by),
       financial_year: financialYear(String(row.paid_on)),
       lines: lines.results.map((l) => ({ invoice_no: s(l.invoice_no), amount_paise: p(l.amount_paise), particulars: s(l.particulars) })),
+      txn_id: n(row.txn_id), receiving_account: n(row.receiving_account), bank_name: n(row.bank_name), cheque_date: n(row.cheque_date), payer_name: n(row.payer_name),
     }
   })
 

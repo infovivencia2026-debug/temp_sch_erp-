@@ -46,8 +46,13 @@ describe('fees', () => {
     expect(body.outstanding_paise).toBe(800_000)
   })
 
+  it('refuses a UPI UTR that is not 12 digits', async () => {
+    const { status } = await api('finance', 'POST', '/fees/payments', { student_id: IDS.child, amount_paise: 300_000, mode: 'upi', reference_no: 'UTR123' })
+    expect(status).toBe(400)
+  })
+
   it('clears the invoice with the rest and says so everywhere', async () => {
-    const { body } = await api('finance', 'POST', '/fees/payments', { student_id: IDS.child, amount_paise: 300_000, mode: 'upi', reference_no: 'UTR123' })
+    const { body } = await api('finance', 'POST', '/fees/payments', { student_id: IDS.child, amount_paise: 300_000, mode: 'upi', reference_no: '412899210045' })
     expect(body.unallocated_paise).toBe(0)
     const ledger = (await api('finance', 'GET', `/fees/students/${IDS.child}/ledger`)).body
     expect(ledger.balance_paise).toBe(0)
@@ -56,6 +61,23 @@ describe('fees', () => {
     expect(dash).toMatchObject({ today_paise: 500_000, outstanding_paise: 500_000 })
     const inv = await E.TENANT_TEST.prepare('SELECT status FROM invoices WHERE id = ?').bind(IDS.invoice).first<{ status: string }>()
     expect(inv?.status).toBe('paid')
+  })
+
+  it('refuses the same UTR twice', async () => {
+    const { status, body } = await api('finance', 'POST', '/fees/payments', { student_id: IDS.child, amount_paise: 100, mode: 'upi', reference_no: '412899210045' })
+    expect(status).toBe(409)
+    expect(JSON.stringify(body)).toMatch(/duplicate_utr|used once/)
+  })
+
+  it('puts every payment on the fee line it paid, to the paisa', async () => {
+    const bad = await E.TENANT_TEST.prepare(`SELECT count(*) AS n FROM payment_allocations a
+        WHERE a.amount_paise <> (SELECT COALESCE(sum(x.amount_paise), 0) FROM payment_line_allocations x WHERE x.payment_allocation_id = a.id)`).first<{ n: number }>()
+    expect(bad?.n).toBe(0)
+    const { status, body } = await api('finance', 'GET', `/fees/hub/students/${IDS.child}`)
+    expect(status).toBe(200)
+    const line = body.lines.find((l: { invoice_id: string }) => l.invoice_id === IDS.invoice)
+    expect(line).toMatchObject({ paid_paise: 500_000, balance_paise: 0, status: 'paid' })
+    expect(body.receipts.every((r: { txn_id: string | null }) => !!r.txn_id)).toBe(true)
   })
 
   it('tells the family a payment arrived', async () => {

@@ -427,4 +427,23 @@ export function registerFeeHub(r: Router): void {
         LEFT JOIN users u ON u.id = pm.collected_by WHERE pm.collected_by IS NOT NULL ORDER BY name`).all<{ id: string; name: string }>()).results : []
     return ok({ from, to, all, collectors, items: rows.results.map((x) => ({ ...x, amount_paise: p(x.amount_paise as number) })) })
   })
+
+  // ------------------------------------------------------------ fee setup at a glance (read only; edited on the setup screens)
+  r.get('/fees/hub/setup', READ, async (c) => {
+    const years = (await c.db.prepare(`SELECT id, name, is_current, starts_on FROM academic_years ORDER BY starts_on`).all<Record<string, unknown>>()).results
+    const cur = years.find((y) => Number(y.is_current))
+    const yearId = c.url.searchParams.get('year') || String(cur?.id ?? '')
+    const [plans, items] = (await c.db.batch([
+      c.db.prepare(`SELECT fs.id, fs.name, COALESCE(cl.name, 'All classes') AS class_name, fs.is_active,
+             (SELECT count(DISTINCT i.student_id) FROM invoices i JOIN invoice_lines il ON il.invoice_id = i.id
+               WHERE i.academic_year_id = fs.academic_year_id AND i.status <> 'cancelled'
+                 AND il.fee_head_id IN (SELECT fee_head_id FROM fee_structure_items WHERE fee_structure_id = fs.id)
+                 AND (fs.class_id IS NULL OR i.student_id IN (SELECT student_id FROM enrollments WHERE class_id = fs.class_id AND academic_year_id = fs.academic_year_id))) AS students
+        FROM fee_structures fs LEFT JOIN classes cl ON cl.id = fs.class_id WHERE fs.academic_year_id = ? ORDER BY cl.name, fs.name`).bind(yearId),
+      c.db.prepare(`SELECT fsi.fee_structure_id, fh.name AS fee_type, fsi.instalment_no, fsi.amount_paise, fsi.due_on
+        FROM fee_structure_items fsi JOIN fee_heads fh ON fh.id = fsi.fee_head_id JOIN fee_structures fs ON fs.id = fsi.fee_structure_id
+       WHERE fs.academic_year_id = ? ORDER BY fh.name, fsi.instalment_no`).bind(yearId),
+    ])).map((x) => x.results as Record<string, unknown>[])
+    return ok({ year_id: yearId, years, plans: plans.map((pl) => ({ ...pl, items: items.filter((i) => i.fee_structure_id === pl.id) })) })
+  })
 }
