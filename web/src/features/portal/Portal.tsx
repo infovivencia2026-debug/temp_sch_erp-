@@ -13,6 +13,7 @@ import { ScreenError } from './screen-error'
 import { ScreenSkeleton } from './screen-state'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useSession } from '@/lib/session'
 import type { UseQueryResult } from '@tanstack/react-query'
 import WeeklyNoteCard from '@/components/ai/WeeklyNoteCard'
 
@@ -583,6 +584,13 @@ function SchoolMessages({ query, notes, onOpen, onGo }: {
 
 export default function Portal() {
   const t = useT()
+  /* A "Pay now" button is only honest where there is a way to pay online
+     (Yajur, 2026-11-20: the school has set no UPI address and no gateway, so
+     the button led a parent to a fees page with nothing to pay with). It
+     shows the moment the school sets a UPI address or a gateway, and hides
+     until then; the amount due still shows either way. */
+  const session = useSession()
+  const payOnline = !!(session.institution?.upi_vpa || session.institution?.simulated_pay)
   const [params, setParams] = useSearchParams()
   const [selected, setSelected] = useState<string | null>(
     () => params.get('student_id') ?? rememberedChild(),
@@ -838,7 +846,7 @@ export default function Portal() {
                       <div className="text-[15px] font-bold text-destructive">{formatPaise(s.outstanding_paise)} due</div>
                       <div className="text-[12.5px] text-muted-foreground">{t('portal.portal.fees_payable')}</div>
                     </div>
-                    <Button onClick={go('fees/fees_payments')}>Pay now <ArrowRight className="h-3.5 w-3.5" /></Button>
+                    {payOnline && <Button onClick={go('fees/fees_payments')}>Pay now <ArrowRight className="h-3.5 w-3.5" /></Button>}
                   </div>
                 )}
                 {/* The month's attendance beside today, as the home had it a month
