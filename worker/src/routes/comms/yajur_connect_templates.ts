@@ -122,7 +122,7 @@ function fieldsFrom(local: LocalRow | undefined, metaBody: string, samples: stri
   })
 }
 
-function fromMeta(t: MetaTemplate, local: LocalRow | undefined, usedFor: string[]): TplItem {
+function fromMeta(t: MetaTemplate, local: LocalRow | undefined, usedFor: string[], named?: LocalRow): TplItem {
   const comps = t.components ?? []
   const head = comps.find((x) => x.type === 'HEADER')
   const body = comps.find((x) => x.type === 'BODY')
@@ -136,7 +136,7 @@ function fromMeta(t: MetaTemplate, local: LocalRow | undefined, usedFor: string[
     header: head ? { format: s(head.format) || 'TEXT', text: s(head.text) || null } : null,
     body: bodyText, footer: s(foot?.text) || null,
     buttons: btns.map((b) => ({ type: (s(b.type) as TplButton['type']) || 'QUICK_REPLY', text: s(b.text), url: s(b.url) || undefined, phone_number: s(b.phone_number) || undefined })),
-    fields: fieldsFrom(local, bodyText, body?.example?.body_text?.[0] ?? []),
+    fields: fieldsFrom(local ?? named, bodyText, body?.example?.body_text?.[0] ?? []),
     used_for: usedFor, sendable: status === 'APPROVED' && !!local && local.code.startsWith('connect_') && local.is_active === 1, on_meta: true,
   }
 }
@@ -163,13 +163,16 @@ async function listAll(c: Ctx): Promise<{ items: TplItem[]; live: boolean; reaso
   }
   const connect = rows.filter((r) => r.code.startsWith('connect_') && (r.wa_template_name ?? '').trim())
   const byName = new Map(connect.map((r) => [(r.wa_template_name ?? '').trim(), r]))
+  // Any mapping of the same template name gives its fields their names (the ERP's own messages name theirs too).
+  const anyByName = new Map<string, LocalRow>()
+  for (const r of rows) { const n = (r.wa_template_name ?? '').trim(); if (n && !anyByName.has(n)) anyByName.set(n, r) }
   const can_write = can(c.id, WRITE)
   const { acc, reason } = await account(c)
   if (acc) {
     try {
       const meta = await metaList(acc)
       const seen = new Set<string>()
-      const items = meta.map((t) => { seen.add(s(t.name)); return fromMeta(t, byName.get(s(t.name)), usedBy.get(s(t.name)) ?? []) })
+      const items = meta.map((t) => { seen.add(s(t.name)); return fromMeta(t, byName.get(s(t.name)), usedBy.get(s(t.name)) ?? [], anyByName.get(s(t.name))) })
       for (const r of connect) if (!seen.has((r.wa_template_name ?? '').trim())) items.push(fromLocal(r, usedBy.get((r.wa_template_name ?? '').trim()) ?? []))
       return { items: sortItems(items), live: true, reason: '', can_write }
     } catch (e) {
