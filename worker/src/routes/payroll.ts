@@ -1,4 +1,6 @@
 import type { Router, Ctx } from '../router'
+import { testGuardians } from '../services/test_send'
+import { CONNECT_FOR, connectReady } from '../services/channel_pick'
 import { Messenger, enqueueMessageSends, scopeOf } from '../services/messaging'
 import { pickChannels, wantsInApp } from '../services/channel_pick'
 import { channelStatus, liveMap } from '../services/delivery'
@@ -195,7 +197,7 @@ function registerCommunication(r: Router) {
 
   r.post('/communication/circulars', ANNOUNCEMENTS_WRITE, async (c) => {
     const req = await readJSON<{ title?: string; body?: string; kind?: string; audience_role?: string; section_ids?: string[]; requires_ack?: boolean
-      send_sms?: boolean; send_email?: boolean; send_whatsapp?: boolean; notify?: boolean; attachment_file_id?: string; channels?: string[] }>(c.req)
+      send_sms?: boolean; send_email?: boolean; send_whatsapp?: boolean; notify?: boolean; attachment_file_id?: string; channels?: string[]; test?: boolean }>(c.req)
     const title = req.title ?? '', body = req.body ?? ''
     if (title.trim() === '' || body.trim() === '') throw badRequest('title and body are required')
     const kind = req.kind || 'circular'
@@ -205,16 +207,45 @@ function registerCommunication(r: Router) {
     }
     const inst = c.id.institution!.id
     const annId = uuid()
-    const sections = uuidsOf(req.section_ids)
+    const sections = req.test ? [] : uuidsOf(req.section_ids)
+    /* A test send (owner, 2026-11-20): the circular is pinned to the test
+       parents' children only, so no other family sees it, and goes only to
+       the test parents, whatever audience was picked. */
+    const tests = req.test ? await testGuardians(c.db) : []
+    if (req.test && !tests.length) throw badRequest('no test parent: add their number to the allowlist in Message Channels')
     const attachment = (req.attachment_file_id ?? '').trim()
     const stmts: D1PreparedStatement[] = [
       c.db.prepare(`INSERT INTO announcements (id, institution_id, title, body, kind, audience_role, requires_ack, publish_at, created_by, attachment_file_id, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(annId, inst, title, body, kind, audience, req.requires_ack ? 1 : 0, now(), c.id.userId, attachment === '' ? null : attachment, now()),
+        .bind(annId, inst, req.test ? 'Test: ' + title : title, body, kind, req.test ? 'parents' : audience, req.requires_ack ? 1 : 0, now(), c.id.userId, attachment === '' ? null : attachment, now()),
+      ...[...new Set(tests.map((t) => t.student_id))].map((sid) => c.db.prepare(`INSERT OR IGNORE INTO announcement_students (announcement_id, student_id, institution_id) VALUES (?, ?, ?)`).bind(annId, sid, inst)),
       ...sections.map((sid) => c.db.prepare(`INSERT OR IGNORE INTO announcement_sections (announcement_id, section_id, institution_id) VALUES (?, ?, ?)`).bind(annId, sid, inst)),
     ]
     await c.db.batch(stmts)
 
+    // Yajur Connect only through the approved general circular template, never free text.
+    const connectMissing = Array.isArray(req.channels) && req.channels.includes('whatsapp') && !(await connectReady(c.db, CONNECT_FOR.notice))
+    const tickedRaw = connectMissing ? (req.channels as string[]).filter((x) => x !== 'whatsapp') : req.channels
+    const connectMsg = (t: string, b: string) => `${t}: ${b}`.replace(/\s+/g, ' ').slice(0, 900)
+    const nameOf = new Map<string, string>()
+    const names = async (uids: string[]) => {
+      for (let i = 0; i < uids.length; i += 90) {
+        for (const u of (await c.db.prepare(`SELECT id, full_name FROM users WHERE id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(uids.slice(i, i + 90))).all<{ id: string; full_name: string }>()).results) nameOf.set(u.id, u.full_name)
+      }
+    }
+    const wa = (u: string, t: string, b: string) => ({ template_key: CONNECT_FOR.notice, vars: { parent_name: nameOf.get(u) || 'Parent', message: connectMsg(t, b) } })
+    if (req.test) {
+      const paid = pickChannels(tickedRaw, liveMap(await channelStatus(c.env, c.db, inst)))
+      const chans = [...(wantsInApp(req.channels) ? ['in_app'] : []), ...paid]
+      const uids = [...new Set(tests.map((t) => t.uid).filter(Boolean) as string[])]
+      await names(uids)
+      const jobs = uids.flatMap((u) => chans.map((ch) => ({ channel: ch, template_key: 'announcement.published', to_user_id: u, vars: { title: 'Test: ' + title, body } as Record<string, unknown>, source_kind: 'announcement', source_id: annId, exact: true,
+        ...(ch === 'whatsapp' ? wa(u, 'Test: ' + title, body) : {}) })))
+      if (jobs.length) await enqueueMessageSends(c.env, inst, jobs)
+      const q = (ch: string) => jobs.filter((j) => j.channel === ch).length
+      return created({ id: annId, test: true, recipients: uids.length, without_login: 0, unreachable_children: 0,
+        sms_queued: q('sms'), email_queued: q('email'), whatsapp_queued: q('whatsapp'), notified: q('in_app'), connect_missing: connectMissing || undefined })
+    }
     const rc = circularRecipients(sections)
     const cnt = await c.db.prepare(`SELECT COUNT(*) AS n FROM (${rc.sql}) AS t`).bind(audience, ...rc.args).first<{ n: number }>()
     let recipients = cnt?.n ?? 0, withoutLogin = 0, unreachable = 0
@@ -240,7 +271,7 @@ function registerCommunication(r: Router) {
     // Ticked channels (the compose screen's boxes): In app always, then each ticked paid channel
     // that is live, sent on that channel itself rather than the ladder.
     const ticked = Array.isArray(req.channels)
-    const exact = ticked ? pickChannels(req.channels, liveMap(await channelStatus(c.env, c.db, inst))) : []
+    const exact = ticked ? pickChannels(tickedRaw, liveMap(await channelStatus(c.env, c.db, inst))) : []
     const channels = ticked ? [...(wantsInApp(req.channels) ? ['in_app'] : []), ...exact]
       : req.notify ? ['auto'] : [req.send_sms && 'sms', req.send_email && 'email', req.send_whatsapp && 'whatsapp'].filter(Boolean) as string[]
     if (channels.length) {
@@ -251,7 +282,9 @@ function registerCommunication(r: Router) {
       const queued: Record<string, number> = { sms: 0, email: 0, whatsapp: 0, auto: 0, in_app: 0 }
       try {
         const to = (await c.db.prepare(rc.sql).bind(audience, ...rc.args).all<{ user_id: string }>()).results
-        const jobs = to.filter((u) => u.user_id).flatMap((u) => channels.map((ch) => ({ channel: ch, template_key: 'announcement.published', to_user_id: u.user_id, vars: { title, body: msgBody }, source_kind: 'announcement', source_id: annId, exact: ticked })))
+        if (channels.includes('whatsapp')) await names(to.map((u) => u.user_id).filter(Boolean))
+        const jobs = to.filter((u) => u.user_id).flatMap((u) => channels.map((ch) => ({ channel: ch, template_key: 'announcement.published', to_user_id: u.user_id, vars: { title, body: msgBody } as Record<string, unknown>, source_kind: 'announcement', source_id: annId, exact: ticked,
+          ...(ch === 'whatsapp' && ticked ? wa(u.user_id, title, msgBody) : {}) })))
         try { await enqueueMessageSends(c.env, inst, jobs); for (const j of jobs) queued[j.channel]++ } catch { /* not queued */ }
         if (audience !== 'staff') {
           const co = circularContactOnly(sections)
@@ -274,7 +307,8 @@ function registerCommunication(r: Router) {
               const norm = ch === 'email' ? addr.trim().toLowerCase() : normalisePhone(addr) || addr.trim()
               if (taken.has(norm)) continue
               try {
-                const r2 = await ms.queue({ channel: ch, template_code: 'announcement.published', vars: { title, body: msgBody }, recipient: addr,
+                const r2 = await ms.queue({ channel: ch, template_code: ch === 'whatsapp' ? CONNECT_FOR.notice : 'announcement.published',
+                  vars: ch === 'whatsapp' ? { parent_name: 'Parent', message: connectMsg(title, msgBody) } : { title, body: msgBody }, recipient: addr,
                   source_kind: 'announcement', source_id: annId, occurrence_key: norm, exact_channel: ticked || undefined })
                 if (!r2.duplicate) queued[ch]++
               } catch { /* as Go: err != nil is skipped */ }
@@ -284,6 +318,7 @@ function registerCommunication(r: Router) {
         }
       } catch (e) { console.warn('circular fan-out', e) }
       out.sms_queued = queued.sms; out.email_queued = queued.email; out.whatsapp_queued = queued.whatsapp; out.notified = queued.auto + queued.in_app
+      if (connectMissing) out.connect_missing = true
     }
     return created(out)
   })

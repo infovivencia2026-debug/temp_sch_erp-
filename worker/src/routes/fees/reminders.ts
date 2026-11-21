@@ -2,7 +2,7 @@ import type { Router } from '../../router'
 import { badRequest, bool, isUUID, now, ok, readJSON } from '../../http'
 import { notifyStmt, rupeesFixed, today } from './common'
 import { Messenger, scopeOf, type SendRequest } from '../../services/messaging'
-import { wantsInApp } from '../../services/channel_pick'
+import { CONNECT_FOR, connectReady, wantsInApp } from '../../services/channel_pick'
 
 /* Port of fee_reminders.go (chase now), fee_reminder_schedule.go (the
    standing plan, one message_trigger_rules row per channel) and
@@ -32,16 +32,23 @@ export function registerReminders(r: Router): void {
     if (ids.length > 2000) throw badRequest('that is more families than one send should carry')
     const students: string[] = []
     for (const raw of ids) { const s = String(raw).trim(); if (!isUUID(s)) throw badRequest('every student_id must be a uuid'); students.push(s) }
-    const channels = cleanChannels(req.channels)
+    let channels = cleanChannels(req.channels)
+    // Yajur Connect only through the approved fee reminder template, never free text.
+    const connectMissing = channels.includes('whatsapp') && !(await connectReady(c.db, CONNECT_FOR.fees))
+    if (connectMissing) channels = channels.filter((x) => x !== 'whatsapp')
     // In app is ticked by default and may be unticked (the list then carries no 'in_app').
     const inApp = wantsInApp(req.channels)
-    if (!inApp && !channels.length) throw badRequest('choose at least one way to send')
+    if (!inApp && !channels.length) throw badRequest(connectMissing ? 'there is no Yajur Connect template for fee reminders: set one in Message Channels → Wording' : 'choose at least one way to send')
 
     const owing = await c.db.prepare(`
-      SELECT st.id, TRIM(st.first_name || COALESCE(' ' || st.last_name, '')) AS name, SUM(inv.net_paise - inv.paid_paise) AS due, MIN(inv.due_on) AS due_on
+      SELECT st.id, TRIM(st.first_name || COALESCE(' ' || st.last_name, '')) AS name, SUM(inv.net_paise - inv.paid_paise) AS due, MIN(inv.due_on) AS due_on,
+             (SELECT cl.name || COALESCE('-' || se.name, '') FROM enrollments en JOIN classes cl ON cl.id = en.class_id LEFT JOIN sections se ON se.id = en.section_id
+               WHERE en.student_id = st.id AND en.status = 'active' ORDER BY en.enrolled_on DESC LIMIT 1) AS class_name,
+             (SELECT group_concat(DISTINCT fh.name) FROM invoices i2 JOIN invoice_lines il ON il.invoice_id = i2.id JOIN fee_heads fh ON fh.id = il.fee_head_id
+               WHERE i2.student_id = st.id AND i2.status NOT IN ('cancelled','draft','paid') AND i2.net_paise > i2.paid_paise) AS fee_names
         FROM invoices inv JOIN students st ON st.id = inv.student_id
        WHERE inv.student_id IN (SELECT value FROM json_each(?)) AND inv.status NOT IN ('cancelled','draft','paid') AND inv.net_paise > inv.paid_paise
-       GROUP BY st.id HAVING SUM(inv.net_paise - inv.paid_paise) > 0`).bind(JSON.stringify(students)).all<{ id: string; name: string; due: number; due_on: string | null }>()
+       GROUP BY st.id HAVING SUM(inv.net_paise - inv.paid_paise) > 0`).bind(JSON.stringify(students)).all<{ id: string; name: string; due: number; due_on: string | null; class_name: string | null; fee_names: string | null }>()
 
     let told = 0, queued = 0, noAccount = 0
     const t = today()
@@ -53,7 +60,7 @@ export function registerReminders(r: Router): void {
       if (o.due_on) body += ', due ' + ddMon(o.due_on)
       body += '. Please pay at the school office or through the app.'
       const people = await c.db.prepare(`
-        SELECT g.user_id AS uid, g.phone, g.email FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+        SELECT g.user_id AS uid, g.phone, g.email, g.full_name AS pname FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
          WHERE sg.student_id = ?1
            AND NOT sg.portal_blocked AND (sg.access_until IS NULL OR sg.access_until >= ?2)
            AND (sg.is_primary
@@ -61,8 +68,8 @@ export function registerReminders(r: Router): void {
                 OR NOT EXISTS (SELECT 1 FROM student_guardians p WHERE p.student_id = sg.student_id AND p.is_primary AND NOT p.portal_blocked
                                   AND (p.access_until IS NULL OR p.access_until >= ?2)))
         UNION ALL
-        SELECT u.id, u.phone, u.email FROM students st JOIN users u ON u.id = st.user_id WHERE st.id = ?1`).bind(o.id, t)
-        .all<{ uid: string | null; phone: string | null; email: string | null }>()
+        SELECT u.id, u.phone, u.email, u.full_name FROM students st JOIN users u ON u.id = st.user_id WHERE st.id = ?1`).bind(o.id, t)
+        .all<{ uid: string | null; phone: string | null; email: string | null; pname: string | null }>()
       stmts.push(c.db.prepare(`UPDATE students SET last_fee_reminder_at = ? WHERE id = ?`).bind(now(), o.id))
       for (const pn of people.results) {
         if (!pn.uid) noAccount++
@@ -72,7 +79,12 @@ export function registerReminders(r: Router): void {
           if (to === '') continue
           // One reminder per family contact per channel per day: "Remind all" pressed twice,
           // or a child listed under two guardians who share a phone, is one message.
-          sends.push({ channel: ch, template_code: 'messaging.direct', vars: { text: body, subject: 'School fees outstanding' }, recipient: to,
+          const connect = ch === 'whatsapp'
+          sends.push({ channel: ch, template_code: connect ? CONNECT_FOR.fees : 'messaging.direct',
+            vars: connect
+              ? { parent_name: pn.pname || 'Parent', fee_name: o.fee_names || 'School fee', amount, student_name: o.name, class: o.class_name || '-', due_date: o.due_on ? ddMon(o.due_on) : 'now' }
+              : { text: body, subject: 'School fees outstanding' },
+            recipient: to, exact_channel: true,
             student_id: o.id, source_kind: 'fee_reminder', source_id: o.id, occurrence_key: `${t}:${to.toLowerCase()}` })
         }
       }
@@ -84,7 +96,7 @@ export function registerReminders(r: Router): void {
       for (const s of sends) { try { if (!(await ms.queue(s)).duplicate) queued++ } catch { /* continue */ } }
       await ms.kick()
     }
-    return ok({ told, messages_queued: queued, channels, no_account: noAccount })
+    return ok({ told, messages_queued: queued, channels, no_account: noAccount, ...(connectMissing ? { connect_missing: true } : {}) })
   })
 
   // ---------------------------------------------------------------- the standing plan

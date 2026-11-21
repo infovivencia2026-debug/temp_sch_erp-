@@ -1051,11 +1051,13 @@ export default function StudentProfile() {
             />
             <QuickTile
               label="Fees"
-              value={p.fees.outstanding_paise > 0
-                ? formatPaise(p.fees.outstanding_paise)
-                : 'Clear'}
-              tone={p.fees.outstanding_paise > 0 ? 'warning' : 'success'}
-              note={`${p.fees.outstanding_paise > 0 ? 'outstanding' : 'nothing due'} · ${formatPaise(p.fees.paid_paise)} received`}
+              /* No bill at all is not "Clear" (owner, 2026-11-21): it says the
+                 fees were never raised, so nobody reads it as paid up. */
+              value={!p.invoices.length ? 'Not raised'
+                : p.fees.outstanding_paise > 0 ? formatPaise(p.fees.outstanding_paise) : 'Clear'}
+              tone={!p.invoices.length ? 'neutral' : p.fees.outstanding_paise > 0 ? 'warning' : 'success'}
+              note={!p.invoices.length ? 'No fees raised yet. Raise them from the Fees tab'
+                : `${p.fees.outstanding_paise > 0 ? 'outstanding' : 'nothing due'} · ${formatPaise(p.fees.paid_paise)} received`}
             />
             <QuickTile
               label="Latest result"

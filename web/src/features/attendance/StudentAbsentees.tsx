@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChannelEstimate, ChannelPicker, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
+import { ChannelEstimate, ChannelPicker, TickChip, TestSendTick, sendTo, DEFAULT_CHANNELS, NOTHING_TICKED, useChannelEstimate, type Channel } from '../communication/ChannelPicker'
 import { api } from '@/lib/api'
 import { useVisibleInterval } from '@/lib/visible'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Select, Input,
-  Field, SkeletonTable, ErrorState, EmptyState, segClass, SEG_BAR, Checkbox, ConfirmButton, FormNotice } from '@/components/ui'
+  Field, SkeletonTable, ErrorState, EmptyState, segClass, SEG_BAR, ConfirmButton, FormNotice } from '@/components/ui'
 
 /* Student absentees — the monitoring view.
  *
@@ -115,51 +115,54 @@ function SendToParents({ kind, onDate, picked, total, allIds, onPick, told }: {
 }) {
   const qc = useQueryClient()
   const [channels, setChannels] = useState<Channel[]>(DEFAULT_CHANNELS)
+  const [test, setTest] = useState(false)
   const [done, setDone] = useState('')
   const sendable = picked.filter((id) => !told.has(id))
   const estimate = useChannelEstimate(['attendance', kind, onDate, sendable.slice().sort().join(',')],
-    { message_type: 'absence', student_ids: sendable, channels }, sendable.length > 0)
+    { message_type: 'absence', kind, student_ids: sendable, channels, test }, sendable.length > 0)
   const send = useMutation({
     mutationFn: () => api.post<{ children: number; already_told: number; messages_queued: number }>(
-      '/api/v1/attendance-workflow/parent-messages', { on_date: onDate, kind, student_ids: sendable, channels }),
+      '/api/v1/attendance-workflow/parent-messages', { on_date: onDate, kind, student_ids: sendable, channels, test }),
     onSuccess: (r) => {
-      setDone(`Told ${r.children} ${r.children === 1 ? 'family' : 'families'}` + (r.already_told ? ` · ${r.already_told} already told` : '') + '.')
+      setDone(`Told the parents of ${r.children} ${r.children === 1 ? 'child' : 'children'}` + (r.already_told ? ` · ${r.already_told} already told` : '') + '.')
       onPick([])
       qc.invalidateQueries({ queryKey: ['parent-messages', onDate] })
     },
   })
   const fresh = allIds.filter((id) => !told.has(id))
+  const parents = estimate.data?.recipients ?? (test ? 0 : sendable.length)
   return (
     <Card className="mb-3">
       <CardHeader
         title={kind === 'absent' ? 'Tell parents their child is absent' : 'Tell parents their child is present'}
         description={`${picked.length} of ${total} ticked`}
         action={
-          <Checkbox
-            checked={fresh.length > 0 && fresh.every((id) => picked.includes(id))}
+          <TickChip
+            on={fresh.length > 0 && fresh.every((id) => picked.includes(id))}
             onChange={(on) => onPick(on ? fresh : [])}
-            label={kind === 'absent' ? 'Select all absent' : 'Select all present'}
+            label={`${kind === 'absent' ? 'Select all absent' : 'Select all present'} (${fresh.length})`}
             disabled={fresh.length === 0}
           />
         }
       />
       <div className="space-y-3 p-4">
-        <ChannelPicker value={channels} onChange={setChannels} />
+        <ChannelPicker value={channels} onChange={setChannels} estimate={(sendable.length || test) && channels.length ? estimate.data : undefined} />
         {channels.length === 0
           ? <p className="text-[13px] text-warning">{NOTHING_TICKED}</p>
-          : sendable.length > 0 && estimate.data && <ChannelEstimate e={estimate.data} />}
+          : (sendable.length > 0 || test) && estimate.data && <ChannelEstimate e={estimate.data} />}
+        <TestSendTick on={test} onChange={setTest} />
         <FormNotice error={send.error} />
         {done && <p className="text-[13px] text-success">{done}</p>}
         <div className="flex justify-end">
           <ConfirmButton
             variant="primary"
             size="md"
-            disabled={sendable.length === 0 || channels.length === 0 || send.isPending}
+            disabled={(sendable.length === 0 && !test) || channels.length === 0 || send.isPending}
             confirmLabel="Send"
-            question={`Send to the families of ${sendable.length} ${sendable.length === 1 ? 'child' : 'children'}? Each family is told once today.`}
+            question={test ? `${sendTo(parents, true)}? Only the test parents on the allowlist get it.` : `${sendTo(parents, false)} of ${sendable.length} ${sendable.length === 1 ? 'child' : 'children'}? Each parent is told once a day.`}
             onConfirm={() => send.mutate()}
           >
-            {send.isPending ? 'Sending…' : `Send to ${sendable.length} ${sendable.length === 1 ? 'family' : 'families'}`}
+            {send.isPending ? 'Sending…' : sendTo(parents, test)}
           </ConfirmButton>
         </div>
       </div>
@@ -328,7 +331,7 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
                     <Td>
                       {toldPresent.has(p.student_id)
                         ? <Badge tone="success">Told</Badge>
-                        : <Checkbox checked={picked.includes(p.student_id)} onChange={(on) => toggle(p.student_id, on)} label="" srLabel={`Tell the family of ${p.name}`} />}
+                        : <TickChip on={picked.includes(p.student_id)} onChange={(on) => toggle(p.student_id, on)} srLabel={`Tell the parents of ${p.name}`} />}
                     </Td>
                   )}
                   <Td className="font-medium">{p.name}</Td>
@@ -364,7 +367,7 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
                       <Td>
                         {toldAbsent.has(r.student_id)
                           ? <Badge tone="success">Told</Badge>
-                          : <Checkbox checked={picked.includes(r.student_id)} onChange={(on) => toggle(r.student_id, on)} label="" srLabel={`Tell the family of ${r.name}`} />}
+                          : <TickChip on={picked.includes(r.student_id)} onChange={(on) => toggle(r.student_id, on)} srLabel={`Tell the parents of ${r.name}`} />}
                       </Td>
                     )}
                     <Td className="font-medium">{r.name}</Td>
