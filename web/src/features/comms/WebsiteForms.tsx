@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, CircleDot, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
@@ -43,8 +44,19 @@ const when = (iso: string) => `${formatDate(iso.slice(0, 10))}, ${new Date(iso).
 
 export default function WebsiteForms() {
   const q = useQuery({ queryKey: ['website-forms'], queryFn: () => api.get<{ school: string; items: Form[] }>('/api/v1/comms/website-forms') })
-  const [openId, setOpenId] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('responses')
+  /* The open form, its tab and an open response live in the address (owner,
+     2026-11-21): Back, the browser's or a mouse/keyboard back button, goes one
+     screen back, response, then form, then the list, not out of the page. */
+  const [sp, setSp] = useSearchParams()
+  const loc = useLocation()
+  const openId = sp.get('form')
+  const tab = (sp.get('tab') as Tab | null) ?? 'responses'
+  const setOpenId = (v: string | null) => setSp((prev) => {
+    const n = new URLSearchParams(prev)
+    if (v) n.set('form', v); else { n.delete('form'); n.delete('tab'); n.delete('r') }
+    return n
+  })
+  const setTab = (t: Tab) => setSp((prev) => { const n = new URLSearchParams(prev); n.set('tab', t); return n }, { replace: true })
   const [creating, setCreating] = useState(false)
   const open = q.data?.items.find((f) => f.id === openId) ?? null
 
@@ -52,7 +64,7 @@ export default function WebsiteForms() {
   return (
     <>
       {open ? (
-        <FormDetail form={open} school={q.data!.school} tab={tab} setTab={setTab} onBack={() => setOpenId(null)} />
+        <FormDetail form={open} school={q.data!.school} tab={tab} setTab={setTab} onBack={() => (loc.key !== 'default' ? window.history.back() : setOpenId(null))} />
       ) : (
         <>
           <PageHead eyebrow="Communication" title="Website forms"
@@ -66,7 +78,7 @@ export default function WebsiteForms() {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {q.data.items.map((f) => (
-                  <button key={f.id} type="button" onClick={() => { setOpenId(f.id); setTab(f.fields.length ? 'responses' : 'questions') }}
+                  <button key={f.id} type="button" onClick={() => setSp((prev) => { const n = new URLSearchParams(prev); n.set('form', f.id); n.set('tab', f.fields.length ? 'responses' : 'questions'); return n })}
                     className="group text-left">
                     <Card className="h-full p-5 transition-all group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
                       <div className="flex items-start justify-between gap-3">
@@ -94,7 +106,7 @@ export default function WebsiteForms() {
           </PageBody>
         </>
       )}
-      {creating && <NewForm onClose={() => setCreating(false)} onMade={(f) => { setCreating(false); setOpenId(f.id); setTab('questions') }} />}
+      {creating && <NewForm onClose={() => setCreating(false)} onMade={(f) => { setCreating(false); setSp((prev) => { const n = new URLSearchParams(prev); n.set('form', f.id); n.set('tab', 'questions'); return n }) }} />}
     </>
   )
 }
@@ -326,7 +338,13 @@ function Responses({ form }: { form: Form }) {
     queryKey: ['website-form-responses', form.id],
     queryFn: () => api.get<{ form: Form; items: Resp[] }>(`/api/v1/comms/website-forms/${form.id}/responses`),
   })
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [rsp, setRsp] = useSearchParams()
+  const rloc = useLocation()
+  const openId = rsp.get('r')
+  const setOpenId = (v: string | null) => {
+    if (!v && openId && rloc.key !== 'default') { window.history.back(); return }
+    setRsp((prev) => { const n = new URLSearchParams(prev); if (v) n.set('r', v); else n.delete('r'); return n })
+  }
   /* Opening one application reads that one only, so the count on the form
      card drops by one each time, as the bell's does. */
   const seen = useMutation({
