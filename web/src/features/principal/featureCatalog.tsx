@@ -74,10 +74,11 @@ const WRITE_BY_SECTION: Record<string, { editKey: string; label: string }> = {
   staff: { editKey: 'hr.employees.write', label: 'Staff records' },
   employees: { editKey: 'hr.employees.write', label: 'Staff records' },
   attendance: { editKey: 'academics.attendance.write', label: 'Attendance' },
-  communication: { editKey: 'comms.mail.write', label: 'Messages' },
-  messaging: { editKey: 'comms.mail.write', label: 'Messages' },
-  messages: { editKey: 'comms.mail.write', label: 'Messages' },
-  mail: { editKey: 'comms.mail.write', label: 'Messages' },
+  /* The `communication` section is a grab-bag: circulars, grievances, Connect
+     and plain mail each gate on a DIFFERENT permission, so it is NOT mapped by
+     section — every communication screen's edit key is pinned by slug in
+     WRITE_BY_SLUG below, and a slug that isn't listed there gets no Edit switch
+     rather than a wrong one. */
   fees: { editKey: 'finance.fees.write', label: 'Fees' },
   payments: { editKey: 'finance.payments.write', label: 'Payments' },
   invoices: { editKey: 'finance.invoices.write', label: 'Invoices' },
@@ -123,14 +124,43 @@ const WRITE_BY_SECTION: Record<string, { editKey: string; label: string }> = {
   tenants: { editKey: 'platform.tenants.write', label: 'Schools' },
   my_profile: { editKey: 'self.profile.write', label: 'Own profile' },
   profile: { editKey: 'self.profile.write', label: 'Own profile' },
-  website_forms: { editKey: 'comms.website_forms.write', label: 'Edit forms' },
 }
 
-/* The edit action for a feature, from its key's section. `attendance` is the
-   one section serving two screens — the class register (academics) and the
-   staff register (HR) — so a staff/HR workspace swaps in the HR write key. */
+/* A few screens sit in a broad section but gate on their OWN permission, so the
+   slug is checked before the section. Website forms lives under `communication`
+   but needs comms.website_forms.write — without this it would wrongly offer the
+   Messages (comms.mail.write) key and the screen would stay shut. (Yajur,
+   2026-11-21: a receptionist granted "Edit" on Website forms could open
+   nothing.) Add a row here whenever a screen's edit key differs from its
+   section's. */
+const WRITE_BY_SLUG: Record<string, { editKey: string; label: string }> = {
+  website_forms: { editKey: 'comms.website_forms.write', label: 'Edit forms' },
+  /* Communication screens, each pinned to the permission its own route checks
+     (confirmed in worker/src/routes/comms). Circulars and the achievements
+     showcase are announcements; grievances and parent concerns are the front
+     desk; Yajur Connect is its own; the address book is mail.manage. Plain
+     mail/inbox screens are self-service and carry no admin Edit. */
+  circulars: { editKey: 'comms.announcements.write', label: 'Circulars' },
+  circulars_from_school: { editKey: 'comms.announcements.write', label: 'Circulars' },
+  school_achievements_showcase: { editKey: 'comms.announcements.write', label: 'Showcase' },
+  grievances: { editKey: 'office.front_desk.write', label: 'Grievances' },
+  concerns: { editKey: 'office.front_desk.write', label: 'Concerns' },
+  concerns_from_parents: { editKey: 'office.front_desk.write', label: 'Concerns' },
+  parent_concerns: { editKey: 'office.front_desk.write', label: 'Concerns' },
+  yajur_connect: { editKey: 'comms.connect.write', label: 'Connect' },
+  mail_addresses: { editKey: 'comms.mail.manage', label: 'Address book' },
+}
+
+/* The edit action for a feature: its own slug wins, else its section. The key
+   is role.section.slug. `attendance` is the one section serving two screens —
+   the class register (academics) and the staff register (HR) — so a staff/HR
+   workspace swaps in the HR write key. */
 function editActionFor(key: string, workspace: string): { editKey: string; label: string } | undefined {
-  const section = key.split('.')[1] ?? ''
+  const parts = key.split('.')
+  const slug = parts[parts.length - 1] ?? ''
+  const bySlug = WRITE_BY_SLUG[slug]
+  if (bySlug) return bySlug
+  const section = parts[1] ?? ''
   const a = WRITE_BY_SECTION[section]
   if (!a) return undefined
   if (section === 'attendance' && /staff|hr|employee|payroll/i.test(workspace))
