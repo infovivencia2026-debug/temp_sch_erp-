@@ -49,7 +49,7 @@ function childJSON(r: ChildRow): Record<string, unknown> {
 }
 
 /** Port of whichChild: the named child when it is the caller's, else the first. 404 otherwise. */
-async function whichChild(c: Ctx, raw: string | null | undefined): Promise<string> {
+export async function whichChild(c: Ctx, raw: string | null | undefined): Promise<string> {
   const scope = await resolveScope(c)
   if (scope.studentIds.length === 0) throw notFound()
   const q = raw ?? ''

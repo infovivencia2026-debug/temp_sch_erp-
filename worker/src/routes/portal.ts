@@ -1,3 +1,4 @@
+import { registerPortalOfflinePay } from './portal/offline_pay'
 import type { Router } from '../router'
 import { registerChildRemarks } from './teaching/comms'
 import { registerPortalFamily } from './portal/family'
@@ -14,6 +15,7 @@ import { registerPortalLMS } from './portal/lms'
    portalChild / familyChildren in teaching/common.ts. */
 export function registerPortal(r: Router): void {
   registerPortalFamily(r)
+  registerPortalOfflinePay(r)
   registerPortalLMS(r)
   registerChildRemarks(r)
   registerPortalRequests(r)

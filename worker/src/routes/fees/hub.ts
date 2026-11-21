@@ -2,11 +2,11 @@ import type { Router, Ctx } from '../../router'
 import { HttpError, badRequest, forbidden, isUUID, notFound, now, ok, readJSON, uuidParam } from '../../http'
 import { can } from '../../identity'
 import {
-  CLASS_SQL, SECTION_SQL, isDate, nameSQL, p, paise, requireFresh, requireOpenPeriod, studentPredicate, syncInvoice, today, recomputeNet,
+  CLASS_SQL, SECTION_SQL, isDate, nameSQL, p, paise, requireFresh, requireOpenPeriod, studentPredicate, syncInvoice, syncPayment, today, recomputeNet,
 } from './common'
 import { auditStmt } from '../admin/common'
 import { nextNumbers } from './numbering'
-import { checkUTR } from './counter'
+import { checkUTR, allocate, allocateLines, txnId } from './counter'
 import { voidPayment, movePayment } from './corrections'
 import { school } from '../school'
 
@@ -25,7 +25,7 @@ import { school } from '../school'
 const READ = 'finance.payments.read'
 const WRITE = 'finance.payments.write'
 const APPROVE = 'finance.refunds.write'
-const KINDS = new Set(['cancel', 'change', 'remove_fee', 'edit_amount', 'transfer', 'class_change'])
+const KINDS = new Set(['cancel', 'change', 'remove_fee', 'edit_amount', 'transfer', 'class_change', 'plan_change'])
 
 const statusOf = (net: number, paid: number) => (net > 0 && paid >= net ? 'paid' : paid > 0 ? 'part_paid' : 'unpaid')
 const reasonOf = (v: unknown, min = 5): string => {
@@ -54,12 +54,107 @@ function recomputeInvoice(c: Ctx, invoiceId: string): D1PreparedStatement[] {
   ]
 }
 
+
+/* RE-PLAN FROM A DATE (owner, 2026-11-21): a route change, or a class change
+   that takes the new class's plan. Bills from the date on are cancelled and
+   raised again from the new plan, one bill per instalment; money already paid
+   on the cancelled bills comes off them and lands on the new ones (oldest
+   first), anything left stays on the child as an advance. With a fee type,
+   only bills that carry that fee alone are touched (a bill mixing it with
+   other fees is refused, so nothing else is re-priced by accident). */
+async function replan(c: Ctx, studentId: string, from: string, structureId: string, headId: string | null): Promise<{ cancelled: string[]; raised: string[]; moved_paise: number }> {
+  const fs = await c.db.prepare(`SELECT id, academic_year_id, name FROM fee_structures WHERE id = ? AND is_active = 1`).bind(structureId).first<{ id: string; academic_year_id: string; name: string }>()
+  if (!fs) throw badRequest('no active fee plan with that id')
+  const st = await c.db.prepare(`SELECT campus_id FROM students WHERE id = ?`).bind(studentId).first<{ campus_id: string }>()
+  if (!st) throw notFound()
+  const bills = (await c.db.prepare(`SELECT i.id, i.invoice_no,
+        (SELECT count(*) FROM invoice_lines il WHERE il.invoice_id = i.id) AS n,
+        (SELECT count(*) FROM invoice_lines il WHERE il.invoice_id = i.id AND il.fee_head_id = ?3) AS mine
+      FROM invoices i WHERE i.student_id = ?1 AND i.academic_year_id = ?2 AND i.status <> 'cancelled' AND i.instalment_no IS NOT NULL AND COALESCE(i.due_on, i.issued_on) >= ?4`)
+    .bind(studentId, fs.academic_year_id, headId ?? '', from).all<{ id: string; invoice_no: string; n: number; mine: number }>()).results
+  const touched = headId ? bills.filter((b) => b.mine > 0) : bills
+  if (headId && touched.some((b) => b.mine !== b.n)) throw new HttpError(409, `bill ${touched.find((b) => b.mine !== b.n)!.invoice_no} mixes this fee with others; change it with Edit fee amount instead`, { code: 'mixed_bill' })
+  const items = (await c.db.prepare(`SELECT fsi.fee_head_id, fsi.instalment_no, fsi.amount_paise, fsi.due_on, fh.name FROM fee_structure_items fsi JOIN fee_heads fh ON fh.id = fsi.fee_head_id
+      WHERE fsi.fee_structure_id = ?1 AND fsi.amount_paise > 0 AND (?2 = '' OR fsi.fee_head_id = ?2) AND COALESCE(fsi.due_on, ?3) >= ?3 ORDER BY fsi.instalment_no`)
+    .bind(fs.id, headId ?? '', from).all<{ fee_head_id: string; instalment_no: number; amount_paise: number; due_on: string | null; name: string }>()).results
+  const ids = touched.map((b) => b.id)
+  const allocs = ids.length ? (await c.db.prepare(`SELECT payment_id, sum(amount_paise) AS amt FROM payment_allocations WHERE invoice_id IN (SELECT value FROM json_each(?)) GROUP BY payment_id`)
+    .bind(JSON.stringify(ids)).all<{ payment_id: string; amt: number }>()).results : []
+  const groups = new Map<number, typeof items>()
+  for (const it of items) groups.set(it.instalment_no, [...(groups.get(it.instalment_no) ?? []), it])
+  const numbers = groups.size ? await nextNumbers(c, 'invoice', groups.size) : { texts: [] as string[], stmts: [] as D1PreparedStatement[] }
+  const inst = school(c).id, t = today()
+  const stmts: D1PreparedStatement[] = [...numbers.stmts]
+  for (const id of ids) {
+    stmts.push(c.db.prepare(`DELETE FROM payment_allocations WHERE invoice_id = ?`).bind(id))
+    stmts.push(c.db.prepare(`UPDATE invoices SET status = 'cancelled', cancelled_reason = ?, paid_paise = 0, updated_at = ? WHERE id = ?`).bind(`Re-planned from ${from} to ${fs.name}`, now(), id))
+  }
+  const raised: string[] = []
+  ;[...groups.entries()].forEach(([no, list], k) => {
+    const iid = crypto.randomUUID(), gross = list.reduce((a, x) => a + p(x.amount_paise), 0), due = list[0].due_on ?? t
+    raised.push(iid)
+    stmts.push(c.db.prepare(`INSERT INTO invoices (id, institution_id, campus_id, student_id, academic_year_id, invoice_no, instalment_no, issued_on, due_on,
+                    gross_paise, discount_paise, fine_paise, net_paise, paid_paise, status, created_at, updated_at, note)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 0, ?, ?, ?, ?)`)
+      .bind(iid, inst, st.campus_id, studentId, fs.academic_year_id, numbers.texts[k], no, t, due, gross, gross, due < t ? 'overdue' : 'unpaid', now(), now(), `From ${fs.name}, ${from}`))
+    for (const x of list) stmts.push(c.db.prepare(`INSERT INTO invoice_lines (id, institution_id, invoice_id, fee_head_id, description, amount_paise, discount_paise) VALUES (?, ?, ?, ?, ?, ?, 0)`)
+      .bind(crypto.randomUUID(), inst, iid, x.fee_head_id, x.name, p(x.amount_paise)))
+  })
+  for (const a of allocs) stmts.push(syncPayment(c, a.payment_id))
+  await c.db.batch(stmts)
+  let moved = 0
+  for (const a of allocs) {
+    const r = await allocate(c, studentId, a.payment_id, p(a.amt), raised).catch(() => allocate(c, studentId, a.payment_id, p(a.amt), []).catch(() => null))
+    if (r) { await c.db.batch(r.stmts); moved += p(a.amt) - r.unallocated }
+  }
+  return { cancelled: touched.map((b) => b.invoice_no), raised: numbers.texts, moved_paise: moved }
+}
+
+/* PART OF A RECEIPT TO ANOTHER CHILD (owner, 2026-11-21). The receipt keeps
+   its number and now shows what stayed on this child; the moved part becomes
+   an adjustment on the other child (no new receipt number), put on the fee
+   line asked for or on their oldest dues. Both sides are in the audit log
+   with the original amount. */
+async function partialTransfer(c: Ctx, paymentId: string, to: string, amount: number, toLine: string | null, why: string) {
+  const pm = await c.db.prepare(`SELECT id, student_id, campus_id, receipt_no, amount_paise, status, paid_on, remarks FROM payments WHERE id = ?`).bind(paymentId)
+    .first<{ id: string; student_id: string; campus_id: string; receipt_no: string | null; amount_paise: number; status: string; paid_on: string; remarks: string | null }>()
+  if (!pm || pm.status !== 'success') throw new HttpError(409, 'only a received payment can be moved', { code: 'not_received' })
+  if (amount <= 0 || amount >= p(pm.amount_paise)) throw badRequest('the amount to move must be more than nought and less than the receipt')
+  const target = await c.db.prepare(`SELECT id, campus_id, ${nameSQL('students')} AS name FROM students WHERE id = ?`).bind(to).first<{ id: string; campus_id: string; name: string }>()
+  if (!target) throw badRequest('no child with that id')
+  await requireOpenPeriod(c, today())
+  const prev = (await c.db.prepare(`SELECT invoice_id FROM payment_allocations WHERE payment_id = ? ORDER BY rowid`).bind(paymentId).all<{ invoice_id: string }>()).results.map((x) => x.invoice_id)
+  const keep = p(pm.amount_paise) - amount
+  const remarks = `${pm.remarks ? pm.remarks + ' | ' : ''}₹${amount / 100} moved to ${target.name} on ${today()}: ${why}`
+  const stmts: D1PreparedStatement[] = [
+    auditStmt(c, 'payment.partial_move', 'payment', paymentId, { amount_paise: p(pm.amount_paise) }, { amount_paise: keep, moved_paise: amount, to_student_id: to, reason: why }),
+    c.db.prepare(`DELETE FROM payment_allocations WHERE payment_id = ?`).bind(paymentId),
+    c.db.prepare(`UPDATE payments SET amount_paise = ?, remarks = ? WHERE id = ?`).bind(keep, remarks, paymentId),
+  ]
+  for (const iv of prev) stmts.push(...syncInvoice(c, iv))
+  stmts.push(syncPayment(c, paymentId))
+  await c.db.batch(stmts)
+  const back = await allocate(c, pm.student_id, paymentId, keep, prev).catch(() => allocate(c, pm.student_id, paymentId, keep, []).catch(() => null))
+  if (back) await c.db.batch(back.stmts)
+  const qid = crypto.randomUUID()
+  await c.db.batch([
+    c.db.prepare(`INSERT INTO payments (id, institution_id, campus_id, student_id, amount_paise, allocated_paise, mode, paid_on, status, collected_by, remarks, txn_id, created_at)
+                  VALUES (?, ?, ?, ?, ?, 0, 'adjustment', ?, 'success', ?, ?, ?, ?)`)
+      .bind(qid, school(c).id, target.campus_id, to, amount, today(), c.id.userId, `Moved from receipt ${pm.receipt_no ?? '-'}: ${why}`, txnId(qid), now()),
+    auditStmt(c, 'payment.partial_move_in', 'payment', qid, null, { from_payment_id: paymentId, amount_paise: amount, reason: why }),
+  ])
+  const into = toLine ? await allocateLines(c, to, qid, [{ invoice_line_id: toLine, amount_paise: amount }]).catch(() => null) : null
+  const put = into ?? await allocate(c, to, qid, amount, []).catch(() => null)
+  if (put) await c.db.batch(put.stmts)
+  return { kept_paise: keep, moved_paise: amount, new_payment_id: qid }
+}
+
 export function registerFeeHub(r: Router): void {
   // ------------------------------------------------------------ one child
   r.get('/fees/hub/students/{id}', READ, async (c) => {
     const id = uuidParam(c.params.id)
     await studentInScope(c, id)
-    const [head, lines, receipts, paidLines, requests, logs, concessions, refunds, years, fines, wallet] = (await c.db.batch([
+    const [head, lines, receipts, paidLines, requests, logs, concessions, refunds, years, fines, wallet, offline] = (await c.db.batch([
       c.db.prepare(`SELECT st.id, st.admission_no, ${nameSQL('st')} AS full_name, st.status, st.admission_date, st.photo_file_id,
              ${CLASS_SQL('st')} AS class_name, ${SECTION_SQL('st')} AS section_name,
              (SELECT e.roll_no FROM enrollments e WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1) AS roll_no,
@@ -106,6 +201,8 @@ export function registerFeeHub(r: Router): void {
       c.db.prepare(`SELECT ch.id, ch.rule_name, ch.amount_paise, ch.days_overdue, ch.status, ch.as_of, i.invoice_no
         FROM fee_fine_charges ch JOIN invoices i ON i.id = ch.invoice_id WHERE i.student_id = ? ORDER BY ch.as_of DESC`).bind(id),
       c.db.prepare(`SELECT balance_paise FROM wallet_accounts WHERE student_id = ?`).bind(id),
+      c.db.prepare(`SELECT o.id, o.amount_paise, o.mode, o.reference_no, o.paid_on, o.attachment_file_id, o.lines, o.note, o.status, o.reject_reason, o.created_at, pm.receipt_no
+        FROM fee_offline_payments o LEFT JOIN payments pm ON pm.id = o.payment_id WHERE o.student_id = ? ORDER BY o.created_at DESC`).bind(id),
     ])).map((x) => x.results as Record<string, unknown>[])
     if (!head.length) throw notFound()
 
@@ -165,6 +262,7 @@ export function registerFeeHub(r: Router): void {
       receipts: receipts.map((x) => ({ ...x, amount_paise: p(x.amount_paise as number), lines: byPayment.get(String(x.id)) ?? [] })),
       requests: requests.map((x) => ({ ...x, payload: JSON.parse(String(x.payload || '{}')) })),
       logs, concessions, refunds, fines,
+      offline: offline.map((x) => ({ ...x, amount_paise: p(x.amount_paise as number), lines: JSON.parse(String(x.lines || '[]')) })),
       available: [...available.values()],
     })
   })
@@ -295,6 +393,12 @@ export function registerFeeHub(r: Router): void {
       if (kind === 'edit_amount' && !(paise(payload.amount_paise, 'amount_paise') > 0)) throw badRequest('the new amount must be above nought')
     }
     if (kind === 'class_change' && !isUUID(payload.section_id)) throw badRequest('choose the new section')
+    if (kind === 'class_change' && payload.use_new_plan && !isDate(String(payload.from ?? ''))) throw badRequest('give the date the new plan starts')
+    if (kind === 'transfer' && payload.amount_paise !== undefined && !(paise(payload.amount_paise, 'amount_paise') > 0)) throw badRequest('the amount to move must be above nought')
+    if (kind === 'plan_change') {
+      if (!isUUID(payload.fee_head_id) || !isUUID(payload.structure_id)) throw badRequest('choose the fee type and the new plan')
+      if (!isDate(String(payload.from ?? ''))) throw badRequest('give the date the new plan starts')
+    }
     const pending = await c.db.prepare(`SELECT 1 FROM fee_requests WHERE student_id = ? AND kind = ? AND status = 'pending'
         AND COALESCE(payment_id, '') = COALESCE(?, '') AND COALESCE(invoice_line_id, '') = COALESCE(?, '')`).bind(st.id, kind, paymentId, lineId).first()
     if (pending) throw new HttpError(409, 'the same request is already waiting for approval', { code: 'already_pending' })
@@ -342,9 +446,18 @@ export function registerFeeHub(r: Router): void {
       case 'cancel':
         await voidPayment(c, fr.payment_id!, why)
         break
-      case 'transfer':
-        await movePayment(c, fr.payment_id!, String(payload.to_student_id), why)
+      case 'transfer': {
+        const whole = await c.db.prepare(`SELECT amount_paise FROM payments WHERE id = ?`).bind(fr.payment_id).first<{ amount_paise: number }>()
+        const amt = payload.amount_paise === undefined ? p(whole?.amount_paise) : paise(payload.amount_paise, 'amount_paise')
+        if (amt >= p(whole?.amount_paise)) await movePayment(c, fr.payment_id!, String(payload.to_student_id), why)
+        else await partialTransfer(c, fr.payment_id!, String(payload.to_student_id), amt, isUUID(payload.to_line_id) ? String(payload.to_line_id) : null, why)
         break
+      }
+      case 'plan_change': {
+        const r2 = await replan(c, fr.student_id, String(payload.from), String(payload.structure_id), String(payload.fee_head_id))
+        stmts.push(logStmt(c, fr.student_id, 'fee.plan_change', { cancelled: r2.cancelled }, { raised: r2.raised, moved_paise: r2.moved_paise, from: payload.from, reason: why }))
+        break
+      }
       case 'change': {
         const pm = await c.db.prepare(`SELECT id, mode, reference_no, paid_on, remarks, bank_name, receiving_account FROM payments WHERE id = ?`).bind(fr.payment_id)
           .first<Record<string, string | null>>()
@@ -392,8 +505,16 @@ export function registerFeeHub(r: Router): void {
         const en = await c.db.prepare(`SELECT e.id, e.class_id, e.section_id FROM enrollments e JOIN academic_years ay ON ay.id = e.academic_year_id AND ay.is_current = 1
             WHERE e.student_id = ? AND e.status = 'active' LIMIT 1`).bind(fr.student_id).first<{ id: string; class_id: string; section_id: string }>()
         if (!en) throw badRequest('the child has no current enrolment')
-        stmts.push(c.db.prepare(`UPDATE enrollments SET class_id = ?, section_id = ? WHERE id = ?`).bind(sec.class_id, sec.id, en.id))
-        stmts.push(logStmt(c, fr.student_id, 'fee.class_change', en, { class_id: sec.class_id, section_id: sec.id, reason: why }))
+        await c.db.batch([c.db.prepare(`UPDATE enrollments SET class_id = ?, section_id = ? WHERE id = ?`).bind(sec.class_id, sec.id, en.id)])
+        let replanned: unknown = null
+        if (payload.use_new_plan && sec.class_id !== en.class_id) {
+          /* The new class's main plan: the largest active one for the year (as Raise fees picks it). */
+          const plan = await c.db.prepare(`SELECT fs.id FROM fee_structures fs JOIN academic_years ay ON ay.id = fs.academic_year_id AND ay.is_current = 1
+              WHERE fs.class_id = ? AND fs.is_active = 1 ORDER BY (SELECT COALESCE(sum(amount_paise), 0) FROM fee_structure_items WHERE fee_structure_id = fs.id) DESC LIMIT 1`).bind(sec.class_id).first<{ id: string }>()
+          if (!plan) throw badRequest('the new class has no fee plan for this year; set one up first or keep the same fees')
+          replanned = await replan(c, fr.student_id, String(payload.from), plan.id, null)
+        }
+        stmts.push(logStmt(c, fr.student_id, 'fee.class_change', en, { class_id: sec.class_id, section_id: sec.id, reason: why, replanned }))
         break
       }
     }
@@ -445,5 +566,71 @@ export function registerFeeHub(r: Router): void {
        WHERE fs.academic_year_id = ? ORDER BY fh.name, fsi.instalment_no`).bind(yearId),
     ])).map((x) => x.results as Record<string, unknown>[])
     return ok({ year_id: yearId, years, plans: plans.map((pl) => ({ ...pl, items: items.filter((i) => i.fee_structure_id === pl.id) })) })
+  })
+
+  // ------------------------------------------------------------ offline payments the family reported (0136)
+  r.get('/fees/hub/offline', READ, async (c) => {
+    const q = c.url.searchParams
+    const student = q.get('student_id') ?? ''
+    if (student && !isUUID(student)) throw badRequest('student_id must be a uuid')
+    const status = q.get('status') ?? 'pending'
+    const rows = await c.db.prepare(`SELECT o.id, o.student_id, o.amount_paise, o.mode, o.reference_no, o.paid_on, o.attachment_file_id, o.lines, o.note, o.status,
+           o.reject_reason, o.created_at, o.decided_at, pm.receipt_no, ${nameSQL('st')} AS student, st.admission_no, COALESCE(u.full_name, '') AS submitted_by
+        FROM fee_offline_payments o JOIN students st ON st.id = o.student_id LEFT JOIN payments pm ON pm.id = o.payment_id LEFT JOIN users u ON u.id = o.submitted_by
+       WHERE (?1 = '' OR o.student_id = ?1) AND (?2 = 'all' OR o.status = ?2) ORDER BY o.created_at DESC LIMIT 300`).bind(student, status).all<Record<string, unknown>>()
+    return ok({ items: rows.results.map((x) => ({ ...x, amount_paise: p(x.amount_paise as number), lines: JSON.parse(String(x.lines || '[]')) })) })
+  })
+
+  r.post('/fees/hub/offline/{id}/reject', WRITE, async (c) => {
+    const id = uuidParam(c.params.id)
+    const req = await readJSON<{ reason?: string }>(c.req)
+    const why = reasonOf(req.reason)
+    const o = await c.db.prepare(`SELECT id, student_id, status, amount_paise, reference_no FROM fee_offline_payments WHERE id = ?`).bind(id).first<{ id: string; student_id: string; status: string; amount_paise: number; reference_no: string | null }>()
+    if (!o) throw notFound()
+    await studentInScope(c, o.student_id)
+    if (o.status !== 'pending') throw new HttpError(409, 'this report has already been dealt with', { code: 'decided' })
+    await c.db.batch([
+      c.db.prepare(`UPDATE fee_offline_payments SET status = 'rejected', reject_reason = ?, decided_by = ?, decided_at = ? WHERE id = ? AND status = 'pending'`).bind(why, c.id.userId, now(), id),
+      logStmt(c, o.student_id, 'fee.offline.rejected', null, { amount_paise: p(o.amount_paise), reference_no: o.reference_no, reason: why }),
+    ])
+    return ok({ id, status: 'rejected' })
+  })
+
+  // ------------------------------------------------------------ copy fee plans to another year with a % increase
+  r.post('/fees/hub/copy-plans', 'finance.fees.write', async (c) => {
+    const req = await readJSON<{ from_year?: string; to_year?: string; percent?: unknown; dry_run?: boolean }>(c.req)
+    if (!isUUID(req.from_year) || !isUUID(req.to_year) || req.from_year === req.to_year) throw badRequest('choose two different years')
+    const pct = Number(req.percent ?? 0)
+    if (!Number.isFinite(pct) || pct < -50 || pct > 100) throw badRequest('the increase must be between -50% and 100%')
+    const plans = (await c.db.prepare(`SELECT fs.id, fs.campus_id, fs.class_id, fs.name, fs.applies_to, COALESCE(cl.name, 'All classes') AS class_name,
+          EXISTS (SELECT 1 FROM fee_structures x WHERE x.academic_year_id = ?2 AND x.name = fs.name AND COALESCE(x.class_id, '') = COALESCE(fs.class_id, '')) AS exists_already
+        FROM fee_structures fs LEFT JOIN classes cl ON cl.id = fs.class_id WHERE fs.academic_year_id = ?1 AND fs.is_active = 1 ORDER BY cl.name, fs.name`)
+      .bind(req.from_year, req.to_year).all<{ id: string; campus_id: string; class_id: string | null; name: string; applies_to: string | null; class_name: string; exists_already: number }>()).results
+    const items = (await c.db.prepare(`SELECT fsi.fee_structure_id, fsi.fee_head_id, fsi.instalment_no, fsi.amount_paise, fsi.due_on, fh.name AS fee_type
+        FROM fee_structure_items fsi JOIN fee_heads fh ON fh.id = fsi.fee_head_id JOIN fee_structures fs ON fs.id = fsi.fee_structure_id WHERE fs.academic_year_id = ?`)
+      .bind(req.from_year).all<{ fee_structure_id: string; fee_head_id: string; instalment_no: number; amount_paise: number; due_on: string | null; fee_type: string }>()).results
+    // Rounded to the rupee; a due date moves on by one year.
+    const up = (a: number) => Math.round((p(a) * (100 + pct)) / 100 / 100) * 100
+    const nextYear = (d: string | null) => (d && isDate(d) ? `${Number(d.slice(0, 4)) + 1}${d.slice(4)}` : null)
+    const preview = plans.map((pl) => {
+      const mine = items.filter((i) => i.fee_structure_id === pl.id)
+      return { plan: pl.name, class_name: pl.class_name, skipped: !!Number(pl.exists_already), old_paise: mine.reduce((a, i) => a + p(i.amount_paise), 0), new_paise: mine.reduce((a, i) => a + up(i.amount_paise), 0), instalments: mine.length }
+    })
+    if (req.dry_run) return ok({ percent: pct, plans: preview })
+    const inst = school(c).id
+    const stmts: D1PreparedStatement[] = []
+    for (const pl of plans) {
+      if (Number(pl.exists_already)) continue
+      const nid = crypto.randomUUID()
+      stmts.push(c.db.prepare(`INSERT INTO fee_structures (id, institution_id, campus_id, academic_year_id, class_id, name, applies_to, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`)
+        .bind(nid, inst, pl.campus_id, req.to_year, pl.class_id, pl.name, pl.applies_to, now()))
+      for (const i of items.filter((x) => x.fee_structure_id === pl.id)) {
+        stmts.push(c.db.prepare(`INSERT INTO fee_structure_items (id, institution_id, fee_structure_id, fee_head_id, instalment_no, amount_paise, due_on) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+          .bind(crypto.randomUUID(), inst, nid, i.fee_head_id, i.instalment_no, up(i.amount_paise), nextYear(i.due_on)))
+      }
+    }
+    stmts.push(auditStmt(c, 'fee.copy_plans', 'fee_structures', null, { from_year: req.from_year }, { to_year: req.to_year, percent: pct, copied: preview.filter((x) => !x.skipped).length }))
+    for (let i = 0; i < stmts.length; i += 50) await c.db.batch(stmts.slice(i, i + 50))
+    return ok({ percent: pct, plans: preview, copied: preview.filter((x) => !x.skipped).length })
   })
 }

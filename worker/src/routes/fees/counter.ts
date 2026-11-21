@@ -447,7 +447,7 @@ export function registerCounter(r: Router): void {
        IN at the counter; wallet changes and payroll still ask. */
     const req = await readJSON<{ student_id?: string; amount_paise?: unknown; mode?: string; paid_on?: string; reference_no?: string; bank_name?: string;
       cheque_date?: string; remarks?: string; payer_name?: string; payer_relation?: string; invoice_ids?: string[]; attachment_file_id?: string
-      lines?: { invoice_line_id?: unknown; amount_paise?: unknown }[]; receiving_account?: string }>(c.req)
+      lines?: { invoice_line_id?: unknown; amount_paise?: unknown }[]; receiving_account?: string; offline_id?: string }>(c.req)
     if (!isUUID(req.student_id)) throw badRequest('student_id must be a uuid')
     /* Ticked fee lines with their own amounts (Fees all in one place): the
        receipt amount is their sum, and the money lands on exactly those lines. */
@@ -516,6 +516,15 @@ export function registerCounter(r: Router): void {
       const f = await c.db.prepare(`SELECT size_bytes FROM files WHERE id = ?`).bind(attachment).first<{ size_bytes: number | null }>()
       if ((f?.size_bytes ?? 0) > 2 * 1024 * 1024) throw badRequest('the attached file must be 2 MB or smaller')
     }
+    /* A receipt for a payment the family reported (0136): still pending, theirs, and only once. */
+    let offlineId: string | null = null
+    if (req.offline_id !== undefined) {
+      if (!isUUID(req.offline_id)) throw badRequest('offline_id must be a uuid')
+      const o = await c.db.prepare(`SELECT status, student_id FROM fee_offline_payments WHERE id = ?`).bind(req.offline_id).first<{ status: string; student_id: string }>()
+      if (!o || o.student_id !== req.student_id) throw badRequest("that reported payment is not this student's")
+      if (o.status !== 'pending') throw new HttpError(409, 'that reported payment has already been dealt with', { code: 'decided' })
+      offlineId = req.offline_id
+    }
     const number = await nextNumber(c, 'receipt', paidOn)
     const paymentId = crypto.randomUUID()
     const stmts: D1PreparedStatement[] = [
@@ -536,6 +545,8 @@ export function registerCounter(r: Router): void {
       const a = await allocate(c, req.student_id, paymentId, amount, invoiceIds)
       allocated = a.allocated; unallocated = a.unallocated; stmts.push(...a.stmts)
     }
+    if (offlineId) stmts.push(c.db.prepare(`UPDATE fee_offline_payments SET status = 'receipted', payment_id = ?, decided_by = ?, decided_at = ? WHERE id = ? AND status = 'pending'`)
+      .bind(paymentId, c.id.userId, now(), offlineId))
     if (mode === 'wallet') {
       stmts.push(...await walletDebitStmts(c, st.campus_id, req.student_id, amount, number.text, 'Fee receipt ' + number.text, paymentId, null))
     }
