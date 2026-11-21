@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, CircleDot, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
+  AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, CircleDot, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
   Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X, FolderOpen, BellDot, CalendarClock,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -147,12 +148,15 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
     { key: 'responses', label: `Responses${form.responses ? ` (${form.responses})` : ''}` },
     { key: 'share', label: 'Put on website' },
   ]
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null)
   return (
     <>
       <PageHead eyebrow="Website forms" onEyebrow={onBack} title={form.title}
         actions={
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="ghost" onClick={onBack}><ChevronLeft className="size-4" />All forms</Button>
+            {/* Export sits where "All forms" was (owner, 2026-11-21); the
+                Responses tab fills this slot with what it is showing. */}
+            <div ref={setSlot} className="contents" />
             {/* A dropdown, not an on/off switch (owner, 2026-11-05). */}
             <div className="w-56">
               <Select value={form.is_open ? 'open' : 'closed'} onChange={(v) => toggle.mutate(v === 'open')}
@@ -172,7 +176,7 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
           ))}
         </div>
         <FormNotice error={toggle.error ?? del.error} />
-        {tab === 'questions' ? <Builder key={form.id} form={form} /> : tab === 'responses' ? <Responses form={form} /> : <Share form={form} school={school} />}
+        {tab === 'questions' ? <Builder key={form.id} form={form} /> : tab === 'responses' ? <Responses form={form} slot={slot} /> : <Share form={form} school={school} />}
       </PageBody>
     </>
   )
@@ -332,7 +336,7 @@ function Preview({ title, description, fields, submit }: { title: string; descri
 
 /* ---- Responses ------------------------------------------------------- */
 
-function Responses({ form }: { form: Form }) {
+function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) {
   const qc = useQueryClient()
   const q = useQuery({
     queryKey: ['website-form-responses', form.id],
@@ -485,10 +489,9 @@ function Responses({ form }: { form: Form }) {
           <span className="rounded-full bg-primary-foreground/20 px-3 py-1 text-[13px] font-semibold">{form.is_open ? 'Live' : 'Not live'}</span>
         </div>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
+      {slot && createPortal(
         <div className="w-44"><Select value="" placeholder={`Export ${scored ? board.length : shown.length}`} onChange={(v) => { const rows = scored ? boardRows() : allRows(); if (v === 'xlsx') saveExcel(form.title + ' responses', rows); else if (v === 'csv') saveCsv(form.title + ' responses', rows) }}
-          options={[{ value: 'xlsx', label: 'Excel' }, { value: 'csv', label: 'CSV' }]} /></div>
-      </div>
+          options={[{ value: 'xlsx', label: 'Excel' }, { value: 'csv', label: 'CSV' }]} /></div>, slot)}
       {scored ? (
         <CellGrid cols={4}>
           <Stat label="Registered" icon={Inbox} value={items.length} hint={sorted.size ? `${sorted.size} in shortcuts` : undefined} tint onClick={() => pickCard('all')} active={quick === 'all'} />
@@ -514,12 +517,11 @@ function Responses({ form }: { form: Form }) {
             names were cut to a few letters). "All" is the Responses card now. */}
         {/* All = the responses not moved into any shortcut (owner, 2026-11-21). */}
         <button type="button" role="tab" aria-selected={!view && !quick} onClick={() => pickCard('')}
-          className="flex w-[72px] shrink-0 flex-col items-center gap-1 text-center">
-          <span className={cn('grid size-14 place-items-center rounded-full border-2 text-[18px] font-bold transition-colors',
-            !view && !quick ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/40 bg-primary/10 text-primary')}>
-            {items.filter((x) => !sorted.has(x.id)).length}
-          </span>
-          <span className={cn('text-[12px]', !view && !quick ? 'font-semibold text-foreground' : 'text-muted-foreground')}>All</span>
+          className={cn('flex min-h-12 shrink-0 items-center gap-2.5 rounded-xl border-2 px-3.5 py-2 text-left transition-colors',
+            !view && !quick ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/30 bg-primary/5 text-foreground hover:border-primary/60')}>
+          <Inbox className={cn('size-5 shrink-0', !view && !quick ? '' : 'text-primary')} aria-hidden />
+          <span className="whitespace-nowrap text-[14px] font-semibold">All</span>
+          <span className={cn('rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums', !view && !quick ? 'bg-primary-foreground/20' : 'bg-primary/10 text-primary')}>{items.filter((x) => !sorted.has(x.id)).length}</span>
         </button>
         {shortcuts.map((s) => {
           const on = view === s.id
