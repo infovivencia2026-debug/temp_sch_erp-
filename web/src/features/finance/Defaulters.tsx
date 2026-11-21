@@ -141,7 +141,8 @@ export default function Defaulters() {
   const ticked = rows.filter((d) => picked[d.student_id])
   // Nothing ticked means everybody on screen — the same rule the report card
   // queues follow, so one habit works across the product.
-  const toRemind = ticked.length ? ticked : rows
+  // Children who have left keep their dues on the list but are never reminded (owner, 2026-11-21).
+  const toRemind = (ticked.length ? ticked : rows).filter((d) => !d.left)
   const estimate = useChannelEstimate(['fees', toRemind.map((d) => d.student_id).sort().join(',')],
     { message_type: 'fees', student_ids: toRemind.map((d) => d.student_id), channels }, toRemind.length > 0)
   const parents = estimate.data?.recipients ?? toRemind.length
@@ -427,6 +428,7 @@ export default function Defaulters() {
                     {/* One family, without ticking anything. The commonest
                         send is a single reminder to the family somebody has
                         just been reading about. */}
+                    {d.left ? <span className="text-[12.5px] text-muted-foreground">Left, not reminded</span> : (
                     <ConfirmButton
                       variant="ghost"
                       disabled={remind.isPending || channels.length === 0}
@@ -436,6 +438,7 @@ export default function Defaulters() {
                     >
                       Remind
                     </ConfirmButton>
+                    )}
                   </Td>
                 </tr>
               ))}
