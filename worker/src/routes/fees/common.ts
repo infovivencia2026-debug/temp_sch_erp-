@@ -188,10 +188,10 @@ export function syncInvoice(c: Ctx, invoiceId: string): D1PreparedStatement[] {
 }
 
 /**
- * Fee-line allocations (0135): any allocation on this invoice that has no
+ * Fee-line allocations (0136): any allocation on this invoice that has no
  * line rows yet (every path that writes payment_allocations calls
  * syncInvoice after) is spread over the invoice's lines in billing order,
- * against what each line still has unpaid. The same rule as the 0135
+ * against what each line still has unpaid. The same rule as the 0136
  * backfill. An allocation the counter split by hand already has its rows
  * and is left alone. Anything beyond the lines' total is one row with no line.
  */

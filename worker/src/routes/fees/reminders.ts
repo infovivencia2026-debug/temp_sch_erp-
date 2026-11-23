@@ -48,6 +48,8 @@ export function registerReminders(r: Router): void {
                WHERE i2.student_id = st.id AND i2.status NOT IN ('cancelled','draft','paid') AND i2.net_paise > i2.paid_paise) AS fee_names
         FROM invoices inv JOIN students st ON st.id = inv.student_id
        WHERE inv.student_id IN (SELECT value FROM json_each(?)) AND inv.status NOT IN ('cancelled','draft','paid') AND inv.net_paise > inv.paid_paise
+         -- A child who has left is never reminded (owner, 2026-11-21); the dues stay on the account.
+         AND st.status IN ('active','suspended')
        GROUP BY st.id HAVING SUM(inv.net_paise - inv.paid_paise) > 0`).bind(JSON.stringify(students)).all<{ id: string; name: string; due: number; due_on: string | null; class_name: string | null; fee_names: string | null }>()
 
     let told = 0, queued = 0, noAccount = 0

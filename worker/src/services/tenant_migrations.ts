@@ -132,6 +132,7 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 132, name: 'yajur_connect_send', checksum: '6570137fafe3de27480ee9e6aef7f4e664ce9ba281b60efcc02f48d9dea40eff' },
   { version: 133, name: 'template_image_header', checksum: '3ac7051807c3824a5fd09fd958644c6fb753dd3453cbf1e0d2ad957f27b41d63' },
   { version: 134, name: 'payment_attachment', checksum: 'bc25c4ce0d30572311124192523388161e580ae39c2dce764676da02cb2e639c' },
-  { version: 135, name: 'fee_line_allocations', checksum: '2e14a54f4d4b524d3ee4c5c1dcec6d3ae179a2f3a2dc22c476499b924dbde262' },
-  { version: 136, name: 'fee_offline_payments', checksum: '3c867495bc0a010a61b8c52da5b68937337b137f72d7bb936c73c4a29289b8ab' },
+  { version: 135, name: 'website_forms_write', checksum: '8271e854862fb5b7762298e9b5900b227745e15376a810da18df8b3e987f847c' },
+  { version: 136, name: 'fee_line_allocations', checksum: '89a811c981c78c69b9ea1e13077055a83e81e002d6d245db884783ca7596f666' },
+  { version: 137, name: 'fee_offline_payments', checksum: '78384aaeb064fb0774aa786e281c00177274aaf3d3fa56545d098e689340ebe2' },
 ]

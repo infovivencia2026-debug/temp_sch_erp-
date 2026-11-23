@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, CircleDot, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
-  Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X,
+  AlignLeft, ArrowDown, ArrowUp, Calendar, CheckSquare, ChevronDown, CircleDot, ChevronRight, Copy, ExternalLink, FileText, Hash, Inbox,
+  Link2, Mail, Paperclip, Phone, Plus, Trash2, Type, X, FolderOpen, BellDot, CalendarClock, Pencil,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/Toast'
@@ -43,8 +45,19 @@ const when = (iso: string) => `${formatDate(iso.slice(0, 10))}, ${new Date(iso).
 
 export default function WebsiteForms() {
   const q = useQuery({ queryKey: ['website-forms'], queryFn: () => api.get<{ school: string; items: Form[] }>('/api/v1/comms/website-forms') })
-  const [openId, setOpenId] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('responses')
+  /* The open form, its tab and an open response live in the address (owner,
+     2026-11-21): Back, the browser's or a mouse/keyboard back button, goes one
+     screen back, response, then form, then the list, not out of the page. */
+  const [sp, setSp] = useSearchParams()
+  const loc = useLocation()
+  const openId = sp.get('form')
+  const tab = (sp.get('tab') as Tab | null) ?? 'responses'
+  const setOpenId = (v: string | null) => setSp((prev) => {
+    const n = new URLSearchParams(prev)
+    if (v) n.set('form', v); else { n.delete('form'); n.delete('tab'); n.delete('r') }
+    return n
+  })
+  const setTab = (t: Tab) => setSp((prev) => { const n = new URLSearchParams(prev); n.set('tab', t); return n }, { replace: true })
   const [creating, setCreating] = useState(false)
   const open = q.data?.items.find((f) => f.id === openId) ?? null
 
@@ -52,7 +65,7 @@ export default function WebsiteForms() {
   return (
     <>
       {open ? (
-        <FormDetail form={open} school={q.data!.school} tab={tab} setTab={setTab} onBack={() => setOpenId(null)} />
+        <FormDetail form={open} school={q.data!.school} tab={tab} setTab={setTab} onBack={() => (loc.key !== 'default' ? window.history.back() : setOpenId(null))} />
       ) : (
         <>
           <PageHead eyebrow="Communication" title="Website forms"
@@ -66,7 +79,7 @@ export default function WebsiteForms() {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {q.data.items.map((f) => (
-                  <button key={f.id} type="button" onClick={() => { setOpenId(f.id); setTab(f.fields.length ? 'responses' : 'questions') }}
+                  <button key={f.id} type="button" onClick={() => setSp((prev) => { const n = new URLSearchParams(prev); n.set('form', f.id); n.set('tab', f.fields.length ? 'responses' : 'questions'); return n })}
                     className="group text-left">
                     <Card className="h-full p-5 transition-all group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-md">
                       <div className="flex items-start justify-between gap-3">
@@ -94,7 +107,7 @@ export default function WebsiteForms() {
           </PageBody>
         </>
       )}
-      {creating && <NewForm onClose={() => setCreating(false)} onMade={(f) => { setCreating(false); setOpenId(f.id); setTab('questions') }} />}
+      {creating && <NewForm onClose={() => setCreating(false)} onMade={(f) => { setCreating(false); setSp((prev) => { const n = new URLSearchParams(prev); n.set('form', f.id); n.set('tab', 'questions'); return n }) }} />}
     </>
   )
 }
@@ -135,12 +148,15 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
     { key: 'responses', label: `Responses${form.responses ? ` (${form.responses})` : ''}` },
     { key: 'share', label: 'Put on website' },
   ]
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null)
   return (
     <>
       <PageHead eyebrow="Website forms" onEyebrow={onBack} title={form.title}
         actions={
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="ghost" onClick={onBack}><ChevronLeft className="size-4" />All forms</Button>
+            {/* Export sits where "All forms" was (owner, 2026-11-21); the
+                Responses tab fills this slot with what it is showing. */}
+            <div ref={setSlot} className="contents" />
             {/* A dropdown, not an on/off switch (owner, 2026-11-05). */}
             <div className="w-56">
               <Select value={form.is_open ? 'open' : 'closed'} onChange={(v) => toggle.mutate(v === 'open')}
@@ -160,7 +176,7 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
           ))}
         </div>
         <FormNotice error={toggle.error ?? del.error} />
-        {tab === 'questions' ? <Builder key={form.id} form={form} /> : tab === 'responses' ? <Responses form={form} /> : <Share form={form} school={school} />}
+        {tab === 'questions' ? <Builder key={form.id} form={form} /> : tab === 'responses' ? <Responses form={form} slot={slot} /> : <Share form={form} school={school} />}
       </PageBody>
     </>
   )
@@ -320,13 +336,19 @@ function Preview({ title, description, fields, submit }: { title: string; descri
 
 /* ---- Responses ------------------------------------------------------- */
 
-function Responses({ form }: { form: Form }) {
+function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) {
   const qc = useQueryClient()
   const q = useQuery({
     queryKey: ['website-form-responses', form.id],
     queryFn: () => api.get<{ form: Form; items: Resp[] }>(`/api/v1/comms/website-forms/${form.id}/responses`),
   })
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [rsp, setRsp] = useSearchParams()
+  const rloc = useLocation()
+  const openId = rsp.get('r')
+  const setOpenId = (v: string | null) => {
+    if (!v && openId && rloc.key !== 'default') { window.history.back(); return }
+    setRsp((prev) => { const n = new URLSearchParams(prev); if (v) n.set('r', v); else n.delete('r'); return n })
+  }
   /* Opening one application reads that one only, so the count on the form
      card drops by one each time, as the bell's does. */
   const seen = useMutation({
@@ -351,7 +373,12 @@ function Responses({ form }: { form: Form }) {
   })
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [view, setView] = useState<string | null>(null)
+  /* The number cards filter the list (owner, 2026-11-21): Responses = not yet
+     moved into a shortcut, New = unopened, Last 7 days = recent. */
+  const [quick, setQuick] = useState<'' | 'all' | 'new' | 'week'>('')
   const [naming, setNaming] = useState(false)
+  const [editing, setEditing] = useState<Shortcut | null>(null)
+  const [editName, setEditName] = useState('')
   const [newName, setNewName] = useState('')
   const [fGrade, setFGrade] = useState('')
   const [fStatus, setFStatus] = useState('')
@@ -394,15 +421,26 @@ function Responses({ form }: { form: Form }) {
   const val = (r: Resp, k: string) => show(r, k) || (ALIASES[k] ?? []).map((a) => show(r, a)).find(Boolean) || ''
   const fileOf = (r: Resp, k: string) => r.files.find((x) => x.key === k) ?? r.files.find((x) => (ALIASES[k] ?? []).includes(x.key))
   const extra = [...new Set(items.flatMap((r) => [...Object.keys(r.data), ...r.files.map((x) => x.key)]))].filter((k) => !known.includes(k) && !aliasOf(k))
-  const cols = [...form.fields.map((f) => ({ key: f.key, label: f.label })), ...extra.map((k) => ({ key: k, label: k }))]
+  const cols = [...form.fields.map((f) => ({ key: f.key, label: f.label })), ...extra.map((k) => ({ key: k, label: niceKey(k) }))]
   const filled = (r: Resp, k: string) => !!val(r, k) || !!fileOf(r, k)
   const shownCols = cols.filter((c) => items.some((r) => filled(r, c.key))).slice(0, 4)
-  const week = Date.now() - 7 * 86400000
+  const todayIso = new Date().toLocaleDateString('en-CA')
+  /* A response moved into a shortcut lives there, not under Responses again
+     (owner, 2026-11-21: "they are going to the same again and again"). */
+  const sorted = new Set(shortcuts.flatMap((x) => x.ids))
+  const inView = (r: Resp) =>
+    quick === 'all' ? true
+      : quick === 'new' ? !r.is_read
+      : quick === 'week' ? new Date(r.created_at).toLocaleDateString('en-CA') === todayIso
+      : view ? (shortcuts.find((x) => x.id === view)?.ids ?? []).includes(r.id)
+      : !sorted.has(r.id)
+  const shown = items.filter(inView)
+  const pickCard = (k: '' | 'all' | 'new' | 'week') => { setQuick(k); setView(null); setPicked(new Set()) }
   const open = items.find((r) => r.id === openId) ?? null
   const cell = (r: Resp, k: string) => fileOf(r, k)?.name ?? val(r, k)
   const allRows = () => {
     const use = cols.filter((c) => !INTERNAL.has(c.key) && items.some((r) => filled(r, c.key)))
-    return [['Received', ...use.map((c) => c.label)], ...items.map((r) => [when(r.created_at), ...use.map((c) => cell(r, c.key))])]
+    return [['Received', ...use.map((c) => c.label)], ...shown.map((r) => [when(r.created_at), ...use.map((c) => cell(r, c.key))])]
   }
 
   /* SCORED TEST VIEW (owner, 2026-11-20: Yajur Quest "like the preview").
@@ -430,7 +468,7 @@ function Responses({ form }: { form: Form }) {
   }
   const q2 = fSearch.trim().toLowerCase()
   const board = items
-    .filter((r) => !view || (shortcuts.find((s) => s.id === view)?.ids ?? []).includes(r.id))
+    .filter(inView)
     .filter((r) => !fGrade || r.data.applying_for_grade === fGrade)
     .filter((r) => !fStatus || stateOf(r) === fStatus)
     .filter((r) => !fScore || (num(r, 'pct') ?? -1) >= 50)
@@ -453,44 +491,62 @@ function Responses({ form }: { form: Form }) {
           <span className="rounded-full bg-primary-foreground/20 px-3 py-1 text-[13px] font-semibold">{form.is_open ? 'Live' : 'Not live'}</span>
         </div>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
-        <div className="w-40"><Select value="" placeholder="Export all" onChange={(v) => { const rows = scored ? boardRows() : allRows(); if (v === 'xlsx') saveExcel(form.title + ' responses', rows); else if (v === 'csv') saveCsv(form.title + ' responses', rows) }}
-          options={[{ value: 'xlsx', label: 'Excel' }, { value: 'csv', label: 'CSV' }]} /></div>
-      </div>
+      {slot && createPortal(
+        <div className="w-44"><Select value="" placeholder={`Export ${scored ? board.length : shown.length}`} onChange={(v) => { const rows = scored ? boardRows() : allRows(); if (v === 'xlsx') saveExcel(form.title + ' responses', rows); else if (v === 'csv') saveCsv(form.title + ' responses', rows) }}
+          options={[{ value: 'xlsx', label: 'Excel' }, { value: 'csv', label: 'CSV' }]} /></div>, slot)}
       {scored ? (
         <CellGrid cols={4}>
-          <Stat label="Registered" value={items.length} tint />
+          <Stat label="Registered" icon={Inbox} value={items.length} hint={sorted.size ? `${sorted.size} in shortcuts` : undefined} tint onClick={() => pickCard('all')} active={quick === 'all'} />
           <Stat label="Finished" value={done.length} tint />
           <Stat label="Above 50%" value={pcts.filter((x) => x >= 50).length} tint />
           <Stat label="Average · top" value={pcts.length ? `${Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length)}% · ${top}/60` : '-'} tint />
         </CellGrid>
       ) : (
         <CellGrid cols={3}>
-          <Stat label="Responses" value={items.length} tint />
-          <Stat label="New" value={unread} tint />
-          <Stat label="Last 7 days" value={items.filter((r) => Date.parse(r.created_at) >= week).length} tint />
+          <Stat label="Responses" icon={Inbox} value={items.length} hint={sorted.size ? `${items.filter((x) => !sorted.has(x.id)).length} to sort · ${sorted.size} in shortcuts` : 'All received'} tint onClick={() => pickCard('all')} active={quick === 'all'} />
+          <Stat label="New" icon={BellDot} value={unread} hint={unread ? `Oldest unopened ${when(items.filter((x) => !x.is_read).at(-1)!.created_at)}` : 'All opened'} tint onClick={() => pickCard('new')} active={quick === 'new'} />
+          {/* Today, with when the last one came in (owner, 2026-11-21: a date in
+              place of Last 7 days). */}
+          {/* When the newest response came in (owner, 2026-11-21). Click: today's. */}
+          <Stat label="Last received" icon={CalendarClock} value={items[0] ? formatDate(items[0].created_at) : '-'}
+            hint={`${items.filter((r) => new Date(r.created_at).toLocaleDateString('en-CA') === todayIso).length} today`} tint onClick={() => pickCard('week')} active={quick === 'week'} />
         </CellGrid>
       )}
       {/* The shortcut chips: All, then each group with its count. */}
       <div className="flex flex-wrap items-center gap-3">
       <div className="flex min-w-0 gap-3 overflow-x-auto pb-1 [scrollbar-width:none]" role="tablist" aria-label="Shortcuts">
-        {[{ id: '', name: 'All', ids: items.map((r) => r.id) }, ...shortcuts].map((s) => {
-          const on = (view ?? '') === s.id
-          const n = s.id ? s.ids.filter((x) => items.some((r) => r.id === x)).length : items.length
+        {/* Shortcuts as full-name chips with their count (owner, 2026-11-21: the
+            names were cut to a few letters). "All" is the Responses card now. */}
+        {/* All = the responses not moved into any shortcut (owner, 2026-11-21). */}
+        <button type="button" role="tab" aria-selected={!view && !quick} onClick={() => pickCard('')}
+          className={cn('flex min-h-12 shrink-0 items-center gap-2.5 rounded-xl border-2 px-3.5 py-2 text-left transition-colors',
+            !view && !quick ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/30 bg-primary/5 text-foreground hover:border-primary/60')}>
+          <Inbox className={cn('size-5 shrink-0', !view && !quick ? '' : 'text-primary')} aria-hidden />
+          <span className="whitespace-nowrap text-[14px] font-semibold">All</span>
+          <span className={cn('rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums', !view && !quick ? 'bg-primary-foreground/20' : 'bg-primary/10 text-primary')}>{items.filter((x) => !sorted.has(x.id)).length}</span>
+        </button>
+        {shortcuts.map((s) => {
+          const on = view === s.id
+          const n = s.ids.filter((x) => items.some((r) => r.id === x)).length
           return (
-            <button key={s.id || 'all'} type="button" role="tab" aria-selected={on} onClick={() => { setView(s.id || null); setPicked(new Set()) }}
-              className="flex w-[72px] shrink-0 flex-col items-center gap-1 text-center">
-              <span className={cn('grid size-14 place-items-center rounded-full border-2 text-[18px] font-bold transition-colors',
-                on ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/40 bg-primary/10 text-primary')}>
-                {s.id ? s.name.trim().slice(0, 1).toUpperCase() : n}
+            <button key={s.id} type="button" role="tab" aria-selected={on} onClick={() => { setQuick(''); setView(on ? null : s.id); setPicked(new Set()) }}
+              className={cn('flex min-h-12 shrink-0 items-center gap-2.5 rounded-xl border-2 px-3.5 py-2 text-left transition-colors',
+                on ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/30 bg-primary/5 text-foreground hover:border-primary/60')}>
+              <FolderOpen className={cn('size-5 shrink-0', on ? '' : 'text-primary')} aria-hidden />
+              <span className="whitespace-nowrap text-[14px] font-semibold">{s.name}</span>
+              <span className={cn('rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums', on ? 'bg-primary-foreground/20' : 'bg-primary/10 text-primary')}>{n}</span>
+              <span role="button" tabIndex={0} aria-label={`Rename or delete ${s.name}`}
+                onClick={(e) => { e.stopPropagation(); setEditName(s.name); setEditing(s) }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setEditName(s.name); setEditing(s) } }}
+                className={cn('-mr-1 grid size-8 place-items-center rounded-lg', on ? 'hover:bg-primary-foreground/20' : 'text-muted-foreground hover:bg-primary/10 hover:text-primary')}>
+                <Pencil className="size-4" aria-hidden />
               </span>
-              <span className={cn('w-full truncate text-[12px]', on ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{s.name}{s.id ? ` · ${n}` : ''}</span>
             </button>
           )
         })}
-        <button type="button" onClick={() => setNaming(true)} aria-label="Add a shortcut" className="flex w-[72px] shrink-0 flex-col items-center gap-1 text-center">
-          <span className="grid size-14 place-items-center rounded-full border-2 border-dashed border-primary/50 text-primary"><Plus className="size-6" aria-hidden /></span>
-          <span className="w-full truncate text-[12px] text-muted-foreground">New</span>
+        <button type="button" onClick={() => setNaming(true)} aria-label="Add a shortcut"
+          className="flex min-h-12 shrink-0 items-center gap-2 rounded-xl border-2 border-dashed border-primary/50 px-3.5 py-2 text-[14px] font-medium text-primary hover:bg-primary/5">
+          <Plus className="size-5" aria-hidden />New shortcut
         </button>
       </div>
       {/* Ticked rows: actions sit in the free space beside the chips (owner, 2026-11-17). */}
@@ -517,12 +573,17 @@ function Responses({ form }: { form: Form }) {
           <Button pending={saveShortcuts.isPending} disabled={!newName.trim()} onClick={createShortcut}>Create</Button>
         </div>
       )}
-      {view && picked.size === 0 && (
-        <div className="flex justify-end">
-          <ConfirmButton tone="danger" confirmLabel="Delete" question="Delete this shortcut? The applications stay." onConfirm={() => deleteShortcut(view)}>
-            <Trash2 className="size-4" aria-hidden />Delete shortcut
-          </ConfirmButton>
-        </div>
+      {/* Pencil on a shortcut: rename it or delete it (owner, 2026-11-21). */}
+      {editing && (
+        <Dialog open size="sm" onClose={() => setEditing(null)} title="Edit shortcut"
+          footer={<>
+            <ConfirmButton tone="danger" confirmLabel="Delete" question={`Delete ${editing.name}? The applications go back to All.`}
+              onConfirm={() => { deleteShortcut(editing.id); setEditing(null) }}><Trash2 className="size-4" aria-hidden />Delete</ConfirmButton>
+            <Button pending={saveShortcuts.isPending} disabled={!editName.trim()}
+              onClick={() => saveShortcuts.mutate(shortcuts.map((x) => (x.id === editing.id ? { ...x, name: editName.trim() } : x)), { onSuccess: () => setEditing(null) })}>Save</Button>
+          </>}>
+          <Input value={editName} onChange={setEditName} placeholder="Shortcut name" autoFocus />
+        </Dialog>
       )}
       <FormNotice error={saveShortcuts.error ?? sq.error} />
       {scored ? (
@@ -558,7 +619,7 @@ function Responses({ form }: { form: Form }) {
         </>
       ) : (
       <Table head={['', 'Received', ...shownCols.map((c) => c.label), 'Files', '']}>
-        {items.filter((r) => !view || (shortcuts.find((s) => s.id === view)?.ids ?? []).includes(r.id)).map((r) => (
+        {shown.map((r) => (
           <tr key={r.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setOpenId(r.id)}>
             <Td className="w-10" ><span onClick={(e) => e.stopPropagation()}><Checkbox label="" srLabel="Select this application" checked={picked.has(r.id)} onChange={() => togglePick(r.id)} /></span></Td>
             <Td className="whitespace-nowrap tabular-nums">{when(r.created_at)}{!r.is_read && <Badge tone="primary" className="ml-2">New</Badge>}</Td>
@@ -668,7 +729,42 @@ const show = (r: Resp, k: string) => {
   /* An unanswered multi-value field arrives as the empty array's text, "[]"
      (or "{}"/"null"): show nothing rather than the brackets. */
   const s = String(v).trim()
-  return s === '[]' || s === '{}' || s === 'null' ? '' : s
+  if (s === '[]' || s === '{}' || s === 'null') return ''
+  /* The new careers page sends lists (jobs, academics, languages, children ...)
+     as JSON text; shown raw it was brackets and quotes (owner, 2026-11-21).
+     Each entry becomes one readable line. */
+  if (s.startsWith('[') || s.startsWith('{')) {
+    try {
+      const parsed: unknown = JSON.parse(s)
+      const list = (Array.isArray(parsed) ? parsed : [parsed]).filter((x) => x != null)
+      return list.map((x) => entryLine(k, x)).filter(Boolean).join('\n')
+    } catch { /* not JSON: shown as typed */ }
+  }
+  return s
+}
+const fieldOf = (o: Record<string, unknown>, k: string) => (o[k] == null ? '' : String(o[k]).trim())
+function entryLine(key: string, x: unknown): string {
+  if (typeof x !== 'object') return String(x)
+  const o = x as Record<string, unknown>
+  const join = (...p: string[]) => p.filter(Boolean).join(', ')
+  if (key === 'jobs' || 'organisation' in o) {
+    const span = [fieldOf(o, 'from'), o.current ? 'present' : fieldOf(o, 'to')].filter(Boolean).join(' to ')
+    const pay = fieldOf(o, 'grossSalary') || fieldOf(o, 'salary')
+    const why = fieldOf(o, 'reason')
+    return join(span, fieldOf(o, 'position'), fieldOf(o, 'organisation'), pay ? `Rs ${pay}` : '') + (why ? ` (left: ${why})` : '')
+  }
+  if (key === 'academics' || 'exam' in o) {
+    const pct = fieldOf(o, 'percent')
+    return join(fieldOf(o, 'exam'), fieldOf(o, 'institution'), fieldOf(o, 'year'), fieldOf(o, 'subjects'), fieldOf(o, 'division'), pct ? `${pct}%` : '')
+  }
+  if (key === 'languages' || ('read' in o && 'write' in o)) {
+    const can = ['read', 'write', 'speak', 'understand'].filter((c) => o[c] === true || o[c] === 'true')
+    return `${fieldOf(o, 'name')}${can.length ? ` (${can.join(', ')})` : ''}`
+  }
+  return Object.entries(o)
+    .filter(([, v]) => v !== '' && v != null && v !== false && v !== 'false')
+    .map(([k2, v]) => (v === true || v === 'true' ? k2 : `${k2}: ${String(v)}`))
+    .join(', ')
 }
 /* The careers page's own names for this form's questions (old row labels, then its field names). */
 const ALIASES: Record<string, string[]> = {
@@ -819,4 +915,13 @@ function sentAt(r: Resp): string {
   if (!m || !mo) return r.created_at
   const d = new Date(`${m[3]}-${mo}-${m[1].padStart(2, '0')}T${(m[4] ?? '00').padStart(2, '0')}:${m[5] ?? '00'}:00+05:30`)
   return Number.isNaN(d.getTime()) ? r.created_at : d.toISOString()
+}
+
+/* A question the form does not know by name shows a readable label, not the
+   website's field name (owner, 2026-11-21: "sameAddress", "place"). */
+const KEY_LABELS: Record<string, string> = { sameAddress: 'Same as current address', place: 'Place' }
+function niceKey(k: string): string {
+  if (KEY_LABELS[k]) return KEY_LABELS[k]
+  const words = k.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').trim().toLowerCase()
+  return words ? words[0].toUpperCase() + words.slice(1) : k
 }

@@ -1520,7 +1520,7 @@ export function Table({
             the pager when there is paging to do, and with the export alone when
             there is not. */}
         {rows.length > 0 && (
-          <div data-table-foot="" className="flex items-center justify-between gap-4 border-t px-[var(--card-pad)] py-2.5">
+          <div data-table-foot="" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-[var(--card-pad)] py-2.5">
             {/* Where you are, in the rows' own terms. "Page 3 of 9" needs
                 arithmetic before it answers "have I passed the Ks yet"; the row
                 numbers answer it directly.
@@ -1529,12 +1529,12 @@ export function Table({
                 denominator that climbs while you read is a worse answer than
                 none, so where the server has not counted this says "120+". */}
             {paging ? (
-              <p className="text-[12.5px] tabular-nums text-muted-foreground">
+              <p className="whitespace-nowrap text-[12.5px] tabular-nums text-muted-foreground">
                 {start + 1}–{Math.min(start + size, rows.length)} of{' '}
                 {total != null ? total : canGrow ? `${rows.length}+` : rows.length}
               </p>
             ) : (
-              <p className="text-[12.5px] tabular-nums text-muted-foreground">
+              <p className="whitespace-nowrap text-[12.5px] tabular-nums text-muted-foreground">
                 {rows.length} {rows.length === 1 ? 'row' : 'rows'}
               </p>
             )}

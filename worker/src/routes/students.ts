@@ -710,7 +710,7 @@ async function admissionFeePreview(c: Ctx) {
 
 /* WHAT EACH HEAD GOT.
 
-   Since 0135 a payment is written against the fee lines it paid, and those
+   Since 0136 a payment is written against the fee lines it paid, and those
    figures are used as they are. For a bill with no line rows, a payment
    landed on the invoice; this works out how much of it each head on
    that invoice got. Every line takes its whole-paise share, and the paise
@@ -735,7 +735,7 @@ export function assembleFeeHeads(lines: Record<string, unknown>[], allocs: Recor
     list.push({ head: String(r.head), year: String(r.year ?? ''), line: Number(r.line_paise) || 0, got: 0 })
     byInvoice.set(inv, list)
   }
-  /* Since 0135 a payment lands on the fee line it paid: where the bill has
+  /* Since 0136 a payment lands on the fee line it paid: where the bill has
      line allocations, each head takes exactly what was put on it. The share
      below is only for a bill that has none. */
   const exact = new Set(lines.filter((r) => Number(r.inv_rows) > 0).map((r) => String(r.invoice_id)))

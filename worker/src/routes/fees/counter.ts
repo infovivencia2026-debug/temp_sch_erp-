@@ -67,7 +67,7 @@ export async function allocate(c: Ctx, studentId: string, paymentId: string, amo
 export interface LinePick { invoice_line_id: string; amount_paise: number }
 
 /**
- * Explicit fee-line allocation (0135): the counter ticked these fee lines and
+ * Explicit fee-line allocation (0136): the counter ticked these fee lines and
  * typed what goes on each. One payment_allocations row per invoice (the sum
  * of its picked lines) plus one payment_line_allocations row per line, then
  * the invoice sync. Every line must be the student's, on a bill still open,
@@ -516,7 +516,7 @@ export function registerCounter(r: Router): void {
       const f = await c.db.prepare(`SELECT size_bytes FROM files WHERE id = ?`).bind(attachment).first<{ size_bytes: number | null }>()
       if ((f?.size_bytes ?? 0) > 2 * 1024 * 1024) throw badRequest('the attached file must be 2 MB or smaller')
     }
-    /* A receipt for a payment the family reported (0136): still pending, theirs, and only once. */
+    /* A receipt for a payment the family reported (0137): still pending, theirs, and only once. */
     let offlineId: string | null = null
     if (req.offline_id !== undefined) {
       if (!isUUID(req.offline_id)) throw badRequest('offline_id must be a uuid')
@@ -576,7 +576,7 @@ export function registerCounter(r: Router): void {
         FROM payments p JOIN students st ON st.id = p.student_id JOIN institutions i ON i.id = p.institution_id
         LEFT JOIN users u ON u.id = p.collected_by WHERE p.id = ?`).bind(paymentId).first<Record<string, unknown>>()
     if (!row) throw notFound()
-    /* Each fee and instalment the receipt paid (0135 line rows); a payment
+    /* Each fee and instalment the receipt paid (0136 line rows); a payment
        with none (pending cheque) falls back to its bills. */
     let lines = await c.db.prepare(`
       SELECT i.invoice_no, sum(x.amount_paise) AS amount_paise,

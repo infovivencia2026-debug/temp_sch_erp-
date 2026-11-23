@@ -478,6 +478,16 @@ var Groups = []Group{
 		ScopeNote: "The whole school.",
 	},
 	// feature:communication.yajur_connect end
+	// feature:communication.website_forms begin
+	{
+		Key: "communication_website_forms", Name: "Website forms", Band: BandOptional,
+		Blurb:     "Forms for the school website: create, change, open or close them, and read the responses.",
+		View:      []string{},
+		Manage:    []string{CommsWebFormsWrite},
+		Scopes:    fixed("institution"),
+		ScopeNote: "The whole school.",
+	},
+	// feature:communication.website_forms end
 }
 
 // GroupByKey looks a group up by key.

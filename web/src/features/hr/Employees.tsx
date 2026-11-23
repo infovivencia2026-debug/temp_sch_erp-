@@ -623,9 +623,11 @@ export default function Employees() {
                 <tr key={e.id}>
                   <Td className="font-mono text-[12px]">{e.employee_code}</Td>
                   <Td className="font-medium">
-                    <span className="flex items-center gap-2.5">
+                    <span className="flex min-w-0 items-center gap-2.5">
                       <StaffPhoto e={e} editable={can('hr.employees.write')} />
-                      <span>{e.full_name}</span>
+                      {/* Cap and ellipsis the name on a phone so one long staff
+                          name does not push the whole table past the card. */}
+                      <span className="truncate max-w-[42vw] md:max-w-none">{e.full_name}</span>
                     </span>
                   </Td>
                   <Td className="text-muted-foreground">{e.designation ?? '-'}</Td>

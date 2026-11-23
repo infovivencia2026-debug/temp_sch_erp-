@@ -343,25 +343,14 @@ export default function Logins() {
         eyebrow="Staff"
         title="Logins & access"
         description="Every account that can sign in to this school, what it can reach, and the devices it is signed in on right now."
-        actions={
-          /* THIS ONE BUILDS AN ACCOUNT FROM NOTHING: a name, a contact, a set of
-             roles. That is how an office account or a one-off is made, and it
-             is the wrong instrument for a child or a parent -- both of those
-             already exist as a record with a name and a number, and their login
-             is issued FROM that record so the two stay joined. Offering it on
-             the Students and Parents tabs invited somebody to type a child's
-             name in by hand and create a second, unlinked account for a child
-             the school already has. */
-          record === '' || record === 'staff' ? (
-            <Button onClick={() => { setEditing(null); setDevicesFor(null); setCreating((c) => !c) }}>
-              {creating ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
-              {creating ? 'Cancel' : 'Issue a login'}
-            </Button>
-          ) : undefined
-        }
       />
       <PageBody>
-        <div role="tablist" aria-label="Whose logins" className="flex max-w-full gap-1 overflow-x-auto rounded-full bg-[hsl(var(--muted))] p-1 [scrollbar-width:none] sm:w-fit">
+        {/* The tabs and "Issue a login" share one row: the pills scroll on the
+           left, the button stays pinned to the right. (Yajur, 2026-11-21.) The
+           button only makes sense on Everyone/Staff -- a child or parent login
+           is issued from their record, not typed in here. */}
+        <div className="flex items-center gap-3">
+        <div role="tablist" aria-label="Whose logins" className="flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-full bg-[hsl(var(--muted))] p-1 [scrollbar-width:none] sm:flex-initial">
           {([
             ['', 'Everyone'],
             ['staff', 'Staff'],
@@ -391,6 +380,13 @@ export default function Logins() {
               </button>
             )
           })}
+        </div>
+          {(record === '' || record === 'staff') && (
+            <Button className="shrink-0" onClick={() => { setEditing(null); setDevicesFor(null); setCreating((c) => !c) }}>
+              {creating ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+              {creating ? 'Cancel' : 'Issue a login'}
+            </Button>
+          )}
         </div>
 
         {/* THE WORK FIRST, THE NUMBERS AFTER.

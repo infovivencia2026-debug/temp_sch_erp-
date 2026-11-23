@@ -206,6 +206,7 @@ async function findOverdueInvoices(db: D1Database): Promise<MessageSubject[]> {
       trim(COALESCE(st.first_name,'') || ' ' || COALESCE(st.last_name,'')) AS name
     FROM invoices inv JOIN students st ON st.id = inv.student_id
    WHERE inv.status <> 'cancelled' AND inv.due_on IS NOT NULL AND substr(inv.due_on,1,10) < ? AND ${NET} > inv.paid_paise
+     AND st.status IN ('active','suspended') -- no reminders for a child who has left (owner, 2026-11-21)
    ORDER BY inv.due_on LIMIT 2000`).bind(today).all<Row>()
   return rows.results.map((v) => {
     const due = String(v.due_on), paise = Number(v.due_paise)

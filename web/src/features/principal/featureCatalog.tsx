@@ -55,21 +55,144 @@ function entries(items: FeatureItem[]): Entry[] {
 
 type Status = 'all' | 'active' | 'role' | 'direct' | 'none'
 
-/* SCREENS THAT CARRY AN EDIT ACTION (Yajur, 2026-11-20: "like student360
-   action... is that action only viewable or editable, and the institution
-   admin can change that"). A screen on its own is View. The action beside it
-   is the one permission that turns the page's buttons on -- Student 360's Edit
-   is students.write. Keyed by the screen's slug, so every workspace's copy of
-   Student 360 is covered by the one entry. Add a row here to give another
-   screen a View/Edit switch. */
-const EDIT_ACTIONS: Record<string, { editKey: string; label: string }> = {
-  /* The "record" screens: they show a person's whole file and carry an edit
-     button. View = read the file; Edit = change it. Keyed by slug so every
-     workspace's copy is covered. */
-  student_360: { editKey: 'students.write', label: 'Student records' },
-  staff_360: { editKey: 'hr.employees.write', label: 'Staff records' },
-  staff_overview: { editKey: 'hr.employees.write', label: 'Staff records' },
-  staff_records: { editKey: 'hr.employees.write', label: 'Staff records' },
+/* VIEW vs EDIT FOR EVERY SCREEN THAT HAS AN EDIT (Yajur, 2026-11-21: "all who
+   has view options there should also be edit too, and can choose that while
+   giving in Login & access"). A screen on its own is View. The "edit action"
+   is the single permission key that turns that page's buttons on — e.g. Student
+   360's Edit is students.write, Take fee payment's is finance.payments.write.
+
+   A feature key reads role.section.slug, so the SECTION (middle) tells us the
+   domain, and the table below maps each editable section to the exact write
+   key the screens actually check (these are the real, domain-prefixed keys,
+   confirmed against the code — not guessed). A section that is missing here is
+   read-only (reports, dashboards, home) and gets no Edit switch. Granting Edit
+   never happens on its own: the admin chooses it per login, and nobody who
+   already holds a permission is touched. */
+const WRITE_BY_SECTION: Record<string, { editKey: string; label: string }> = {
+  students: { editKey: 'students.write', label: 'Student records' },
+  academics: { editKey: 'academics.write', label: 'Academics' },
+  staff: { editKey: 'hr.employees.write', label: 'Staff records' },
+  employees: { editKey: 'hr.employees.write', label: 'Staff records' },
+  attendance: { editKey: 'academics.attendance.write', label: 'Attendance' },
+  /* The `communication` section is a grab-bag: circulars, grievances, Connect
+     and plain mail each gate on a DIFFERENT permission, so it is NOT mapped by
+     section — every communication screen's edit key is pinned by slug in
+     WRITE_BY_SLUG below, and a slug that isn't listed there gets no Edit switch
+     rather than a wrong one. */
+  fees: { editKey: 'finance.fees.write', label: 'Fees' },
+  payments: { editKey: 'finance.payments.write', label: 'Payments' },
+  invoices: { editKey: 'finance.invoices.write', label: 'Invoices' },
+  refunds: { editKey: 'finance.refunds.write', label: 'Refunds' },
+  wallet: { editKey: 'finance.wallet.manage', label: 'Wallet' },
+  announcements: { editKey: 'comms.announcements.write', label: 'Announcements' },
+  connect: { editKey: 'comms.connect.write', label: 'Connect' },
+  homework: { editKey: 'academics.homework.write', label: 'Homework' },
+  marks: { editKey: 'academics.marks.write', label: 'Marks' },
+  marks_report_cards: { editKey: 'academics.marks.write', label: 'Marks' },
+  reportcards: { editKey: 'academics.marks.write', label: 'Marks' },
+  exams_results: { editKey: 'academics.marks.write', label: 'Marks' },
+  exams: { editKey: 'academics.exams.write', label: 'Exams' },
+  examinations: { editKey: 'academics.exams.write', label: 'Exams' },
+  board_exams: { editKey: 'academics.exams.write', label: 'Exams' },
+  assessment_schemes: { editKey: 'academics.exams.write', label: 'Exams' },
+  timetable: { editKey: 'academics.timetable.write', label: 'Timetable' },
+  discipline: { editKey: 'welfare.discipline.write', label: 'Discipline' },
+  health: { editKey: 'welfare.health.write', label: 'Health' },
+  clinic: { editKey: 'welfare.health.write', label: 'Health' },
+  library: { editKey: 'operations.library.write', label: 'Library' },
+  transport: { editKey: 'operations.transport.write', label: 'Transport' },
+  hostel: { editKey: 'operations.hostel.write', label: 'Hostel' },
+  inventory: { editKey: 'operations.inventory.write', label: 'Inventory' },
+  stores: { editKey: 'operations.inventory.write', label: 'Inventory' },
+  store: { editKey: 'operations.inventory.write', label: 'Inventory' },
+  assets: { editKey: 'operations.assets.write', label: 'Assets' },
+  admissions: { editKey: 'admissions.write', label: 'Admissions' },
+  enquiries: { editKey: 'admissions.write', label: 'Admissions' },
+  applications: { editKey: 'admissions.write', label: 'Admissions' },
+  payroll: { editKey: 'hr.payroll.write', label: 'Payroll' },
+  front_desk: { editKey: 'office.front_desk.write', label: 'Front desk' },
+  desk: { editKey: 'office.front_desk.write', label: 'Front desk' },
+  roles: { editKey: 'access.roles.write', label: 'Roles' },
+  access: { editKey: 'access.users.write', label: 'Logins' },
+  access_security: { editKey: 'access.users.write', label: 'Logins' },
+  settings: { editKey: 'institution.settings.write', label: 'Settings' },
+  institution_setup: { editKey: 'institution.settings.write', label: 'Settings' },
+  integrations: { editKey: 'institution.integrations.write', label: 'Integrations' },
+  campuses: { editKey: 'institution.campuses.write', label: 'Campuses' },
+  campuses_academic_year: { editKey: 'institution.campuses.write', label: 'Campuses' },
+  plans: { editKey: 'platform.plans.write', label: 'Plans' },
+  tenants: { editKey: 'platform.tenants.write', label: 'Schools' },
+  my_profile: { editKey: 'self.profile.write', label: 'Own profile' },
+  profile: { editKey: 'self.profile.write', label: 'Own profile' },
+}
+
+/* A few screens sit in a broad section but gate on their OWN permission, so the
+   slug is checked before the section. Website forms lives under `communication`
+   but needs comms.website_forms.write — without this it would wrongly offer the
+   Messages (comms.mail.write) key and the screen would stay shut. (Yajur,
+   2026-11-21: a receptionist granted "Edit" on Website forms could open
+   nothing.) Add a row here whenever a screen's edit key differs from its
+   section's. */
+const WRITE_BY_SLUG: Record<string, { editKey: string; label: string }> = {
+  website_forms: { editKey: 'comms.website_forms.write', label: 'Edit forms' },
+  /* Communication screens, each pinned to the permission its own route checks
+     (confirmed in worker/src/routes/comms). Circulars and the achievements
+     showcase are announcements; grievances and parent concerns are the front
+     desk; Yajur Connect is its own; the address book is mail.manage. Plain
+     mail/inbox screens are self-service and carry no admin Edit. */
+  circulars: { editKey: 'comms.announcements.write', label: 'Circulars' },
+  circulars_from_school: { editKey: 'comms.announcements.write', label: 'Circulars' },
+  /* The showcase is a students-domain screen: its entries read students.read
+     and edit students.write (only publish/unpublish uses announcements.write),
+     so Edit here is students.write. The person also needs Student records view
+     to open the list, since write does not imply read. */
+  school_achievements_showcase: { editKey: 'students.write', label: 'Student records' },
+  grievances: { editKey: 'office.front_desk.write', label: 'Grievances' },
+  concerns: { editKey: 'office.front_desk.write', label: 'Concerns' },
+  concerns_from_parents: { editKey: 'office.front_desk.write', label: 'Concerns' },
+  parent_concerns: { editKey: 'office.front_desk.write', label: 'Concerns' },
+  yajur_connect: { editKey: 'comms.connect.write', label: 'Connect' },
+  mail_addresses: { editKey: 'comms.mail.manage', label: 'Address book' },
+  /* STAFF-WORKSPACE ADMIN SCREENS. They sit under the `staff` section but are
+     NOT employee-record edits, so hr.employees.write is the wrong key — each
+     gates on its own permission (audited against worker/src/routes, 2026-11-21). */
+  logins_access: { editKey: 'access.users.write', label: 'Logins' },
+  roles_permissions: { editKey: 'access.roles.write', label: 'Roles' },
+  privacy: { editKey: 'access.users.write', label: 'Privacy' },
+  branding: { editKey: 'institution.settings.write', label: 'Branding' },
+  leaves_subs: { editKey: 'hr.leave.approve', label: 'Leave approvals' },
+  /* FEES GRAB-BAG. Taking a payment, topping up a wallet and correcting a
+     receipt are NOT finance.fees.write — they are their own powers. */
+  take_fee_payment: { editKey: 'finance.payments.write', label: 'Take payment' },
+  fee_corrections: { editKey: 'finance.payments.write', label: 'Corrections' },
+  student_wallets: { editKey: 'finance.wallet.manage', label: 'Wallet' },
+  period_close: { editKey: 'institution.settings.write', label: 'Period close' },
+  /* Report cards are generated/published, not marks-entered. */
+  report_cards: { editKey: 'academics.reportcards.generate', label: 'Report cards' },
+}
+
+/* Screens that are read-only, or whose edit power we have not verified: they get
+   NO Edit switch at all, rather than a wrong one. The interaction log is an
+   audit view (admin.audit.read, no write); teacher remarks' write key is
+   ambiguous between marks and conduct, so it is left off until confirmed. */
+const NO_EDIT_SLUGS = new Set(['interaction_log', 'teacher_remarks'])
+
+/* The edit action for a feature: its own slug wins, else its section. The key
+   is role.section.slug. `attendance` is the one section serving two screens —
+   the class register (academics) and the staff register (HR) — so a staff/HR
+   workspace swaps in the HR write key. */
+function editActionFor(key: string, workspace: string): { editKey: string; label: string } | undefined {
+  const parts = key.split('.')
+  const slug = parts[parts.length - 1] ?? ''
+  if (NO_EDIT_SLUGS.has(slug)) return undefined
+  const bySlug = WRITE_BY_SLUG[slug]
+  if (bySlug) return bySlug
+  const section = parts[1] ?? ''
+  const a = WRITE_BY_SECTION[section]
+  if (!a) return undefined
+  if (section === 'attendance' && /staff|hr|employee|payroll/i.test(workspace))
+    return { editKey: 'hr.attendance.write', label: 'Staff attendance' }
+  return a
 }
 
 /* Every built feature as one flat list, each with a switch: on means the
@@ -149,8 +272,7 @@ export function FeatureAccess({ items, roleGrants, direct, busy, onChange, heade
               /* The edit action for this screen, when it has one and the person
                  can actually open the screen (an Edit switch on a screen they
                  cannot reach would grant a power with nowhere to use it). */
-              const slug = e.id.split('.').pop() ?? ''
-              const action = s !== 'none' ? EDIT_ACTIONS[slug] : undefined
+              const action = s !== 'none' ? editActionFor(e.keys[0] ?? e.id, e.workspace) : undefined
               const editFromRole = action ? (roleGrants.get(action.editKey) ?? []) : []
               const editOn = action ? (editFromRole.length > 0 || direct.has(action.editKey)) : false
               const editLocked = editFromRole.length > 0

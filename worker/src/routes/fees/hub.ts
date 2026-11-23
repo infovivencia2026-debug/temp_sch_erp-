@@ -14,7 +14,7 @@ import { school } from '../school'
 
    One read for everything the counter shows about a child: each fee line
    with its instalment and what was paid on it (from payment_line_allocations,
-   0135), every receipt with exactly the lines it paid, the requests waiting
+   0136), every receipt with exactly the lines it paid, the requests waiting
    for approval and the log. And the writes the counter's side menu makes:
    assign a fee type from a plan, a one-off fee, a due date for this child,
    and requests (cancel, change, remove fee, edit amount, transfer, class
@@ -575,7 +575,7 @@ export function registerFeeHub(r: Router): void {
     return ok({ year_id: yearId, years, plans: plans.map((pl) => ({ ...pl, items: items.filter((i) => i.fee_structure_id === pl.id) })) })
   })
 
-  // ------------------------------------------------------------ offline payments the family reported (0136)
+  // ------------------------------------------------------------ offline payments the family reported (0137)
   r.get('/fees/hub/offline', READ, async (c) => {
     const q = c.url.searchParams
     const student = q.get('student_id') ?? ''
