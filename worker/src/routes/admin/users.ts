@@ -308,6 +308,11 @@ const FEATURE_UNLOCKS: Record<string, string[]> = {
   student_wallets: ['finance.wallet.read'],
   branding: ['institution.read'],
   period_close: ['institution.read'],
+  /* The achievements showcase is a students-domain screen: its list reads
+     students.read while its Edit grants students.write, and write does not imply
+     read, so granting the feature unlocks the read too — then Edit alone opens
+     AND edits it (Yajur, 2026-11-23). */
+  school_achievements_showcase: ['students.read'],
 }
 const featureSlug = (key: string) => key.slice(key.lastIndexOf('.') + 1)
 
