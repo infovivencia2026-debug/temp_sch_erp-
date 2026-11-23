@@ -63,6 +63,45 @@ function Wording({ text, className }: { text: string; className?: string }) {
   return <p className={cn('whitespace-pre-wrap break-words', className)}>{parts}</p>
 }
 
+/* CHECK BEFORE SENDING (owner, 2026-11-23: "we want preview before sending").
+   Pressing Send opens this: the message as the parent's WhatsApp shows it,
+   who gets it, when, and what is left out. Nothing goes until "Send now". */
+function CheckBeforeSending({ onClose, onSend, pending, text, sampleTo, count, audience, when, template, leftOut, image, action }: {
+  onClose: () => void; onSend: () => void; pending: boolean; text: string; sampleTo?: string; count: number; audience: string
+  when: string; template: string; leftOut?: string; image?: string; action: string
+}) {
+  const school = useContext(SchoolName)
+  return (
+    <Dialog open size="lg" onClose={onClose} title="Check before sending"
+      footer={<>
+        <Button variant="secondary" onClick={onClose}>Edit</Button>
+        <Button pending={pending} onClick={onSend}>{action}</Button>
+      </>}>
+      <div className="grid gap-5 md:grid-cols-2">
+        <div>
+          <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">What they will see</div>
+          <div className="rounded-2xl bg-[#e5ddd5] p-4 dark:bg-[#0b141a]">
+            <div className="mb-1.5 text-[12px] font-bold text-[#075e54] dark:text-[#25d366]">{school || 'School'}</div>
+            <div className="max-w-full rounded-[10px] rounded-bl-[2px] bg-white p-3 text-[14px] text-[#111] shadow-sm dark:bg-[#202c33] dark:text-[#e9edef]">
+              {image && <img src={image} alt="" className="mb-2 max-h-40 w-full rounded-md object-cover" />}
+              <Wording text={text} />
+            </div>
+          </div>
+          {sampleTo && <p className="mt-1.5 text-[12.5px] text-muted-foreground">Shown as {sampleTo} gets it. Each person sees their own name and child.</p>}
+        </div>
+        <div className="space-y-3 text-[14px]">
+          <div><div className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Goes to</div>
+            <div className="text-[26px] font-extrabold tabular-nums">{count} {count === 1 ? 'person' : 'people'}</div>
+            <div className="text-muted-foreground">{audience}</div></div>
+          <div><div className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">When</div><div className="font-semibold">{when}</div></div>
+          <div><div className="text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Template</div><div className="font-semibold">{template}</div></div>
+          {leftOut && <p className="rounded-lg bg-warning/15 p-2.5 text-[13px] text-warning">{leftOut}</p>}
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
 /** Template, its fields and the optional header picture: shared by one-parent and broadcast sends. */
 function Compose({ templates, code, setCode, values, setValues, image, setImage }: {
   templates: ConnectSendTemplate[]; code: string; setCode: (v: string) => void; values: Record<string, string>; setValues: (v: Record<string, string>) => void
@@ -143,6 +182,7 @@ function OneParent({ templates, onOpenChat, initialCode = '' }: { templates: Con
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['connect', 'list'] }) },
   })
   const preview = t && who ? fill(t, values, { parent_name: who.guardian_name, student_name: who.student_name ?? '', class: who.class_section ?? '' }) : ''
+  const [checking, setChecking] = useState(false)
 
   return (
     <Card>
@@ -186,7 +226,14 @@ function OneParent({ templates, onOpenChat, initialCode = '' }: { templates: Con
         {send.data ? (
           <Button variant="secondary" onClick={() => onOpenChat(send.data!.conversation_id)}>Open chat</Button>
         ) : who && (
-          <Button disabled={missing(t, values)} pending={send.isPending} onClick={() => send.mutate()}>Send</Button>
+          <Button disabled={missing(t, values)} pending={send.isPending} onClick={() => setChecking(true)}>Send</Button>
+        )}
+        {checking && who && t && (
+          <CheckBeforeSending onClose={() => setChecking(false)} pending={send.isPending} action="Send now"
+            onSend={() => send.mutate(undefined, { onSettled: () => setChecking(false) })}
+            text={preview} count={1} audience={`${who.guardian_name} (${who.relation}) · ${who.phone}${who.student_name ? ` · ${who.student_name}` : ''}`}
+            when="Now" template={t.name ?? t.code} image={image.trim() || undefined}
+            leftOut={who.opted_out ? 'This parent opted out of messages. It will be blocked.' : undefined} />
         )}
       </div>
     </Card>
@@ -276,6 +323,8 @@ function Broadcast({ templates, initialCode = '' }: { templates: ConnectSendTemp
       : cls.flatMap((c) => c.sections.map((s) => ({ id: s.id, label: `${c.name} ${s.name}` })))
   }, [opts.data, scope])
   const p = preview.data
+  const [checking, setChecking] = useState(false)
+  const whenLabel = later && runAt ? `${new Date(runAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}${repeat !== 'once' ? ` · ${REPEATS.find((x) => x.value === repeat)?.label ?? repeat}` : ''}` : 'Now'
 
   return (
     <Card>
@@ -283,6 +332,14 @@ function Broadcast({ templates, initialCode = '' }: { templates: ConnectSendTemp
         <div className="space-y-3">
           <Field label="Campaign name"><Input value={name} onChange={setName} placeholder="Sports day notice" /></Field>
           <Compose templates={templates} code={code} setCode={setCode} values={values} setValues={setValues} image={image} setImage={setImage} />
+          {/* The message as soon as a template is picked (owner, 2026-11-23), with sample names until the audience is chosen. */}
+          {t && (
+            <div>
+              <div className="mb-1 text-[13px] text-muted-foreground">Preview</div>
+              <Wording text={p?.sample || fill(t, values, staff ? { parent_name: 'Staff name', staff_name: 'Staff name', student_name: '', class: '' } : { parent_name: "Parent's name", student_name: "Student's name", class: 'Class' })}
+                className="rounded-xl border bg-[#e5ddd5]/40 p-3 text-[14px] dark:bg-muted/40" />
+            </div>
+          )}
         </div>
         <div className="space-y-3">
           <Field label="Send to">
@@ -321,7 +378,12 @@ function Broadcast({ templates, initialCode = '' }: { templates: ConnectSendTemp
             </div>
           )}
           <div className="rounded-md border p-3 text-[14px]">
-            {!ready ? <p className="text-muted-foreground">Fill the name, the template fields and the audience to see who gets it.</p>
+            {!ready ? <p className="text-muted-foreground">Still needed: {[
+                !body.name && 'type a campaign name',
+                !t && 'pick a template',
+                t && t.fields.filter((f) => !MERGE_FIELDS.includes(f) && !(values[f] ?? '').trim()).map((f) => `fill ${fieldLabel(f)}`).join(', '),
+                scope !== 'school' && scope !== 'staff' && ids.length === 0 && `tick at least one ${scope === 'classes' ? 'class' : scope === 'sections' ? 'section' : 'department'}`,
+              ].filter(Boolean).join(' · ')}.</p>
               : preview.isLoading || key !== json ? <Loading shape="inline" /> : preview.error ? <ErrorState error={preview.error} /> : p && (
                 <div className="space-y-2">
                   <p><strong className="tabular-nums">{p.count}</strong> {p.count === 1 ? 'recipient' : 'recipients'} · {p.audience_label}</p>
@@ -339,12 +401,19 @@ function Broadcast({ templates, initialCode = '' }: { templates: ConnectSendTemp
           </div>
           <FormNotice error={queue.error ?? schedule.error} ok={done || undefined} />
           {later ? (
-            <Button disabled={!ready || !runAt || !p?.count} pending={schedule.isPending} onClick={() => { setDone(''); schedule.mutate() }}>Schedule</Button>
+            <Button disabled={!ready || !runAt || !p?.count} pending={schedule.isPending} onClick={() => { setDone(''); setChecking(true) }}>Schedule</Button>
           ) : (
-            <ConfirmButton variant="primary" size="md" disabled={!ready || !p?.count} question={`Send this to ${p?.count ?? 0} ${p?.count === 1 ? 'recipient' : 'recipients'}?`}
-              confirmLabel="Send" onConfirm={() => { setDone(''); queue.mutate() }}>
-              {queue.isPending ? 'Sending' : `Send to ${p?.count ?? 0} ${staff ? 'staff' : p?.count === 1 ? 'parent' : 'parents'}`}
-            </ConfirmButton>
+            <Button disabled={!ready || !p?.count} pending={queue.isPending} onClick={() => { setDone(''); setChecking(true) }}>
+              {`Send to ${p?.count ?? 0} ${staff ? 'staff' : p?.count === 1 ? 'parent' : 'parents'}`}
+            </Button>
+          )}
+          {checking && p && t && (
+            <CheckBeforeSending onClose={() => setChecking(false)} pending={queue.isPending || schedule.isPending}
+              action={later ? 'Schedule it' : `Send now to ${p.count}`}
+              onSend={() => (later ? schedule : queue).mutate(undefined, { onSettled: () => setChecking(false) })}
+              text={p.sample || fill(t, values, TEST_WHO)} sampleTo={p.sample_to || undefined} count={p.count} audience={p.audience_label}
+              when={whenLabel} template={t.name ?? t.code} image={image.trim() || undefined}
+              leftOut={p.opted_out > 0 || p.no_phone > 0 ? `Left out: ${p.opted_out} opted out, ${p.no_phone} without a readable number.` : undefined} />
           )}
         </div>
       </div>

@@ -343,23 +343,24 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
      the top row beside the menu, then the greeting, the full name large, the
      staff ID with today's sign-in times, and search across the width. */
   if (phone) {
+    /* One row (owner, 2026-11-23): photo, then greeting, name and ID beside it,
+       icons on the right. The name wraps to a second line rather than "…". */
     return (
-      <div className="flex min-w-0 flex-1 flex-col gap-3.5">
-        <div className="flex items-center justify-between gap-2">
-          <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={40} />
-          {/* Search as an icon beside the bell (owner, 2026-10-27): it opens the palette across the top. */}
-          <div className="flex shrink-0 items-center gap-1"><AssistantHeaderButton /><CommandSearch /><Notifications /></div>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={44} />
+        <div className="min-w-0 flex-1">
+          {dashboard && <>
+            <p className="text-[12px] font-semibold text-muted-foreground">{greet}</p>
+            <p className="break-words text-[18px] font-extrabold leading-tight tracking-[-0.01em]">{fullName || first}</p>
+            {(d?.employee_code || times) && (
+              <p className="text-[12px] font-medium text-muted-foreground tabular-nums">
+                {d?.employee_code && <>ID: <span className="font-bold text-warning">{d.employee_code}</span></>}
+                {d?.employee_code && times && ' • '}{times}
+              </p>
+            )}
+          </>}
         </div>
-        {dashboard && <div className="min-w-0">
-          <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{greet}</p>
-          <p className="truncate text-[20px] font-extrabold leading-tight tracking-[-0.01em]">{fullName || first}</p>
-          {(d?.employee_code || times) && (
-            <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground tabular-nums">
-              {d?.employee_code && <>ID: <span className="font-bold text-warning">{d.employee_code}</span></>}
-              {d?.employee_code && times && ' • '}{times}
-            </p>
-          )}
-        </div>}
+        <div className="flex shrink-0 items-center gap-1"><AssistantHeaderButton /><CommandSearch /><Notifications /></div>
       </div>
     )
   }

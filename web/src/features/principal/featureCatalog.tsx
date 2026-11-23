@@ -269,10 +269,13 @@ export function FeatureAccess({ items, roleGrants, direct, busy, onChange, heade
             {shown.map((e) => {
               const s = stateOf(e)
               const roles = fromRoles(e)
-              /* The edit action for this screen, when it has one and the person
-                 can actually open the screen (an Edit switch on a screen they
-                 cannot reach would grant a power with nowhere to use it). */
-              const action = s !== 'none' ? editActionFor(e.keys[0] ?? e.id, e.workspace) : undefined
+              /* The edit action for this screen. Computed for every row (not
+                 only an active one) because granting a feature now grants Edit
+                 by default (Yajur, 2026-11-23: "as default all will be on
+                 edit"); `action` is the same thing, shown only once the feature
+                 is on so the View/Edit switch has a screen to apply to. */
+              const edit = editActionFor(e.keys[0] ?? e.id, e.workspace)
+              const action = s !== 'none' ? edit : undefined
               const editFromRole = action ? (roleGrants.get(action.editKey) ?? []) : []
               const editOn = action ? (editFromRole.length > 0 || direct.has(action.editKey)) : false
               const editLocked = editFromRole.length > 0
@@ -294,7 +297,12 @@ export function FeatureAccess({ items, roleGrants, direct, busy, onChange, heade
                       disabled={s === 'role' || busy}
                       label={e.name}
                       title={s === 'role' ? 'Given by a role. Change their roles to remove it.' : undefined}
-                      onChange={(on) => onChange(e.keys, on)}
+                      /* Turning a feature ON grants its edit power too (default
+                         Edit); turning it OFF removes only the feature, leaving
+                         the write key — which is shared across a domain — so it
+                         does not strip edit from another feature they still
+                         hold. The View/Edit switch below still drops it. */
+                      onChange={(on) => onChange(on && edit ? [...e.keys, edit.editKey] : e.keys, on)}
                     />
                   </div>
                   {/* View vs Edit for a screen that carries an action. View =
