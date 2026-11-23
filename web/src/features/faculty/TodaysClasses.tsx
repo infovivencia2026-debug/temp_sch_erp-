@@ -210,8 +210,7 @@ export default function TodaysClasses() {
 
   const now = new Date()
 
-  const hour = now.getHours()
-  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  /* No greeting anywhere in the ERP (owner, 2026-11-23: "no need of greetings like morning and afternoon for whole ERP"). */
   const fullName = session.user?.full_name ?? ''
   const first = fullName.split(/\s+/)[0]
   const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -233,7 +232,7 @@ export default function TodaysClasses() {
     <PageBody top width="full"><div className="flex flex-col gap-5">
       {!inShellHeader && <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-[24px] font-bold tracking-[-0.02em]">{greet}{first ? `, ${first}` : ''}</h1>
+          <h1 className="text-[24px] font-bold tracking-[-0.02em]">{fullName || first || 'Today'}</h1>
           <p className="text-[14px] text-muted-foreground">{dateLine}</p>
         </div>
         <div className="flex min-w-0 items-center gap-3">

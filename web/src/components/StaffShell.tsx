@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { AssistantHeaderButton } from './assistant/AssistantHeaderButton'
 import { LayoutSwitch } from './LayoutSwitch'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { COMBOS, MOVES, comboOf, regroupAdmin, regroupRole } from '@/components/StaffCombos'
 import { useQuery } from '@tanstack/react-query'
@@ -16,6 +16,7 @@ import { BentoSettings } from '@/features/bento/BentoSettings'
 import { HelpButton } from '@/features/help/HelpEntry'
 import { usePhone } from '@/lib/viewport'
 import { featurePath, useCatalogIfAny, type ApiSection } from '@/lib/catalog'
+import { CONNECT_MENU, CONNECT_SLUG } from '@/features/comms/connect-menu'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -221,7 +222,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
     .sort((a, b) => (rank(a.section.slug) - rank(b.section.slug)) || a.i - b.i)
   /* Regrouped (StaffCombos.tsx): some screens shown under another group, and a
      group of related screens shown once, its others reached as tabs. */
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const here = pathname.split('/')[3] ?? ''
   const listed = groups.map((g) => ({ ...g, list: items(g.section) }))
   const held = new Set(listed.flatMap((g) => g.list.map((f) => f.slug)))
@@ -233,7 +234,12 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
   const target = (slug: string, from: string) => (MOVES[slug] && present.has(MOVES[slug]) ? MOVES[slug] : from)
   const concerns = useOpenConcerns(held.has('concerns_from_parents'))
   const bySection = new Map<string, { section: string; f: ApiSection['features'][number] }[]>()
+  /* Yajur Connect is its own group in the menu, not a line under
+     Communication (owner, 2026-11-23). Only roles that hold the screen see it:
+     Institution Admin by default, anyone else only when granted. */
+  let connect: { section: string; f: ApiSection['features'][number] } | null = null
   for (const g of listed) for (const f of g.list) {
+    if (f.slug === CONNECT_SLUG && !connect) { connect = { section: g.section.slug, f }; continue }
     if (hidden.has(f.slug)) continue
     const to = target(f.slug, g.section.slug)
     if (!bySection.has(to)) bySection.set(to, [])
@@ -318,6 +324,27 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
           </StaffNavGroup>
         )
       })}
+      {connect && (() => {
+        const base = goTo(connect.section, connect.f)
+        const onConnect = pathname.endsWith('/' + CONNECT_SLUG)
+        const current = onConnect ? (new URLSearchParams(search).get('tab') ?? 'overview') : ''
+        const currentKey = current === 'campaigns' || current === 'scheduled' ? 'history' : current
+        return (
+          <StaffNavGroup key="yajur_connect" slug="yajur_connect" name="Yajur Connect"
+            hue={PILL_HUES[row++ % PILL_HUES.length]} icon={uniqueIcon('whatsapp chat messages connect', usedIcons)}>
+            {CONNECT_MENU.map((m, i) => (
+              <Fragment key={m.key}>
+                {(i === 0 || CONNECT_MENU[i - 1].group !== m.group) && <span className="nav-sub-group">{m.group}</span>}
+                <NavLink data-row to={`${base}?tab=${m.key}`} onClick={onNavigate} title={m.label}
+                  className={() => staffItemClass(onConnect && currentKey === m.key, connect!.f.live)}>
+                  <m.icon aria-hidden className="size-5 shrink-0" strokeWidth={1.75} />
+                  <span className="nav-sub-label">{m.label}</span>
+                </NavLink>
+              </Fragment>
+            ))}
+          </StaffNavGroup>
+        )
+      })()}
     </>
   )
 }
@@ -330,8 +357,7 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
   const session = useSession()
   const phone = usePhone()
   const now = new Date()
-  const hour = now.getHours()
-  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  /* No greeting anywhere in the ERP (owner, 2026-11-23: "no need of greetings like morning and afternoon for whole ERP"). */
   const fullName = session.user?.full_name ?? ''
   const first = fullName.split(/\s+/)[0]
   const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -350,7 +376,6 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
         <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={44} />
         <div className="min-w-0 flex-1">
           {dashboard && <>
-            <p className="text-[12px] font-semibold text-muted-foreground">{greet}</p>
             <p className="break-words text-[18px] font-extrabold leading-tight tracking-[-0.01em]">{fullName || first}</p>
             {(d?.employee_code || times) && (
               <p className="text-[12px] font-medium text-muted-foreground tabular-nums">
@@ -369,7 +394,7 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
       <div className="min-w-0">
         {dashboard && <>{/* The account's name first, then the greeting and the date (Yajur, 2026-10-21). */}
         <p className="truncate text-[calc(16px*var(--font-scale,1))] font-bold leading-tight">{fullName || first}</p>
-        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{greet} · {dateLine}{times && <span className="tabular-nums"> · {times}</span>}</p></>}
+        <p className="truncate text-[calc(12.5px*var(--font-scale,1))] text-muted-foreground">{dateLine}{times && <span className="tabular-nums"> · {times}</span>}</p></>}
         {!dashboard && <div id="staff-crumb" className="min-w-0" />}
       </div>
       <div className="col-span-2 row-start-2 min-w-0 xl:col-span-1 xl:col-start-2 xl:row-start-1">

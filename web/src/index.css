@@ -5295,6 +5295,8 @@ a.nav-pill.nav-pill__head { padding: 3px 14px 3px 4px; }
 .nav-pill[data-open] .nav-pill__arrow, .nav-pill--on .nav-pill__arrow { transform: rotate(90deg); color: var(--pill-ink); }
 .nav-pill--on .nav-pill__arrow { transform: none; }
 .nav-pill__sub { display: flex; flex-direction: column; gap: 4px; padding: 0 12px 10px; }
+/* A heading inside a menu group (Yajur Connect's Communication, School directory, Activity, Workspace). */
+.nav-sub-group { padding: 8px 12px 0; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
 .nav-pill__sub a { border-radius: 14px; font-size: calc(15px * var(--font-scale, 1)); }
 .nav-pill__sub a:hover { color: var(--pill-ink); }
 .nav-pill__sub .nav-pill__item--on { color: var(--pill-ink); background: hsl(var(--card) / .7); }

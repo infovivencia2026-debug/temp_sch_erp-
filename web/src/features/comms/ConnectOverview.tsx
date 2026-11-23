@@ -30,11 +30,6 @@ export const useConnectOverview = () =>
 
 const n = (v: number) => v.toLocaleString('en-IN')
 
-function greeting(): string {
-  const h = new Date().getHours()
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
-}
-
 /* The original app's three task cards (owner, 2026-11-23: "like the HTML"):
    Send a notice filled in the school colour, the others white; an icon tile
    on the left and an arrow at the top right. */
@@ -77,10 +72,6 @@ export default function ConnectOverview({ go }: { go: (tab: ConnectTab, chatId?:
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div>
-        <h2 className="text-2xl font-semibold">{greeting()}</h2>
-        <p className="text-sm text-muted-foreground">Your school's WhatsApp messages at a glance.</p>
-      </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Shortcut main icon={Send} title="Send a notice" detail="Choose classes, preview and send" onClick={() => go('send')} />

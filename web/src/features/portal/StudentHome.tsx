@@ -44,10 +44,6 @@ interface Home { marks: { exam: string; subject: string; obtained: number | null
 
 export const homeworkQuery = { queryKey: ['portal-student-homework'], queryFn: () => api.get<List<StudentHomework>>('/api/v1/homework') }
 
-function greeting() {
-  const h = new Date().getHours()
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
-}
 /** Monday of this week, yyyy-mm-dd. */
 export function weekStart() {
   const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
@@ -118,7 +114,7 @@ export default function StudentHome() {
             header with the streak and badge chips beside it. */}
         <div className="relative hidden overflow-hidden rounded-3xl bg-gradient-to-br from-primary/85 to-primary/55 px-10 py-9 text-primary-foreground shadow-[0_10px_25px_-5px_hsl(var(--primary)/0.35)] md:flex md:items-center md:justify-between">
           <div>
-            <h1 className="text-[32px] font-extrabold tracking-[-0.03em]">{s ? `${greeting()}, ${first}` : 'Hello'}</h1>
+            <h1 className="text-[32px] font-extrabold tracking-[-0.03em]">{s ? first : ''}</h1>
             <p className="mt-1.5 text-[15px] font-medium opacity-90">Your day at a glance</p>
           </div>
           <span className="flex items-center gap-2">
@@ -134,7 +130,7 @@ export default function StudentHome() {
             the line never reflows. */}
         <div ref={titleRef} className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 md:hidden">
           <div className="min-w-0 flex-1">
-            <h1 className="m-large-title text-[20px] font-extrabold leading-tight tracking-[-0.02em]">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
+            <h1 className="m-large-title text-[20px] font-extrabold leading-tight tracking-[-0.02em]">{s ? first : <Bone className="h-7 w-56" />}</h1>
             <p className="m-large-title-sub text-[12.5px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { BarChart3, Bot, CalendarDays, Camera, FileText, Info as InfoIcon, LayoutDashboard, MapPin, Megaphone, MessagesSquare, Mic, NotebookPen, ScrollText, Send, Settings, Sticker, Users, Video, type LucideIcon } from 'lucide-react'
+import { Camera, FileText, Info as InfoIcon, MapPin, Mic, Sticker, Video, type LucideIcon } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { ConnectConversation, ConnectMatch, ConnectMessage, ConnectState, ConnectThread } from '@shared/api/feature_yajur_connect'
 import {
@@ -9,6 +9,7 @@ import {
   Switch, Textarea,
 } from '@/components/ui'
 import { SendTab } from './YajurConnectSend'
+import { CONNECT_MENU, type ConnectTabKey } from './connect-menu'
 import ConnectOverview from './ConnectOverview'
 import ConnectSettings from './ConnectSettings'
 import ConnectHistory from './ConnectHistory'
@@ -39,20 +40,10 @@ const VIEWS: { key: View; label: string }[] = [
 const MATCH_LABEL: Record<ConnectMatch, string> = { exact: 'Is exactly', starts: 'Starts with', contains: 'Contains' }
 const PAUSED = 'Sending is paused: the recipient guard is on and the test list is empty, so replies, auto-replies and broadcasts are blocked and will not be sent later.'
 const NOT_ON_LIST = 'Test mode: this number is not on the test list, so messages to it are blocked.'
-/* The screens of the original Yajur Connect app, by its own names, in its menu
-   order (owner, 2026-11-23). 'campaigns' and 'scheduled' stay as keys so old
-   links keep working: both open Notice history. */
-type Tab = 'overview' | 'chats' | 'send' | 'workbooks' | 'people' | 'templates' | 'history' | 'campaigns' | 'scheduled' | 'log' | 'insights' | 'events' | 'rules' | 'settings'
-const TAB_ICON: Partial<Record<Tab, LucideIcon>> = {
-  overview: LayoutDashboard, chats: MessagesSquare, send: Send, workbooks: NotebookPen, people: Users, templates: FileText,
-  history: Megaphone, log: ScrollText, insights: BarChart3, events: CalendarDays, rules: Bot, settings: Settings,
-}
-const TABS: { key: Tab; label: string; group: string }[] = [
-  { key: 'overview', label: 'Overview', group: 'Communication' }, { key: 'chats', label: 'Parent inbox', group: 'Communication' }, { key: 'send', label: 'Send a notice', group: 'Communication' }, { key: 'workbooks', label: 'Daily workbooks', group: 'Communication' },
-  { key: 'people', label: 'Students & parents', group: 'School directory' }, { key: 'templates', label: 'Message templates', group: 'School directory' },
-  { key: 'history', label: 'Notice history', group: 'Activity' }, { key: 'log', label: 'Delivery log', group: 'Activity' }, { key: 'insights', label: 'Insights', group: 'Activity' }, { key: 'events', label: 'Events & reminders', group: 'Activity' },
-  { key: 'rules', label: 'Auto-replies', group: 'Workspace' }, { key: 'settings', label: 'Settings', group: 'Workspace' },
-]
+type Tab = ConnectTabKey
+/* The screens and their order live in connect-menu.ts, shared with the main
+   menu, where Yajur Connect is a group of its own (owner, 2026-11-23). */
+const TABS = CONNECT_MENU
 
 interface WaTpl { name: string; language: string; header: string | null; body: string; footer: string | null; buttons: string[] }
 const KIND_LABEL: Record<string, string> = {
@@ -145,7 +136,7 @@ export default function YajurConnect() {
   const items = list.data?.items ?? []
   const canWrite = !!list.data?.can_write
   // Readers get the chats and the log; the sending tabs are for comms.connect.write.
-  const tabs = canWrite ? TABS : TABS.filter((t) => ['overview', 'chats', 'log', 'templates', 'insights'].includes(t.key))
+  const tabs = canWrite ? TABS : TABS.filter((t) => t.reader)
   const asked: Tab | null = tabParam === 'campaigns' || tabParam === 'scheduled' ? 'history' : tabParam
   const tab: Tab = asked && tabs.some((t) => t.key === asked) ? asked : openId ? 'chats' : 'overview'
   const goTab = (t: Tab, extra?: Record<string, string>) => {
@@ -157,44 +148,10 @@ export default function YajurConnect() {
 
   return (
     <>
-      <PageHead eyebrow="Communication" title="Yajur Connect" />
+      <PageHead eyebrow="Yajur Connect" title={tabs.find((t) => t.key === tab)?.label ?? 'Yajur Connect'} />
       <PageBody>
-        {/* THE ORIGINAL APP'S MENU (owner, 2026-11-23: "like the HTML on my
-            desktop"): a menu of its own on the left, in its groups
-            (Communication, School directory, Activity, Workspace), with the
-            screen beside it. On a phone it is one dropdown above the screen. */}
-        <div className="lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:items-start lg:gap-5">
-        {list.data && (
-          <>
-            <nav aria-label="Yajur Connect" className="card sticky top-3 hidden p-3 lg:block">
-              <div className="flex items-center gap-2.5 px-2 pb-3 pt-1">
-                <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary"><MessagesSquare className="size-5" aria-hidden /></span>
-                <span className="text-[15px] font-bold">Yajur Connect</span>
-              </div>
-              {tabs.map((t, i) => {
-                const Icon = TAB_ICON[t.key] ?? FileText
-                const on = tab === t.key
-                return (
-                  <div key={t.key}>
-                    {(i === 0 || tabs[i - 1].group !== t.group) && (
-                      <div className="px-2 pb-1 pt-3 text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">{t.group}</div>
-                    )}
-                    <button type="button" aria-current={on ? 'page' : undefined} onClick={() => setTab(t.key)}
-                      className={cn('flex min-h-10 w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[14px] transition-colors',
-                        on ? 'bg-primary/10 font-semibold text-primary' : 'text-foreground/80 hover:bg-muted/60 hover:text-foreground')}>
-                      <Icon className="size-[18px] shrink-0" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate">{t.label}</span>
-                    </button>
-                  </div>
-                )
-              })}
-            </nav>
-            <div className="mb-4 lg:hidden">
-              <Select value={tab} onChange={(v) => setTab(v as Tab)}
-                options={tabs.map((t) => ({ value: t.key, label: `${t.group}: ${t.label}` }))} />
-            </div>
-          </>
-        )}
+        {/* The screen's name above it; the menu is Yajur Connect's group in the main menu. */}
+        {tab !== 'chats' && tab !== 'overview' && <h1 className="sr-only">{tabs.find((t) => t.key === tab)?.label}</h1>}
         <div className="min-w-0">
         {tab === 'overview' ? <ConnectOverview go={(t, chatId) => { if (chatId) setOpenId(chatId); else goTab(t === 'campaigns' ? 'history' : t) }} />
           : tab === 'send' ? <SendTab onOpenChat={setOpenId} initialCode={params.get('template') ?? ''} presetGuardian={params.get('guardian') ?? ''} presetStudent={params.get('student') ?? ''} />
@@ -208,7 +165,6 @@ export default function YajurConnect() {
           : tab === 'rules' ? <AutoReplies />
           : tab === 'settings' ? <ConnectSettings goRules={() => setTab('rules')} />
           : chats()}
-        </div>
         </div>
       </PageBody>
     </>
