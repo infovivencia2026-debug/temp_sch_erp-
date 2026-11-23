@@ -1378,7 +1378,7 @@ export function Table({
     const table = tableEl.current
     const box = table?.parentElement
     if (full || !table || !box || typeof ResizeObserver === 'undefined') return
-    const check = () => setCornerRow(box.scrollWidth > box.clientWidth + 1)
+    const check = () => setCornerRow(box.scrollWidth > box.clientWidth + 2)
     check()
     const ro = new ResizeObserver(check)
     ro.observe(box); ro.observe(table)
