@@ -372,9 +372,11 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
     /* One row (owner, 2026-11-23): photo, then greeting, name and ID beside it,
        icons on the right. The name wraps to a second line rather than "…". */
     return (
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      /* phone-head: at large text the name goes under the photo instead of
+         being squeezed letter by letter beside it (index.css). */
+      <div className="phone-head-wrap"><div className="phone-head flex min-w-0 flex-1 items-center gap-3">
         <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={44} />
-        <div className="min-w-0 flex-1">
+        <div className="phone-head-name min-w-0 flex-1">
           {dashboard && <>
             <p className="break-words text-[18px] font-extrabold leading-tight tracking-[-0.01em]">{fullName || first}</p>
             {(d?.employee_code || times) && (
@@ -386,7 +388,7 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
           </>}
         </div>
         <div className="flex shrink-0 items-center gap-1"><AssistantHeaderButton /><CommandSearch /><Notifications /></div>
-      </div>
+      </div></div>
     )
   }
   return (
