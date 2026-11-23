@@ -332,6 +332,14 @@ function Broadcast({ templates, initialCode = '' }: { templates: ConnectSendTemp
         <div className="space-y-3">
           <Field label="Campaign name"><Input value={name} onChange={setName} placeholder="Sports day notice" /></Field>
           <Compose templates={templates} code={code} setCode={setCode} values={values} setValues={setValues} image={image} setImage={setImage} />
+          {/* The message as soon as a template is picked (owner, 2026-11-23), with sample names until the audience is chosen. */}
+          {t && (
+            <div>
+              <div className="mb-1 text-[13px] text-muted-foreground">Preview</div>
+              <Wording text={p?.sample || fill(t, values, staff ? { parent_name: 'Staff name', staff_name: 'Staff name', student_name: '', class: '' } : { parent_name: "Parent's name", student_name: "Student's name", class: 'Class' })}
+                className="rounded-xl border bg-[#e5ddd5]/40 p-3 text-[14px] dark:bg-muted/40" />
+            </div>
+          )}
         </div>
         <div className="space-y-3">
           <Field label="Send to">
@@ -370,7 +378,12 @@ function Broadcast({ templates, initialCode = '' }: { templates: ConnectSendTemp
             </div>
           )}
           <div className="rounded-md border p-3 text-[14px]">
-            {!ready ? <p className="text-muted-foreground">Fill the name, the template fields and the audience to see who gets it.</p>
+            {!ready ? <p className="text-muted-foreground">Still needed: {[
+                !body.name && 'type a campaign name',
+                !t && 'pick a template',
+                t && t.fields.filter((f) => !MERGE_FIELDS.includes(f) && !(values[f] ?? '').trim()).map((f) => `fill ${fieldLabel(f)}`).join(', '),
+                scope !== 'school' && scope !== 'staff' && ids.length === 0 && `tick at least one ${scope === 'classes' ? 'class' : scope === 'sections' ? 'section' : 'department'}`,
+              ].filter(Boolean).join(' · ')}.</p>
               : preview.isLoading || key !== json ? <Loading shape="inline" /> : preview.error ? <ErrorState error={preview.error} /> : p && (
                 <div className="space-y-2">
                   <p><strong className="tabular-nums">{p.count}</strong> {p.count === 1 ? 'recipient' : 'recipients'} · {p.audience_label}</p>
