@@ -118,3 +118,63 @@ describe('fee hub: offline payments, partial transfer, re-plan, copy plans', () 
     expect(it).toEqual({ amount_paise: 108000, due_on: '2027-06-10' })
   })
 })
+
+describe('fee hub: transport route change on a shared term bill', () => {
+  const head = crypto.randomUUID(), inv = crypto.randomUUID(), tl = crypto.randomUUID(), al = crypto.randomUUID()
+  const up = crypto.randomUUID(), down = crypto.randomUUID()
+  const plan = async (id: string, amt: number) => {
+    const campus = (await T().prepare(`SELECT id FROM campuses LIMIT 1`).first<{ id: string }>())!.id
+    await T().batch([
+      T().prepare(`INSERT INTO fee_structures (id, institution_id, campus_id, academic_year_id, name) VALUES (?, ?, ?, ?, ?)`).bind(id, IDS.school, campus, IDS.year, 'Route ' + amt),
+      T().prepare(`INSERT INTO fee_structure_items (id, institution_id, fee_structure_id, fee_head_id, instalment_no, amount_paise) VALUES (?, ?, ?, ?, 2, ?)`).bind(crypto.randomUUID(), IDS.school, id, head, amt),
+    ])
+  }
+  const approve = async (payload: Record<string, unknown>) => {
+    const rq = await api('finance', 'POST', '/fees/hub/requests', { student_id: IDS.otherChild, kind: 'plan_change', payload: { fee_head_id: head, from: '2000-01-01', ...payload }, reason: 'Route change test' })
+    expect(rq.status).toBe(200)
+    return api('admin', 'POST', `/fees/hub/requests/${rq.body.id}/decide`, { approve: true })
+  }
+  const line = () => T().prepare(`SELECT il.amount_paise AS amt, (SELECT COALESCE(sum(x.amount_paise),0) FROM payment_line_allocations x WHERE x.invoice_line_id = il.id) AS paid FROM invoice_lines il WHERE il.id = ?`).bind(tl).first<{ amt: number; paid: number }>()
+  const annual = () => T().prepare(`SELECT sum(il.amount_paise) AS a FROM invoice_lines il WHERE il.invoice_id = ? AND il.id <> ?`).bind(inv, tl).first<{ a: number }>()
+
+  it('sets up a term bill with tuition and transport, part paid on transport', async () => {
+    const campus = (await T().prepare(`SELECT id FROM campuses LIMIT 1`).first<{ id: string }>())!.id
+    await T().batch([
+      T().prepare(`INSERT INTO fee_heads (id, institution_id, name, code) VALUES (?, ?, 'Transport', 'TRX')`).bind(head, IDS.school),
+      T().prepare(`INSERT INTO invoices (id, institution_id, campus_id, student_id, academic_year_id, invoice_no, instalment_no, issued_on, due_on, gross_paise, net_paise, status)
+        VALUES (?, ?, ?, ?, ?, 'INV-T2', 2, '2026-06-01', '2099-01-01', 1300000, 1300000, 'unpaid')`).bind(inv, IDS.school, campus, IDS.otherChild, IDS.year),
+      T().prepare(`INSERT INTO invoice_lines (id, institution_id, invoice_id, fee_head_id, description, amount_paise) VALUES (?, ?, ?, ?, 'Tuition', 400000)`).bind(al, IDS.school, inv, IDS.feeHead),
+      T().prepare(`INSERT INTO invoice_lines (id, institution_id, invoice_id, fee_head_id, description, amount_paise) VALUES (?, ?, ?, ?, 'Transport', 900000)`).bind(tl, IDS.school, inv, head),
+    ])
+    await plan(up, 1200000); await plan(down, 300000)
+    const pay = await api('finance', 'POST', '/fees/payments', { student_id: IDS.otherChild, mode: 'cash', lines: [{ invoice_line_id: tl, amount_paise: 500000 }] })
+    expect(pay.status).toBe(201)
+  })
+
+  it('route up: only the transport line changes, same bill and number', async () => {
+    expect((await approve({ structure_id: up })).status).toBe(200)
+    expect(await line()).toEqual({ amt: 1200000, paid: 500000 })
+    expect((await annual())!.a).toBe(400000)
+    const iv = await T().prepare(`SELECT invoice_no, net_paise, status FROM invoices WHERE id = ?`).bind(inv).first()
+    expect(iv).toMatchObject({ invoice_no: 'INV-T2', net_paise: 1600000 })
+  })
+
+  it('route down below what was paid: the excess stays on the child as advance', async () => {
+    const before = await T().prepare(`SELECT sum(amount_paise) AS s FROM payments WHERE student_id = ? AND status = 'success'`).bind(IDS.otherChild).first<{ s: number }>()
+    expect((await approve({ structure_id: down })).status).toBe(200)
+    expect(await line()).toEqual({ amt: 300000, paid: 300000 })
+    const after = await T().prepare(`SELECT sum(amount_paise) AS s, sum(amount_paise - allocated_paise) AS adv FROM payments WHERE student_id = ? AND status = 'success'`).bind(IDS.otherChild).first<{ s: number; adv: number }>()
+    expect(after!.s).toBe(before!.s)
+    expect(after!.adv).toBeGreaterThanOrEqual(200000)
+    const bad = await T().prepare(`SELECT count(*) AS n FROM payment_allocations a WHERE a.amount_paise <> (SELECT COALESCE(sum(x.amount_paise),0) FROM payment_line_allocations x WHERE x.payment_allocation_id = a.id)`).first<{ n: number }>()
+    expect(bad!.n).toBe(0)
+  })
+
+  it('no transport from the date: the line goes to nought, tuition untouched', async () => {
+    expect((await approve({ stop: true })).status).toBe(200)
+    expect(await line()).toEqual({ amt: 0, paid: 0 })
+    expect((await annual())!.a).toBe(400000)
+    const log = await T().prepare(`SELECT count(*) AS n FROM audit_log WHERE action = 'fee.plan_change' AND entity_id = ?`).bind(IDS.otherChild).first<{ n: number }>()
+    expect(log!.n).toBe(3)
+  })
+})

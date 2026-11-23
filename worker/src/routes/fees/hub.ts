@@ -156,6 +156,62 @@ async function partialTransfer(c: Ctx, paymentId: string, to: string, amount: nu
   return { kept_paise: keep, moved_paise: amount, new_payment_id: qid }
 }
 
+
+/* CHANGE ONE FEE ON ITS BILLS FROM A DATE (owner, 2026-11-23: a bus route
+   change). Every bill due on or after the date that carries this fee keeps
+   its number and its other lines; only this fee's line takes the new plan's
+   amount for that instalment (0 when the fee stops, or when the new plan has
+   no such instalment). If the line already has more paid on it than the new
+   amount, the excess comes off the line (newest payment first) and stays on
+   the child as advance: the receipt and its number are untouched. */
+async function changeLineFromDate(c: Ctx, studentId: string, from: string, headId: string, structureId: string | null) {
+  const amounts = new Map<number, number>()
+  let planName = 'No fee'
+  if (structureId) {
+    const fs = await c.db.prepare(`SELECT id, name FROM fee_structures WHERE id = ? AND is_active = 1`).bind(structureId).first<{ id: string; name: string }>()
+    if (!fs) throw badRequest('no active fee plan with that id')
+    planName = fs.name
+    for (const it of (await c.db.prepare(`SELECT instalment_no, sum(amount_paise) AS a FROM fee_structure_items WHERE fee_structure_id = ? AND fee_head_id = ? GROUP BY instalment_no`)
+      .bind(structureId, headId).all<{ instalment_no: number; a: number }>()).results) amounts.set(it.instalment_no, p(it.a))
+  }
+  const lines = (await c.db.prepare(`SELECT il.id, il.invoice_id, il.amount_paise, il.discount_paise, i.invoice_no, i.instalment_no,
+        COALESCE((SELECT sum(x.amount_paise) FROM payment_line_allocations x WHERE x.invoice_line_id = il.id), 0) AS paid
+      FROM invoice_lines il JOIN invoices i ON i.id = il.invoice_id
+     WHERE i.student_id = ? AND il.fee_head_id = ? AND i.status <> 'cancelled' AND COALESCE(i.due_on, i.issued_on) >= ?
+     ORDER BY COALESCE(i.due_on, i.issued_on)`).bind(studentId, headId, from)
+    .all<{ id: string; invoice_id: string; amount_paise: number; discount_paise: number; invoice_no: string; instalment_no: number | null; paid: number }>()).results
+  if (!lines.length) throw new HttpError(409, 'no bill from that date carries this fee', { code: 'nothing_to_replan' })
+  const changes: { invoice_no: string; instalment_no: number | null; old_paise: number; new_paise: number; advance_paise: number }[] = []
+  const stmts: D1PreparedStatement[] = []
+  const payments = new Set<string>()
+  for (const l of lines) {
+    const amt = amounts.get(l.instalment_no ?? 1) ?? 0
+    const disc = Math.min(p(l.discount_paise), amt)
+    const net = amt - disc
+    let excess = Math.max(0, p(l.paid) - net)
+    const advance = excess
+    if (excess > 0) {
+      const rows = (await c.db.prepare(`SELECT x.id, x.amount_paise, x.payment_allocation_id, x.payment_id FROM payment_line_allocations x JOIN payments pm ON pm.id = x.payment_id
+          WHERE x.invoice_line_id = ? ORDER BY pm.paid_on DESC, pm.created_at DESC, x.rowid DESC`).bind(l.id).all<{ id: string; amount_paise: number; payment_allocation_id: string; payment_id: string }>()).results
+      for (const r of rows) {
+        if (excess <= 0) break
+        const take = Math.min(p(r.amount_paise), excess)
+        excess -= take
+        payments.add(r.payment_id)
+        stmts.push(c.db.prepare(take === p(r.amount_paise) ? `DELETE FROM payment_line_allocations WHERE id = ?2` : `UPDATE payment_line_allocations SET amount_paise = amount_paise - ?1 WHERE id = ?2`).bind(take, r.id))
+        stmts.push(c.db.prepare(`UPDATE payment_allocations SET amount_paise = amount_paise - ? WHERE id = ?`).bind(take, r.payment_allocation_id))
+        stmts.push(c.db.prepare(`DELETE FROM payment_allocations WHERE id = ? AND amount_paise <= 0`).bind(r.payment_allocation_id))
+      }
+    }
+    stmts.push(c.db.prepare(`UPDATE invoice_lines SET amount_paise = ?, discount_paise = ? WHERE id = ?`).bind(amt, disc, l.id))
+    stmts.push(...recomputeInvoice(c, l.invoice_id))
+    changes.push({ invoice_no: l.invoice_no, instalment_no: l.instalment_no, old_paise: p(l.amount_paise), new_paise: amt, advance_paise: advance })
+  }
+  for (const pid of payments) stmts.push(syncPayment(c, pid))
+  await c.db.batch(stmts)
+  return { plan: planName, changes }
+}
+
 export function registerFeeHub(r: Router): void {
   // ------------------------------------------------------------ one child
   r.get('/fees/hub/students/{id}', READ, async (c) => {
@@ -403,7 +459,7 @@ export function registerFeeHub(r: Router): void {
     if (kind === 'class_change' && payload.use_new_plan && !isDate(String(payload.from ?? ''))) throw badRequest('give the date the new plan starts')
     if (kind === 'transfer' && payload.amount_paise !== undefined && !(paise(payload.amount_paise, 'amount_paise') > 0)) throw badRequest('the amount to move must be above nought')
     if (kind === 'plan_change') {
-      if (!isUUID(payload.fee_head_id) || !isUUID(payload.structure_id)) throw badRequest('choose the fee type and the new plan')
+      if (!isUUID(payload.fee_head_id) || (!payload.stop && !isUUID(payload.structure_id))) throw badRequest('choose the fee type and the new plan')
       if (!isDate(String(payload.from ?? ''))) throw badRequest('give the date the new plan starts')
     }
     const pending = await c.db.prepare(`SELECT 1 FROM fee_requests WHERE student_id = ? AND kind = ? AND status = 'pending'
@@ -461,8 +517,9 @@ export function registerFeeHub(r: Router): void {
         break
       }
       case 'plan_change': {
-        const r2 = await replan(c, fr.student_id, String(payload.from), String(payload.structure_id), String(payload.fee_head_id))
-        stmts.push(logStmt(c, fr.student_id, 'fee.plan_change', { cancelled: r2.cancelled }, { raised: r2.raised, moved_paise: r2.moved_paise, from: payload.from, reason: why }))
+        const r2 = await changeLineFromDate(c, fr.student_id, String(payload.from), String(payload.fee_head_id), payload.stop ? null : String(payload.structure_id))
+        stmts.push(logStmt(c, fr.student_id, 'fee.plan_change', { bills: r2.changes.map((x) => `${x.invoice_no}: ${x.old_paise / 100}`).join(', ') },
+          { plan: r2.plan, bills: r2.changes.map((x) => `${x.invoice_no}: ${x.new_paise / 100}`).join(', '), advance_paise: r2.changes.reduce((a, x) => a + x.advance_paise, 0), from: payload.from, reason: why }))
         break
       }
       case 'change': {

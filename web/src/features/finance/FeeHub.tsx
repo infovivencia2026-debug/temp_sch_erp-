@@ -885,13 +885,13 @@ function PlanChange({ hub, year }: { hub: Hub; year: string }) {
   const chosen = plans.find((pl) => pl.id === plan)
   return (
     <div className="space-y-3 p-[var(--card-pad)]">
-      <p className="text-[13px] text-muted-foreground">Bills for this fee due on or after the date are cancelled and raised again from the new plan; money paid on them moves to the new bills. Earlier bills stay as they are.</p>
+      <p className="text-[13px] text-muted-foreground">On every bill due on or after the date, only this fee's line changes to the new plan's amount; the bill number and its other fees stay. If more was paid on the line than the new amount, the extra stays on the child as advance. Earlier bills stay as they are.</p>
       <FormGrid>
         <Field label="Fee type"><Select value={head} onChange={(v) => { setHead(v); setPlan('') }} placeholder="Choose" options={heads.map(([id, n]) => ({ value: id, label: n }))} /></Field>
-        <Field label="New plan"><Select value={plan} onChange={setPlan} placeholder="Choose" options={plans.map((pl) => ({ value: pl.id, label: `${pl.name} (${pl.class_name}) · ${formatPaise(pl.items.filter((i) => i.fee_type === headName).reduce((a, i) => a + i.amount_paise, 0))}` }))} /></Field>
+        <Field label="New plan"><Select value={plan} onChange={setPlan} placeholder="Choose" options={[...plans.map((pl) => ({ value: pl.id, label: `${pl.name} (${pl.class_name}) · ${formatPaise(pl.items.filter((i) => i.fee_type === headName).reduce((a, i) => a + i.amount_paise, 0))}` })), ...(head ? [{ value: 'stop', label: `No ${headName || 'fee'} from this date` }] : [])]} /></Field>
         <Field label="From date"><Input type="date" value={from} onChange={setFrom} /></Field>
       </FormGrid>
-      {head && chosen && <RequestForm hub={hub} kind="plan_change" payload={{ fee_head_id: head, structure_id: plan, from, fee_type: headName, plan: chosen.name }} label="Send for approval" onDone={() => { setHead(''); setPlan('') }} />}
+      {head && (chosen || plan === 'stop') && <RequestForm hub={hub} kind="plan_change" payload={plan === 'stop' ? { fee_head_id: head, stop: true, from, fee_type: headName, plan: 'none' } : { fee_head_id: head, structure_id: plan, from, fee_type: headName, plan: chosen!.name }} label="Send for approval" onDone={() => { setHead(''); setPlan('') }} />}
     </div>
   )
 }
