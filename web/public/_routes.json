@@ -1,7 +1,8 @@
 {
   "version": 1,
-  "description": "Only the paths the Go server owns invoke the proxy Function; everything else is a static file served from the edge and never counts against the Functions quota. Keep in step with SERVER_PATHS in web/functions/[[path]].ts and the nginx locations in scripts/deploy.sh.",
+  "description": "Only the paths the Go server owns invoke the proxy Function, plus /assets/* so a missing build file answers 404 no-store instead of the cached SPA page; everything else is a static file served from the edge and never counts against the Functions quota. Keep in step with SERVER_PATHS in web/functions/[[path]].ts and the nginx locations in scripts/deploy.sh.",
   "include": [
+    "/assets/*",
     "/api/*",
     "/login",
     "/logout",

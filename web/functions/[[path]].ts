@@ -74,8 +74,36 @@ function serverOwns(pathname: string): boolean {
   )
 }
 
+/* A MISSING BUILD FILE IS A 404, NEVER THE APP'S PAGE (owner, 2026-11-23: the
+   site went blank for every fresh browser).
+
+   Pages answers any path it has no file for with index.html and status 200 --
+   right for /parent/timetable, wrong for /assets/index-<hash>.js. During a
+   deploy's roll-out a browser that already has the NEW index.html can ask an
+   edge still on the OLD deployment for a new-hash chunk; that edge has no such
+   file, so it sent index.html, and _headers stamps everything under /assets/
+   "public, max-age=31536000, immutable". Cloudflare then kept that HTML as the
+   script for a year, and module scripts refuse text/html, so the app never
+   started until somebody purged the cache.
+
+   So /assets/* comes through here: a real file passes untouched (with its
+   immutable header), and the SPA fallback becomes a plain 404 that no cache
+   keeps, so the next request after the roll-out finds the real file. */
+async function guardAsset(context: Parameters<PagesFunction<Env>>[0]): Promise<Response> {
+  const res = await context.next()
+  const type = res.headers.get('content-type') ?? ''
+  if (res.status === 200 && type.includes('text/html')) {
+    return new Response('Not Found', {
+      status: 404,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+    })
+  }
+  return res
+}
+
 export const onRequest: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
+  if (url.pathname.startsWith('/assets/')) return guardAsset(context)
   if (!serverOwns(url.pathname)) return context.next()
   if (NOT_PROXIED.includes(url.pathname)) return new Response('Not Found', { status: 404 })
 
