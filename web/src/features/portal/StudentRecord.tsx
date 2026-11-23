@@ -59,7 +59,7 @@ export default function StudentRecord() {
               </div>
             </section>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="auto-grid [--min:8.5rem]">
               <Tile i={1} icon={School} hue="indigo" value={years.length} label={years.length === 1 ? 'year at this school' : 'years at this school'} />
               <Tile i={2} icon={Trophy} hue="amber" value={best !== undefined ? `${fmt(best)}%` : '-'} label="your best year" />
             </div>

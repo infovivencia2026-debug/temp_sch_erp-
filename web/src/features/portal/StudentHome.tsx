@@ -130,7 +130,7 @@ export default function StudentHome() {
             the line never reflows. */}
         <div ref={titleRef} className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2 md:hidden">
           <div className="min-w-0 flex-1">
-            <h1 className="m-large-title text-[20px] font-extrabold leading-tight tracking-[-0.02em]">{s ? first : <Bone className="h-7 w-56" />}</h1>
+            <h1 className="m-large-title greet-title font-extrabold tracking-[-0.02em] [text-wrap:balance]">{s ? first : <Bone className="h-7 w-56" />}</h1>
             <p className="m-large-title-sub text-[12.5px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
         </div>

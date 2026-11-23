@@ -141,7 +141,7 @@ export default function HostelVisitors() {
             <ul className="divide-y">
               {overdue.map((v) => (
                 <li key={v.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <div className="min-w-[14rem] flex-1">
+                  <div className="min-w-[min(100%,14rem)] flex-1">
                     <div className="font-medium">
                       {v.student_name}
                       {v.room_no && (

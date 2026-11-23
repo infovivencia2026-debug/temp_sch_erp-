@@ -195,7 +195,7 @@ export default function PeriodsNeeded({
 
       <div className="flex flex-col gap-4 px-5 py-4">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[16rem]">
+          <div className="min-w-[min(100%,16rem)]">
             <label className="mb-1 block text-[12.5px] text-muted-foreground" htmlFor="tt-section">
               Class and section
             </label>

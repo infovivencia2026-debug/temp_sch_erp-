@@ -93,7 +93,7 @@ export default function MessageTemplates() {
           value={q}
           onChange={setQ}
           placeholder="Search the wording, or the code"
-          className="min-w-[240px] flex-1"
+          className="min-w-[min(100%,240px)] flex-1"
         />
         <p className="text-[13px] text-muted-foreground">
           {groups.length} message{groups.length === 1 ? '' : 's'}

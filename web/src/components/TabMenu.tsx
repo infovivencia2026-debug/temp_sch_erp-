@@ -96,7 +96,7 @@ export default function TabMenu({
           visibility: placed ? undefined : 'hidden',
         }}
         className={cn(
-          `fixed z-50 min-w-[13rem] overflow-hidden rounded-[var(--radius-card)] border
+          `fixed z-50 min-w-[min(100%,13rem)] overflow-hidden rounded-[var(--radius-card)] border
            bg-popover p-1 text-popover-foreground shadow-lg`,
           // It arrives rather than appears: see index.css. Until it has been
           // measured it is invisible, so the correction from the raw pointer

@@ -78,7 +78,7 @@ export function SchoolGroups({ onClose }: { onClose: () => void }) {
           className="flex flex-wrap items-end gap-2"
           onSubmit={(e) => { e.preventDefault(); if (name.trim()) create.mutate() }}
         >
-          <div className="min-w-[14rem] flex-1">
+          <div className="min-w-[min(100%,14rem)] flex-1">
             <Field label="New group">
               <Input value={name} onChange={setName} placeholder="Yajur Group of Schools" />
             </Field>
@@ -198,7 +198,7 @@ function GroupCard({ g, ungrouped, onChange, onHandover }: {
       )}
 
       <div className="flex flex-wrap items-end gap-2 border-t px-4 py-3">
-        <div className="min-w-[14rem] flex-1">
+        <div className="min-w-[min(100%,14rem)] flex-1">
           <Field label="Add a school" hint="Only schools not already in a group are listed.">
             <Select
               value={adding}

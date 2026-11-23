@@ -94,12 +94,12 @@ export default function StudentCalendar() {
               )}
             </section>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="auto-grid [--min:8.5rem]">
               <Tile i={1} icon={GraduationCap} hue="rose" value={exams} label={exams === 1 ? 'exam coming' : 'exams coming'} />
               <Tile i={2} icon={PartyPopper} hue="emerald" value={off} label={off === 1 ? 'holiday coming' : 'holidays coming'} />
             </div>
 
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="tablist" aria-label="Show">
+            <div className="chip-scroll -mx-4 flex gap-2 px-4 pb-1" role="tablist" aria-label="Show">
               {FILTERS.map((f) => (
                 <button key={f.key} type="button" role="tab" aria-selected={filter === f.key} onClick={() => setFilter(f.key)}
                   className={cn('min-h-[44px] shrink-0 rounded-full border px-4 text-[14px] font-medium', filter === f.key ? 'border-primary bg-primary text-primary-foreground' : 'bg-[var(--color-card,white)]')}>

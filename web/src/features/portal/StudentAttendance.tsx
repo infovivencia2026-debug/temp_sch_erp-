@@ -64,7 +64,7 @@ export default function StudentAttendance() {
               </div>
             </section>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="auto-grid [--min:6.5rem]">
               <Tile i={1} icon={CalendarCheck} hue="emerald" value={s.data.present_days} label="days here" />
               <Tile i={2} icon={CalendarX} hue="rose" value={s.data.absent_days} label={s.data.absent_days === 1 ? 'day missed' : 'days missed'} />
               <Tile i={3} icon={Flame} hue="amber" value={streak} label="day streak" />

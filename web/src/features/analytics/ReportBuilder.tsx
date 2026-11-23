@@ -390,7 +390,7 @@ function ShareCard({
       />
       <div className="space-y-4 p-5">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[220px] flex-1">
+          <div className="min-w-[min(100%,220px)] flex-1">
             <Field label="Role">
               <Select
                 value={role}
@@ -958,7 +958,7 @@ function FilterValue({
       )
     }
     return (
-      <div className="min-w-[200px] flex-1">
+      <div className="min-w-[min(100%,200px)] flex-1">
         <Input
           value={(clause.values ?? []).join(', ')}
           onChange={(v) =>

@@ -707,7 +707,7 @@ export default function ReportCards() {
                 {outstanding.map((p) => (
                   <li key={p.subject} className="flex flex-wrap items-center gap-3 px-5 py-2.5">
                     <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
-                    <span className="min-w-[10rem] flex-1 text-[14px] font-medium">{p.subject}</span>
+                    <span className="min-w-[min(100%,10rem)] flex-1 text-[14px] font-medium">{p.subject}</span>
                     {/* Named, because "three papers outstanding" is a fact and
                         "Physics, Mrs Rao" is something you can act on. */}
                     <span className="text-[13px] text-muted-foreground">
@@ -760,7 +760,7 @@ export default function ReportCards() {
                   How it will print
                 </div>
               </div>
-              <div className="min-w-[16rem] flex-1">
+              <div className="min-w-[min(100%,16rem)] flex-1">
                 <FilePicker
                   value={signFile}
                   onChange={(f) => {
@@ -803,7 +803,7 @@ export default function ReportCards() {
                   <span className="min-w-[7rem] font-medium">
                     {x.class_name}-{x.section_name}
                   </span>
-                  <span className="min-w-[12rem] flex-1 text-[13px] text-muted-foreground">
+                  <span className="min-w-[min(100%,12rem)] flex-1 text-[13px] text-muted-foreground">
                     {x.submitted_by ?? 'the class teacher'}
                     {x.submitted_at ? ` · published ${x.submitted_at.replace('T', ' ')}` : ''}
                   </span>
@@ -851,7 +851,7 @@ export default function ReportCards() {
                   <span className="min-w-[7rem] font-medium">
                     {x.class_name}-{x.section_name}
                   </span>
-                  <span className="min-w-[12rem] flex-1 text-[13px] text-muted-foreground">
+                  <span className="min-w-[min(100%,12rem)] flex-1 text-[13px] text-muted-foreground">
                     {/* Who sent it up: a head returning a section replies to a
                         person, not to a row. */}
                     {x.submitted_by ?? 'the class teacher'}

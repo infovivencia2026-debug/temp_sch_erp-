@@ -711,7 +711,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                     placeholder="PF number" />
                 </FormField>
               </div>
-              <div className="min-w-[10rem] flex-1">
+              <div className="min-w-[min(100%,10rem)] flex-1">
                 <FormField label="Value">
                   <Input value={fieldValue} onChange={setFieldValue} />
                 </FormField>

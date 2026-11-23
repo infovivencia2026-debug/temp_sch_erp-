@@ -428,12 +428,13 @@ export function Bar({ pct, hue = 'indigo', className }: { pct: number; hue?: Hue
 /** One small summary card: an icon disc, a figure and what it counts. */
 export function Tile({ icon: Icon, hue, value, label, i = 0 }: { icon: typeof Home; hue: Hue; value: ReactNode; label: string; i?: number }) {
   return (
-    <div className="card stu-rise flex min-h-[92px] flex-col justify-between gap-2 p-3" style={{ ['--i' as string]: i }}>
+    <div className="card stu-rise flex min-h-[92px] min-w-0 flex-col justify-between gap-2 p-3 [container-type:inline-size]" style={{ ['--i' as string]: i }}>
       <span className={cn('flex h-9 w-9 items-center justify-center rounded-full', HUE[hue].bg, HUE[hue].fg)}>
         <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </span>
       <span>
-        <span className="block text-[20px] font-semibold leading-tight tabular-nums">{value}</span>
+        {/* Sized to the tile, so a phone at large text keeps the figure inside it. */}
+        <span className="block text-[clamp(1rem,14cqi,20px)] font-semibold leading-tight tabular-nums [overflow-wrap:normal]">{value}</span>
         <span className="block text-[12px] leading-tight text-muted-foreground">{label}</span>
       </span>
     </div>

@@ -1140,7 +1140,12 @@ export function Table({
   onExport,
   noExport,
   noRowHover,
+  layout,
 }: {
+  /** "scroll" keeps a real 2-D grid (timetable, marks matrix) as a table
+      that scrolls sideways with its first column frozen, where a narrow
+      table otherwise shows each row as a card (index.css, rtable). */
+  layout?: 'cards' | 'scroll'
   head: Column[]
   children: ReactNode
   empty?: boolean
@@ -1413,7 +1418,7 @@ export function Table({
        and Next off the screen with it, and the only way back to them was to
        scroll left again. The controls that move you through the rows must not
        be reachable only from one horizontal position. */
-    <div className="table-frame">
+    <div className="table-frame" data-layout={layout === 'scroll' ? 'scroll' : undefined}>
       {/* The columns this person has turned off are hidden by their position
           rather than by not rendering them: the rows belong to the screen
           that drew them, and this component cannot reach inside somebody
@@ -1941,8 +1946,8 @@ export function Button({
            on a phone -- so this is the desktop catching up with the handset
            rather than a new measurement. */
         size === 'sm'
-          ? 'h-8 px-3 text-[13px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[14px]'
-          : 'h-[var(--control-h)] px-4 text-[14px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[16px]',
+          ? 'h-8 px-3 text-[13px] max-sm:h-auto max-sm:min-h-[var(--tap)] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[14px]'
+          : 'h-[var(--control-h)] px-4 text-[14px] max-sm:h-auto max-sm:min-h-[var(--tap)] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[16px]',
         level === 'primary' &&
           (tone === 'danger'
             ? 'bg-destructive text-white hover:bg-destructive/90'

@@ -457,7 +457,7 @@ export default function CampaignSequences() {
               description="Leads already converted, closed lost or opted out are never enrolled."
             />
             <div className="flex flex-wrap items-end gap-3 p-5">
-              <div className="min-w-[220px]">
+              <div className="min-w-[min(100%,220px)]">
                 <Field label="Enrol every open lead from">
                   <Select
                     value={enrolSource}

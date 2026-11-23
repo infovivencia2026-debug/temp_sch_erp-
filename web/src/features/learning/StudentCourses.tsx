@@ -495,7 +495,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                   {/* Three counts, from what this page already holds -- no
                       invented figures: parts, quizzes set, and the best mark
                       the child has where any quiz has been marked. */}
-                  <div className="grid grid-cols-3 gap-2 border-t pt-3 text-center">
+                  <div className="auto-grid [--min:5.5rem] border-t pt-3 text-center">
                     {([
                       ['Parts', String(allDays.length)],
                       ['Quizzes', String(d.quizzes.length)],

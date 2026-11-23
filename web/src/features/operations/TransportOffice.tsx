@@ -793,7 +793,7 @@ function Incidents({ rows }: { rows: Incident[] }) {
             {rows.map((i) => (
               <li key={i.id} className="px-4 py-3">
                 <div className="flex flex-wrap items-start gap-3">
-                  <div className="min-w-[16rem] flex-1">
+                  <div className="min-w-[min(100%,16rem)] flex-1">
                     <div className="font-medium">
                       {i.route ?? 'Unassigned route'}
                       {i.vehicle && <span className="text-muted-foreground"> · {i.vehicle}</span>}
@@ -827,7 +827,7 @@ function Incidents({ rows }: { rows: Incident[] }) {
                       value={resolution}
                       onChange={setResolution}
                       placeholder="How it ended"
-                      className="min-w-[18rem] flex-1"
+                      className="min-w-[min(100%,18rem)] flex-1"
                     />
                     <Button
                       disabled={save.isPending || resolution.trim() === ''}

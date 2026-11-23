@@ -394,7 +394,7 @@ function AccountPanel({ settings }: { settings: WhatsAppSettings }) {
             Choose an approved template: without one, WhatsApp will refuse. hello_world works on every account.
           </p>
           <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[220px] flex-1">
+            <div className="min-w-[min(100%,220px)] flex-1">
               <Input
                 value={testTo}
                 onChange={setTestTo}
@@ -402,7 +402,7 @@ function AccountPanel({ settings }: { settings: WhatsAppSettings }) {
                 srLabel="Number to send the test to"
               />
             </div>
-            <div className="min-w-[220px]">
+            <div className="min-w-[min(100%,220px)]">
               <Select
                 value={testCode}
                 onChange={setTestCode}

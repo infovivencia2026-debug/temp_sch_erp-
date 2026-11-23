@@ -501,7 +501,7 @@ function MatchPanel({
       )}
 
       <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-[320px] flex-1">
+        <div className="min-w-[min(100%,320px)] flex-1">
           <Field
             label="Or explain it"
             hint="Bank charges, interest credited, a transfer between the school's own accounts, anything that is genuinely not a book entry."
@@ -824,7 +824,7 @@ function ReopenPeriod({ id, onDone }: { id: string; onDone: () => void }) {
         value={reason}
         onChange={setReason}
         placeholder="Why is this being reopened?"
-        className="min-w-[18rem]"
+        className="min-w-[min(100%,18rem)]"
       />
       <Button size="sm" tone="danger" disabled={!reason || reopen.isPending} onClick={() => reopen.mutate()}>
         Reopen

@@ -2698,7 +2698,7 @@ function AddDetailField({ studentID, onChanged }: {
           <Input value={name} onChange={setName} placeholder="Sibling admission no." />
         </FormField>
       </div>
-      <div className="min-w-[10rem] flex-1">
+      <div className="min-w-[min(100%,10rem)] flex-1">
         <FormField label="Value">
           <Input value={value} onChange={setValue} />
         </FormField>

@@ -342,7 +342,7 @@ export default function FormBuilder() {
               />
               {!frozen && (
                 <div className="flex flex-wrap items-end gap-3 p-5">
-                  <div className="min-w-[240px] flex-1">
+                  <div className="min-w-[min(100%,240px)] flex-1">
                     <Field label="Add a section">
                       <Input
                         value={sectionTitle}

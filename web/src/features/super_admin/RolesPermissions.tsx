@@ -800,7 +800,7 @@ function GroupRow({
   return (
     <div className={cn('px-5 py-4', off && 'opacity-60')}>
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <div className="min-w-[200px] flex-1">
+        <div className="min-w-[min(100%,200px)] flex-1">
           <p className="text-[13px] font-medium">{group.name}</p>
           <p className="text-[12px] text-muted-foreground">{group.blurb}</p>
         </div>

@@ -190,7 +190,7 @@ export default function ReportAbsence() {
             <ul className="divide-y">
               {today.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
-                  <div className="min-w-[14rem] flex-1">
+                  <div className="min-w-[min(100%,14rem)] flex-1">
                     <span className="font-medium">{r.student_name}</span>
                     <div className="text-[12px] text-muted-foreground">
                       {formatDate(r.from_date)}

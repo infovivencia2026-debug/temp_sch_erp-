@@ -117,7 +117,7 @@ export function StaffConcernCell() {
         <div className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-[var(--card-pad)] py-3 text-[14px]">
           <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden />
           <span className="font-medium">{toEscalate} {toEscalate === 1 ? 'case is' : 'cases are'} past the resolution deadline and not escalated.</span>
-          <div className="min-w-[14rem]"><Select value={escalateTo} onChange={setEscalateTo} placeholder="Escalate to…" options={peopleOptions} /></div>
+          <div className="min-w-[min(100%,14rem)]"><Select value={escalateTo} onChange={setEscalateTo} placeholder="Escalate to…" options={peopleOptions} /></div>
           <Button size="sm" tone="danger" disabled={!escalateTo || escalateAll.isPending} onClick={() => escalateAll.mutate()}>Escalate all</Button>
           <FormNotice error={escalateAll.error} ok={escalateAll.data ? `${escalateAll.data.escalated} escalated.` : undefined} />
         </div>
@@ -127,7 +127,7 @@ export function StaffConcernCell() {
         <CardHeader title="The cell" />
         <div className="flex flex-wrap items-center gap-2 border-b px-[var(--card-pad)] py-3">
           <StageBar counts={list.data?.counts} value={stage} onChange={setStage} />
-          <div className="min-w-[10rem]">
+          <div className="min-w-[min(100%,10rem)]">
             <Select value={category} onChange={setCategory} placeholder="Any category"
               options={[{ value: '', label: 'Any category' }, ...STAFF_CATEGORIES]} />
           </div>

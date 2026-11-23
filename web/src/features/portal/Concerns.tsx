@@ -268,7 +268,7 @@ export default function Concerns({ embedded = false }: { embedded?: boolean } = 
                     aria-expanded={openId === c.id}
                     onClick={() => setOpenId(openId === c.id ? null : c.id)}
                   >
-                    <div className="min-w-[14rem] flex-1">
+                    <div className="min-w-[min(100%,14rem)] flex-1">
                       <div className="font-medium">{c.subject}</div>
                       <div className="mt-1 text-[12px] text-muted-foreground">
                         {categoryLabel(c.category)}

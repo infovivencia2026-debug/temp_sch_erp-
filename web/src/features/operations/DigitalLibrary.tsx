@@ -260,7 +260,7 @@ function Catalogue({
           }
         />
         <div className="flex flex-wrap items-end gap-3 border-b p-5">
-          <div className="min-w-[180px]">
+          <div className="min-w-[min(100%,180px)]">
             <Field label="Kind">
               <Select
                 value={kind}
@@ -274,7 +274,7 @@ function Catalogue({
               />
             </Field>
           </div>
-          <div className="min-w-[220px] flex-1">
+          <div className="min-w-[min(100%,220px)] flex-1">
             <Field label="Search">
               <Input value={q} onChange={onQ} placeholder="Title or author" />
             </Field>

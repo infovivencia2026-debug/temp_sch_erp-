@@ -236,7 +236,7 @@ export default function GrievanceHub() {
             <span className="font-medium">
               {toEscalate} {toEscalate === 1 ? 'concern is' : 'concerns are'} past the resolution deadline and not escalated.
             </span>
-            <div className="min-w-[14rem]">
+            <div className="min-w-[min(100%,14rem)]">
               <Select value={escalateTo} onChange={setEscalateTo} placeholder="Escalate to…" options={peopleOptions} />
             </div>
             <Button size="sm" tone="danger" disabled={!escalateTo || escalateAll.isPending} onClick={() => escalateAll.mutate()}>
@@ -262,11 +262,11 @@ export default function GrievanceHub() {
           />
           <div className="flex flex-wrap items-center gap-2 border-b px-[var(--card-pad)] py-3">
             {view === 'list' && <StageBar counts={counts} value={stage} onChange={setStage} />}
-            <div className="min-w-[10rem]">
+            <div className="min-w-[min(100%,10rem)]">
               <Select value={category} onChange={setCategory} placeholder="Any category"
                 options={[{ value: '', label: 'Any category' }, ...CATEGORIES.map((c) => ({ value: c, label: c }))]} />
             </div>
-            <div className="min-w-[12rem] flex-1 sm:max-w-[16rem]">
+            <div className="min-w-[min(100%,12rem)] flex-1 sm:max-w-[16rem]">
               <Input value={search} onChange={setSearch} placeholder="Search subject or name" />
             </div>
             <Button variant={mine ? 'primary' : 'secondary'} size="sm" onClick={() => setMine(!mine)}>Assigned to me</Button>
@@ -281,7 +281,7 @@ export default function GrievanceHub() {
               {STAGES.map((s) => {
                 const col = rows.filter((g) => g.stage === s)
                 return (
-                  <section key={s} className="min-w-[13rem] rounded-md bg-muted/50 p-2" aria-label={STAGE_LABEL[s]}>
+                  <section key={s} className="min-w-[min(100%,13rem)] rounded-md bg-muted/50 p-2" aria-label={STAGE_LABEL[s]}>
                     <h4 className="mb-2 flex items-center justify-between px-1 text-[13px] font-semibold">
                       {STAGE_LABEL[s]}
                       <span className="tabular-nums text-[12px] font-normal text-muted-foreground">{counts?.[s] ?? col.length}</span>

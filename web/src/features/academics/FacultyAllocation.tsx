@@ -224,7 +224,7 @@ export default function FacultyAllocation() {
                   <Td className="tabular-nums">{r.weekly_periods || '-'}</Td>
                   <Td>
                     {/* Wide enough for a full name and its periods (owner, 2026-11-13: names wrapped a letter a line). */}
-                    <div className="min-w-[260px]">
+                    <div className="min-w-[min(100%,260px)]">
                     <Select
                       value={current(r)}
                       onChange={(v) => setDraft((d) => ({ ...d, [cellKey(r)]: v }))}

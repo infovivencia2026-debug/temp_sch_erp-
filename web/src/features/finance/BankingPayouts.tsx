@@ -276,7 +276,7 @@ function BatchDetail({
                     your name.
                   </p>
                   <div className="flex flex-wrap items-end gap-3">
-                    <div className="min-w-[280px] flex-1">
+                    <div className="min-w-[min(100%,280px)] flex-1">
                       <Field label="Note or reason" hint="Required if you refuse it">
                         <Input value={reason} onChange={setReason} placeholder="Checked against the approved bills" />
                       </Field>

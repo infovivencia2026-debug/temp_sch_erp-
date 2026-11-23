@@ -404,7 +404,7 @@ function PackGate({ onOpen }: { onOpen: (step: string) => void }) {
     <Card className="mb-6">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4">
         <FolderOpen className="h-4 w-4 text-muted-foreground" />
-        <div className="min-w-[16rem] flex-1">
+        <div className="min-w-[min(100%,16rem)] flex-1">
           <p className="text-[15px] tracking-tight">
             Were you sent the setup sheets to fill in?
           </p>

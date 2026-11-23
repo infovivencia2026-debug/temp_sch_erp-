@@ -507,7 +507,7 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
                     {/* Room to read the stage it is moving to. A Select given
                         no width collapses to its chevron in a crowded row, and
                         "Move to…" is the only thing that says what it does. */}
-                    <div className="w-48 min-w-[11rem] text-left">
+                    <div className="w-48 min-w-[min(100%,11rem)] text-left">
                       <Select
                         value=""
                         onChange={(stage) => stage && move.mutate({ id: c.id, stage })}

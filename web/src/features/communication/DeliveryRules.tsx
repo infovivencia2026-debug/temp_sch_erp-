@@ -117,7 +117,7 @@ export default function DeliveryRules() {
         <div className="divide-y">
           {types.map((t) => (
             <div key={t.key} className="flex flex-wrap items-start gap-4 px-5 py-4">
-              <div className="min-w-[200px] flex-1">
+              <div className="min-w-[min(100%,200px)] flex-1">
                 <div className="flex items-center gap-2 text-[14px] font-medium">
                   {t.label} {t.urgent && <Badge tone="danger">Urgent</Badge>}
                 </div>

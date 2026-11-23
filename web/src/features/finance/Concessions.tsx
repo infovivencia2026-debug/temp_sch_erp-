@@ -360,7 +360,7 @@ export default function Concessions() {
           />
           {mayDecide && (
             <div className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
-              <label className="flex min-w-[16rem] flex-col gap-1 text-[12.5px]">
+              <label className="flex min-w-[min(100%,16rem)] flex-col gap-1 text-[12.5px]">
                 <span className="text-muted-foreground">Child</span>
                 <Select
                   value={refundStudent}
@@ -376,7 +376,7 @@ export default function Concessions() {
                 <span className="text-muted-foreground">Amount (₹)</span>
                 <Input className="w-32" value={refundAmount} onChange={setRefundAmount} placeholder="0" />
               </label>
-              <label className="flex min-w-[18rem] flex-1 flex-col gap-1 text-[12.5px]">
+              <label className="flex min-w-[min(100%,18rem)] flex-1 flex-col gap-1 text-[12.5px]">
                 <span className="text-muted-foreground">Why the money is going back</span>
                 <Input value={refundReason} onChange={setRefundReason} placeholder="Left in November; terms 2 and 3 unused" />
               </label>

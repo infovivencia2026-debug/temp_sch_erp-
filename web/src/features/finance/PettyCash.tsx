@@ -203,7 +203,7 @@ function VoucherRow({ voucher }: { voucher: PettyVoucher }) {
         <tr>
           <Td colSpan={8}>
             <div className="flex flex-wrap items-end gap-3 py-2">
-              <div className="min-w-[320px] flex-1">
+              <div className="min-w-[min(100%,320px)] flex-1">
                 <Field label="Why is the claim refused?" required>
                   <Input value={reason} onChange={setReason}
                     placeholder="No receipt attached; resubmit with the bill" />

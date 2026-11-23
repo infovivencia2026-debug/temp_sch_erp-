@@ -144,7 +144,7 @@ export default function HostelLife() {
             <ul className="divide-y">
               {overdue.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <div className="min-w-[14rem] flex-1">
+                  <div className="min-w-[min(100%,14rem)] flex-1">
                     <div className="font-medium">
                       {p.student_name}
                       {p.room && <span className="text-muted-foreground"> · Room {p.room}</span>}

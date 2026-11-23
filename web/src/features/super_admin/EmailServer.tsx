@@ -387,7 +387,7 @@ function SmtpPanel({ provider }: { provider: Provider }) {
             outcome is recorded here whether it succeeds or fails.
           </p>
           <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[260px] flex-1">
+            <div className="min-w-[min(100%,260px)] flex-1">
               <Input value={testTo} onChange={setTestTo} placeholder="your.name@school.edu.in" />
             </div>
             <Button

@@ -279,7 +279,7 @@ export default function Certificates() {
           <div className="space-y-3 p-5">
             {/* One short row (owner: the old form was long and ugly). */}
             <div className="flex flex-wrap items-center gap-2.5">
-              <SearchBox value={search} onChange={setSearch} placeholder="Student name or admission no." className="min-w-[16rem] flex-1" />
+              <SearchBox value={search} onChange={setSearch} placeholder="Student name or admission no." className="min-w-[min(100%,16rem)] flex-1" />
               <div className="w-60"><Select value={type} onChange={(v) => { setType(v); setTcOpen(v === 'TC') }} options={TYPES} /></div>
               <Button disabled={!studentId || issue.isPending || (type === 'TC' && !reason.trim()) || (type === 'ACHIEVEMENT' && !ach.achievement.trim())} onClick={() => issue.mutate(false)}>
                 {issue.isPending ? 'Issuing…' : 'Issue & preview'}

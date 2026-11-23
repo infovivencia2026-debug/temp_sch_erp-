@@ -253,7 +253,7 @@ function Board({ items, onOpen, onMove, own }: { items: Task[]; onOpen: (id: str
       </div>
     )
   }
-  return <div className="grid grid-cols-4 items-start gap-3">{STAGES.map(column)}</div>
+  return <div className="auto-grid [--min:15rem] items-start">{STAGES.map(column)}</div>
 }
 
 /* One task: what it is, where it has got to, what the reader can do next,

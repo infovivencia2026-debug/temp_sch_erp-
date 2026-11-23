@@ -499,7 +499,7 @@ function DriverMessage({ vehicleId, paired }: { vehicleId: string; paired: boole
   if (!paired) return <span className="text-muted-foreground">-</span>
   const latest = notices.data?.items?.[0]
   return (
-    <div className="min-w-[180px] space-y-1">
+    <div className="min-w-[min(100%,180px)] space-y-1">
       {latest && (
         <div className="text-[12.5px]">
           <div className="max-w-[240px] truncate" title={latest.body}>{latest.body}</div>

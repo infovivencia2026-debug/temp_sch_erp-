@@ -293,7 +293,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
             /* On a phone: Mark all present, Mark all absent and Save as one
                row of three equal buttons (owner, 2026-10-26). */
             phone ? (
-            <div className="grid grid-cols-3 gap-2 border-b px-4 py-3 [&>*]:min-w-0 [&_button]:w-full">
+            <div className="auto-grid [--min:6.5rem] border-b px-4 py-3 [&>*]:min-w-0 [&_button]:w-full">
               <Button variant="outline" onClick={() => markAll('present')}>All present</Button>
               <Button variant="outline" onClick={() => markAll('absent')}>All absent</Button>
               <Button

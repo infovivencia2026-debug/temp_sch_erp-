@@ -155,7 +155,7 @@ export default function Consent() {
               {needConsent.map((p) => (
                 <li key={p.id} className="px-4 py-3">
                   <div className="flex flex-wrap items-start gap-3">
-                    <div className="min-w-[16rem] flex-1">
+                    <div className="min-w-[min(100%,16rem)] flex-1">
                       <div className="font-medium">
                         {p.student_name} · {p.destination ?? p.reason}
                       </div>
@@ -205,7 +205,7 @@ export default function Consent() {
             <ul className="divide-y">
               {unsigned.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-start gap-3 px-4 py-3">
-                  <div className="min-w-[16rem] flex-1">
+                  <div className="min-w-[min(100%,16rem)] flex-1">
                     <div className="font-medium">{c.title}</div>
                     {c.body && (
                       <div className="text-[13px] text-muted-foreground">{c.body}</div>
@@ -370,7 +370,7 @@ function PassHistory({ rows }: { rows: Outpass[] }) {
       <ul className="divide-y">
         {rows.map((p) => (
           <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
-            <div className="min-w-[14rem] flex-1">
+            <div className="min-w-[min(100%,14rem)] flex-1">
               <span className="font-medium">{p.student_name}</span>
               <span className="text-muted-foreground"> · {p.destination ?? p.reason}</span>
               <div className="text-[12px] text-muted-foreground">

@@ -109,7 +109,7 @@ function RequestSheet({ storage, onClose }: { storage: Storage; onClose: () => v
             </div>
 
             <p className="mb-2 text-[13px] font-medium">How much extra storage?</p>
-            <div className="mb-4 grid grid-cols-4 gap-2" role="radiogroup" aria-label="Extra storage">
+            <div className="mb-4 auto-grid [--min:5rem]" role="radiogroup" aria-label="Extra storage">
               {SIZES.map((s) => (
                 <button key={s} type="button" role="radio" aria-checked={size === s} onClick={() => setSize(s)}
                   className={cn('min-h-[44px] rounded-xl border text-[15px] font-semibold transition-colors',

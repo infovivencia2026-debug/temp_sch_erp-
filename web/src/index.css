@@ -301,6 +301,19 @@
        a filter and Apply in one toolbar never lined up. Both read this; a
        finger gets the 44px floor. */
     --control-h: 40px;
+    /* FLUID SPACING THAT FOLLOWS THE PHONE (owner, 2026-11-23: every screen
+       adapts to any phone, its size and its own font setting). Gutters and
+       gaps scale with the width; the tap floor and heading sizes are in rem so
+       a phone set to large text gets bigger targets and headings, not text
+       spilling out of fixed boxes. */
+    --screen-pad: clamp(12px, 4vw, 24px);
+    --gap: clamp(8px, 2.5vw, 16px);
+    --tap: max(44px, 3.15rem);
+    --h1-fluid: clamp(1.3rem, 1rem + 2.2vw, 1.75rem);
+    --h2-fluid: clamp(1.1rem, 0.95rem + 1.2vw, 1.35rem);
+    --container: min(100%, 1440px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
     --radius-card: min(calc(11px * var(--radius-k)), 20px);
     --radius-dialog: min(calc(14px * var(--radius-k)), 26px);
     --radius: var(--radius-card);
@@ -721,7 +734,13 @@
   h1 { font-size: calc(24px * var(--font-scale)); font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; }
   h2 { font-size: calc(18px * var(--font-scale)); font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
   h3 { font-size: calc(15px * var(--font-scale)); font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
-  :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: anywhere; }
+  /* A WORD BREAKS ONLY WHEN IT CANNOT FIT A LINE OF ITS OWN (owner's phone at
+     large text, 2026-11-23: "Fees outstandi|ng", "Homewo|rk"). `anywhere` also
+     let min-content shrink to one letter, so a narrow column split every word;
+     `break-word` keeps whole words and still stops a long token pushing a card
+     wider. Emails, UTRs, IDs and URLs opt into `.break-anywhere`. */
+  :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: break-word; }
+  .break-anywhere, .break-anywhere * { overflow-wrap: anywhere; word-break: normal; }
 
   /* A SENTENCE HAS A LENGTH, AND A SCREEN IS NOT IT.
 
@@ -871,7 +890,12 @@
       box-shadow: none;
     }
     .responsive-table tbody td:first-child:not([colspan]) {
-      max-width: 55vw;
+      /* Capped so the scrolled columns always have room beside it, and
+         clipped to its own padding box with an edge shadow so nothing
+         scrolling under it shows through. */
+      max-width: min(45vw, 12rem);
+      background-clip: padding-box;
+      box-shadow: 6px 0 6px -6px hsl(var(--foreground) / 0.18);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1167,7 +1191,7 @@
      phone the cell is a size container and the figure scales to it. */
   @media (max-width: 639.98px) {
     .cell { container-type: inline-size; }
-    .stat { font-size: min(28px, 12.5cqi); white-space: nowrap; }
+    .stat { font-size: clamp(1.05rem, 18cqi, 28px); }
   }
 
   @media (pointer: coarse), (max-width: 639.98px) { :root { --control-h: 44px; } }
@@ -5935,3 +5959,131 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 .fee-lines .responsive-table :where(thead th, tbody td) { padding-left: 10px; padding-right: 10px; }
 .fee-lines .responsive-table > tbody td:first-child { position: sticky; left: 0; z-index: 2; background: hsl(var(--card)); }
 .fee-lines .responsive-table > thead th:first-child { position: sticky; left: 0; z-index: 3; background: hsl(var(--surface-subtle)); }
+
+/* =====================================================================
+   PHONES AT ANY SIZE AND ANY FONT SETTING (owner, 2026-11-23).
+   Android applies the phone's own font size to every text size (WebView
+   textZoom) while the screen stays 360 wide. Everything below is sized in
+   rem or by its own container, so it grows and reflows with that setting
+   instead of spilling out of boxes that assumed 14px text. One shared set
+   of rules; screens opt out only where a grid must scroll (timetables).
+   ===================================================================== */
+
+/* A row of cards that drops to fewer columns when they would get too
+   narrow, by the card's own minimum in rem: at large text the minimum grows
+   and the row goes to one column rather than squeezing the words. */
+.auto-grid {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--min, 14rem)), 1fr));
+}
+.auto-grid > * { min-width: 0; }
+
+/* Count cards (Stat in CellGrid). On a phone two across while two fit at
+   this text size, one across when they do not; the odd card out closes the
+   row as before. The figure sizes to its card. */
+@media (max-width: 639.98px) {
+  .cell-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)) !important;
+  }
+  .cell-grid > * { grid-column: auto !important; min-width: 0; }
+  .cell-grid > :last-child:nth-child(odd) { grid-column: 1 / -1 !important; }
+  .cell-grid .cell, .cell-grid > .cell { container-type: inline-size; min-width: 0; }
+  .cell-grid .cell .stat, .cell-grid > .cell .stat {
+    font-size: clamp(1.15rem, 18cqi, 28px);
+    white-space: normal;
+  }
+}
+/* "0 pending", "₹0 due": the word after the figure goes under it when the
+   card is narrow; the figure itself never splits. */
+.stat { overflow-wrap: normal; word-break: keep-all; }
+
+/* A sideways row of chips or tabs says it continues: the far edge fades and
+   a swipe stops on a chip. */
+.chip-scroll {
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  padding-right: 28px;
+}
+.chip-scroll::-webkit-scrollbar { display: none; }
+.chip-scroll > * { scroll-snap-align: start; flex-shrink: 0; }
+
+/* A greeting beside a photo: never squeezed into a jumble, the name may take
+   a second line of its own. */
+.greet { min-width: 0; flex: 1 1 0%; text-wrap: balance; }
+.greet-title { font-size: clamp(1.15rem, 0.9rem + 1.6vw, 1.5rem); line-height: 1.2; }
+
+/* Buttons grow with their text: a floor, not a fixed height. */
+@media (max-width: 639.98px) {
+  .btn-fluid { min-height: var(--tap); height: auto !important; }
+}
+
+/* Popovers and menus never wider than the screen. */
+[role=menu], [role=listbox], [data-radix-popper-content-wrapper] > *, .popover-panel {
+  max-width: calc(100vw - 16px);
+}
+
+/* ---------------------------------------------------------------------
+   TABLE ROWS AS CARDS ON A NARROW TABLE.
+   Decided by the table's own width (its frame is a size container), in rem
+   so a phone with large text switches earlier. Each cell shows its column
+   name (data-label, set by Table). The first cell is the card's title and
+   wraps; no frozen column, nothing scrolls sideways. Sortable headings stay
+   as a row of small sort buttons. A table that is a real 2-D grid passes
+   layout="scroll" (data-layout) and keeps scrolling with a frozen column.
+   Low specificity (:where) so Table's own "hide this column" rule wins.
+   --------------------------------------------------------------------- */
+.table-frame { container: rtable / inline-size; }
+@container rtable (max-width: 34rem) {
+  :where(.table-frame:not([data-layout=scroll])) > .scroll-x { overflow-x: visible; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table {
+    display: block; width: 100% !important; min-width: 0 !important; max-width: 100%;
+  }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > thead { display: block; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > thead > tr {
+    display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 12px;
+  }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > thead > tr > th {
+    position: static !important; padding: 0 !important; border: 0 !important; background: none !important;
+  }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > thead > tr > th:not(:has(button)) { display: none; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > thead:not(:has(button)) { display: none; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody { display: block; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr {
+    display: block; padding: 6px 0; border-bottom: 1px solid hsl(var(--border));
+  }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td {
+    display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr); gap: 2px 12px; align-items: baseline;
+    position: static !important; max-width: none !important; width: auto !important; min-width: 0 !important;
+    white-space: normal !important; text-overflow: clip !important; overflow: visible !important;
+    text-align: left !important; border: 0 !important; box-shadow: none !important;
+    padding: 4px 12px !important;
+  }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td > * { min-width: 0; max-width: 100%; white-space: normal; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td::before {
+    content: attr(data-label); font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); line-height: 1.35;
+  }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:is(:not([data-label]), [data-label=""], [colspan])::before { content: none; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:is(:not([data-label]), [data-label=""], [colspan]),
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:first-child {
+    display: block;
+  }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:first-child:not([colspan])::before { content: none; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:first-child:not([colspan]) { font-weight: 600; font-size: 15px; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:empty { display: none; }
+  /* Room for the table's corner controls beside the first title. */
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table:not(:has(> thead button)) > tbody > tr:first-child > td:first-child { padding-right: 84px !important; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table:has(> thead button) > thead > tr { padding-right: 84px; }
+}
+/* The corner controls stay small in the corner over a card table, never a
+   row of their own. */
+@container (max-width: 34rem) {
+  [data-table-expandable]:has(> .table-frame:not([data-layout=scroll])) > .table-corner.table-corner,
+  [data-table-expandable]:has(> .table-frame:not([data-layout=scroll])) > .table-corner.table-corner-row {
+    position: absolute; top: 4px; right: 8px; padding: 0; gap: 8px;
+  }
+}
+.chip-scroll > button { min-height: 40px; }

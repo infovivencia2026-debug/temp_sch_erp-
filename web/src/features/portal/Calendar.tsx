@@ -295,7 +295,7 @@ export default function Calendar() {
             on screen, so a family with nothing of that kind this month is not
             offered the chip at all. */}
         {counts.length > 0 && (
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <div className="chip-scroll -mx-1 flex gap-2 px-1 pb-1">
             <button
               type="button"
               onClick={() => setOnly(null)}

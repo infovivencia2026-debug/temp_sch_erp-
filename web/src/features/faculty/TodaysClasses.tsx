@@ -231,8 +231,8 @@ export default function TodaysClasses() {
   return (
     <PageBody top width="full"><div className="flex flex-col gap-5">
       {!inShellHeader && <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-[24px] font-bold tracking-[-0.02em]">{fullName || first || 'Today'}</h1>
+        <div className="greet">
+          <h1 className="greet-title font-bold tracking-[-0.02em] [text-wrap:balance]">{fullName || first || 'Today'}</h1>
           <p className="text-[14px] text-muted-foreground">{dateLine}</p>
         </div>
         <div className="flex min-w-0 items-center gap-3">

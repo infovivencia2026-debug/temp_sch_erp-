@@ -190,7 +190,7 @@ function CustomFields({ blockKey, studentID, custom, onChanged }: {
               <Input value={name} onChange={setName} placeholder="Bus stop" />
             </FormField>
           </div>
-          <div className="min-w-[10rem] flex-1">
+          <div className="min-w-[min(100%,10rem)] flex-1">
             <FormField label="Value">
               <Input value={value} onChange={setValue} placeholder="Sunshine Park" />
             </FormField>
