@@ -3,14 +3,14 @@
    totals, the latest parent replies and the latest notices. */
 import type { ComponentType } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, MessageCircle, Send } from 'lucide-react'
+import { ArrowUpRight, MessageCircle, NotebookPen, Send } from 'lucide-react'
 import type { ConnectRecipientStatus } from '@shared/api/feature_yajur_connect'
 import { api } from '@/lib/api'
 import { Badge, Button, Card, ErrorState, Loading, Stat } from '@/components/ui'
 import { formatDateTime } from '@/lib/utils'
 import { STATUS_LABEL, STATUS_TONE } from './YajurConnectSend'
 
-export type ConnectTab = 'chats' | 'send' | 'campaigns' | 'log' | 'templates' | 'people'
+export type ConnectTab = 'chats' | 'send' | 'campaigns' | 'log' | 'templates' | 'people' | 'workbooks'
 
 export interface ConnectOverviewData {
   parents: number
@@ -35,15 +35,19 @@ function greeting(): string {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 }
 
-function Shortcut({ icon: Icon, title, detail, onClick }: { icon: ComponentType<{ className?: string }>; title: string; detail: string; onClick: () => void }) {
+/* The original app's three task cards (owner, 2026-11-23: "like the HTML"):
+   Send a notice filled in the school colour, the others white; an icon tile
+   on the left and an arrow at the top right. */
+function Shortcut({ icon: Icon, title, detail, onClick, main = false }: { icon: ComponentType<{ className?: string }>; title: string; detail: string; onClick: () => void; main?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className="card flex min-h-[48px] w-full items-center gap-3 p-4 text-left">
-      <Icon className="h-6 w-6 shrink-0 text-primary" />
+    <button type="button" onClick={onClick}
+      className={`flex min-h-[76px] w-full items-center gap-3.5 rounded-[20px] border p-4 text-left transition-transform active:scale-[0.99] ${main ? 'border-primary bg-primary text-primary-foreground shadow-md' : 'card'}`}>
+      <span className={`grid size-11 shrink-0 place-items-center rounded-2xl ${main ? 'bg-primary-foreground/15' : 'bg-primary/10 text-primary'}`}><Icon className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold">{title}</span>
-        <span className="block truncate text-sm text-muted-foreground">{detail}</span>
+        <span className="block font-semibold">{title}</span>
+        <span className={`block text-sm ${main ? 'opacity-80' : 'text-muted-foreground'}`}>{detail}</span>
       </span>
-      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+      <ArrowUpRight className={`h-5 w-5 shrink-0 self-start ${main ? 'opacity-80' : 'text-muted-foreground'}`} />
     </button>
   )
 }
@@ -78,9 +82,10 @@ export default function ConnectOverview({ go }: { go: (tab: ConnectTab, chatId?:
         <p className="text-sm text-muted-foreground">Your school's WhatsApp messages at a glance.</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Shortcut icon={Send} title="Send a notice" detail="Choose classes, preview and send" onClick={() => go('send')} />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <Shortcut main icon={Send} title="Send a notice" detail="Choose classes, preview and send" onClick={() => go('send')} />
         <Shortcut icon={MessageCircle} title="Reply to parents" detail="Continue a conversation" onClick={() => go('chats')} />
+        <Shortcut icon={NotebookPen} title="Share workbooks" detail="The right photo, the right class" onClick={() => go('workbooks')} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -114,9 +119,9 @@ export default function ConnectOverview({ go }: { go: (tab: ConnectTab, chatId?:
 
         <Card className="min-w-0">
           <Head title="Message delivery" action="Log" onClick={() => go('log')} />
-          <div className="grid grid-cols-2 gap-4 p-[var(--card-pad)] sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 p-[var(--card-pad)]">
             {delivery.map((x) => (
-              <div key={x.label} className="min-w-0">
+              <div key={x.label} className="min-w-0 rounded-2xl bg-muted/50 px-4 py-3">
                 <div className={`text-2xl font-semibold tabular-nums ${x.cls}`}>{n(x.value)}</div>
                 <div className="truncate text-sm text-muted-foreground">{x.label}</div>
               </div>

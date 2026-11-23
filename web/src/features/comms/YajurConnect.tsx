@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { Camera, FileText, Info as InfoIcon, MapPin, Mic, Sticker, Video, type LucideIcon } from 'lucide-react'
+import { BarChart3, Bot, CalendarDays, Camera, FileText, Info as InfoIcon, LayoutDashboard, MapPin, Megaphone, MessagesSquare, Mic, NotebookPen, ScrollText, Send, Settings, Sticker, Users, Video, type LucideIcon } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { ConnectConversation, ConnectMatch, ConnectMessage, ConnectState, ConnectThread } from '@shared/api/feature_yajur_connect'
 import {
   PageHead, PageBody, Button, Card, ConfirmButton, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select,
-  Switch, Textarea, TAB_BAR, tabClass,
+  Switch, Textarea,
 } from '@/components/ui'
 import { SendTab } from './YajurConnectSend'
 import ConnectOverview from './ConnectOverview'
@@ -43,6 +43,10 @@ const NOT_ON_LIST = 'Test mode: this number is not on the test list, so messages
    order (owner, 2026-11-23). 'campaigns' and 'scheduled' stay as keys so old
    links keep working: both open Notice history. */
 type Tab = 'overview' | 'chats' | 'send' | 'workbooks' | 'people' | 'templates' | 'history' | 'campaigns' | 'scheduled' | 'log' | 'insights' | 'events' | 'rules' | 'settings'
+const TAB_ICON: Partial<Record<Tab, LucideIcon>> = {
+  overview: LayoutDashboard, chats: MessagesSquare, send: Send, workbooks: NotebookPen, people: Users, templates: FileText,
+  history: Megaphone, log: ScrollText, insights: BarChart3, events: CalendarDays, rules: Bot, settings: Settings,
+}
 const TABS: { key: Tab; label: string; group: string }[] = [
   { key: 'overview', label: 'Overview', group: 'Communication' }, { key: 'chats', label: 'Parent inbox', group: 'Communication' }, { key: 'send', label: 'Send a notice', group: 'Communication' }, { key: 'workbooks', label: 'Daily workbooks', group: 'Communication' },
   { key: 'people', label: 'Students & parents', group: 'School directory' }, { key: 'templates', label: 'Message templates', group: 'School directory' },
@@ -155,19 +159,43 @@ export default function YajurConnect() {
     <>
       <PageHead eyebrow="Communication" title="Yajur Connect" />
       <PageBody>
+        {/* THE ORIGINAL APP'S MENU (owner, 2026-11-23: "like the HTML on my
+            desktop"): a menu of its own on the left, in its groups
+            (Communication, School directory, Activity, Workspace), with the
+            screen beside it. On a phone it is one dropdown above the screen. */}
+        <div className="lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:items-start lg:gap-5">
         {list.data && (
-          <div className={cn(TAB_BAR, 'mb-4 flex-nowrap items-end overflow-x-auto [scrollbar-width:none]')} role="tablist">
-            {tabs.map((t, i) => (
-              <span key={t.key} className="flex items-end">
-                {/* A thin divider where the original app's menu starts a new group. */}
-                {i > 0 && tabs[i - 1].group !== t.group && <span aria-hidden className="mx-1 mb-2.5 h-4 w-px bg-border" />}
-                <button type="button" role="tab" aria-selected={tab === t.key} className={cn(tabClass(tab === t.key), 'whitespace-nowrap')} onClick={() => setTab(t.key)}>
-                  {t.label}
-                </button>
-              </span>
-            ))}
-          </div>
+          <>
+            <nav aria-label="Yajur Connect" className="card sticky top-3 hidden p-3 lg:block">
+              <div className="flex items-center gap-2.5 px-2 pb-3 pt-1">
+                <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary"><MessagesSquare className="size-5" aria-hidden /></span>
+                <span className="text-[15px] font-bold">Yajur Connect</span>
+              </div>
+              {tabs.map((t, i) => {
+                const Icon = TAB_ICON[t.key] ?? FileText
+                const on = tab === t.key
+                return (
+                  <div key={t.key}>
+                    {(i === 0 || tabs[i - 1].group !== t.group) && (
+                      <div className="px-2 pb-1 pt-3 text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">{t.group}</div>
+                    )}
+                    <button type="button" aria-current={on ? 'page' : undefined} onClick={() => setTab(t.key)}
+                      className={cn('flex min-h-10 w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[14px] transition-colors',
+                        on ? 'bg-primary/10 font-semibold text-primary' : 'text-foreground/80 hover:bg-muted/60 hover:text-foreground')}>
+                      <Icon className="size-[18px] shrink-0" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{t.label}</span>
+                    </button>
+                  </div>
+                )
+              })}
+            </nav>
+            <div className="mb-4 lg:hidden">
+              <Select value={tab} onChange={(v) => setTab(v as Tab)}
+                options={tabs.map((t) => ({ value: t.key, label: `${t.group}: ${t.label}` }))} />
+            </div>
+          </>
         )}
+        <div className="min-w-0">
         {tab === 'overview' ? <ConnectOverview go={(t, chatId) => { if (chatId) setOpenId(chatId); else goTab(t === 'campaigns' ? 'history' : t) }} />
           : tab === 'send' ? <SendTab onOpenChat={setOpenId} initialCode={params.get('template') ?? ''} presetGuardian={params.get('guardian') ?? ''} presetStudent={params.get('student') ?? ''} />
           : tab === 'people' ? <ConnectPeople onMessage={(guardianId, studentId) => goTab('send', { guardian: guardianId, student: studentId })} />
@@ -180,6 +208,8 @@ export default function YajurConnect() {
           : tab === 'rules' ? <AutoReplies />
           : tab === 'settings' ? <ConnectSettings goRules={() => setTab('rules')} />
           : chats()}
+        </div>
+        </div>
       </PageBody>
     </>
   )
