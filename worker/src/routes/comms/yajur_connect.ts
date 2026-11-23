@@ -18,6 +18,8 @@ import { CONNECT_SOURCE, queueChatText, recordOutbound } from '../../services/wa
 import { connectLabel } from '../../services/wa_send'
 import { registerYajurConnectSend } from './yajur_connect_send'
 import { registerYajurConnectLog } from './yajur_connect_log'
+import { registerYajurConnectOverview } from './yajur_connect_overview'
+import { registerYajurConnectPeople } from './yajur_connect_people'
 import { registerYajurConnectTemplates } from './yajur_connect_templates'
 import type {
   ConnectAutoReply, ConnectAutoReplyBody, ConnectContact, ConnectConversation, ConnectMatch, ConnectMessage, ConnectState, ConnectTemplate,
@@ -152,6 +154,8 @@ export function registerYajurConnect(r: Router): void {
   // Sending first: its fixed paths (send, campaigns, schedules) must win over /{id}.
   registerYajurConnectSend(r)
   registerYajurConnectLog(r, READ)
+  registerYajurConnectOverview(r, READ)
+  registerYajurConnectPeople(r, WRITE)
   registerYajurConnectTemplates(r)
   r.typed('GET /comms/yajur-connect', READ, async (c) => {
     const q = (c.url.searchParams.get('q') ?? '').trim().slice(0, 80)
@@ -160,6 +164,10 @@ export function registerYajurConnect(r: Router): void {
     const where: string[] = [], args: unknown[] = []
     if (state !== 'all') { where.push('c.state = ?'); args.push(state) }
     if (c.url.searchParams.get('mine') === '1') { where.push('c.assigned_to = ?'); args.push(c.id.userId) }
+    // Parent inbox filters as the original app has them: Unassigned, and Others (assigned to someone else).
+    const who = c.url.searchParams.get('who')
+    if (who === 'unassigned') where.push('c.assigned_to IS NULL')
+    else if (who === 'others') { where.push('c.assigned_to IS NOT NULL AND c.assigned_to <> ?'); args.push(c.id.userId) }
     if (q) {
       const digits = q.replace(/[^0-9]/g, '')
       where.push(`(g.full_name LIKE ? ESCAPE '\\' OR s.first_name || ' ' || coalesce(s.last_name, '') LIKE ? ESCAPE '\\' OR c.profile_name LIKE ? ESCAPE '\\'

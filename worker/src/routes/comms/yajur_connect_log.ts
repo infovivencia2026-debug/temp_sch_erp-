@@ -1,6 +1,6 @@
 /* Yajur Connect Log (comms.connect.read): every WhatsApp message in
    message_log, newest first, with the parent's or staff member's name where
-   the number matches one. Filters: status, a date range (queued day, UTC) and
+   the number matches one. Filters: status, type, a date range (queued day, UTC) and
    a search over the number, the template and the name. 50 a page. */
 import type { Router } from '../../router'
 import { badRequest } from '../../http'
@@ -17,6 +17,16 @@ const STATUS_SQL: Record<ConnectRecipientStatus, string> = {
 }
 const last10 = (p: string) => normalisePhone(p).slice(-10)
 
+/* What sent it, from message_log.source_kind: a notice (broadcast), a message
+   to one parent, a chat reply, a test, or anything else the ERP queues. */
+export type ConnectLogType = 'notice' | 'direct' | 'reply' | 'test' | 'alert'
+const TYPE_SOURCE: Record<Exclude<ConnectLogType, 'alert'>, string> = {
+  notice: 'wa_campaign', direct: 'wa_connect_new', reply: 'wa_connect', test: 'connect_test',
+}
+const KNOWN = Object.values(TYPE_SOURCE)
+const typeOf = (src: string | null): ConnectLogType =>
+  (Object.keys(TYPE_SOURCE) as (keyof typeof TYPE_SOURCE)[]).find((k) => TYPE_SOURCE[k] === src) ?? 'alert'
+
 export function registerYajurConnectLog(r: Router, perm: string): void {
   r.typed('GET /comms/yajur-connect/log', perm, async (c) => {
     const q = c.url.searchParams
@@ -28,6 +38,13 @@ export function registerYajurConnectLog(r: Router, perm: string): void {
     }
     const from = q.get('from') || '', to = q.get('to') || ''
     if ((from && !DAY.test(from)) || (to && !DAY.test(to))) throw badRequest('dates must be YYYY-MM-DD')
+    if (from && to && from > to) throw badRequest('the from date is after the to date')
+    const type = q.get('type') || ''
+    if (type) {
+      if (type === 'alert') { where.push(`coalesce(m.source_kind, '') NOT IN (${KNOWN.map(() => '?').join(',')})`); args.push(...KNOWN) }
+      else if (type in TYPE_SOURCE) { where.push(`m.source_kind = ?`); args.push(TYPE_SOURCE[type as keyof typeof TYPE_SOURCE]) }
+      else throw badRequest('unknown type')
+    }
     if (from) { where.push(`substr(m.queued_at, 1, 10) >= ?`); args.push(from) }
     if (to) { where.push(`substr(m.queued_at, 1, 10) <= ?`); args.push(to) }
 
@@ -52,12 +69,13 @@ export function registerYajurConnectLog(r: Router, perm: string): void {
     const page = Number.isInteger(n) && n >= 0 ? n : 0
     const w = where.join(' AND ')
     const total = await c.db.prepare(`SELECT count(*) AS n FROM message_log m WHERE ${w}`).bind(...args).first<{ n: number }>()
-    const rows = await c.db.prepare(`SELECT m.id, m.recipient, m.template_code, m.status, m.error, ${isoZ('m.queued_at')} AS queued_at, ${isoZ('m.sent_at')} AS sent_at
+    const rows = await c.db.prepare(`SELECT m.id, m.recipient, m.template_code, m.status, m.error, m.body, m.source_kind, ${isoZ('m.queued_at')} AS queued_at, ${isoZ('m.sent_at')} AS sent_at
         FROM message_log m WHERE ${w} ORDER BY m.queued_at DESC, m.id LIMIT ? OFFSET ?`).bind(...args, PAGE, page * PAGE)
-      .all<{ id: string; recipient: string; template_code: string | null; status: string; error: string | null; queued_at: string; sent_at: string | null }>()
-    const items: ConnectLogItem[] = rows.results.map((m) => ({
+      .all<{ id: string; recipient: string; template_code: string | null; status: string; error: string | null; body: string | null; source_kind: string | null; queued_at: string; sent_at: string | null }>()
+    // body and type ride along beyond ConnectLogItem; the Delivery log reads them.
+    const items: (ConnectLogItem & { body: string | null; type: ConnectLogType })[] = rows.results.map((m) => ({
       id: m.id, recipient: m.recipient, name: names.get(last10(m.recipient)) ?? null, template_code: m.template_code,
-      status: recipientStatus(m.status), error: m.error, queued_at: m.queued_at, sent_at: m.sent_at,
+      status: recipientStatus(m.status), error: m.error, queued_at: m.queued_at, sent_at: m.sent_at, body: m.body, type: typeOf(m.source_kind),
     }))
     return { items, total: Number(total?.n ?? 0), page, page_size: PAGE }
   })

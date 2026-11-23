@@ -205,7 +205,7 @@ export interface ConnectLogItem {
 export interface ConnectLogList { items: ConnectLogItem[]; total: number; page: number; page_size: number }
 
 export interface YajurConnectApi {
-  'GET /comms/yajur-connect': { query?: { q?: string; state?: ConnectState | 'all'; mine?: '1' }; res: ConnectList }
+  'GET /comms/yajur-connect': { query?: { q?: string; state?: ConnectState | 'all'; mine?: '1'; who?: 'unassigned' | 'others' }; res: ConnectList }
   'GET /comms/yajur-connect/staff': { res: List<ConnectStaff> }
   'GET /comms/yajur-connect/autoreplies': { res: List<ConnectAutoReply> }
   'POST /comms/yajur-connect/autoreplies': { body: ConnectAutoReplyBody; res: ConnectAutoReply }

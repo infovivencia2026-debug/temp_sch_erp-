@@ -1,32 +1,30 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type {
-  ConnectAudience, ConnectBroadcastBody, ConnectCampaign, ConnectPerson, ConnectRecipientStatus, ConnectRelation, ConnectRepeat, ConnectSendTemplate,
+  ConnectCampaign, ConnectPerson, ConnectRecipientStatus, ConnectRelation, ConnectRepeat, ConnectSendTemplate,
 } from '@shared/api/feature_yajur_connect'
 import {
-  Badge, Button, Card, Checkbox, ConfirmButton, Dialog, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select, Switch, Table, Td,
+  Badge, Button, Card, ConfirmButton, Dialog, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select, Switch, Table, Td,
   SEG_BAR, segClass,
 } from '@/components/ui'
 import { cn, formatDateTime } from '@/lib/utils'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
+import SendNotice from './ConnectSendNotice'
 
 /* Yajur Connect sending (worker/src/routes/comms/yajur_connect_send.ts):
    the Send, Campaigns and Scheduled tabs. Every message is only queued; while
    the recipient guard is on, the queue blocks it and the screen above says so. */
 
-const MERGE_FIELDS = ['parent_name', 'student_name', 'class', 'staff_name']
+export const MERGE_FIELDS = ['parent_name', 'student_name', 'class', 'staff_name']
 const FIELD_LABEL: Record<string, string> = { parent_name: "Parent's name", student_name: "Student's name", class: 'Class', staff_name: "Staff member's name" }
-const fieldLabel = (f: string) => FIELD_LABEL[f] ?? f.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
-const RELATIONS: { value: ConnectRelation; label: string }[] = [
+export const fieldLabel = (f: string) => FIELD_LABEL[f] ?? f.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
+export const RELATIONS: { value: ConnectRelation; label: string }[] = [
   { value: 'both', label: 'Both parents' }, { value: 'father', label: 'Fathers' }, { value: 'mother', label: 'Mothers' },
 ]
-const REPEATS: { value: ConnectRepeat; label: string }[] = [
+export const REPEATS: { value: ConnectRepeat; label: string }[] = [
   { value: 'once', label: 'Once' }, { value: 'daily', label: 'Every day' }, { value: 'weekly', label: 'Every week' }, { value: 'monthly', label: 'Every month' },
 ]
-const SCOPE_LABEL: Record<ConnectAudience['scope'], string> = {
-  school: 'Whole school', classes: 'Classes', sections: 'Sections', staff: 'All staff', departments: 'Departments',
-}
 const repeatLabel = (r: ConnectRepeat) => REPEATS.find((x) => x.value === r)?.label ?? r
 export const STATUS_LABEL: Record<ConnectRecipientStatus, string> = {
   queued: 'Queued', sent: 'Sent', delivered: 'Delivered', read: 'Read', failed: 'Failed', blocked: 'Blocked',
@@ -38,14 +36,14 @@ export const STATUS_TONE: Record<ConnectRecipientStatus, 'neutral' | 'success' |
 function render(body: string, vars: Record<string, string>): string {
   return body.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/g, (m, k: string) => (vars[k] !== undefined && vars[k] !== '' ? vars[k] : m))
 }
-function fill(t: ConnectSendTemplate, values: Record<string, string>, who: Record<string, string>): string {
+export function fill(t: ConnectSendTemplate, values: Record<string, string>, who: Record<string, string>): string {
   const vars: Record<string, string> = { ...who }
   for (const f of t.fields) if (values[f]?.trim()) vars[f] = render(values[f], who)
   return render(t.body, vars)
 }
 
 /** The school's name, for {{school_name}} in previews. */
-const SchoolName = createContext('')
+export const SchoolName = createContext('')
 
 /** Template wording as the recipient reads it: the school's name filled in, a field still empty as a highlighted [field name]. */
 function Wording({ text, className }: { text: string; className?: string }) {
@@ -66,7 +64,7 @@ function Wording({ text, className }: { text: string; className?: string }) {
 /* CHECK BEFORE SENDING (owner, 2026-11-23: "we want preview before sending").
    Pressing Send opens this: the message as the parent's WhatsApp shows it,
    who gets it, when, and what is left out. Nothing goes until "Send now". */
-function CheckBeforeSending({ onClose, onSend, pending, text, sampleTo, count, audience, when, template, leftOut, image, action }: {
+export function CheckBeforeSending({ onClose, onSend, pending, text, sampleTo, count, audience, when, template, leftOut, image, action }: {
   onClose: () => void; onSend: () => void; pending: boolean; text: string; sampleTo?: string; count: number; audience: string
   when: string; template: string; leftOut?: string; image?: string; action: string
 }) {
@@ -103,7 +101,7 @@ function CheckBeforeSending({ onClose, onSend, pending, text, sampleTo, count, a
 }
 
 /** Template, its fields and the optional header picture: shared by one-parent and broadcast sends. */
-function Compose({ templates, code, setCode, values, setValues, image, setImage }: {
+export function Compose({ templates, code, setCode, values, setValues, image, setImage }: {
   templates: ConnectSendTemplate[]; code: string; setCode: (v: string) => void; values: Record<string, string>; setValues: (v: Record<string, string>) => void
   image: string; setImage: (v: string) => void
 }) {
@@ -137,10 +135,10 @@ function Compose({ templates, code, setCode, values, setValues, image, setImage 
   )
 }
 
-const missing = (t: ConnectSendTemplate | undefined, values: Record<string, string>) =>
+export const missing = (t: ConnectSendTemplate | undefined, values: Record<string, string>) =>
   !t || t.fields.some((f) => !MERGE_FIELDS.includes(f) && !(values[f] ?? '').trim())
 
-export function SendTab({ onOpenChat, initialCode = '' }: { onOpenChat: (id: string) => void; initialCode?: string }) {
+export function SendTab({ onOpenChat, initialCode = '', presetGuardian = '', presetStudent = '' }: { onOpenChat: (id: string) => void; initialCode?: string; presetGuardian?: string; presetStudent?: string }) {
   const [mode, setMode] = useState<'one' | 'many' | 'test'>('one')
   const templates = useQuery({ queryKey: ['connect', 'send-templates'], queryFn: () => api.call('GET /comms/yajur-connect/send/templates'), staleTime: 60_000 })
   if (templates.isLoading) return <Loading />
@@ -151,19 +149,29 @@ export function SendTab({ onOpenChat, initialCode = '' }: { onOpenChat: (id: str
     <div className="space-y-4">
       <div className={SEG_BAR} role="tablist">
         <button type="button" role="tab" aria-selected={mode === 'one'} className={segClass(mode === 'one')} onClick={() => setMode('one')}>One parent</button>
-        <button type="button" role="tab" aria-selected={mode === 'many'} className={segClass(mode === 'many')} onClick={() => setMode('many')}>Broadcast</button>
+        <button type="button" role="tab" aria-selected={mode === 'many'} className={segClass(mode === 'many')} onClick={() => setMode('many')}>Classes &amp; groups</button>
         <button type="button" role="tab" aria-selected={mode === 'test'} className={segClass(mode === 'test')} onClick={() => setMode('test')}>Test</button>
       </div>
-      {mode === 'one' ? <OneParent templates={list} onOpenChat={onOpenChat} initialCode={initialCode} /> : mode === 'many' ? <Broadcast templates={list} initialCode={initialCode} /> : <TestSend templates={list} initialCode={initialCode} />}
+      {mode === 'one' ? <OneParent templates={list} onOpenChat={onOpenChat} initialCode={initialCode} presetGuardian={presetGuardian} presetStudent={presetStudent} /> : mode === 'many' ? <SendNotice templates={list} initialCode={initialCode} /> : <TestSend templates={list} initialCode={initialCode} />}
     </div>
     </SchoolName.Provider>
   )
 }
 
-function OneParent({ templates, onOpenChat, initialCode = '' }: { templates: ConnectSendTemplate[]; onOpenChat: (id: string) => void; initialCode?: string }) {
+function OneParent({ templates, onOpenChat, initialCode = '', presetGuardian = '', presetStudent = '' }: { templates: ConnectSendTemplate[]; onOpenChat: (id: string) => void; initialCode?: string; presetGuardian?: string; presetStudent?: string }) {
   const qc = useQueryClient()
   const [q, setQ] = useState('')
   const [who, setWho] = useState<ConnectPerson | null>(null)
+  /* Opened from Students & parents with a parent already chosen (owner, 2026-11-23). */
+  const preset = useQuery({
+    queryKey: ['connect', 'people', 'preset', presetGuardian, presetStudent],
+    queryFn: () => api.call('GET /comms/yajur-connect/send/people', { query: { q: presetGuardian } }),
+    enabled: !!presetGuardian && !who,
+  })
+  useEffect(() => {
+    const hit = preset.data?.items.find((x) => x.guardian_id === presetGuardian && (!presetStudent || x.student_id === presetStudent)) ?? preset.data?.items.find((x) => x.guardian_id === presetGuardian)
+    if (hit) setWho(hit)
+  }, [preset.data, presetGuardian, presetStudent])
   const [code, setCode] = useState(templates.some((x) => x.code === initialCode) ? initialCode : '')
   const [values, setValues] = useState<Record<string, string>>({})
   const [image, setImage] = useState('')
@@ -240,7 +248,7 @@ function OneParent({ templates, onOpenChat, initialCode = '' }: { templates: Con
   )
 }
 
-const TEST_WHO = { parent_name: 'Test', student_name: 'Test', class: 'Test' }
+export const TEST_WHO = { parent_name: 'Test', student_name: 'Test', class: 'Test' }
 
 /** One template to a number on the school's test list; no student is involved. */
 function TestSend({ templates, initialCode = '' }: { templates: ConnectSendTemplate[]; initialCode?: string }) {
@@ -276,146 +284,6 @@ function TestSend({ templates, initialCode = '' }: { templates: ConnectSendTempl
         )}
         <FormNotice error={send.error} ok={send.data ? 'Sent to the test number.' : undefined} />
         <Button disabled={!phone || missing(t, values)} pending={send.isPending} onClick={() => send.mutate()}>Send test</Button>
-      </div>
-    </Card>
-  )
-}
-
-function Broadcast({ templates, initialCode = '' }: { templates: ConnectSendTemplate[]; initialCode?: string }) {
-  const qc = useQueryClient()
-  const [name, setName] = useState('')
-  const [code, setCode] = useState(templates.some((x) => x.code === initialCode) ? initialCode : '')
-  const [values, setValues] = useState<Record<string, string>>({})
-  const [image, setImage] = useState('')
-  const [scope, setScope] = useState<ConnectAudience['scope']>('school')
-  const [ids, setIds] = useState<string[]>([])
-  const [relation, setRelation] = useState<ConnectRelation>('both')
-  const staff = scope === 'staff' || scope === 'departments'
-  const [later, setLater] = useState(false)
-  const [runAt, setRunAt] = useState('')
-  const [repeat, setRepeat] = useState<ConnectRepeat>('once')
-  const [done, setDone] = useState('')
-  const opts = useQuery({ queryKey: ['connect', 'audiences'], queryFn: () => api.call('GET /comms/yajur-connect/send/audiences'), staleTime: 300_000 })
-  const t = templates.find((x) => x.code === code)
-  const body: ConnectBroadcastBody = { name: name.trim(), template_code: code, values, header_image_url: image.trim() || null, audience: { scope, ids: scope === 'school' || scope === 'staff' ? [] : ids, relation } }
-  const ready = !!body.name && !missing(t, values) && (scope === 'school' || scope === 'staff' || ids.length > 0)
-  const [key, setKey] = useState('')
-  const json = JSON.stringify(body)
-  useEffect(() => { const h = setTimeout(() => setKey(json), 400); return () => clearTimeout(h) }, [json])
-  const preview = useQuery({
-    queryKey: ['connect', 'preview', key],
-    queryFn: () => api.call('POST /comms/yajur-connect/send/preview', { body: JSON.parse(key) as ConnectBroadcastBody }),
-    enabled: ready && key === json,
-  })
-  const reset = (msg: string) => { setDone(msg); setName(''); setValues({}); setImage(''); setRunAt('') }
-  const queue = useMutation({
-    mutationFn: () => api.call('POST /comms/yajur-connect/campaigns', { body }),
-    onSuccess: (c) => { reset(`Sending to ${c.recipient_count}. Follow it under Campaigns.`); qc.invalidateQueries({ queryKey: ['connect', 'campaigns'] }) },
-  })
-  const schedule = useMutation({
-    mutationFn: () => api.call('POST /comms/yajur-connect/schedules', { body: { ...body, repeat, run_at: new Date(runAt).toISOString() } }),
-    onSuccess: () => { reset('Scheduled. See it under Scheduled.'); qc.invalidateQueries({ queryKey: ['connect', 'schedules'] }) },
-  })
-  const choices = useMemo(() => {
-    const cls = opts.data?.classes ?? []
-    if (scope === 'departments') return (opts.data?.departments ?? []).map((d) => ({ id: d.id, label: d.name }))
-    return scope === 'classes' ? cls.map((c) => ({ id: c.id, label: c.name }))
-      : cls.flatMap((c) => c.sections.map((s) => ({ id: s.id, label: `${c.name} ${s.name}` })))
-  }, [opts.data, scope])
-  const p = preview.data
-  const [checking, setChecking] = useState(false)
-  const whenLabel = later && runAt ? `${new Date(runAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}${repeat !== 'once' ? ` · ${REPEATS.find((x) => x.value === repeat)?.label ?? repeat}` : ''}` : 'Now'
-
-  return (
-    <Card>
-      <div className="grid gap-4 p-4 lg:grid-cols-2">
-        <div className="space-y-3">
-          <Field label="Campaign name"><Input value={name} onChange={setName} placeholder="Sports day notice" /></Field>
-          <Compose templates={templates} code={code} setCode={setCode} values={values} setValues={setValues} image={image} setImage={setImage} />
-          {/* The message as soon as a template is picked (owner, 2026-11-23), with sample names until the audience is chosen. */}
-          {t && (
-            <div>
-              <div className="mb-1 text-[13px] text-muted-foreground">Preview</div>
-              <Wording text={p?.sample || fill(t, values, staff ? { parent_name: 'Staff name', staff_name: 'Staff name', student_name: '', class: '' } : { parent_name: "Parent's name", student_name: "Student's name", class: 'Class' })}
-                className="rounded-xl border bg-[#e5ddd5]/40 p-3 text-[14px] dark:bg-muted/40" />
-            </div>
-          )}
-        </div>
-        <div className="space-y-3">
-          <Field label="Send to">
-            <div className={SEG_BAR} role="tablist">
-              <button type="button" role="tab" aria-selected={!staff} className={segClass(!staff)} onClick={() => { setScope('school'); setIds([]) }}>Parents</button>
-              <button type="button" role="tab" aria-selected={staff} className={segClass(staff)} onClick={() => { setScope('staff'); setIds([]) }}>Staff</button>
-            </div>
-          </Field>
-          <div className={SEG_BAR} role="tablist">
-            {(staff ? (['staff', 'departments'] as const) : (['school', 'classes', 'sections'] as const)).map((s) => (
-              <button key={s} type="button" role="tab" aria-selected={scope === s} className={segClass(scope === s)} onClick={() => { setScope(s); setIds([]) }}>
-                {SCOPE_LABEL[s]}
-              </button>
-            ))}
-          </div>
-          {scope !== 'school' && scope !== 'staff' && (
-            opts.isLoading ? <Loading shape="inline" /> : opts.error ? <ErrorState error={opts.error} /> : (
-              <div className="grid max-h-60 grid-cols-1 gap-1 overflow-y-auto rounded-md border p-2 min-[400px]:grid-cols-2">
-                {choices.map((c) => (
-                  <Checkbox key={c.id} label={c.label} checked={ids.includes(c.id)} onChange={(on) => setIds(on ? [...ids, c.id] : ids.filter((x) => x !== c.id))} />
-                ))}
-              </div>
-            )
-          )}
-          {!staff && <Field label="Parents"><Select value={relation} onChange={(v) => setRelation(v as ConnectRelation)} options={RELATIONS} /></Field>}
-          <Field label="When">
-            <div className={SEG_BAR} role="tablist">
-              <button type="button" role="tab" aria-selected={!later} className={segClass(!later)} onClick={() => setLater(false)}>Now</button>
-              <button type="button" role="tab" aria-selected={later} className={segClass(later)} onClick={() => setLater(true)}>Later</button>
-            </div>
-          </Field>
-          {later && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Date and time"><Input type="datetime-local" value={runAt} onChange={setRunAt} /></Field>
-              <Field label="Repeat"><Select value={repeat} onChange={(v) => setRepeat(v as ConnectRepeat)} options={REPEATS} /></Field>
-            </div>
-          )}
-          <div className="rounded-md border p-3 text-[14px]">
-            {!ready ? <p className="text-muted-foreground">Still needed: {[
-                !body.name && 'type a campaign name',
-                !t && 'pick a template',
-                t && t.fields.filter((f) => !MERGE_FIELDS.includes(f) && !(values[f] ?? '').trim()).map((f) => `fill ${fieldLabel(f)}`).join(', '),
-                scope !== 'school' && scope !== 'staff' && ids.length === 0 && `tick at least one ${scope === 'classes' ? 'class' : scope === 'sections' ? 'section' : 'department'}`,
-              ].filter(Boolean).join(' · ')}.</p>
-              : preview.isLoading || key !== json ? <Loading shape="inline" /> : preview.error ? <ErrorState error={preview.error} /> : p && (
-                <div className="space-y-2">
-                  <p><strong className="tabular-nums">{p.count}</strong> {p.count === 1 ? 'recipient' : 'recipients'} · {p.audience_label}</p>
-                  {(p.opted_out > 0 || p.no_phone > 0) && (
-                    <p className="text-muted-foreground">Left out: {p.opted_out} opted out, {p.no_phone} without a readable number.</p>
-                  )}
-                  {p.sample && (
-                    <>
-                      <div className="text-[13px] text-muted-foreground">As {p.sample_to} gets it</div>
-                      <Wording text={p.sample} className="rounded-md bg-muted/40 p-3" />
-                    </>
-                  )}
-                </div>
-              )}
-          </div>
-          <FormNotice error={queue.error ?? schedule.error} ok={done || undefined} />
-          {later ? (
-            <Button disabled={!ready || !runAt || !p?.count} pending={schedule.isPending} onClick={() => { setDone(''); setChecking(true) }}>Schedule</Button>
-          ) : (
-            <Button disabled={!ready || !p?.count} pending={queue.isPending} onClick={() => { setDone(''); setChecking(true) }}>
-              {`Send to ${p?.count ?? 0} ${staff ? 'staff' : p?.count === 1 ? 'parent' : 'parents'}`}
-            </Button>
-          )}
-          {checking && p && t && (
-            <CheckBeforeSending onClose={() => setChecking(false)} pending={queue.isPending || schedule.isPending}
-              action={later ? 'Schedule it' : `Send now to ${p.count}`}
-              onSend={() => (later ? schedule : queue).mutate(undefined, { onSettled: () => setChecking(false) })}
-              text={p.sample || fill(t, values, TEST_WHO)} sampleTo={p.sample_to || undefined} count={p.count} audience={p.audience_label}
-              when={whenLabel} template={t.name ?? t.code} image={image.trim() || undefined}
-              leftOut={p.opted_out > 0 || p.no_phone > 0 ? `Left out: ${p.opted_out} opted out, ${p.no_phone} without a readable number.` : undefined} />
-          )}
-        </div>
       </div>
     </Card>
   )
@@ -506,7 +374,7 @@ export function ScheduledTab() {
   return (
     <div className="space-y-2">
       {items.length === 0 ? (
-        <Card><EmptyState title="Nothing scheduled." body="On the Send tab, choose Broadcast, then Later, to send at a set time or on repeat." /></Card>
+        <Card><EmptyState title="Nothing scheduled." body="On the Send tab, choose Classes &amp; groups, then Schedule, to send at a set time or on repeat." /></Card>
       ) : (
         <ul className="space-y-2">
           {items.map((s) => (

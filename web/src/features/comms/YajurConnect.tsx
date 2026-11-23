@@ -6,9 +6,13 @@ import { api } from '@/lib/api'
 import type { ConnectConversation, ConnectMatch, ConnectMessage, ConnectState, ConnectThread } from '@shared/api/feature_yajur_connect'
 import {
   PageHead, PageBody, Button, Card, ConfirmButton, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select,
-  Switch, Textarea, SEG_BAR, TAB_BAR, segClass, tabClass,
+  Switch, Textarea, TAB_BAR, tabClass,
 } from '@/components/ui'
-import { CampaignsTab, ScheduledTab, SendTab } from './YajurConnectSend'
+import { SendTab } from './YajurConnectSend'
+import ConnectOverview from './ConnectOverview'
+import ConnectSettings from './ConnectSettings'
+import ConnectHistory from './ConnectHistory'
+import ConnectPeople from './ConnectPeople'
 import { LogTab } from './YajurConnectLog'
 import { TemplatesTab } from './YajurConnectTemplates'
 import { ChatThread, type ChatMessage } from '@/components/Chat'
@@ -23,15 +27,24 @@ import { cn, formatDateTime } from '@/lib/utils'
    the screen says so. The Send, Campaigns, Scheduled and Auto-replies tabs
    are for holders of comms.connect.write. */
 
-type View = ConnectState | 'all'
-const VIEWS: { key: View; label: string }[] = [{ key: 'open', label: 'Open' }, { key: 'resolved', label: 'Resolved' }, { key: 'all', label: 'All' }]
+/* The inbox filters as the original Yajur Connect app names them (owner,
+   2026-11-23): All, Unassigned, Mine, Others, then Resolved. */
+type View = 'all' | 'unassigned' | 'mine' | 'others' | 'resolved'
+const VIEWS: { key: View; label: string }[] = [
+  { key: 'all', label: 'All' }, { key: 'unassigned', label: 'Unassigned' }, { key: 'mine', label: 'Mine' }, { key: 'others', label: 'Others' }, { key: 'resolved', label: 'Resolved' },
+]
 const MATCH_LABEL: Record<ConnectMatch, string> = { exact: 'Is exactly', starts: 'Starts with', contains: 'Contains' }
 const PAUSED = 'Sending is paused: the recipient guard is on and the test list is empty, so replies, auto-replies and broadcasts are blocked and will not be sent later.'
 const NOT_ON_LIST = 'Test mode: this number is not on the test list, so messages to it are blocked.'
-type Tab = 'chats' | 'send' | 'templates' | 'campaigns' | 'scheduled' | 'log' | 'rules'
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'chats', label: 'Chats' }, { key: 'send', label: 'Send' }, { key: 'templates', label: 'Templates' }, { key: 'campaigns', label: 'Campaigns' }, { key: 'scheduled', label: 'Scheduled' },
-  { key: 'log', label: 'Log' }, { key: 'rules', label: 'Auto-replies' },
+/* The screens of the original Yajur Connect app, by its own names, in its menu
+   order (owner, 2026-11-23). 'campaigns' and 'scheduled' stay as keys so old
+   links keep working: both open Notice history. */
+type Tab = 'overview' | 'chats' | 'send' | 'people' | 'templates' | 'history' | 'campaigns' | 'scheduled' | 'log' | 'rules' | 'settings'
+const TABS: { key: Tab; label: string; group: string }[] = [
+  { key: 'overview', label: 'Overview', group: 'Communication' }, { key: 'chats', label: 'Parent inbox', group: 'Communication' }, { key: 'send', label: 'Send a notice', group: 'Communication' },
+  { key: 'people', label: 'Students & parents', group: 'School directory' }, { key: 'templates', label: 'Message templates', group: 'School directory' },
+  { key: 'history', label: 'Notice history', group: 'Activity' }, { key: 'log', label: 'Delivery log', group: 'Activity' },
+  { key: 'rules', label: 'Auto-replies', group: 'Workspace' }, { key: 'settings', label: 'Settings', group: 'Workspace' },
 ]
 
 interface WaTpl { name: string; language: string; header: string | null; body: string; footer: string | null; buttons: string[] }
@@ -107,14 +120,16 @@ export default function YajurConnect() {
   }
   const setTab = (t: Tab) => {
     const next = new URLSearchParams(params)
-    if (t === 'chats') next.delete('tab')
-    else next.set('tab', t)
+    next.set('tab', t)
     setParams(next, { replace: true })
   }
-  const [view, setView] = useState<View>('open')
+  const [view, setView] = useState<View>('all')
   const [q, setQ] = useState('')
-  const [mine, setMine] = useState(false)
-  const query = { state: view, q: q.trim() || undefined, mine: mine ? ('1' as const) : undefined }
+  const query = {
+    state: view === 'resolved' ? ('resolved' as const) : ('open' as const), q: q.trim() || undefined,
+    mine: view === 'mine' ? ('1' as const) : undefined,
+    who: view === 'unassigned' || view === 'others' ? view : undefined,
+  }
   const list = useQuery({
     queryKey: ['connect', 'list', query],
     queryFn: () => api.call('GET /comms/yajur-connect', { query }),
@@ -123,28 +138,41 @@ export default function YajurConnect() {
   const items = list.data?.items ?? []
   const canWrite = !!list.data?.can_write
   // Readers get the chats and the log; the sending tabs are for comms.connect.write.
-  const tabs = canWrite ? TABS : TABS.filter((t) => t.key === 'chats' || t.key === 'log' || t.key === 'templates')
-  const tab: Tab = tabParam && tabs.some((t) => t.key === tabParam) ? tabParam : 'chats'
+  const tabs = canWrite ? TABS : TABS.filter((t) => ['overview', 'chats', 'log', 'templates'].includes(t.key))
+  const asked: Tab | null = tabParam === 'campaigns' || tabParam === 'scheduled' ? 'history' : tabParam
+  const tab: Tab = asked && tabs.some((t) => t.key === asked) ? asked : openId ? 'chats' : 'overview'
+  const goTab = (t: Tab, extra?: Record<string, string>) => {
+    const next = new URLSearchParams(params)
+    next.delete('c'); next.set('tab', t)
+    for (const [k, v] of Object.entries(extra ?? {})) next.set(k, v)
+    setParams(next)
+  }
 
   return (
     <>
       <PageHead eyebrow="Communication" title="Yajur Connect" />
       <PageBody>
         {list.data && (
-          <div className={cn(TAB_BAR, 'mb-4 flex-nowrap overflow-x-auto')} role="tablist">
-            {tabs.map((t) => (
-              <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key)} onClick={() => setTab(t.key)}>
-                {t.label}
-              </button>
+          <div className={cn(TAB_BAR, 'mb-4 flex-nowrap items-end overflow-x-auto [scrollbar-width:none]')} role="tablist">
+            {tabs.map((t, i) => (
+              <span key={t.key} className="flex items-end">
+                {/* A thin divider where the original app's menu starts a new group. */}
+                {i > 0 && tabs[i - 1].group !== t.group && <span aria-hidden className="mx-1 mb-2.5 h-4 w-px bg-border" />}
+                <button type="button" role="tab" aria-selected={tab === t.key} className={cn(tabClass(tab === t.key), 'whitespace-nowrap')} onClick={() => setTab(t.key)}>
+                  {t.label}
+                </button>
+              </span>
             ))}
           </div>
         )}
-        {tab === 'send' ? <SendTab onOpenChat={setOpenId} initialCode={params.get('template') ?? ''} />
+        {tab === 'overview' ? <ConnectOverview go={(t, chatId) => { if (chatId) setOpenId(chatId); else goTab(t === 'campaigns' ? 'history' : t) }} />
+          : tab === 'send' ? <SendTab onOpenChat={setOpenId} initialCode={params.get('template') ?? ''} presetGuardian={params.get('guardian') ?? ''} presetStudent={params.get('student') ?? ''} />
+          : tab === 'people' ? <ConnectPeople onMessage={(guardianId, studentId) => goTab('send', { guardian: guardianId, student: studentId })} />
           : tab === 'templates' ? <TemplatesTab onUse={(code) => { const next = new URLSearchParams(params); next.set('tab', 'send'); next.set('template', code); setParams(next, { replace: true }) }} />
-          : tab === 'campaigns' ? <CampaignsTab />
-          : tab === 'scheduled' ? <ScheduledTab />
+          : tab === 'history' ? <ConnectHistory />
           : tab === 'log' ? <LogTab />
           : tab === 'rules' ? <AutoReplies />
+          : tab === 'settings' ? <ConnectSettings goRules={() => setTab('rules')} />
           : chats()}
       </PageBody>
     </>
@@ -156,28 +184,26 @@ export default function YajurConnect() {
        the chat beside it, both filling the screen below the tabs. */
     return (
       <div ref={gridRef} style={{ '--chat-h': `${chatH}px` } as CSSProperties}
-        className="space-y-3 lg:grid lg:h-[var(--chat-h)] lg:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] lg:gap-4 lg:space-y-0">
+        className="space-y-3 lg:grid lg:h-[var(--chat-h)] lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] lg:gap-4 lg:space-y-0 xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_280px]">
         <section className={cn('card flex min-h-0 flex-col overflow-hidden', openId && 'max-lg:hidden')}>
           <div className="space-y-2.5 px-4 pb-2 pt-4">
-            <h2 className="text-[20px] font-bold">Chats</h2>
-            <Input value={q} onChange={setQ} placeholder="Search name, number or words" />
-            <div className={cn(SEG_BAR, 'w-full')} role="tablist">
+            <h2 className="text-[20px] font-bold">Parent inbox</h2>
+            <div className="flex flex-wrap gap-1" role="tablist">
               {VIEWS.map((v) => (
-                <button key={v.key} type="button" role="tab" aria-selected={view === v.key} className={cn(segClass(view === v.key), 'flex-1')} onClick={() => setView(v.key)}>
+                <button key={v.key} type="button" role="tab" aria-selected={view === v.key}
+                  className={cn('min-h-9 rounded-lg border px-2.5 py-1 text-[13px] transition-colors', view === v.key ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:text-foreground')}
+                  onClick={() => setView(v.key)}>
                   {v.label}
                 </button>
               ))}
             </div>
-            <label className="flex items-center gap-2">
-              <Switch on={mine} onChange={setMine} label="Only chats assigned to me" />
-              <span className="text-[13px] text-muted-foreground">Assigned to me</span>
-            </label>
+            <Input value={q} onChange={setQ} placeholder="Search chats" />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
             {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : items.length === 0 ? (
               <EmptyState
-                title={q || mine ? 'No chat matches.' : view === 'resolved' ? 'No resolved chats.' : 'No WhatsApp chats yet.'}
-                body={q || mine ? 'Clear the search or the Assigned to me switch.' : 'A chat appears here when a parent writes to the school on WhatsApp.'}
+                title={q || view !== 'all' ? 'No chat matches.' : 'No WhatsApp chats yet.'}
+                body={q || view !== 'all' ? 'Clear the search or pick All.' : 'A chat appears here when a parent writes to the school on WhatsApp.'}
               />
             ) : (
               <ul className="space-y-0.5">
@@ -187,7 +213,14 @@ export default function YajurConnect() {
           </div>
         </section>
         {openId ? <Thread id={openId} canWrite={canWrite} onClose={() => setOpenId(null)} /> : (
-          <div className="card hidden min-h-0 place-items-center text-[14px] text-muted-foreground lg:grid">Pick a chat to read it.</div>
+          <>
+            <div className="card hidden min-h-0 place-items-center text-[14px] text-muted-foreground lg:grid">
+              <div className="text-center"><div className="font-semibold text-foreground">Select a conversation</div><div>Replies from parents appear here</div></div>
+            </div>
+            <div className="card hidden min-h-0 place-items-center p-4 text-center text-[13px] text-muted-foreground xl:grid">
+              <div>No contact selected<div className="mt-2 rounded-lg bg-primary/5 p-2 text-[12px]">Contact details from the ERP show here once a conversation is open.</div></div>
+            </div>
+          </>
         )}
       </div>
     )
@@ -265,6 +298,11 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
   }
   const d = t.data
   const title = d?.conversation.name ?? ''
+  /* The 24-hour reply window, as the original app's badge says it. */
+  const hoursLeft = d?.conversation.last_inbound_at ? Math.max(0, Math.round((Date.parse(d.conversation.last_inbound_at) + 24 * 3600_000 - Date.now()) / 3600_000)) : 0
+  const windowBadge = d ? (d.sending.window_open
+    ? <span className="rounded-full bg-success/15 px-2 py-0.5 text-[11.5px] font-semibold text-success">{hoursLeft}h open</span>
+    : <span className="rounded-full bg-muted px-2 py-0.5 text-[11.5px] font-semibold text-muted-foreground">Window closed, template only</span>) : null
   const raw = d?.messages ?? []
   /* A reaction is not a message of its own: WhatsApp pins the emoji on the
      message it answers. We take the latest reaction per target wa_id (an empty
@@ -305,16 +343,17 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
   }
 
   return (
+    <>
     <ConversationPane
       open
       title={title || 'Chat'}
-      subtitle={d ? `+${d.conversation.phone}${d.conversation.student_name ? ' · ' + d.conversation.student_name : ''}` : undefined}
+      subtitle={d ? <span className="inline-flex flex-wrap items-center gap-2">{`+${d.conversation.phone}${d.conversation.student_name ? ' · ' + d.conversation.student_name : ''}`}{windowBadge}</span> : undefined}
       onBack={onClose}
-      actions={<button type="button" title={details ? 'Hide details' : 'Details'} aria-label={details ? 'Hide details' : 'Details'} aria-expanded={details} onClick={() => setDetails((v) => !v)} className={cn('grid h-9 w-9 place-items-center rounded-full transition-colors', details ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/70')}><InfoIcon className="h-[18px] w-[18px]" /></button>}
+      actions={<button type="button" title={details ? 'Hide details' : 'Details'} aria-label={details ? 'Hide details' : 'Details'} aria-expanded={details} onClick={() => setDetails((v) => !v)} className={cn('grid h-9 w-9 place-items-center rounded-full transition-colors xl:hidden', details ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/70')}><InfoIcon className="h-[18px] w-[18px]" /></button>}
     >
       {t.isLoading ? <Loading /> : t.error ? <ErrorState error={t.error} /> : d && (
         <>
-          {details && <Info thread={d} canWrite={canWrite} onSaved={refresh} />}
+          {details && <div className="xl:hidden"><Info thread={d} canWrite={canWrite} onSaved={refresh} /></div>}
           {d.sending.paused && <p className="shrink-0 border-b px-4 py-2 text-[14px] text-muted-foreground">{d.sending.test_numbers > 0 ? NOT_ON_LIST : PAUSED}</p>}
           <ChatThread
             messages={messages}
@@ -335,6 +374,11 @@ function Thread({ id, canWrite, onClose }: { id: string; canWrite: boolean; onCl
         </>
       )}
     </ConversationPane>
+    {/* Contact, assignment and labels as a third column on a wide screen (the original app's layout). */}
+    <aside className="card hidden min-h-0 min-w-0 overflow-y-auto xl:block">
+      {d ? <Info thread={d} canWrite={canWrite} onSaved={refresh} column /> : <Loading />}
+    </aside>
+    </>
   )
 }
 
@@ -388,7 +432,7 @@ function TemplatePicker({ thread, pending, onSend, error }: { thread: ConnectThr
   )
 }
 
-function Info({ thread, canWrite, onSaved }: { thread: ConnectThread; canWrite: boolean; onSaved: () => void }) {
+function Info({ thread, canWrite, onSaved, column = false }: { thread: ConnectThread; canWrite: boolean; onSaved: () => void; column?: boolean }) {
   const c = thread.conversation
   const { guardian, student } = thread.contact
   const [labels, setLabels] = useState(c.labels.join(', '))
@@ -401,8 +445,15 @@ function Info({ thread, canWrite, onSaved }: { thread: ConnectThread; canWrite: 
   })
   const labelList = labels.split(',').map((l) => l.trim()).filter(Boolean)
   return (
-    <div className="max-h-[45dvh] shrink-0 space-y-3 overflow-y-auto border-b px-4 py-3 text-[14px]">
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1">
+    <div className={cn('min-w-0 shrink-0 space-y-3 text-[14px]', column ? 'w-full p-4' : 'max-h-[45dvh] overflow-y-auto border-b px-4 py-3')}>
+      {column && (
+        <div className="text-center">
+          <div className="mx-auto mb-2 w-fit"><PersonAvatar name={c.name} size={64} /></div>
+          <div className="font-semibold">{c.name}</div>
+          {guardian && <div className="text-[12.5px] text-muted-foreground">{guardian.relation}{student?.class_section ? ` · ${student.class_section}` : ''}</div>}
+        </div>
+      )}
+      <dl className={cn('grid gap-x-4 gap-y-1', column ? 'grid-cols-1' : 'grid-cols-[auto_minmax(0,1fr)]')}>
         {guardian ? (
           <>
             <dt className="text-muted-foreground">Guardian</dt>
@@ -422,8 +473,8 @@ function Info({ thread, canWrite, onSaved }: { thread: ConnectThread; canWrite: 
         <dd>{c.last_inbound_at ? formatDateTime(c.last_inbound_at) : 'None from the parent'}</dd>
       </dl>
       {canWrite && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Assigned to">
+        <div className={cn('grid min-w-0 gap-3', column ? 'grid-cols-1 [&>*]:col-span-1' : 'sm:grid-cols-2')}>
+          <Field label="Assign to">
             <Select
               value={c.assigned_to ?? ''}
               onChange={(v) => save.mutate({ assigned_to: v || null })}
