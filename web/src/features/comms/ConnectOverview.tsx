@@ -125,7 +125,7 @@ export default function ConnectOverview({ go }: { go: (tab: ConnectTab, chatId?:
                         <span className="text-xs text-muted-foreground">{formatDateTime(x.at)}</span>
                         {x.unread > 0 && <Badge tone="success">{`${x.unread} new`}</Badge>}
                       </span>
-                      <span className="hidden shrink-0 items-center text-[13px] font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100 sm:flex">
+                      <span className="hidden shrink-0 items-center text-[13px] font-medium text-muted-foreground transition-colors group-hover:text-primary sm:flex">
                         Open<ChevronRight className="size-3.5" aria-hidden />
                       </span>
                     </button>
