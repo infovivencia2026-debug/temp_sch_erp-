@@ -191,7 +191,7 @@ async function run([w, f]) {
     js = []
     await p.goto(ORIGIN + r, { waitUntil: 'load', timeout: 45000 }).catch(() => {})
     await p.waitForTimeout(1200)
-    await p.waitForFunction(() => !/Loading|Looking up/.test(document.querySelector('main')?.innerText || document.body.innerText), null, { timeout: 8000 }).catch(() => {})
+    await p.waitForFunction(() => !/Loading|Looking up|Opening your|OPENING YOUR/i.test(document.body.innerText) && !!document.querySelector("main") && !/Loading|Looking up/.test(document.querySelector('main')?.innerText || document.body.innerText), null, { timeout: 15000 }).catch(() => {})
     await p.waitForTimeout(600)
     const c = await p.evaluate(check).catch((e) => ({ err: String(e).slice(0, 80) }))
     if (process.env.SHOTS) await p.screenshot({ path: path.join(outDir, `${w}-${f}-${r.replace(/\W+/g, '_')}.png`), fullPage: true }).catch(() => {})

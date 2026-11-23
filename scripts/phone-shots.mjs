@@ -57,7 +57,7 @@ async function ctxFor(st) {
   }, S)
   return ctx
 }
-const settle = async (p) => { await p.waitForTimeout(1500); await p.waitForFunction(() => !/Loading|Looking up/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {}); await p.waitForTimeout(800) }
+const settle = async (p) => { await p.waitForTimeout(1500); await p.waitForFunction(() => !/Loading|Looking up|Opening your/i.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {}); await p.waitForTimeout(800) }
 const anon = await ctxFor(null), lp = await anon.newPage()
 await lp.goto(ORIGIN + '/login', { waitUntil: 'load' }).catch(() => {}); await settle(lp)
 await lp.screenshot({ path: path.join(outDir, '3-login.png') })
