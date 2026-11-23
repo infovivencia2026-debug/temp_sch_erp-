@@ -1904,7 +1904,7 @@
      selector matches on every page: it was never the "somebody chose a
      colour" case it reads like. --card-default carries the theme's own value
      and is defined beside --card in both themes. */
-  :root:has([data-paint]) { --card: var(--paint-cards-bg, var(--card-default)); }
+  :root[data-shell] { --card: var(--paint-cards-bg, var(--card-default)); }
 
   /* Accent is global by definition — buttons, links and focus rings are the
      same colour wherever they appear — so it overrides the primary tokens
@@ -1916,7 +1916,7 @@
      the accent above owns. The :has() guard is what beats the bg-primary
      utility on the button (see the note on specificity below); it matches on
      every page, so the fallbacks are what carry the unpainted case. */
-  :root:has([data-paint]) .btn[data-variant='primary'] {
+  :root[data-shell] .btn[data-variant='primary'] {
     background-color: hsl(var(--paint-buttons-bg, var(--primary)));
     color: hsl(var(--paint-buttons-text, var(--primary-foreground)));
   }

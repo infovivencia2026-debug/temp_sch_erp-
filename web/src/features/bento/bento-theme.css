@@ -4557,8 +4557,8 @@ html.dark [data-layout='bento'] {
    inside the dock, whose own z-50 makes a stacking context, so on a phone the
    dots and the pencil drew straight through the launcher's list. A z-index
    cannot cross that boundary; hiding them while the frost is present can. */
-body:has(.bento-frost) .bento-dots,
-body:has(.bento-frost) [data-assistant-orb] {
+html[data-frost] .bento-dots,
+html[data-frost] [data-assistant-orb] {
   visibility: hidden;
 }
 
@@ -4906,8 +4906,8 @@ html[data-assistant-open] .bento-dots { display: none !important; }
 @media (max-width: 767px) {
   .settings-screen { min-height: 0; }
   /* No rubber-band on a Settings screen that has nothing to scroll (iOS). */
-  main:has(.settings-screen), html:has(.settings-screen), body:has(.settings-screen) { overscroll-behavior-y: none; }
-  .settings-screen ~ *, main:has(.settings-screen), body:has(.settings-screen) {
+  html[data-settings] main, html[data-settings], html[data-settings] body { overscroll-behavior-y: none; }
+  .settings-screen ~ *, html[data-settings] main, html[data-settings] body {
     background: color-mix(in srgb, hsl(var(--muted)) 75%, var(--bento-card, hsl(var(--card)))) !important;
   }
   .settings-screen .pt-\[4px\] { padding-bottom: 16px; }

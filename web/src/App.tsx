@@ -48,6 +48,7 @@ import { I18nProvider } from '@/lib/i18n'
 import { bootedOffline, rememberBootQueries } from '@/lib/offline-boot'
 import { onSent } from '@/lib/outbox'
 import { shell } from '@/lib/shell'
+import { NavSettled, useNavPending } from '@/lib/nav-pending'
 
 /* A hairline at the top of the window while anything is being fetched in the
    background, so kept-on-screen data never looks final while it is changing.
@@ -56,7 +57,8 @@ function FetchBar() {
   /* Writes count too: a change already drawn optimistically (lib/optimistic)
      is still being saved, and this is where that shows. */
   const n = useIsFetching() + useIsMutating()
-  return <div aria-hidden="true" className="fetch-bar" data-on={n > 0 ? '' : undefined} />
+  const nav = useNavPending()
+  return <div aria-hidden="true" className="fetch-bar" data-on={n > 0 || nav ? '' : undefined} data-nav={nav ? '' : undefined} />
 }
 
 /* WORK DONE CLEARS THE BELL AT ONCE (Yajur, 2026-10-24: the approved leave sat
@@ -365,11 +367,14 @@ function FeatureRoute() {
   }, [])
 
   return (
-    /* Keyed on the feature, so the boundary REMOUNTS on every navigation and its
-       error state cannot outlive the screen that caused it. Without the key one
-       screen throwing a render error wedged every screen after it behind the
-       error fallback until a manual reload. */
-    <ChunkBoundary key={feature.key}>
+    /* Reset by the feature, so its error state cannot outlive the screen that
+       caused it (one screen throwing used to wedge every screen after it).
+       NOT keyed any more (2026-11-23, "when I open anything it gets stuck"):
+       a key remounted this boundary and the Suspense inside it on every
+       navigation, so every tap blanked to the skeleton even though the router
+       navigates in a transition. Kept mounted, React holds the screen you are
+       on until the next one can render, and the top bar shows it is coming. */
+    <ChunkBoundary resetKey={feature.key}>
       {/* THE FALLBACK IS NOW THE SHAPE OF A SCREEN, NOT THE WORD "LOADING".
        *
        * This is the single most-seen loading state in the product: every
@@ -770,7 +775,8 @@ export default function App() {
       <FetchBar />
       <ToastHost>
         <ReauthPrompt />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true }}>
+        <NavSettled />
         <SessionProvider>
           {/* Per-user+institution IndexedDB persistence, once identity is
               known. Falls back to no persistence when IndexedDB is

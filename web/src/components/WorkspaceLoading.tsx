@@ -1,5 +1,6 @@
 import { readSchoolMark } from '@/lib/brand'
 import './workspace-loading.css'
+import { useRootFlag } from '@/lib/root-flag'
 
 /* The workspace opening (workspace-loading.css says why and how).
 
@@ -25,6 +26,8 @@ export function WorkspaceLoading({
   label?: string
 }) {
   const mark = readSchoolMark()
+  // Hides the page under the opening (see workspace-loading.css).
+  useRootFlag('data-ws-opening', !leaving)
   const continued = typeof performance !== 'undefined' && performance.now() - lastShownAt < 4000 && lastShownAt > 0
   if (typeof performance !== 'undefined') lastShownAt = performance.now()
   /* White unless this person has chosen a theme that is dark. A first visit,

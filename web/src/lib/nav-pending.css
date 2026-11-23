@@ -1,0 +1,5 @@
+/* A tap that navigates lights the bar AT ONCE (lib/nav-pending.ts): no 150ms
+   grace as for a background fetch, because "did it take my tap?" is exactly
+   the question the owner was left asking. A touch thicker while it means
+   "the next screen is coming". */
+.fetch-bar[data-nav] { opacity: 1; height: 3px; transition-delay: 0ms; }

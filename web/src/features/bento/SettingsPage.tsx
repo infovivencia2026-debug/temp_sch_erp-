@@ -15,6 +15,7 @@ import {
 import { Rows, NavRow } from './SettingsRows'
 import { HapticsRows } from './HapticsRow'
 import { SettingsGroups } from './SettingsGroups'
+import { useRootFlag } from '@/lib/root-flag'
 
 /* SETTINGS AS A PLACE, WHICH ON A PHONE IS WHAT IT ALWAYS LOOKED LIKE.
 
@@ -148,6 +149,8 @@ export default function SettingsPage() {
      dashboard section, which wants the settings surface out of the way so the
      board underneath can be dragged. In the dialog that closes the window; the
      same intent on a route is going back to the screen you came from. */
+  // Replaces html/body/main:has(.settings-screen) in bento-theme.css.
+  useRootFlag('data-settings')
   const [launching] = useState(() => { const l = shouldLaunch(); if (l) markLaunch(); return l })
   const done = useCallback(() => {
     /* Inside Settings (a section back to the list) it just goes back; only

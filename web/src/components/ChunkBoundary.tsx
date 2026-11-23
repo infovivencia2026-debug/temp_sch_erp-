@@ -50,6 +50,11 @@ const RELOAD_FLAG = 'chunk-reloaded'
 
 interface Props {
   children: ReactNode
+  /** Clears a failure when it changes (the screen being shown). Used instead
+   *  of a React key so the boundary, and the Suspense inside it, stay mounted
+   *  across navigations: a transition can then keep the old screen on view
+   *  while the next one's chunk arrives, instead of blanking to a fallback. */
+  resetKey?: string
 }
 interface State {
   failed: boolean
@@ -62,6 +67,12 @@ interface State {
 
 export default class ChunkBoundary extends Component<Props, State> {
   state: State = { failed: false, stale: false, detail: '' }
+
+  componentDidUpdate(prev: Props) {
+    if (prev.resetKey !== this.props.resetKey && this.state.failed) {
+      this.setState({ failed: false, stale: false, detail: '', where: undefined })
+    }
+  }
 
   static getDerivedStateFromError(error: unknown): State {
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)

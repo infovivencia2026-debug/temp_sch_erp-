@@ -35,6 +35,7 @@ import {
 } from '@/lib/search/feature-search'
 import { askAssistant } from '@/components/assistant/agent'
 import './launcher.css'
+import { useRootFlag } from '@/lib/root-flag'
 
 /* The open and the close: a short rise and a fade, in and out. 200ms is the
    layout's --dur-fast, the speed everything else on the board answers at. A
@@ -749,6 +750,8 @@ export function BentoLauncher({
     setPull(0)
   }
   const [mounted, setMounted] = useState(open)
+  // Replaces body:has(.bento-frost) in bento-theme.css.
+  useRootFlag('data-frost', mounted && !!role)
   const [shown, setShown] = useState(open)
   /* Written during render on purpose: the very next render after a drag
      ends is the one that must already know the sheet came from a finger,

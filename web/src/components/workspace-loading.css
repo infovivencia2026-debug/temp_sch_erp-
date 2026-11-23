@@ -41,7 +41,10 @@
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: radial-gradient(circle, hsl(var(--brand-accent, var(--primary)) / .16), transparent 62%);
-  filter: blur(30px);
+  /* No filter: blur() -- the radial gradient is already soft, and a blurred
+     layer animating under the app while it boots cost the phone's GPU and
+     main thread exactly when the bundle was being parsed (2026-11-23). */
+  will-change: transform, opacity;
   animation: ws-breathe 4s ease-in-out infinite;
   pointer-events: none;
 }
@@ -141,4 +144,4 @@
    counts that as layout shift. Held invisible until the opening starts to
    leave, the page is laid out once, where it will stay, and fades in under
    the leaving mark. */
-body:has(.ws-opening:not([data-leaving])) main { visibility: hidden; }
+html[data-ws-opening] main { visibility: hidden; }
