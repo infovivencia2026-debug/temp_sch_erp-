@@ -184,11 +184,14 @@ function Diary({ canPublish }: { canPublish: boolean }) {
     <>
       {viewFile && <FileView file={viewFile} onClose={() => setViewFile(null)} />}
       <PageHead
-        eyebrow="Homework & diary"
-        title={canPublish ? 'Work you have set' : 'School diary'}
+        /* A parent gets ONE line (owner, 2026-11-23: eyebrow + title + sentence
+           read "Homework & diary / School diary / ..." -- cut off and too tall on a
+           phone). Teachers keep the full head. */
+        eyebrow={canPublish ? 'Homework & diary' : undefined}
+        title={canPublish ? 'Work you have set' : 'Homework & diary'}
         description={canPublish
           ? 'Published straight to the class and their parents. Pick a day to see what was set and who has turned it in.'
-          : 'The work set for each day, and whether it has been done.'}
+          : undefined}
         actions={canPublish && (
           <Button onClick={() => setComposing((c) => !c)}>
             <Plus className="h-3.5 w-3.5" />

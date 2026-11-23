@@ -7,7 +7,6 @@ import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, Ske
 import { ApiError } from '@/lib/api'
 import { QueryClientContext } from '@tanstack/react-query'
 import { useBundleTitle } from '@/lib/bundle-title'
-import { Link, useInRouterContext, useLocation } from 'react-router-dom'
 import { DatePopover, toDMY, fromDMY } from '@/components/DatePopover'
 import { printDocument } from '@/lib/print'
 import {
@@ -88,22 +87,15 @@ export function CardHeader({
    draw no page padding of their own and the head shrinks to a section label. */
 export const EmbeddedPage = createContext(false)
 
-/* EVERY BREADCRUMB'S FIRST PART OPENS ITS FOLDER (owner, 2026-11-17: "EVERYTHING
-   LIKE THAT IN OUR ERP", like Google Drive). A screen with its own parent list
-   passes onEyebrow; any other screen links to its section's list of screens. */
+/* A BREADCRUMB'S FIRST PART IS A LABEL, NOT A LINK (owner, 2026-11-23: "no need
+   -- we see Messages and Mail on the side bar, why again"). It used to open a
+   card page listing the section's screens, which only repeated the sidebar.
+   Only a screen with its own parent list (Website forms -> all forms) passes
+   onEyebrow and gets a real back button. */
 const CRUMB = 'truncate whitespace-nowrap rounded hover:text-foreground hover:underline focus-visible:text-foreground'
 function Crumb({ label, onClick }: { label: string; onClick?: () => void }) {
   if (onClick) return <button type="button" onClick={onClick} className={CRUMB}>{label}</button>
-  return useInRouterContext() ? <SectionCrumb label={label} /> : <span className="truncate whitespace-nowrap">{label}</span>
-}
-const FAMILY = new Set(['parent', 'student'])
-function SectionCrumb({ label }: { label: string }) {
-  const parts = useLocation().pathname.split('/').filter(Boolean)
-  if (parts.length < 2 || parts[0] === 'go' || parts[2] === 'all-screens') return <span className="truncate whitespace-nowrap">{label}</span>
-  /* A family has one home and no folders (owner, 2026-11-19): the first part
-     goes straight back to the child's dashboard, never a section's list. */
-  if (FAMILY.has(parts[0])) return <Link to={`/${parts[0]}/home/dashboard`} className={CRUMB}>{label}</Link>
-  return <Link to={`/${parts[0]}/${parts[1]}/all-screens`} className={CRUMB}>{label}</Link>
+  return <span className="truncate whitespace-nowrap">{label}</span>
 }
 
 export function PageHead({
@@ -154,8 +146,10 @@ export function PageHead({
       <>
         {createPortal(
           <nav className="flex min-w-0 items-center gap-1 text-[12.5px] text-muted-foreground">
-            <Crumb label={eyebrow} onClick={onEyebrow} />
-            <span aria-hidden className="text-muted-foreground/50">/</span>
+            <span className={cn('contents', !onEyebrow && 'max-sm:hidden')}>
+              <Crumb label={eyebrow} onClick={onEyebrow} />
+              <span aria-hidden className="text-muted-foreground/50">/</span>
+            </span>
             <span className="truncate text-[15px] font-semibold text-foreground">{title}</span>
           </nav>, slot)}
         <h1 className="sr-only">{title}</h1>
@@ -187,8 +181,14 @@ export function PageHead({
               they are. It wraps between its parts or not at all. */}
           {eyebrow && (
             <nav className="mb-1 flex flex-wrap items-center gap-1 text-[12.5px] text-muted-foreground">
-              <Crumb label={eyebrow} onClick={onEyebrow} />
-              <span aria-hidden className="text-muted-foreground/50">/</span>
+              {/* PHONE: ONLY THE SCREEN'S NAME (owner, 2026-11-23: "only that feature
+                  name like timetable or attendance ... whole in phn"). The section
+                  part is hidden below sm unless it is a real back link
+                  (Website forms -> all forms). */}
+              <span className={cn('contents', !onEyebrow && 'max-sm:hidden')}>
+                <Crumb label={eyebrow} onClick={onEyebrow} />
+                <span aria-hidden className="text-muted-foreground/50">/</span>
+              </span>
               {/* Now the only visible name for the screen, so it carries the
                   weight the h1 used to. Still on the breadcrumb's line — the
                   point is one label, not a smaller version of two. */}
