@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { KeyRound, Lock, Pencil, ShieldCheck, UserCheck } from 'lucide-react'
+import { KeyRound, Pencil, ShieldCheck, UserCheck } from 'lucide-react'
 import { formatDateTime, cn } from '@/lib/utils'
 import {
   Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice, PageBody,
@@ -210,21 +210,7 @@ export default function ProfileView() {
      * edge, which a screen with no PageHead has nothing else to supply.
      */
     <PageBody top width="form">
-      <div className="flex flex-col gap-3 border-b pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1.5">
-          <Badge tone="primary" className="self-start">
-            <Lock className="h-3 w-3" />
-            Security centre
-          </Badge>
-          <h1 className="text-[26px] font-extrabold tracking-[-0.02em] sm:text-[30px]">
-            Account &amp; security
-          </h1>
-          <p className="max-w-2xl text-[13px] text-muted-foreground">
-            Your details as the school records them, the password you sign in with, and every
-            browser currently holding a sign-in for you.
-          </p>
-        </div>
-      </div>
+      {/* No page heading (owner, 2026-11-23: remove Account & security and its description). */}
 
       <Section
         icon={UserCheck}
