@@ -19,7 +19,10 @@ export function registerYajurConnectOverview(r: Router, perm: string): void {
       c.db.prepare(`SELECT count(*) AS n FROM wa_campaigns`).first<{ n: number }>(),
       c.db.prepare(`SELECT count(*) AS n, coalesce(sum(enabled), 0) AS on_n FROM wa_autoreplies`).first<{ n: number; on_n: number }>(),
       c.db.prepare(`SELECT status, count(*) AS n FROM message_log WHERE channel = 'whatsapp' GROUP BY status`).all<{ status: string; n: number }>(),
-      c.db.prepare(`SELECT c.id, c.phone, c.profile_name, c.unread, c.last_preview, ${isoZ('c.last_inbound_at')} AS at,
+      c.db.prepare(`SELECT c.id, c.phone, c.profile_name, c.unread,
+          coalesce((SELECT CASE WHEN m.kind = 'text' THEN m.text WHEN m.kind = 'image' THEN '[image]' ELSE coalesce(m.text, '[' || m.kind || ']') END
+            FROM wa_messages m WHERE m.conversation_id = c.id AND m.direction = 'in' AND m.kind <> 'reaction' ORDER BY m.at DESC LIMIT 1), c.last_preview) AS last_preview,
+          ${isoZ('c.last_inbound_at')} AS at,
           g.full_name AS guardian_name, trim(s.first_name || ' ' || coalesce(s.last_name, '')) AS student_name
           FROM wa_conversations c LEFT JOIN guardians g ON g.id = c.guardian_id LEFT JOIN students s ON s.id = c.student_id
           WHERE c.last_inbound_at IS NOT NULL ORDER BY c.last_inbound_at DESC LIMIT 5`)

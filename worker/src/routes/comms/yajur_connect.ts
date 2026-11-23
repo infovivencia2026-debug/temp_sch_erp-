@@ -35,14 +35,35 @@ interface ConvRow {
   id: string; phone: string; profile_name: string | null; guardian_id: string | null; student_id: string | null; assigned_to: string | null
   labels: string; state: ConnectState; unread: number; last_inbound_at: string | null; last_message_at: string | null; last_preview: string | null
   guardian_name: string | null; student_name: string | null; assigned_name: string | null
+  lm_dir?: string | null; lm_kind?: string | null; lm_media?: string | null; lm_text?: string | null
 }
 
 const CONV_SELECT = `SELECT c.*, g.full_name AS guardian_name,
-    trim(s.first_name || ' ' || coalesce(s.last_name, '')) AS student_name, u.full_name AS assigned_name
+    trim(s.first_name || ' ' || coalesce(s.last_name, '')) AS student_name, u.full_name AS assigned_name,
+    (SELECT m.direction FROM wa_messages m WHERE m.conversation_id = c.id AND m.kind <> 'reaction' ORDER BY m.at DESC LIMIT 1) AS lm_dir,
+    (SELECT m.kind FROM wa_messages m WHERE m.conversation_id = c.id AND m.kind <> 'reaction' ORDER BY m.at DESC LIMIT 1) AS lm_kind,
+    (SELECT m.media_name FROM wa_messages m WHERE m.conversation_id = c.id AND m.kind <> 'reaction' ORDER BY m.at DESC LIMIT 1) AS lm_media,
+    (SELECT m.text FROM wa_messages m WHERE m.conversation_id = c.id AND m.kind <> 'reaction' ORDER BY m.at DESC LIMIT 1) AS lm_text
   FROM wa_conversations c
   LEFT JOIN guardians g ON g.id = c.guardian_id
   LEFT JOIN students s ON s.id = c.student_id
   LEFT JOIN users u ON u.id = c.assigned_to`
+
+/* A READABLE LAST LINE (owner, 2026-11-23: the list showed "24/11/2026 ·
+   Guru Nanak Jayanti · 25/11/2026", a template's raw values). The school's
+   own template message reads as "You: Holiday notice"; anything else as sent. */
+export function readablePreview(last: { dir: string | null; kind: string | null; media: string | null; text: string | null } | null, fallback: string | null): string | null {
+  if (!last || !last.dir) return fallback
+  const mine = last.dir === 'out'
+  if (last.kind === 'template') {
+    let name = ''
+    if (last.media?.startsWith('tpl:')) { try { name = String((JSON.parse(last.media.slice(4)) as { n?: string }).n ?? '') } catch { /* as stored */ } }
+    const nice = name ? name.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) : 'Template message'
+    return (mine ? 'You: ' : '') + nice
+  }
+  const t = (last.text ?? '').replace(/\s+/g, ' ').trim()
+  return t ? (mine ? 'You: ' : '') + t : fallback
+}
 
 function labelsOf(raw: string): string[] {
   try { const v = JSON.parse(raw) as unknown; return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [] } catch { return [] }
@@ -52,7 +73,8 @@ const viewConv = (r: ConvRow): ConnectConversation => ({
   id: r.id, phone: r.phone, name: r.guardian_name || r.student_name || r.profile_name || '+' + r.phone, profile_name: r.profile_name,
   guardian_id: r.guardian_id, student_id: r.student_id, student_name: r.student_name || null, assigned_to: r.assigned_to,
   assigned_name: r.assigned_name, labels: labelsOf(r.labels), state: r.state, unread: r.unread, last_inbound_at: r.last_inbound_at,
-  last_message_at: r.last_message_at, last_preview: r.last_preview,
+  last_message_at: r.last_message_at,
+  last_preview: readablePreview({ dir: r.lm_dir ?? null, kind: r.lm_kind ?? null, media: r.lm_media ?? null, text: r.lm_text ?? null }, r.last_preview),
 })
 
 async function convOr404(c: Ctx): Promise<ConvRow> {

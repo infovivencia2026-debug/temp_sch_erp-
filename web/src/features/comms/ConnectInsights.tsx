@@ -6,8 +6,12 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Card, ErrorState, Loading, Stat, SEG_BAR_FILL, segClass } from '@/components/ui'
 
-type Days = 7 | 30 | 90
-const PERIODS: Days[] = [7, 30, 90]
+/* The original app's periods (owner, 2026-11-23: "insights like Connect"). */
+type Days = 7 | 30 | 90 | 'year' | 'all'
+const PERIODS: { key: Days; label: string }[] = [
+  { key: 7, label: '7 days' }, { key: 30, label: '30 days' }, { key: 'year', label: 'This year' }, { key: 'all', label: 'All' },
+]
+const PERIOD_TEXT: Record<string, string> = { 7: 'Last 7 days', 30: 'Last 30 days', 90: 'Last 90 days', year: 'This year', all: 'All history' }
 
 interface ConnectInsightsData {
   days: Days
@@ -24,6 +28,10 @@ interface ConnectInsightsData {
   by_class: { name: string; sent: number; read: number; read_pct: number }[]
   /** Inbound messages per half hour of the day, UTC, 48 slots. */
   inbound_slots: number[]
+  top_templates: { code: string; name: string; sent: number; read: number; read_pct: number }[]
+  failures: { reason: string; n: number }[]
+  conversations: number
+  estimated_cost_paise: number
 }
 
 const n = (v: number) => v.toLocaleString('en-IN')
@@ -86,8 +94,8 @@ export default function ConnectInsights() {
         </div>
         <div className={SEG_BAR_FILL} role="tablist" aria-label="Period">
           {PERIODS.map((d) => (
-            <button key={d} type="button" role="tab" aria-selected={days === d} className={segClass(days === d)} onClick={() => setDays(d)}>
-              {`${d} days`}
+            <button key={d.key} type="button" role="tab" aria-selected={days === d.key} className={segClass(days === d.key)} onClick={() => setDays(d.key)}>
+              {d.label}
             </button>
           ))}
         </div>
@@ -98,7 +106,8 @@ export default function ConnectInsights() {
 }
 
 function Body({ d }: { d: ConnectInsightsData }) {
-  const period = `Last ${d.days} days`
+  const period = PERIOD_TEXT[String(d.days)] ?? ''
+  const replied = d.replies
   const busy = busiestHour(d.inbound_slots)
   const classMax = Math.max(1, ...d.by_class.map((x) => x.read_pct))
   const notes = [
@@ -109,10 +118,10 @@ function Body({ d }: { d: ConnectInsightsData }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Messages sent" value={n(d.sent)} detail={d.pending ? `${n(d.pending)} still waiting` : 'Reached WhatsApp'} period={period} />
         <Stat label="Delivered" value={d.sent ? `${d.delivered_pct}%` : '-'} detail={d.sent ? `${n(d.delivered)} of ${n(d.sent)} sent` : 'No messages sent'} period={period} />
-        <Stat label="Read" value={d.sent ? `${d.read_pct}%` : '-'} detail={d.sent ? `${n(d.read)} of ${n(d.sent)} sent` : 'No messages sent'} period={period} />
+        <Stat label="Read rate" value={d.sent ? `${d.read_pct}%` : '-'} detail={d.sent ? `${n(d.read)} of ${n(d.sent)} read` : 'No messages sent'} period={period} />
         <Stat label="Parent replies" value={n(d.replies)} detail={busy ? `Most arrive ${busy.label}` : 'No replies yet'} period={period} />
-        <Stat label="Average reply time" value={replyTime(d.reply_minutes)} detail={d.reply_minutes === null ? 'No reply sent after a parent wrote in' : "From a parent's message to the school's answer"} period={period} />
       </div>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
@@ -122,6 +131,8 @@ function Body({ d }: { d: ConnectInsightsData }) {
             <Bar label="Sent" value={d.sent} max={d.sent} right={n(d.sent)} cls="bg-primary" />
             <Bar label="Delivered" value={d.delivered} max={d.sent} right={`${n(d.delivered)} · ${d.delivered_pct}%`} cls="bg-success" />
             <Bar label="Read" value={d.read} max={d.sent} right={`${n(d.read)} · ${d.read_pct}%`} cls="bg-info" />
+            <Bar label="Replied" value={Math.min(replied, d.sent)} max={d.sent} right={`${n(replied)}`} cls="bg-warning" />
+            {d.failed > 0 && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{`${n(d.failed)} failed, never reached the parent`}</p>}
             {notes.length > 0 && <p className="border-t pt-3 text-sm text-muted-foreground">{notes.join(' · ')}</p>}
           </div>
         </Card>
@@ -135,6 +146,48 @@ function Body({ d }: { d: ConnectInsightsData }) {
                   <Bar key={x.name} label={x.name} value={x.read_pct} max={classMax} right={`${x.read_pct}% · ${n(x.read)} of ${n(x.sent)}`} cls="bg-primary" />
                 ))}
               </div>}
+        </Card>
+
+        <Card className="min-w-0">
+          <Head title="Top templates" note="The messages the school sent most, and how many were read." />
+          {d.top_templates.length === 0
+            ? <p className="p-[var(--card-pad)] text-sm text-muted-foreground">No sends yet.</p>
+            : <div className="space-y-3 p-[var(--card-pad)]">
+                {d.top_templates.map((t) => (
+                  <Bar key={t.code} label={t.name} value={t.sent} max={Math.max(1, ...d.top_templates.map((x) => x.sent))} right={`${n(t.sent)} sent · ${t.read_pct}% read`} cls="bg-primary" />
+                ))}
+              </div>}
+        </Card>
+
+        <Card className="min-w-0">
+          <Head title="Why messages failed" note="The reason WhatsApp or the queue gave, most common first." />
+          {d.failures.length === 0
+            ? <p className="p-[var(--card-pad)] text-sm text-muted-foreground">No failures recorded.</p>
+            : <ul className="divide-y">
+                {d.failures.map((f) => (
+                  <li key={f.reason} className="flex items-start gap-3 px-[var(--card-pad)] py-3 text-sm">
+                    <span className="min-w-0 flex-1 break-words">{f.reason}</span>
+                    <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 font-semibold tabular-nums text-destructive">{n(f.n)}</span>
+                  </li>
+                ))}
+              </ul>}
+        </Card>
+
+        <Card className="min-w-0">
+          <Head title="Conversations & cost" note="WhatsApp charges once per number per 24 hours a message is sent (about Rs 0.35 for a school notice)." />
+          <div className="grid grid-cols-2 gap-3 p-[var(--card-pad)]">
+            <div className="rounded-2xl bg-muted/50 px-4 py-3"><div className="text-2xl font-bold tabular-nums">{n(d.conversations)}</div><div className="text-sm text-muted-foreground">Conversations</div></div>
+            <div className="rounded-2xl bg-muted/50 px-4 py-3"><div className="text-2xl font-bold tabular-nums">{`Rs ${(d.estimated_cost_paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}</div><div className="text-sm text-muted-foreground">Estimated spend</div></div>
+          </div>
+          <p className="px-[var(--card-pad)] pb-[var(--card-pad)] text-[12.5px] text-muted-foreground">An estimate from what was sent; the bill from Meta is the exact figure.</p>
+        </Card>
+
+        <Card className="min-w-0">
+          <Head title="Reply time" note="From a parent's message to the school's answer." />
+          <div className="p-[var(--card-pad)]">
+            <div className="text-[28px] font-extrabold">{replyTime(d.reply_minutes)}</div>
+            <div className="text-sm text-muted-foreground">{d.reply_minutes === null ? 'No reply sent after a parent wrote in' : `Average, ${period.toLowerCase()}`}{busy ? ` · most parent messages arrive ${busy.label}` : ''}</div>
+          </div>
         </Card>
       </div>
     </>
