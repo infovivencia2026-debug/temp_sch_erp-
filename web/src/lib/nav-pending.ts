@@ -62,6 +62,11 @@ if (typeof window !== 'undefined' && !(window as { __navPending?: boolean }).__n
   )
 }
 
+/** The same, outside React. */
+export function isNavPending(): boolean {
+  return pending
+}
+
 /** True while a navigation has been asked for and not yet drawn. */
 export function useNavPending(): boolean {
   return useSyncExternalStore(

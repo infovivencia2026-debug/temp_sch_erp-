@@ -4,6 +4,7 @@ import { api, type List } from '@/lib/api'
 import type { CatalogResponse } from '@/lib/catalog'
 import { componentFor } from '@/features/registry'
 import { preloadScreen } from '@/lib/screen'
+import { isNavPending as navPending } from '@/lib/nav-pending'
 
 /* WARM WHAT THIS PERSON WILL NEED, WHILE THE SIGNAL IS STILL THERE.
 
@@ -46,6 +47,18 @@ const idle = (fn: () => void) => {
 }
 
 const CHUNK_BUDGET = 60
+
+function nextIdle(): Promise<void> {
+  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
+  return new Promise((resolve) => {
+    const go = () => {
+      if (navPending()) { window.setTimeout(go, 400); return }
+      if (w.requestIdleCallback) w.requestIdleCallback(() => resolve(), { timeout: 3000 })
+      else window.setTimeout(resolve, 200)
+    }
+    go()
+  })
+}
 let warmedFor: string | null = null
 
 interface Child { student_id: string }
@@ -78,8 +91,14 @@ export function useOfflineWarm(catalog: CatalogResponse | undefined, userId: str
     idle(async () => {
       // Chunks: a few at a time, so the warm never competes with a real tap.
       const queue = toLoad.slice(0, CHUNK_BUDGET)
+      /* ONE AT A TIME, EACH IN ITS OWN IDLE MOMENT (2026-11-23).
+         A fetched chunk is also EVALUATED on the main thread, and three at a
+         time back to back measured as 250-600ms tasks on a throttled phone,
+         landing exactly while somebody was tapping round the menu. Now each
+         waits for an idle slot, and for any navigation to finish first. */
       while (queue.length && navigator.onLine !== false) {
-        await Promise.all(queue.splice(0, 3).map((c) => preloadScreen(c)))
+        await nextIdle()
+        await preloadScreen(queue.shift())
       }
       if (!isParent || navigator.onLine === false) return
       // Data: the family's four everyday screens, per child.

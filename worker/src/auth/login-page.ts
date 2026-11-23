@@ -320,7 +320,12 @@ const SLIDES_CSS = `
 
 function slidesHTML(slides: string[]): string {
   return `<div class="auth-slides" aria-hidden="true">${slides.map((u, i) =>
-    `<img src="${esc(u)}" alt=""${i ? ' loading="lazy"' : ' class="on" fetchpriority="high"'} decoding="async">`).join('')}</div>`
+    /* Only the first picture is fetched with the page. The rest wait in
+       data-src until the slider is about to show them (SLIDES_JS warm):
+       loading="lazy" did not hold them back, because every picture sits in
+       the viewport under the first, so a phone on 3G pulled ~900KB of
+       pictures in parallel with the sign-in and the app after it. */
+    i ? `<img data-src="${esc(u)}" alt="" decoding="async">` : `<img src="${esc(u)}" alt="" class="on" fetchpriority="high" decoding="async">`).join('')}</div>`
 }
 
 function barsHTML(slides: string[], lang: LoginLang): string {
@@ -424,7 +429,7 @@ const SLIDES_JS = `
   var n = pics.length, now = 0, held = 0, spent = 0, last = Date.now(), fade = 0
   var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   /* The next picture loads while this one shows, so a fade never reaches a blank frame. */
-  function warm(i) { var p = pics[i]; if (p && p.loading === 'lazy') p.loading = 'eager' }
+  function warm(i) { var p = pics[i]; if (p && p.getAttribute('data-src')) { p.src = p.getAttribute('data-src'); p.removeAttribute('data-src') } }
   function go(i) {
     if (i === now) return
     var old = pics[now]
@@ -457,7 +462,9 @@ const SLIDES_JS = `
   })
   bar.hidden = false
   if (still) return
-  warm(1)
+  /* The second picture after the page (and the first picture) has loaded. */
+  if (document.readyState === 'complete') warm(1)
+  else window.addEventListener('load', function () { warm(1) })
   function hold() { held++; panel.classList.add('held') }
   function release() { if (held > 0) held--; if (!held) panel.classList.remove('held') }
   panel.addEventListener('mouseenter', hold)

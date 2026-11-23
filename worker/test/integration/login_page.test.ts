@@ -53,7 +53,7 @@ describe('sign-in page', () => {
     expect(h).toContain('<aside class="auth-brand has-slides">')
     expect(h).not.toContain('class="mesh"')
     expect(h).toContain('<img src="/a.png" alt="" class="on" fetchpriority="high" decoding="async">')
-    expect(h.match(/loading="lazy"/g)).toHaveLength(1)
+    expect(h.match(/<img data-src=/g)).toHaveLength(1)
     expect(h).toContain('class="auth-brand-title"')
     expect(h).not.toContain('"><script>')
     expect(h.match(/aria-label="Picture \d \/ 2"/g)).toHaveLength(2)

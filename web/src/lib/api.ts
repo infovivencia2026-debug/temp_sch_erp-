@@ -81,13 +81,81 @@ function noteBookmark(res: Response) {
   try { sessionStorage.setItem('d1-bookmark', bm) } catch { /* private mode */ }
 }
 
+/* THE FIRST READ STARTS WITH THE PAGE, NOT AFTER THE BUNDLE (2026-11-23).
+   index.html asks for /bootstrap in its first inline script, so on a phone the
+   answer arrives while the 400KB of JavaScript is still downloading instead of
+   after it has been parsed: measured on Fast 3G that was 6s of a 17s home.
+   Taken once; anything but a 200 falls back to the ordinary request, which
+   carries the full headers and reports the error the usual way. */
+/* The home screen's chunk is fetched the moment the role is known, beside the
+   catalogue and the shell, rather than after the shell has rendered and the
+   route has resolved (it used to start 3s after /bootstrap answered). */
+/* Reads started before the screen that wants them has rendered, each handed
+   out once to the first GET of the same path and only while fresh. */
+const early = new Map<string, { p: Promise<unknown>; at: number }>()
+const EARLY_MS = 15_000
+function readAhead<T>(path: string): Promise<T> {
+  const p = send<T>(path)
+  p.catch(() => undefined)
+  early.set(path, { p, at: Date.now() })
+  return p
+}
+
+function warmHome(b: BootstrapResponse): BootstrapResponse {
+  const role = b?.catalog?.active_role
+  /* A family's home is a chain: the children, then the first child's day.
+     Asked for now, in parallel with the home chunk, instead of one after the
+     other once the screen has mounted (measured: three round trips, ~4s). */
+  if (role === 'parent') {
+    readAhead<{ items?: { student_id: string }[] }>('/api/v1/portal/students').then((kids) => {
+      const id = kids?.items?.[0]?.student_id
+      if (!id) return
+      for (const what of ['summary', 'attendance', 'activities']) readAhead(`/api/v1/portal/${what}?student_id=${id}`)
+    }, () => undefined)
+  }
+  if (role) {
+    void import('@/features/registry').then(({ FEATURE_COMPONENTS }) =>
+      import('./screen').then(({ preloadScreen }) => {
+        Object.keys(FEATURE_COMPONENTS)
+          .filter((k) => k.startsWith(role + '.home.'))
+          .slice(0, 3)
+          .forEach((k) => void preloadScreen(FEATURE_COMPONENTS[k]))
+      }),
+    ).catch(() => undefined)
+  }
+  return b
+}
+
+function earlyBootstrap(): Promise<BootstrapResponse> | undefined {
+  const w = window as Window & { __boot?: Promise<Response> }
+  const early = w.__boot
+  if (!early) return undefined
+  w.__boot = undefined
+  const again = () => send<BootstrapResponse>('/api/v1/bootstrap')
+  return early.then(
+    (res) => {
+      if (!res.ok || res.headers.get('X-From-Cache')) return again()
+      noteBookmark(res)
+      return res.json() as Promise<BootstrapResponse>
+    },
+    again,
+  )
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   /* The first read of each first-screen path is answered from GET /bootstrap
      when it can be (lib/bootstrap.ts); everything else goes to the network. */
   if (!init?.method || init.method.toUpperCase() === 'GET') {
+    const ahead = early.get(path)
+    if (ahead) {
+      early.delete(path)
+      if (Date.now() - ahead.at < EARLY_MS) {
+        try { return (await ahead.p) as T } catch { /* fall through to a fresh read */ }
+      }
+    }
     const hit = await bootstrapped<T>(
       path,
-      () => send<BootstrapResponse>('/api/v1/bootstrap'),
+      () => (earlyBootstrap() ?? send<BootstrapResponse>('/api/v1/bootstrap')).then(warmHome),
       (e) => (e instanceof ApiError ? e.status : undefined),
     )
     if (hit !== undefined) return hit
