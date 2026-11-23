@@ -6062,7 +6062,7 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
     text-align: left !important; border: 0 !important; box-shadow: none !important;
     padding: 4px 12px !important;
   }
-  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td > * { min-width: 0; max-width: 100%; white-space: normal; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td > * { min-width: 0; max-width: 100%; white-space: normal; grid-column: 2; justify-self: start; }
   :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td::before {
     content: attr(data-label); font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); line-height: 1.35;
   }

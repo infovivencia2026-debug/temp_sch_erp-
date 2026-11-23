@@ -25,7 +25,7 @@ const FONTS = (fArg || '1,1.3,1.5,2').split(',').map(Number)
 const CRED = role === 'parent' ? '8500117127' : '9100575183'
 fs.mkdirSync(outDir, { recursive: true })
 
-const scaleCss = (css, s) => s === 1 ? css : css.replace(/font-size:\s*([^;}!]+)/g, (m, v) => /\d(px|vw|vh|vmin|cqi|cqw)/.test(v) && !/\d(em|%)/.test(v.replace(/rem/g, '')) ? `font-size:calc((${v.trim()}) * ${s})` : m)
+const scaleCss = (css, s) => s === 1 ? css : css.replace(/font-size:\s*([^;}!]+)/g, (m, v) => /\d(px|vw|vh|vmin|cqi|cqw)/.test(v) && !/\d(em|%)/.test(v.replace(/rem/g, '')) ? `font-size:calc((${v.trim()}) * ${s})` : m)
 const MIME = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.json': 'application/json', '.webmanifest': 'application/manifest+json' }
 
 const cache = new Map()
@@ -79,7 +79,7 @@ async function wire(ctx, scale, live = mode !== 'local') {
 }
 
 const check = () => {
-  const iw = innerWidth, o = { h: document.documentElement.scrollWidth > iw + 1, off: [], ov: [], clip: [], split: [], small: [] }
+  const iw = innerWidth, o = { h: document.documentElement.scrollWidth > iw + 1, off: [], ov: [], clip: [], split: [], small: [], spill: [] }
   const vis = (e) => e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && e.getBoundingClientRect().width > 0
   const layer = (e) => { let a = e; while (a && a !== document.body) { const p = getComputedStyle(a).position; if (p === 'fixed' || p === 'sticky') return a; a = a.parentElement } return null }
   const scroller = (e) => { let a = e.parentElement; while (a && a !== document.body) { const s = getComputedStyle(a); if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && a.scrollWidth > a.clientWidth + 1) return a; a = a.parentElement } return null }
@@ -100,6 +100,14 @@ const check = () => {
         }
       }
     }
+  }
+  // text spilling out of its own card/cell/button (drawn over the next one)
+  for (const e of leaves) {
+    if (!txt(e)) continue
+    const box = e.closest('.card, .cell, td, button, [role=button]')
+    if (!box || box === e) continue
+    const r = e.getBoundingClientRect(), br = box.getBoundingClientRect()
+    if ((r.right > br.right + 2 || r.left < br.left - 2) && !scroller(e)) o.spill.push(nm(e))
   }
   // words split across lines (a line break inside a word)
   const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
@@ -128,18 +136,20 @@ const check = () => {
     const a = L[i], c = L[j]
     if (a.l !== c.l || a.s !== c.s || a.e.contains(c.e) || c.e.contains(a.e)) continue
     // a field's own button drawn inside it (calendar, clear, show password) is by design
+    // an inline run that wraps has a box covering both lines; not a real overlap
+    if (a.e.getClientRects().length > 1 || c.e.getClientRects().length > 1) continue
     if (new Set([a.e.tagName, c.e.tagName]).has('INPUT') && new Set([a.e.tagName, c.e.tagName]).has('BUTTON')) continue
     const x = Math.min(a.r.right, c.r.right) - Math.max(a.r.left, c.r.left), y = Math.min(a.r.bottom, c.r.bottom) - Math.max(a.r.top, c.r.top)
     if (x > 4 && y > 4) { o.ov.push(nm(a.e) + '  x  ' + nm(c.e)); if (o.ov.length >= 8) break outer }
   }
-  for (const k of ['off', 'clip', 'split', 'small']) o[k] = [...new Set(o[k])].slice(0, 8)
+  for (const k of ['off', 'clip', 'split', 'small', 'spill']) o[k] = [...new Set(o[k])].slice(0, 8)
   o.head = (document.querySelector('main')?.innerText || '').trim().slice(0, 50).replace(/\s+/g, ' ')
   return o
 }
 
 const b = await chromium.launch()
 // sign in once (live assets; the session cookie is what we keep)
-const lc = await b.newContext({ viewport: { width: 1280, height: 900 } })
+const lc = await b.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' })
 await wire(lc, 1, true)
 const lp = await lc.newPage()
 for (let i = 0; i < 4 && !(await lp.locator('input[name=identifier]').count()); i++) await lp.goto(ORIGIN + '/login', { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {})
@@ -166,7 +176,7 @@ const rep = []
 const combos = WIDTHS.flatMap((w) => FONTS.map((f) => [w, f]))
 const save = () => fs.writeFileSync(path.join(outDir, `report-${role}-${mode}.json`), JSON.stringify(rep))
 async function run([w, f]) {
-  const ctx = await b.newContext({ viewport: { width: w, height: 800 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, storageState: state })
+  const ctx = await b.newContext({ viewport: { width: w, height: 800 }, isMobile: true, hasTouch: true, serviceWorkers: 'block', deviceScaleFactor: 1, storageState: state })
   await wire(ctx, f)
   const p = await ctx.newPage()
   let js = []
@@ -191,9 +201,9 @@ await b.close(); save()
 // summary
 const sum = {}
 for (const x of rep) {
-  const k = `${x.w}@${x.f}`; const s = (sum[k] ??= { pages: 0, bad: 0, h: 0, off: 0, clip: 0, ov: 0, split: 0, small: 0, js: 0 })
+  const k = `${x.w}@${x.f}`; const s = (sum[k] ??= { pages: 0, bad: 0, h: 0, off: 0, clip: 0, spill: 0, ov: 0, split: 0, small: 0, js: 0 })
   s.pages++
-  const flags = { h: x.h ? 1 : 0, off: x.off?.length || 0, clip: x.clip?.length || 0, ov: x.ov?.length || 0, split: x.split?.length || 0, small: x.small?.length || 0, js: x.js?.length || 0 }
+  const flags = { h: x.h ? 1 : 0, off: x.off?.length || 0, clip: x.clip?.length || 0, spill: x.spill?.length || 0, ov: x.ov?.length || 0, split: x.split?.length || 0, small: x.small?.length || 0, js: x.js?.length || 0 }
   for (const [kk, v] of Object.entries(flags)) s[kk] += v ? 1 : 0
   if (Object.values(flags).some(Boolean)) s.bad++
 }

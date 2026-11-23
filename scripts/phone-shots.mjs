@@ -26,11 +26,11 @@ function swapAssets(html) {
   for (const m of distIndex().matchAll(/\/assets\/([A-Za-z0-9_.-]+?)-[A-Za-z0-9_-]{8}\.(js|css)/g)) local[m[1] + '.' + m[2]] = m[0]
   return html.replace(/\/assets\/([A-Za-z0-9_.-]+?)-[A-Za-z0-9_-]{8}\.(js|css)/g, (m, n, e) => local[n + '.' + e] || m)
 }
-const scaleCss = (css) => css.replace(/font-size:\s*([^;}!]+)/g, (m, v) => /\d(px|vw|vh|vmin|cqi|cqw)/.test(v) && !/\d(em|%)/.test(v.replace(/rem/g, '')) ? `font-size:calc((${v.trim()}) * ${S})` : m)
+const scaleCss = (css) => css.replace(/font-size:\s*([^;}!]+)/g, (m, v) => /\d(px|vw|vh|vmin|cqi|cqw)/.test(v) && !/\d(em|%)/.test(v.replace(/rem/g, '')) ? `font-size:calc((${v.trim()}) * ${S})` : m)
 fs.mkdirSync(outDir, { recursive: true })
 const b = await chromium.launch()
 async function ctxFor(st) {
-  const ctx = await b.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, ...(st ? { storageState: st } : {}) })
+  const ctx = await b.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true, serviceWorkers: 'block', deviceScaleFactor: 2, ...(st ? { storageState: st } : {}) })
   await ctx.route('**/*', async (route) => { try {
     const req = route.request(), u = new URL(req.url())
     if (u.origin !== ORIGIN) return route.continue()
@@ -64,6 +64,7 @@ await lp.screenshot({ path: path.join(outDir, '3-login.png') })
 await anon.close()
 const ctx = await ctxFor(state), p = await ctx.newPage()
 await p.goto(ORIGIN + '/parent/home/dashboard', { waitUntil: 'load' }).catch(() => {}); await settle(p)
+console.log(await p.evaluate(() => [getComputedStyle(document.documentElement).fontSize, getComputedStyle(document.querySelector('.cell-grid') || document.body).gridTemplateColumns]))
 await p.screenshot({ path: path.join(outDir, '2-header-greeting.png') })
 await p.screenshot({ path: path.join(outDir, '1-home-tiles.png'), fullPage: true })
 await p.goto(ORIGIN + '/parent/leave_absence/apply_student_leave', { waitUntil: 'load' }).catch(() => {}); await settle(p)
