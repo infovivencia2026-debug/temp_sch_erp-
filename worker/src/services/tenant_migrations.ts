@@ -135,4 +135,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 135, name: 'website_forms_write', checksum: '8271e854862fb5b7762298e9b5900b227745e15376a810da18df8b3e987f847c' },
   { version: 136, name: 'fee_line_allocations', checksum: '89a811c981c78c69b9ea1e13077055a83e81e002d6d245db884783ca7596f666' },
   { version: 137, name: 'fee_offline_payments', checksum: '78384aaeb064fb0774aa786e281c00177274aaf3d3fa56545d098e689340ebe2' },
+  { version: 138, name: 'parent_communication_keys', checksum: '9fffcabfbdbeabebcab21896f82b7fcffbedbc396f071b10cd9f5d4fbe5f61da' },
 ]

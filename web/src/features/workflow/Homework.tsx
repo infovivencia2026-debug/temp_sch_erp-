@@ -187,7 +187,9 @@ function Diary({ canPublish }: { canPublish: boolean }) {
         /* A parent gets ONE line (owner, 2026-11-23: eyebrow + title + sentence
            read "Homework & diary / School diary / ..." -- cut off and too tall on a
            phone). Teachers keep the full head. */
-        eyebrow={canPublish ? 'Homework & diary' : undefined}
+        /* Parents get a section label too, only so the heading draws at the same
+           size as every other screen; phones hide the label (see PageHead). */
+        eyebrow={canPublish ? 'Homework & diary' : 'Academics'}
         title={canPublish ? 'Work you have set' : 'Homework & diary'}
         description={canPublish
           ? 'Published straight to the class and their parents. Pick a day to see what was set and who has turned it in.'
