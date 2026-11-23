@@ -5914,3 +5914,22 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 @container (max-width: 720px) {
   .table-corner { position: static; justify-content: flex-end; padding: 4px 8px 2px; }
 }
+
+/* Wide enough for the corner controls to float over the header: the last
+   heading keeps their width clear (eye + expand, 2 x 32px + gap + inset).
+   A table that scrolls sideways gets them on their own row instead
+   (.table-corner-row, set by Table when it overflows). */
+@media (min-width: 640px) {
+  @container (min-width: 720.02px) {
+    .responsive-table > thead th.table-last-th { padding-right: 88px; }
+  }
+}
+.table-corner.table-corner-row { position: static; justify-content: flex-end; padding: 4px 8px 2px; }
+
+/* Receipt entry's fee lines (Fees, counter): nine columns that fit the card at
+   1280+ -- headings wrap, columns are tight. Below 900 Table makes it scroll
+   inside its box (the page never does) with Fee type frozen on the left. */
+.fee-lines .responsive-table > thead th { white-space: normal; line-height: 1.25; vertical-align: bottom; }
+.fee-lines .responsive-table :where(thead th, tbody td) { padding-left: 10px; padding-right: 10px; }
+.fee-lines .responsive-table > tbody td:first-child { position: sticky; left: 0; z-index: 2; background: hsl(var(--card)); }
+.fee-lines .responsive-table > thead th:first-child { position: sticky; left: 0; z-index: 3; background: hsl(var(--surface-subtle)); }

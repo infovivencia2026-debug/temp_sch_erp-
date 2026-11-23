@@ -431,7 +431,7 @@ async function getFamilyFees(c: Ctx): Promise<Response> {
 
   const pays = await c.db.prepare(`
     SELECT receipt_no, substr(paid_on, 1, 10) AS paid_on, amount_paise, mode, reference_no, status
-      FROM payments WHERE student_id = ?
+      FROM payments WHERE student_id = ? AND status = 'success'
      ORDER BY paid_on DESC, receipt_no DESC LIMIT 50`).bind(student).all<Record<string, unknown>>()
   const receipts = pays.results.map((p) => {
     const o: Record<string, unknown> = { receipt_no: p.receipt_no ?? '', paid_on: p.paid_on, amount_paise: Number(p.amount_paise), mode: p.mode }

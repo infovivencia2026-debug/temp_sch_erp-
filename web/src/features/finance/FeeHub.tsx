@@ -55,11 +55,8 @@ interface Hub {
   available: { fee_head_id: string; fee_type: string; optional: boolean; plans: { structure_id: string; plan: string; class_name: string; amount_paise: number; instalments: number }[] }[]
 }
 
-export const MODE_LABEL: Record<string, string> = {
-  cash: 'Cash', upi: 'UPI', card: 'Card', neft: 'NEFT / IMPS / RTGS', netbanking: 'Net banking', cheque: 'Cheque', dd: 'Demand draft',
-  wallet: 'Adjust from advance', adjustment: 'Adjustment', online: 'Online',
-}
-export const modeName = (m: string) => MODE_LABEL[m] ?? (m ? m[0].toUpperCase() + m.slice(1) : '-')
+export { MODE_LABEL, modeName } from '@/lib/payment-mode'
+import { modeName } from '@/lib/payment-mode'
 const STATUS = { paid: ['Paid', 'success'], part_paid: ['Part paid', 'warning'], unpaid: ['Unpaid', 'neutral'] } as const
 function LineStatus({ s }: { s: Line['status'] }) { return <Badge tone={STATUS[s][1]}>{STATUS[s][0]}</Badge> }
 const inst = (n: number | null) => (n ? `Instalment ${n}` : 'One-off')
@@ -301,7 +298,7 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
     <Card>
       <CardHeader title="Receipt entry" action={step === 1 ? (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => setDialog('qr')}>QR code / payment link</Button>
+          {session?.upi_vpa && <Button size="sm" variant="outline" onClick={() => setDialog('qr')}>QR code / payment link</Button>}
           <Button size="sm" variant="outline" onClick={() => setDialog('fine')}>Manage / view fine</Button>
           <Button size="sm" variant="outline" onClick={() => setDialog('offline')}>Offline payments{hub.offline.some((o) => o.status === 'pending') ? ` (${hub.offline.filter((o) => o.status === 'pending').length})` : ''}</Button>
           <Button size="sm" variant="outline" onClick={() => setDialog('scholarship')}>View scholarship</Button>
@@ -341,12 +338,20 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
               <Select value={instalment} onChange={setInstalment} options={[{ value: '', label: 'All instalments' }, ...instalments.map((n) => ({ value: String(n), label: n ? `Instalment ${n}` : 'One-off' }))]} />
             </Field>
           </div>
-          <Table head={['', 'Fee type', 'Instalment', 'Due date', 'Fee', 'Concession', 'Paid', 'Balance', 'Fine', 'Pay now']} empty={!open.length}
+          {/* Fits the card at 1280 and up: tight columns, headings that wrap, the
+              tick inside the Fee type cell so that column is first and stays
+              frozen while Pay now is typed in on a narrower screen. */}
+          <div className="fee-lines">
+          <Table wide={false} head={['Fee type', 'Instalment', 'Due date', 'Fee', 'Concession', 'Paid', 'Balance', 'Fine', 'Pay now']} empty={!open.length}
             emptyLabel={hub.lines.some((l) => l.academic_year_id === year) ? 'Nothing is unpaid for this year.' : `No fees raised for ${yearName(year)}. Assign them under Fee management.`}>
             {open.map((l) => (
               <tr key={l.line_id}>
-                <Td><input type="checkbox" checked={pay[l.line_id] !== undefined} onChange={() => toggle(l)} aria-label={`Pay ${l.fee_type} ${inst(l.instalment_no)}`} /></Td>
-                <Td className="min-w-[9rem] font-medium">{l.description}<span className="block font-mono text-[11.5px] text-muted-foreground">{l.invoice_no}</span></Td>
+                <Td className="min-w-[10rem] font-medium">
+                  <label className="flex items-start gap-2">
+                    <input type="checkbox" className="mt-1 shrink-0" checked={pay[l.line_id] !== undefined} onChange={() => toggle(l)} aria-label={`Pay ${l.fee_type} ${inst(l.instalment_no)}`} />
+                    <span>{l.description}<span className="block font-mono text-[11.5px] text-muted-foreground">{l.invoice_no}</span></span>
+                  </label>
+                </Td>
                 <Td className="whitespace-nowrap">{inst(l.instalment_no)}</Td>
                 <Td className="whitespace-nowrap text-muted-foreground">{formatDate(l.due_on)}</Td>
                 <Td className="whitespace-nowrap tabular-nums">{formatPaise(l.amount_paise)}</Td>
@@ -354,12 +359,13 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
                 <Td className="whitespace-nowrap tabular-nums">{formatPaise(l.paid_paise)}</Td>
                 <Td className="whitespace-nowrap font-medium tabular-nums">{formatPaise(l.balance_paise)}</Td>
                 <Td className="whitespace-nowrap tabular-nums">{formatPaise(l.fine_paise)}</Td>
-                <Td className="min-w-[8rem]">
+                <Td className="w-[7rem] min-w-[6.5rem]">
                   {pay[l.line_id] !== undefined && <Input value={pay[l.line_id]} onChange={(v) => setPay((o) => ({ ...o, [l.line_id]: v }))} srLabel={`Amount for ${l.fee_type}`} />}
                 </Td>
               </tr>
             ))}
           </Table>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t p-[var(--card-pad)] text-[14px]">
             <span>Total selected: <b className="tabular-nums">{formatPaise(total)}</b> · Total payable: <b className="tabular-nums">{formatPaise(payable)}</b></span>
             <div className="flex items-center gap-3">

@@ -1259,6 +1259,7 @@ export function Table({
   const hiddenCols = useHiddenColumns(colKey)
   const colNames = useColumnNames(colKey)
   const hideAt = colLabels.map((l, i) => (l.trim() !== '' && hiddenCols.includes(l) ? i : -1)).filter((i) => i >= 0)
+  const lastShown = head.map((_, i) => i).filter((i) => !hideAt.includes(i)).pop() ?? -1
   const [colClass] = useState(() => 'tc-' + Math.random().toString(36).slice(2, 9))
   /* While a print is being built every row is drawn: the owner's prints came
      out as "1–10 of 11", the first page of the list and nothing more. */
@@ -1367,6 +1368,23 @@ export function Table({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [full, canGrow, loadingMore, rows.length])
 
+  /* The corner controls float over the header's right end. The last heading
+     keeps room for them (table-last-th), but a table wider than its box
+     scrolls under them whatever that heading's padding, so a table that
+     overflows gets the controls on their own row instead (owner, 2026-11-23:
+     "PAY NOW", "DECIDED", "STATUS", "TAKEN BY" were under the eye). */
+  const [cornerRow, setCornerRow] = useState(false)
+  useEffect(() => {
+    const table = tableEl.current
+    const box = table?.parentElement
+    if (full || !table || !box || typeof ResizeObserver === 'undefined') return
+    const check = () => setCornerRow(box.scrollWidth > box.clientWidth + 1)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(box); ro.observe(table)
+    return () => ro.disconnect()
+  }, [full])
+
   useEffect(() => {
     if (!full) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(false) }
@@ -1441,6 +1459,7 @@ export function Table({
                     'whitespace-nowrap px-[var(--card-pad)] py-2.5 text-[12px] font-medium text-muted-foreground',
                     NARROW_PAD,
                     right ? 'text-right' : 'text-left',
+                    i === lastShown && 'table-last-th',
                   )}
                 >
                   {key && sort ? (
@@ -1585,7 +1604,7 @@ export function Table({
             one set of table controls rather than a new button appearing. */}
         {/* On phones the pair sits in its own row above the table: floated
             over the header it covered the last column's label (320-430). */}
-        <div className="table-corner absolute right-2 top-1 z-20 flex items-center gap-1 max-sm:static max-sm:justify-end max-sm:gap-3 max-sm:px-2 max-sm:pb-1 max-sm:pt-1">
+        <div className={cn('table-corner absolute right-2 top-1 z-20 flex items-center gap-1 max-sm:static max-sm:justify-end max-sm:gap-3 max-sm:px-2 max-sm:pb-1 max-sm:pt-1', cornerRow && 'table-corner-row')}>
         <div>
           <ColumnChooser
             labels={colLabels}

@@ -2,6 +2,7 @@ import type { StudentFullDetail } from '@shared/api'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ReceiptDialog from '@/features/finance/ReceiptDialog'
+import { modeName } from '@/lib/payment-mode'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -169,7 +170,7 @@ export function FeeLedger({ heads: allHeads, components = [], studentId, takeFee
               <Td className={cn('tabular-nums', due > 0 && 'font-medium text-destructive')}>{formatPaise(due)}</Td>
               {/* Every receipt that settled this head's bills, one per line (owner, 2026-11-20). */}
               <Td className="whitespace-nowrap text-muted-foreground">{rc.length ? rc.map((x, i) => <span key={i} className="block">{formatDate(x.paid_on)}</span>) : '-'}</Td>
-              <Td className="whitespace-nowrap capitalize">{rc.length ? rc.map((x, i) => <span key={i} className="block">{x.mode}</span>) : '-'}</Td>
+              <Td className="whitespace-nowrap">{rc.length ? rc.map((x, i) => <span key={i} className="block">{modeName(x.mode)}</span>) : '-'}</Td>
               <Td className="whitespace-nowrap font-mono text-[12px] text-muted-foreground">{rc.length ? rc.map((x, i) => <span key={i} className="block">{x.reference || '-'}</span>) : '-'}</Td>
               {/* The number opens the receipt itself (owner, 2026-11-20). */}
               <Td className="whitespace-nowrap font-mono text-[12px]">{rc.length ? rc.map((x, i) => (

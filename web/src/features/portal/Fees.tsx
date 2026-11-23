@@ -173,7 +173,7 @@ export default function PortalFees() {
 
   const overdue = d.invoices.filter((i) => i.due_paise > 0 && i.days_overdue > 0)
   const paidThisYear = d.receipts
-    .filter((r) => r.status !== 'bounced')
+    .filter((r) => r.status === 'success')
     .reduce((n, r) => n + r.amount_paise, 0)
 
   // The instalment the code is pointed at, if it is still owed; otherwise
