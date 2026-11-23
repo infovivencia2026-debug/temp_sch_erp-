@@ -26,7 +26,7 @@ function when(e: ConnectEvent): string {
 }
 
 export default function ConnectEvents({ onSend }: { onSend: (prefill: { name: string; sections: string[] }) => void }) {
-  const q = useQuery({ queryKey: ['connect', 'events'], queryFn: () => api.get<{ items: ConnectEvent[] }>('/comms/yajur-connect/events') })
+  const q = useQuery({ queryKey: ['connect', 'events'], queryFn: () => api.get<{ items: ConnectEvent[] }>('/api/v1/comms/yajur-connect/events') })
   const items = q.data?.items ?? []
   return (
     <div className="space-y-3">

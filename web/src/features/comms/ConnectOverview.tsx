@@ -26,7 +26,7 @@ export interface ConnectOverviewData {
 }
 
 export const useConnectOverview = () =>
-  useQuery({ queryKey: ['connect', 'overview'], queryFn: () => api.get<ConnectOverviewData>('/comms/yajur-connect/overview') })
+  useQuery({ queryKey: ['connect', 'overview'], queryFn: () => api.get<ConnectOverviewData>('/api/v1/comms/yajur-connect/overview') })
 
 const n = (v: number) => v.toLocaleString('en-IN')
 

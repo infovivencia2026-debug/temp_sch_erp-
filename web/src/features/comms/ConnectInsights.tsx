@@ -74,7 +74,7 @@ export default function ConnectInsights() {
   const [days, setDays] = useState<Days>(30)
   const q = useQuery({
     queryKey: ['connect', 'insights', days],
-    queryFn: () => api.get<ConnectInsightsData>(`/comms/yajur-connect/insights?days=${days}`),
+    queryFn: () => api.get<ConnectInsightsData>(`/api/v1/comms/yajur-connect/insights?days=${days}`),
   })
 
   return (
