@@ -20,6 +20,8 @@ import { registerYajurConnectSend } from './yajur_connect_send'
 import { registerYajurConnectLog } from './yajur_connect_log'
 import { registerYajurConnectOverview } from './yajur_connect_overview'
 import { registerYajurConnectPeople } from './yajur_connect_people'
+import { registerYajurConnectInsights } from './yajur_connect_insights'
+import { registerYajurConnectEvents } from './yajur_connect_events'
 import { registerYajurConnectTemplates } from './yajur_connect_templates'
 import type {
   ConnectAutoReply, ConnectAutoReplyBody, ConnectContact, ConnectConversation, ConnectMatch, ConnectMessage, ConnectState, ConnectTemplate,
@@ -156,6 +158,8 @@ export function registerYajurConnect(r: Router): void {
   registerYajurConnectLog(r, READ)
   registerYajurConnectOverview(r, READ)
   registerYajurConnectPeople(r, WRITE)
+  registerYajurConnectInsights(r, READ)
+  registerYajurConnectEvents(r, WRITE)
   registerYajurConnectTemplates(r)
   r.typed('GET /comms/yajur-connect', READ, async (c) => {
     const q = (c.url.searchParams.get('q') ?? '').trim().slice(0, 80)

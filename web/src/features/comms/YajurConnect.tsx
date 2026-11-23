@@ -13,6 +13,9 @@ import ConnectOverview from './ConnectOverview'
 import ConnectSettings from './ConnectSettings'
 import ConnectHistory from './ConnectHistory'
 import ConnectPeople from './ConnectPeople'
+import ConnectWorkbooks from './ConnectWorkbooks'
+import ConnectInsights from './ConnectInsights'
+import ConnectEvents from './ConnectEvents'
 import { LogTab } from './YajurConnectLog'
 import { TemplatesTab } from './YajurConnectTemplates'
 import { ChatThread, type ChatMessage } from '@/components/Chat'
@@ -39,11 +42,11 @@ const NOT_ON_LIST = 'Test mode: this number is not on the test list, so messages
 /* The screens of the original Yajur Connect app, by its own names, in its menu
    order (owner, 2026-11-23). 'campaigns' and 'scheduled' stay as keys so old
    links keep working: both open Notice history. */
-type Tab = 'overview' | 'chats' | 'send' | 'people' | 'templates' | 'history' | 'campaigns' | 'scheduled' | 'log' | 'rules' | 'settings'
+type Tab = 'overview' | 'chats' | 'send' | 'workbooks' | 'people' | 'templates' | 'history' | 'campaigns' | 'scheduled' | 'log' | 'insights' | 'events' | 'rules' | 'settings'
 const TABS: { key: Tab; label: string; group: string }[] = [
-  { key: 'overview', label: 'Overview', group: 'Communication' }, { key: 'chats', label: 'Parent inbox', group: 'Communication' }, { key: 'send', label: 'Send a notice', group: 'Communication' },
+  { key: 'overview', label: 'Overview', group: 'Communication' }, { key: 'chats', label: 'Parent inbox', group: 'Communication' }, { key: 'send', label: 'Send a notice', group: 'Communication' }, { key: 'workbooks', label: 'Daily workbooks', group: 'Communication' },
   { key: 'people', label: 'Students & parents', group: 'School directory' }, { key: 'templates', label: 'Message templates', group: 'School directory' },
-  { key: 'history', label: 'Notice history', group: 'Activity' }, { key: 'log', label: 'Delivery log', group: 'Activity' },
+  { key: 'history', label: 'Notice history', group: 'Activity' }, { key: 'log', label: 'Delivery log', group: 'Activity' }, { key: 'insights', label: 'Insights', group: 'Activity' }, { key: 'events', label: 'Events & reminders', group: 'Activity' },
   { key: 'rules', label: 'Auto-replies', group: 'Workspace' }, { key: 'settings', label: 'Settings', group: 'Workspace' },
 ]
 
@@ -138,7 +141,7 @@ export default function YajurConnect() {
   const items = list.data?.items ?? []
   const canWrite = !!list.data?.can_write
   // Readers get the chats and the log; the sending tabs are for comms.connect.write.
-  const tabs = canWrite ? TABS : TABS.filter((t) => ['overview', 'chats', 'log', 'templates'].includes(t.key))
+  const tabs = canWrite ? TABS : TABS.filter((t) => ['overview', 'chats', 'log', 'templates', 'insights'].includes(t.key))
   const asked: Tab | null = tabParam === 'campaigns' || tabParam === 'scheduled' ? 'history' : tabParam
   const tab: Tab = asked && tabs.some((t) => t.key === asked) ? asked : openId ? 'chats' : 'overview'
   const goTab = (t: Tab, extra?: Record<string, string>) => {
@@ -170,6 +173,9 @@ export default function YajurConnect() {
           : tab === 'people' ? <ConnectPeople onMessage={(guardianId, studentId) => goTab('send', { guardian: guardianId, student: studentId })} />
           : tab === 'templates' ? <TemplatesTab onUse={(code) => { const next = new URLSearchParams(params); next.set('tab', 'send'); next.set('template', code); setParams(next, { replace: true }) }} />
           : tab === 'history' ? <ConnectHistory />
+          : tab === 'workbooks' ? <ConnectWorkbooks />
+          : tab === 'insights' ? <ConnectInsights />
+          : tab === 'events' ? <ConnectEvents onSend={(pre) => goTab('send', { notice: pre.name, ...(pre.sections.length ? { sections: pre.sections.join(',') } : {}) })} />
           : tab === 'log' ? <LogTab />
           : tab === 'rules' ? <AutoReplies />
           : tab === 'settings' ? <ConnectSettings goRules={() => setTab('rules')} />
