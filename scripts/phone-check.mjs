@@ -131,7 +131,12 @@ const check = () => {
     const r = e.getBoundingClientRect()
     if (r.height < 40 && r.width >= 40 && (e.innerText || '').trim().length > 1 && !e.closest('td, [role=menu], [role=listbox], .no-tap-check')) o.small.push(nm(e) + ' ' + Math.round(r.height))
   }
-  const L = leaves.slice(0, 700).map((e) => ({ e, r: e.getBoundingClientRect(), l: layer(e), s: scroller(e) }))
+  // a cell or block with text is judged by where its text is, not by its padded box
+  const textRect = (e) => {
+    if (!txt(e) || ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A'].includes(e.tagName)) return e.getBoundingClientRect()
+    const rg = document.createRange(); rg.selectNodeContents(e); return rg.getBoundingClientRect()
+  }
+  const L = leaves.slice(0, 700).map((e) => ({ e, r: textRect(e), l: layer(e), s: scroller(e) }))
   outer: for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
     const a = L[i], c = L[j]
     if (a.l !== c.l || a.s !== c.s || a.e.contains(c.e) || c.e.contains(a.e)) continue

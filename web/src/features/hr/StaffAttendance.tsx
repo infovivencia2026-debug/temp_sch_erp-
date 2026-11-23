@@ -313,7 +313,7 @@ export default function StaffAttendance() {
                            that without a sentence. */
                         <span aria-hidden className="block h-8" />
                       ) : (
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
                         {MARKS.map((m) => {
                           const on = v === m.value
                           return (

@@ -1562,7 +1562,7 @@ export function Table({
                 {rows.length} {rows.length === 1 ? 'row' : 'rows'}
               </p>
             )}
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
               {!noExport && (
               <Button variant="secondary" className="no-print" onClick={onExport ?? takeAway}
                       title={`Download these ${rows.length} rows as CSV`}>
