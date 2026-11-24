@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Card, ErrorState, Loading, Stat, SEG_BAR_FILL, segClass } from '@/components/ui'
+import { Card, ErrorState, Loading, SEG_BAR_FILL, segClass } from '@/components/ui'
 
 /* The original app's periods (owner, 2026-11-23: "insights like Connect"). */
 type Days = 7 | 30 | 90 | 'year' | 'all'
@@ -118,10 +118,10 @@ function Body({ d }: { d: ConnectInsightsData }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Messages sent" value={n(d.sent)} detail={d.pending ? `${n(d.pending)} still waiting` : 'Reached WhatsApp'} period={period} />
-        <Stat label="Delivered" value={d.sent ? `${d.delivered_pct}%` : '-'} detail={d.sent ? `${n(d.delivered)} of ${n(d.sent)} sent` : 'No messages sent'} period={period} />
-        <Stat label="Read rate" value={d.sent ? `${d.read_pct}%` : '-'} detail={d.sent ? `${n(d.read)} of ${n(d.sent)} read` : 'No messages sent'} period={period} />
-        <Stat label="Parent replies" value={n(d.replies)} detail={busy ? `Most arrive ${busy.label}` : 'No replies yet'} period={period} />
+        <Tile label="Messages sent" value={n(d.sent)} detail={d.pending ? `${n(d.pending)} still waiting` : 'Reached WhatsApp'} period={period} />
+        <Tile label="Delivered" value={d.sent ? `${d.delivered_pct}%` : '-'} detail={d.sent ? `${n(d.delivered)} of ${n(d.sent)} sent` : 'No messages sent'} period={period} />
+        <Tile label="Read rate" value={d.sent ? `${d.read_pct}%` : '-'} detail={d.sent ? `${n(d.read)} of ${n(d.sent)} read` : 'No messages sent'} period={period} />
+        <Tile label="Parent replies" value={n(d.replies)} detail={busy ? `Most arrive ${busy.label}` : 'No replies yet'} period={period} />
       </div>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
@@ -191,5 +191,17 @@ function Body({ d }: { d: ConnectInsightsData }) {
         </Card>
       </div>
     </>
+  )
+}
+
+/* Headline tile: same rounded card and hover lift as the Overview cards (owner, 2026-11-24: "why cards are box?"). */
+function Tile({ label, value, detail, period }: { label: string; value: string; detail: string; period: string }) {
+  return (
+    <div className="rounded-[20px] border bg-card p-5 shadow-sm transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-1 text-[32px] font-extrabold leading-tight tabular-nums">{value}</div>
+      <div className="text-sm">{detail}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{period}</div>
+    </div>
   )
 }
