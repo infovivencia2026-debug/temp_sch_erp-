@@ -393,20 +393,20 @@ export default function PortalFees() {
                   {i.lines && i.lines.length > 0 && (
                     <div className="mt-3 border-t pt-3">
                       <p className="eyebrow mb-2">{t('portal.fees.col_amount')}</p>
-                      <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 text-[12.5px] sm:grid-cols-3 md:grid-cols-4">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,7.5em),1fr))] gap-3 rounded-xl bg-muted/40 p-3 text-[12.5px] sm:grid-cols-3 md:grid-cols-4">
                         {i.lines.map((l, n) => (
                           <div key={n}>
                             <span className={cn('block', l.is_fine ? 'text-destructive' : 'text-muted-foreground')}>
                               {l.head}
                             </span>
-                            <span className="font-semibold tabular-nums">
+                            <span className="whitespace-nowrap font-semibold tabular-nums">
                               {formatPaise(l.amount_paise)}
                             </span>
                           </div>
                         ))}
-                        <div className="col-span-2 flex items-center justify-between border-t pt-2 sm:col-span-3 md:col-span-4">
+                        <div className="col-span-full flex flex-wrap items-center justify-between gap-x-3 border-t pt-2 sm:col-span-3 md:col-span-4">
                           <span className="font-semibold">{t('portal.fees.col_amount')}</span>
-                          <span className="font-semibold tabular-nums">{formatPaise(i.net_paise)}</span>
+                          <span className="whitespace-nowrap font-semibold tabular-nums">{formatPaise(i.net_paise)}</span>
                         </div>
                       </div>
                     </div>

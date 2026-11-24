@@ -189,7 +189,7 @@ export default function DayTimeline({
           {used.size === 0 ? 'No timetable has been set for this class yet.' : `Nothing timetabled for ${WEEKDAYS[day - 1]}.`}
         </p>
       ) : (
-        <ol className="relative flex flex-col gap-3 pb-6 pl-3 pr-4 pt-4 text-[12px]">
+        <div className="day-tl-wrap"><ol className="day-tl relative flex flex-col gap-3 pb-6 pl-3 pr-4 pt-4 text-[12px]">
           {/* Sized in em of 12px: the time column, its track and dots grow with
               the phone's text size instead of the times running out of the card. */}
           {/* the track the dots sit on */}
@@ -242,7 +242,7 @@ export default function DayTimeline({
               </li>
             )
           })}
-        </ol>
+        </ol></div>
       )}
     </Shell>
   )

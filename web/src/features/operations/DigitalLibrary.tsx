@@ -145,7 +145,7 @@ export default function DigitalLibrary() {
           />
         </CellGrid>
 
-        <div className="flex gap-1 border-b">
+        <div className="flex gap-1 overflow-x-auto border-b [&>*]:shrink-0">
           {TABS.map(([k, label, Icon]) => (
             <button
               key={k}

@@ -187,7 +187,9 @@ export function MonthGrid({
 
         {error ? <ErrorState error={error} /> : null}
 
-        <div className="p-3">
+        {/* Large phone text: a floor of width that grows with the text, and a
+            sideways scroll past it, so day names and dates never overlap. */}
+        <div className="scroll-x p-3"><div className="min-w-[20rem]">
           {/* The grid is drawn while loading rather than replaced by a
               spinner: the month's shape does not change, and swapping it for
               a spinner on every page makes the whole screen flash. */}
@@ -274,6 +276,7 @@ export function MonthGrid({
                 </button>
               )
             })}
+          </div>
           </div>
 
           {/* Always there, one row tall at least, and no skeleton under the

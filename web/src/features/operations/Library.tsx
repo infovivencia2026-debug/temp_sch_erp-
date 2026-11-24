@@ -148,7 +148,7 @@ export default function Library() {
           />
         </CellGrid>
 
-        <div className="flex gap-1 border-b">
+        <div className="flex gap-1 overflow-x-auto border-b [&>*]:shrink-0">
           {TABS.map((t) => (
             <button
               key={t.key}

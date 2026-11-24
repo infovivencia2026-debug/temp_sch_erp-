@@ -6102,3 +6102,27 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
   .phone-head > :last-child { justify-self: end; grid-column: 2; grid-row: 1; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
   .phone-head > .phone-head-name { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* The day's timeline at large phone text: the times go on a line of their
+   own above each period, so the period card keeps the full width and names
+   are not broken letter by letter. The track and dots are decoration. */
+.day-tl-wrap { container-type: inline-size; }
+@container (max-width: 18rem) {
+  .day-tl > li { flex-direction: column; align-items: stretch; }
+  .day-tl > li > div:first-child { width: auto; flex-direction: row; align-items: baseline; gap: 0.5em; padding: 0 0 2px; }
+  .day-tl > li > :last-child { margin-left: 0; }
+  .day-tl > span[aria-hidden], .day-tl > li > span[aria-hidden] { display: none; }
+}
+
+/* LARGE PHONE TEXT, GENERIC GUARDS (2026-11-24).
+   Only take effect when something would otherwise run past the screen:
+   - a row of buttons wraps instead of pushing the last one off the edge;
+   - a field sized in rem never grows wider than the phone;
+   - an empty or loading table's note keeps clear of the corner controls. */
+@media (max-width: 639.98px) {
+  :where(.flex:not(.flex-col):not(.overflow-x-auto):not(.scroll-x):not(.chip-scroll):not(.flex-nowrap)):has(> .btn) { flex-wrap: wrap; }
+  .field { max-width: calc(100vw - 64px); }
+}
+@container rtable (max-width: 34rem) {
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table:not(:has(> thead button)) > tbody > tr:first-child > td[colspan] { padding-top: 48px !important; }
+}

@@ -132,7 +132,7 @@ export default function SchoolGallery({ onClose, initialPost = null }: { onClose
             side, and Class Status already filters by class and by poster. */}
         {!staff && <FamilyScope value={scope} onChange={setScope} isParent={isParent} />}
         {/* Photos, videos, or everything. */}
-        <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+        <div className="flex max-w-full flex-wrap items-center gap-1 rounded-[22px] bg-muted p-1">
           {([['', 'All'], ['photo', 'Photos'], ['video', 'Videos']] as const).map(([v, label]) => (
             <button key={v || 'all'} type="button" onClick={() => setKind(v)}
               className={cn('rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors',

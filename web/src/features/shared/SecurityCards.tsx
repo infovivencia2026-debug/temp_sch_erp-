@@ -187,10 +187,10 @@ export function MyDevicesCard() {
                 into "Windows PC · Chrome" on a phone (owner, 2026-11-19). */}
             <span className="flex min-w-0 max-w-full flex-col gap-0.5">
               <span className="flex flex-wrap items-center gap-2">
-                <span className="whitespace-nowrap font-medium">{s.device}</span>
+                <span className="min-w-0 break-words font-medium">{s.device}</span>
                 {s.current && <Badge tone="success">This device</Badge>}
               </span>
-              {s.ip && <span className="block max-w-full truncate font-mono text-[11.5px] text-muted-foreground" title={s.ip}>{s.ip}</span>}
+              {s.ip && <span className="break-anywhere block max-w-full font-mono text-[11.5px] text-muted-foreground" title={s.ip}>{s.ip}</span>}
             </span>
             <span className="text-[12.5px] text-muted-foreground">
               since {formatDateTime(s.created_at)} · last active {formatDateTime(s.last_seen_at)}
