@@ -561,6 +561,8 @@ function ReportTable({ result }: { result: RunResult }) {
         </p>
       )}
       <Table
+        /* A report's result is a spreadsheet: it scrolls as a grid on a phone. */
+        layout="scroll"
         head={result.columns.map((c) => ({
           label: c.label,
           align: c.kind === 'money' || c.kind === 'number' ? ('right' as const) : undefined,

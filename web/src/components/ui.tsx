@@ -1383,11 +1383,22 @@ export function Table({
     const table = tableEl.current
     const box = table?.parentElement
     if (full || !table || !box || typeof ResizeObserver === 'undefined') return
-    const check = () => setCornerRow(box.scrollWidth > box.clientWidth + 2)
-    check()
-    const ro = new ResizeObserver(check)
+    /* Cheap: no read during the effect (which forced a layout per table, one
+       after another, on mount). The observer's own first callback measures,
+       reads for every table land in one frame, and the sizes it hands over are
+       used instead of asking the layout again. */
+    let raf = 0, boxW = 0
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) if (e.target === box) boxW = e.contentRect.width
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        const over = table.offsetWidth > (boxW || box.clientWidth) + 2
+        setCornerRow((was) => (was === over ? was : over))
+      })
+    })
     ro.observe(box); ro.observe(table)
-    return () => ro.disconnect()
+    return () => { ro.disconnect(); if (raf) cancelAnimationFrame(raf) }
   }, [full])
 
   useEffect(() => {
