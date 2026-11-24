@@ -383,18 +383,24 @@ export function Shell({
     document.title = brandName
     let restoreIcon: (() => void) | undefined
     if (faviconKey) {
-      const link =
-        document.querySelector<HTMLLinkElement>('link[rel="icon"]') ??
-        (() => {
-          const l = document.createElement('link')
-          l.rel = 'icon'
-          document.head.appendChild(l)
-          return l
-        })()
-      const prevHref = link.href
-      link.href = `/api/v1/files/${faviconKey}?inline=1`
+      /* Every icon link, so whichever size the browser picks shows the school's logo (owner, 2026-11-24). */
+      let links = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="icon"]'))
+      if (!links.length) {
+        const l = document.createElement('link')
+        l.rel = 'icon'
+        document.head.appendChild(l)
+        links = [l]
+      }
+      const prev = links.map((l) => ({ href: l.href, type: l.type }))
+      for (const l of links) {
+        l.href = `/api/v1/files/${faviconKey}?inline=1`
+        l.removeAttribute('type')
+      }
       restoreIcon = () => {
-        link.href = prevHref
+        links.forEach((l, i) => {
+          l.href = prev[i].href
+          if (prev[i].type) l.type = prev[i].type
+        })
       }
     }
     return () => {
