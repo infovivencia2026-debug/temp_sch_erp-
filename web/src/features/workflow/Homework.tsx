@@ -221,7 +221,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
           {/* The arrows sit beside the month, not either side of the days:
               on a phone the 44px tap size made arrows plus seven days wider
               than the screen, and Saturday and Sunday spilled off it. */}
-          <div className="flex items-center justify-between gap-2 border-b px-4 py-2 text-[13px] font-semibold text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2 text-[13px] font-semibold text-muted-foreground">
             <span>{monthSpan(week)}</span>
             <span className="flex gap-2">
                 <button type="button" aria-label="Previous week" onClick={() => setWeekOf(addDays(from, -7))}
@@ -248,14 +248,16 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                 The cells shrink to fit instead: min-w-0 and flex-1 let all
                 seven share whatever is left, which at 390px is about 42px
                 each -- enough for "MON" over "28", which is all they carry. */}
-            <div className="flex min-w-0 flex-1 justify-between gap-0.5">
+            {/* Large phone text: a day never shrinks below its own label; the week
+                wraps onto a second row instead of the labels running together. */}
+            <div className="flex min-w-0 flex-1 flex-wrap justify-between gap-0.5">
               {week.map((d) => {
                 const active = d === day
                 const dt = new Date(d + 'T00:00:00')
                 return (
                   <button key={d} type="button" onClick={() => setDay(active ? null : d)} aria-pressed={active}
                     className={cn(
-                      'flex !min-h-0 !min-w-0 flex-1 flex-col items-center rounded-lg border px-0 py-2 transition-colors',
+                      'flex !min-h-0 !min-w-0 flex-[1_0_auto] flex-col items-center rounded-lg border px-0.5 py-2 transition-colors',
                       /* THE TINT IS THE HIGHLIGHT. A selected day was filled solid
                          and its wording turned white, so the day you are looking at
                          was the one day you could not read at a glance -- reversed

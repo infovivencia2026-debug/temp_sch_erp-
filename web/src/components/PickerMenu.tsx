@@ -155,7 +155,7 @@ export function PickerMenu<T extends string>({
   }
 
   return (
-    <div ref={wrap} className="relative inline-flex">
+    <div ref={wrap} className="relative inline-flex min-w-0 max-w-full">
       <button
         type="button"
         aria-haspopup="listbox"
@@ -164,7 +164,7 @@ export function PickerMenu<T extends string>({
         onClick={() => setOpen((o) => !o)}
         onKeyDown={onKey}
         className={children ? undefined : cn(
-          'inline-flex items-center gap-1.5 rounded-[var(--radius-input)] bg-card px-3 text-[14px] text-foreground shadow-[var(--field-shadow)]',
+          'inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius-input)] text-left bg-card px-3 text-[14px] text-foreground shadow-[var(--field-shadow)]',
           'min-h-[var(--control-h)]',
           'transition-colors hover:bg-accent',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -173,7 +173,7 @@ export function PickerMenu<T extends string>({
       >
         {children ?? (
           <>
-            <span className="min-w-0 truncate" style={current?.style}>
+            <span className="min-w-0 [overflow-wrap:anywhere]" style={current?.style}>
               {current?.label ?? placeholder}
             </span>
             <ChevronDown
@@ -224,7 +224,7 @@ export function PickerMenu<T extends string>({
                     on && 'font-semibold',
                   )}
                 >
-                  <span className="min-w-0 truncate" style={o.style}>{o.label}</span>
+                  <span className="min-w-0 [overflow-wrap:anywhere]" style={o.style}>{o.label}</span>
                   {on && <Check className="size-4 shrink-0 opacity-80" aria-hidden="true" />}
                 </button>
               </li>

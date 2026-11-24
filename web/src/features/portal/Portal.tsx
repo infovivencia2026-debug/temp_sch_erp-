@@ -336,7 +336,7 @@ function AttendanceReport({ days, childLabel }: { days: AttendanceDay[]; childLa
           <h2 className="text-[17px] font-bold">Attendance report</h2>
           {childLabel && <p className="text-[13px] text-muted-foreground">{childLabel}</p>}
         </div>
-        <div className="flex gap-2">
+        <div className="flex min-w-0 max-w-full flex-wrap gap-2">
         {/* The year first, once there is more than one: three years of
             months in one list was too long to scroll. */}
         {new Set(months.map((x) => x.slice(0, 4))).size > 1 && (

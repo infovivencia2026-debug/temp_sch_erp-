@@ -147,9 +147,9 @@ export default function DayTimeline({
       <div className={cn('sticky top-0 z-10 rounded-t-[var(--radius-card)] border-b bg-card px-4 pb-2.5 pt-3', todayOnly && !breaks && !who && !where && 'hidden')}>
         {/* No name line when the caller's card already says whose week it is (WeekGrid on a phone). */}
         {(who || where || (live && !(todayOnly && !breaks))) && (
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              {who && <div className="truncate text-[15px] font-semibold tracking-[-0.01em]">{who}</div>}
+              {who && <div className="break-words text-[15px] font-semibold tracking-[-0.01em]">{who}</div>}
               {where && <div className="text-[12px] font-medium text-muted-foreground">{where}</div>}
             </div>
             {live && !(todayOnly && !breaks) && (
@@ -189,9 +189,11 @@ export default function DayTimeline({
           {used.size === 0 ? 'No timetable has been set for this class yet.' : `Nothing timetabled for ${WEEKDAYS[day - 1]}.`}
         </p>
       ) : (
-        <ol className="relative flex flex-col gap-3 pb-6 pl-3 pr-4 pt-4">
+        <ol className="relative flex flex-col gap-3 pb-6 pl-3 pr-4 pt-4 text-[12px]">
+          {/* Sized in em of 12px: the time column, its track and dots grow with
+              the phone's text size instead of the times running out of the card. */}
           {/* the track the dots sit on */}
-          <span aria-hidden className="absolute bottom-6 left-[72px] top-5 w-0.5 bg-border" />
+          <span aria-hidden className="absolute bottom-6 left-[6em] top-5 w-0.5 bg-border" />
           {rows.map((p) => {
             const e = byPeriod.get(p.id)
             const isNow = current(p)
@@ -199,14 +201,14 @@ export default function DayTimeline({
             const Card_ = onCell && !isBreak ? 'button' : 'div'
             return (
               <li key={p.id} className="relative flex items-start">
-                <div className="flex w-[56px] shrink-0 flex-col items-end pr-2 pt-2.5">
+                <div className="flex w-[4.667em] shrink-0 flex-col items-end pr-2 pt-2.5">
                   <span className="text-[12px] font-bold">{hhmm(p.starts_at)}</span>
                   <span className="text-[11px] font-medium text-muted-foreground">{hhmm(p.ends_at)}</span>
                 </div>
                 <span
                   aria-hidden
                   className={cn(
-                    'absolute left-[56px] top-3.5 z-[1] h-2.5 w-2.5 rounded-full border-2 border-card',
+                    'absolute left-[4.667em] top-3.5 z-[1] h-2.5 w-2.5 rounded-full border-2 border-card',
                     isNow ? 'bg-primary ring-4 ring-primary/20' : isBreak ? 'bg-warning' : 'bg-border',
                   )}
                 />

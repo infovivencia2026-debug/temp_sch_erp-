@@ -256,7 +256,7 @@ export default function Calendar() {
             thumb apart. */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-[19px] font-bold tracking-[-0.02em]">{monthName}</h2>
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               aria-label="Previous month"
@@ -333,6 +333,10 @@ export default function Calendar() {
         {/* On a phone too, now: the owner wanted the whole month, not one
             week. The cells shrink and the entries become dots. */}
         <Card className="overflow-hidden p-0">
+          {/* Large phone text: the month keeps a floor of width that grows with
+              the text, and scrolls sideways past it rather than running the
+              day names into each other. */}
+          <div className="scroll-x"><div className="min-w-[18rem]">
           <div className="grid grid-cols-7 border-b bg-surface-sunken/60 text-center text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground">
             {WEEK.map((d) => <div key={d} className="py-2.5">{d}</div>)}
           </div>
@@ -394,6 +398,7 @@ export default function Calendar() {
               )
             })}
           </div>
+          </div></div>
         </Card>
 
         {/* THE WEEK STRIP -- the phone's grid.
