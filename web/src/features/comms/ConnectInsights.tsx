@@ -89,8 +89,7 @@ export default function ConnectInsights() {
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[24px] font-semibold sm:text-[22px]">Insights</h1>
-          <p className="text-[14px] text-muted-foreground">How your messages are doing.</p>
+          <h1 className="sr-only">Insights</h1>
         </div>
         <div className={SEG_BAR_FILL} role="tablist" aria-label="Period">
           {PERIODS.map((d) => (

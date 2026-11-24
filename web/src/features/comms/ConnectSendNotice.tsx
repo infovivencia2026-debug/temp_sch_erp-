@@ -136,8 +136,7 @@ export default function SendNotice({ templates, initialCode = '' }: { templates:
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[22px] font-bold leading-tight">Send a notice</h2>
-          <p className="text-[14px] text-muted-foreground">Choose who receives it, personalise your message, then review before sending.</p>
+          <h2 className="sr-only">Send a notice</h2>
         </div>
         <div className="flex flex-wrap gap-1.5">
           <Step n={1} label="Audience" done={audienceOk} on={!audienceOk} />

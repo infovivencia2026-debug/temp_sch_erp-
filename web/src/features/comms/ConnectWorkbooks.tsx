@@ -73,8 +73,7 @@ export default function ConnectWorkbooks() {
       <div className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-[22px] font-bold leading-tight">Send class workbooks</h2>
-            <p className="text-[14px] text-muted-foreground">The right photo, the right class. Add today's workbook pages to each section; its parents get only theirs.</p>
+            <h2 className="sr-only">Send class workbooks</h2>
           </div>
           <div className="w-full sm:w-56">
             <Field label="Workbook date"><Input type="date" value={date} onChange={setDate} max={todayYmd} /></Field>

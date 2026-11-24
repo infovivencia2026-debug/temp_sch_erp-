@@ -51,8 +51,7 @@ export default function ConnectPeople({ onMessage }: { onMessage: (guardianId: s
     <div className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-[24px] font-semibold sm:text-[22px]">Students &amp; parents</h1>
-          <p className="text-[14px] text-muted-foreground">Every parent's number, from the student records.</p>
+          <h1 className="sr-only">Students &amp; parents</h1>
         </div>
         <ExportRows rows={items} columns={EXPORT} name="students-and-parents" />
       </div>

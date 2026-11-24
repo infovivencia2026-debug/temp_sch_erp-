@@ -179,7 +179,7 @@ export default function YajurConnect() {
         className="space-y-3 lg:grid lg:h-[var(--chat-h)] lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] lg:gap-4 lg:space-y-0 xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_280px]">
         <section className={cn('card flex min-h-0 flex-col overflow-hidden', openId && 'max-lg:hidden')}>
           <div className="space-y-2.5 px-4 pb-2 pt-4">
-            <h2 className="text-[20px] font-bold">Parent inbox</h2>
+            <h2 className="sr-only">Parent inbox</h2>
             <div className="flex flex-wrap gap-1" role="tablist">
               {VIEWS.map((v) => (
                 <button key={v.key} type="button" role="tab" aria-selected={view === v.key}

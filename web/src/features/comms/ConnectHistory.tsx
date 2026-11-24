@@ -21,8 +21,7 @@ export default function ConnectHistory() {
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="text-[24px] font-semibold sm:text-[22px]">Notice history</h1>
-        <p className="text-[14px] text-muted-foreground">Every notice you sent or scheduled, with how it went.</p>
+        <h1 className="sr-only">Notice history</h1>
       </div>
       <div className={SEG_BAR} role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'sent'} className={segClass(tab === 'sent')} onClick={() => setTab('sent')}>Sent</button>

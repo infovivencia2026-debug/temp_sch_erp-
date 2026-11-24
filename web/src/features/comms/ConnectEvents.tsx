@@ -31,9 +31,7 @@ export default function ConnectEvents({ onSend }: { onSend: (prefill: { name: st
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="text-[24px] font-semibold sm:text-[22px]">Events &amp; reminders</h1>
-        <p className="text-[14px] text-muted-foreground">School events with a reminder to parents before the day.</p>
-        <p className="text-[14px] text-muted-foreground">Events are added and edited in the School Calendar; published ones appear here.</p>
+        <h1 className="sr-only">Events &amp; reminders</h1>
       </div>
       {q.isLoading ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : items.length === 0 ? (
         <Card><EmptyState title="No upcoming events." body="Publish an event in the School Calendar and it appears here with a Send a reminder button." /></Card>

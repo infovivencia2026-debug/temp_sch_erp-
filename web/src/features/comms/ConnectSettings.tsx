@@ -40,8 +40,7 @@ export default function ConnectSettings({ goRules }: { goRules: () => void }) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div>
-        <h2 className="text-2xl font-semibold">Settings</h2>
-        <p className="text-sm text-muted-foreground">The school's WhatsApp number and how messages go out.</p>
+        <h2 className="sr-only">Settings</h2>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Box title="WhatsApp connection">
