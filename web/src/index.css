@@ -5983,16 +5983,19 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
    this text size, one across when they do not; the odd card out closes the
    row as before. The figure sizes to its card. */
 @media (max-width: 639.98px) {
-  .cell-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)) !important;
-  }
-  .cell-grid > * { grid-column: auto !important; min-width: 0; }
-  .cell-grid > :last-child:nth-child(odd) { grid-column: 1 / -1 !important; }
-  .cell-grid .cell, .cell-grid > .cell { container-type: inline-size; min-width: 0; }
-  .cell-grid .cell .stat, .cell-grid > .cell .stat {
-    font-size: clamp(1.15rem, 18cqi, 28px);
-    white-space: normal;
-  }
+  /* As many across as fit the CONTENT at the phone's real text size: each
+     card is at least as wide as its longest word, figure and icon
+     (min-content, measured from the text as drawn, so it follows Android's
+     font size whatever that does to rem or em). Wrapping flex: 3, 2 or 1
+     across, and a last row stretches instead of leaving one card beside a
+     gap. Size containment would make min-content zero, so the cells here are
+     not size containers; the figure keeps its own size. */
+  .cell-grid { display: flex !important; flex-wrap: wrap; }
+  .cell-grid > * { flex: 1 1 0 !important; min-width: min-content !important; max-width: 100%; grid-column: auto !important; }
+  .cell-grid .cell, .cell-grid .cell * { overflow-wrap: normal !important; word-break: normal; hyphens: none; }
+  .cell-grid .cell .stat { word-break: keep-all; }
+  .cell-grid .cell, .cell-grid > .cell { container-type: normal; }
+  .cell-grid .cell .stat, .cell-grid > .cell .stat { font-size: 28px; white-space: normal; }
 }
 /* "0 pending", "₹0 due": the word after the figure goes under it when the
    card is narrow; the figure itself never splits. */
@@ -6120,7 +6123,7 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
    - a field sized in rem never grows wider than the phone;
    - an empty or loading table's note keeps clear of the corner controls. */
 @media (max-width: 639.98px) {
-  :where(.flex:not(.flex-col):not(.overflow-x-auto):not(.scroll-x):not(.chip-scroll):not(.flex-nowrap)):has(> .btn) { flex-wrap: wrap; }
+  :where(.flex:not(.flex-col):not(.overflow-x-auto):not(.scroll-x):not(.chip-scroll):not(.flex-nowrap)):has(> .btn, > .picker) { flex-wrap: wrap; }
   .field { max-width: calc(100vw - 64px); }
 }
 @container rtable (max-width: 34rem) {
