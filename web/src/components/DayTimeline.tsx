@@ -160,7 +160,7 @@ export default function DayTimeline({
             )}
           </div>
         )}
-        {!todayOnly && <div role="tablist" aria-label="Day" className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
+        {!todayOnly && <div role="tablist" aria-label="Day" className="flex flex-wrap gap-1.5">
           {days.map((d) => (
             <button
               key={d}
@@ -169,7 +169,7 @@ export default function DayTimeline({
               aria-selected={day === d}
               onClick={() => setDay(d)}
               className={cn(
-                'h-11 min-w-[48px] flex-1 rounded-lg text-[12px] font-semibold',
+                'h-11 min-w-[48px] flex-1 whitespace-nowrap px-2 rounded-lg text-[12px] font-semibold',
                 day === d
                   /* Tint, not a solid fill: the chosen day should be the
                      easiest to read, not the hardest. */
