@@ -3563,7 +3563,7 @@ export const TAB_BAR = 'flex flex-wrap gap-1 border-b'
 /* The large size is for a screen whose tabs are its main switch (the Inbox
    folders): 48px tall, 15px text, centred. In a TAB_BAR_FILL row each tab
    takes an equal share of the width, so on a phone the row spans the screen. */
-export const TAB_BAR_FILL = 'grid auto-cols-fr grid-flow-col gap-1 border-b'
+export const TAB_BAR_FILL = 'grid auto-cols-fr grid-flow-col gap-1 border-b max-sm:flex max-sm:flex-wrap max-sm:[&>*]:flex-[1_1_auto]'
 
 export function tabClass(active: boolean, size: 'md' | 'lg' = 'md'): string {
   if (size === 'lg') {
@@ -3580,12 +3580,14 @@ export function tabClass(active: boolean, size: 'md' | 'lg' = 'md'): string {
 /* The pills never shrink or wrap: on a phone the strip scrolls sideways
    instead. Shrinking was the default for a flex child, so on a 390px screen
    "In progress" broke onto two lines and drew over its neighbour. */
-export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1 [&>*]:shrink-0 [&>*]:whitespace-nowrap'
+/* On a phone the pills wrap onto a second row rather than scrolling out of
+   sight at large text (owner, 2026-11-25); each pill still stays whole. */
+export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1 [&>*]:shrink-0 [&>*]:whitespace-nowrap max-sm:flex-wrap max-sm:overflow-visible'
 
 /* The same strip, filling its row on a phone with equal halves (or thirds),
    so the active pill fills its share instead of hugging its words at the
    left (owner, 2026-10-28, Master timetable). From sm up it is SEG_BAR. */
-export const SEG_BAR_FILL = 'flex w-full gap-1 rounded-md border bg-muted p-1 [&>*]:flex-1 [&>*]:whitespace-nowrap [&>*]:text-center sm:inline-flex sm:w-auto sm:[&>*]:flex-none'
+export const SEG_BAR_FILL = 'flex w-full flex-wrap gap-1 rounded-md border bg-muted p-1 [&>*]:flex-[1_1_auto] [&>*]:whitespace-nowrap [&>*]:text-center sm:inline-flex sm:w-auto sm:flex-nowrap sm:[&>*]:flex-none'
 
 export function segClass(active: boolean): string {
   return active

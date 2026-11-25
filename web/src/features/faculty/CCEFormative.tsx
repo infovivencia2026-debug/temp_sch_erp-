@@ -200,6 +200,9 @@ export default function CCEFormative() {
             />
           ) : (
             <Table
+              /* A marks-entry grid: one row per child across the same columns, so
+                 it scrolls as a grid on a phone rather than becoming cards. */
+              layout="scroll"
               head={['Roll', 'Child', 'Written', 'Project', 'Slip test', 'Participation',
                 'Total', 'Indicator', 'Observation']}
             >

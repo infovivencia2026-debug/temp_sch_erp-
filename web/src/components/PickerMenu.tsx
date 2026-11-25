@@ -155,7 +155,7 @@ export function PickerMenu<T extends string>({
   }
 
   return (
-    <div ref={wrap} className="relative inline-flex min-w-0 max-w-full">
+    <div ref={wrap} className="picker relative inline-flex min-w-0 max-w-full">
       <button
         type="button"
         aria-haspopup="listbox"

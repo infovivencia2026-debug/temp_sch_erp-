@@ -115,14 +115,14 @@ export default function ConnectOverview({ go }: { go: (tab: ConnectTab, chatId?:
                 {d.replies.map((x) => (
                   <li key={x.id}>
                     <button type="button" onClick={() => go('chats', x.id)}
-                      className="group flex min-h-[56px] w-full items-center gap-3 px-[var(--card-pad)] py-3 text-left transition-colors hover:bg-primary/5">
+                      className="group flex min-h-[56px] w-full flex-wrap items-center gap-3 px-[var(--card-pad)] py-3 text-left transition-colors hover:bg-primary/5">
                       <PersonAvatar name={x.name} size={40} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{x.name}</span>
                         <span className="block truncate text-sm text-muted-foreground">{x.preview || (x.student_name ?? '')}</span>
                       </span>
-                      <span className="flex shrink-0 flex-col items-end gap-1">
-                        <span className="text-xs text-muted-foreground">{formatDateTime(x.at)}</span>
+                      <span className="ml-auto flex min-w-0 max-w-full flex-col items-end gap-1">
+                        <span className="text-right text-xs text-muted-foreground">{formatDateTime(x.at)}</span>
                         {x.unread > 0 && <Badge tone="success">{`${x.unread} new`}</Badge>}
                       </span>
                       <span className="hidden shrink-0 items-center text-[13px] font-medium text-muted-foreground transition-colors group-hover:text-primary sm:flex">
