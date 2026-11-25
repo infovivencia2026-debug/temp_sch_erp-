@@ -250,14 +250,14 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                 each -- enough for "MON" over "28", which is all they carry. */}
             {/* Large phone text: a day never shrinks below its own label; the week
                 wraps onto a second row instead of the labels running together. */}
-            <div className="flex min-w-0 flex-1 flex-wrap justify-between gap-0.5">
+            <div className="grid min-w-0 flex-1 grid-cols-7 gap-0.5">
               {week.map((d) => {
                 const active = d === day
                 const dt = new Date(d + 'T00:00:00')
                 return (
                   <button key={d} type="button" onClick={() => setDay(active ? null : d)} aria-pressed={active}
                     className={cn(
-                      'flex !min-h-0 !min-w-0 flex-[1_0_auto] flex-col items-center rounded-lg border px-0.5 py-2 transition-colors',
+                      'flex !min-h-0 !min-w-0 flex-col items-center rounded-lg border px-0 py-2 transition-colors',
                       /* THE TINT IS THE HIGHLIGHT. A selected day was filled solid
                          and its wording turned white, so the day you are looking at
                          was the one day you could not read at a glance -- reversed
@@ -266,7 +266,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                       active ? 'border-primary bg-primary/10 font-semibold' : 'border-transparent hover:bg-muted',
                     )}>
                     <span className={cn('text-[10.5px] font-semibold uppercase', active ? 'text-primary' : 'text-muted-foreground')}>
-                      {WEEKDAY[dt.getDay()]}
+                      <span aria-hidden className="sm:hidden">{WEEKDAY[dt.getDay()].slice(0, 2)}</span><span className="max-sm:sr-only">{WEEKDAY[dt.getDay()]}</span>
                     </span>
                     <span className="mt-0.5 text-[16px] font-bold tabular-nums">{dt.getDate()}</span>
                     <span className={cn('mt-1 h-1.5 w-1.5 rounded-full',
