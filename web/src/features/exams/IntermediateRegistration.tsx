@@ -14,7 +14,7 @@ export default function IntermediateRegistration() {
 
   return (
     <>
-      <div className="flex items-center gap-2 px-[var(--page-gutter)] pt-[var(--page-top)]">
+      <div className="flex flex-wrap items-center gap-2 px-[var(--page-gutter)] pt-[var(--page-top)] [&>*]:min-w-0 [&>*]:max-w-full [&>*:last-child]:flex-1">
         <span className="text-[13px] text-muted-foreground">Year</span>
         <Select
           value={year}

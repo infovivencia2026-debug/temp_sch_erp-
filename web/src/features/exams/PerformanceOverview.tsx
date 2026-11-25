@@ -119,7 +119,7 @@ export default function PerformanceOverview() {
         title="Performance overview"
         description={`Pass means ${d?.definitions.pass ?? 'at or above the pass mark in every paper sat'}. A backlog is ${d?.definitions.backlog ?? 'one subject below the pass mark'}.`}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 [&>*]:min-w-0 [&>*]:max-w-full">
             <Select
               value={examId}
               onChange={setExamId}

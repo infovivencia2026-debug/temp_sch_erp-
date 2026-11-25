@@ -69,8 +69,8 @@ export default function NotificationRow({
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="flex items-baseline justify-between gap-2">
-          <span className={cn('min-w-0 truncate text-[14px] sm:text-[13.5px]', unread || pending ? 'font-bold' : 'font-semibold')}>{title}</span>
+        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+          <span className={cn('min-w-0 break-words text-[14px] sm:text-[13.5px]', unread || pending ? 'font-bold' : 'font-semibold')}>{title}</span>
           <span className="shrink-0 text-[12px] text-muted-foreground sm:text-[11px]">{time}</span>
         </span>
         <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
@@ -85,12 +85,12 @@ export default function NotificationRow({
     </>
   )
   return (
-    <div className={cn('note-row group flex items-center gap-3 rounded-[17px] border bg-card px-3.5 py-3 shadow-sm [@media(hover:hover)]:hover:border-foreground/25 [@media(hover:hover)]:hover:shadow-md',
+    <div className={cn('note-row group flex flex-wrap items-center gap-3 rounded-[17px] border bg-card px-3.5 py-3 shadow-sm [@media(hover:hover)]:hover:border-foreground/25 [@media(hover:hover)]:hover:shadow-md',
       unread || pending ? 'border-primary/30' : 'border-border')}>
       {onOpen
-        ? <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">{main}</button>
-        : <div className="flex min-w-0 flex-1 items-center gap-3">{main}</div>}
-      <Button size="sm" variant="secondary" className="shrink-0 max-sm:min-h-[48px] [@media(hover:hover)]:group-hover:bg-primary [@media(hover:hover)]:group-hover:text-primary-foreground" onClick={onView}>{viewLabel}</Button>
+        ? <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 basis-[14em] items-center gap-3 text-left">{main}</button>
+        : <div className="flex min-w-0 flex-1 basis-[14em] items-center gap-3">{main}</div>}
+      <Button size="sm" variant="secondary" className="ml-auto shrink-0 max-sm:min-h-[48px] [@media(hover:hover)]:group-hover:bg-primary [@media(hover:hover)]:group-hover:text-primary-foreground" onClick={onView}>{viewLabel}</Button>
     </div>
   )
 }
