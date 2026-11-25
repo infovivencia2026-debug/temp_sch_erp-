@@ -94,7 +94,7 @@ export default function StudentResults() {
         ) : (
           <>
             {/* The exams, one tap apart, newest first. */}
-            <nav className="flex gap-1 overflow-x-auto rounded-[14px] bg-muted p-1.5">
+            <nav className="flex flex-wrap gap-1 rounded-[14px] bg-muted p-1.5">
               {[...cards].reverse().map((x) => (
                 <button key={x.id} type="button" onClick={() => setPicked(x.id)}
                   className={cn('min-h-[40px] flex-1 whitespace-nowrap rounded-[10px] px-4 py-2 text-[13.5px] font-semibold transition-[transform,background-color,box-shadow,color]',

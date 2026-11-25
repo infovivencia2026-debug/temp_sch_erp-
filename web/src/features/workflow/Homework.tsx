@@ -298,7 +298,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
         </Card>
 
         {/* The kinds of work, as the teacher chose them. */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-wrap gap-2 pb-1">
           {[{ value: '', label: 'All' }, ...WORK_KINDS].map((k) => {
             const n = k.value ? count(k.value) : onDay.length
             const active = kind === k.value
