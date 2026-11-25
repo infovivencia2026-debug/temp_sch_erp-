@@ -220,8 +220,8 @@ function SettingsGroup({ title, children }: { title: string; children: React.Rea
 }
 function SettingsRow({ title, sub, children, disabled }: { title: string; sub: string; children: React.ReactNode; disabled?: boolean }) {
   return (
-    <div className={'flex items-center justify-between gap-3 px-4 py-3 transition-opacity ' + (disabled ? 'pointer-events-none opacity-45' : '')}>
-      <div className="flex max-w-[70%] flex-col gap-0.5">
+    <div className={'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 transition-opacity ' + (disabled ? 'pointer-events-none opacity-45' : '')}>
+      <div className="flex min-w-[min(12rem,100%)] flex-1 flex-col gap-0.5">
         <span className="text-[13px] font-semibold">{title}</span>
         <span className="text-[11px] text-muted-foreground">{sub}</span>
       </div>

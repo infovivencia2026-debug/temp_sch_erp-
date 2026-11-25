@@ -143,7 +143,7 @@ export function TickChip({ on, onChange, label, srLabel, disabled }: {
       disabled={disabled}
       onClick={() => onChange(!on)}
       className={cn(
-        'inline-flex min-h-[48px] items-center gap-2 rounded-full border text-[16px] outline-none sm:min-h-[36px] sm:text-[13px]',
+        'inline-flex max-w-full min-h-[48px] items-center gap-2 rounded-full border text-[16px] outline-none sm:min-h-[36px] sm:text-[13px]',
         'transition-transform duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-primary/50',
         label ? 'px-3' : 'min-w-[48px] justify-center sm:min-w-[36px]',
         on ? 'border-primary bg-primary/[0.08] text-primary' : 'border-border bg-card',
@@ -153,7 +153,7 @@ export function TickChip({ on, onChange, label, srLabel, disabled }: {
       <span aria-hidden className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-full border', on ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>
         <Check className={cn('h-3.5 w-3.5 transition-[transform,opacity] duration-150 ease-out motion-reduce:transition-none', on ? 'scale-100 opacity-100' : 'scale-50 opacity-0')} strokeWidth={2.5} />
       </span>
-      {label && <span className="whitespace-nowrap">{label}</span>}
+      {label && <span className="min-w-0 text-left sm:whitespace-nowrap">{label}</span>}
     </button>
   )
 }

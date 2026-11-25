@@ -98,7 +98,7 @@ export default function Exports() {
                       <span className="line-clamp-2 block">{x.columns.join(', ')}</span>
                     </Td>
                     <Td>
-                      <div className="flex flex-nowrap justify-end gap-1.5">
+                      <div className="flex flex-wrap justify-end gap-1.5">
                         {(x.formats ?? ['csv']).map((fmt) => (
                           <Button
                             key={fmt}
@@ -136,7 +136,7 @@ export default function Exports() {
                   <Input type="date" value={onDate} onChange={setOnDate} srLabel="Date" className="w-full sm:w-auto" />
                 </Td>
                 <Td>
-                  <div className="flex flex-nowrap justify-end gap-1.5">
+                  <div className="flex flex-wrap justify-end gap-1.5">
                     <Button
                       size="sm"
                       variant="secondary"
@@ -157,7 +157,7 @@ export default function Exports() {
                 </Td>
                 <Td />
                 <Td>
-                  <div className="flex flex-nowrap justify-end gap-1.5">
+                  <div className="flex flex-wrap justify-end gap-1.5">
                     <ExportButton name="attendance" label="Export 90 days" />
                   </div>
                 </Td>
