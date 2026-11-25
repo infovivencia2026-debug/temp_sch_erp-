@@ -71,6 +71,7 @@ async function wire(ctx, scale, live = mode !== 'local') {
     return route.fulfill({ status: 200, body, headers: { 'content-type': type, 'cache-control': 'no-store' } })
     } catch { return route.abort().catch(() => {}) }
   })
+  if (process.env.ROOTPX) await ctx.addInitScript((px) => { const st = document.createElement("style"); st.textContent = `html{font-size:${px}px !important}`; document.addEventListener("DOMContentLoaded", () => document.head.appendChild(st)) }, process.env.ROOTPX)
   if (scale !== 1) await ctx.addInitScript((s) => {
     const fix = (el) => { const v = el.style?.fontSize; if (v && /\d(px|vw|cqi)/.test(v) && !el.dataset.fsx) { el.dataset.fsx = '1'; el.style.fontSize = `calc(${v} * ${s})` } }
     new MutationObserver((ms) => { for (const m of ms) { if (m.type === 'attributes') fix(m.target); else m.addedNodes.forEach((n) => { if (n.nodeType === 1) { fix(n); n.querySelectorAll?.('[style]').forEach(fix) } }) } })
@@ -190,9 +191,10 @@ async function run([w, f]) {
   for (const r of routes) {
     js = []
     await p.goto(ORIGIN + r, { waitUntil: 'load', timeout: 45000 }).catch(() => {})
-    await p.waitForTimeout(1200)
+    if (p.isClosed()) break
+    await p.waitForTimeout(1200).catch(() => {})
     await p.waitForFunction(() => !/Loading|Looking up|Opening your|OPENING YOUR/i.test(document.body.innerText) && !!document.querySelector("main") && !/Loading|Looking up/.test(document.querySelector('main')?.innerText || document.body.innerText), null, { timeout: 15000 }).catch(() => {})
-    await p.waitForTimeout(600)
+    await p.waitForTimeout(600).catch(() => {})
     const c = await p.evaluate(check).catch((e) => ({ err: String(e).slice(0, 80) }))
     if (process.env.SHOTS) await p.screenshot({ path: path.join(outDir, `${w}-${f}-${r.replace(/\W+/g, '_')}.png`), fullPage: true }).catch(() => {})
     rep.push({ w, f, route: r, ...c, js: [...new Set(js)] })
@@ -201,7 +203,7 @@ async function run([w, f]) {
   console.log('done', w, f)
 }
 const q = [...combos]
-await Promise.all(Array.from({ length: Math.min(8, q.length) }, async () => { while (q.length) await run(q.shift()) }))
+await Promise.all(Array.from({ length: Math.min(Number(process.env.PAR || 3), q.length) }, async () => { while (q.length) await run(q.shift()) }))
 await b.close(); save()
 // summary
 const sum = {}
