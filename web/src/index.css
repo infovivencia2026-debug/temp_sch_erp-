@@ -5992,7 +5992,10 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
      not size containers; the figure keeps its own size. */
   .cell-grid { display: flex !important; flex-wrap: wrap; }
   .cell-grid > * { flex: 1 1 0 !important; min-width: min-content !important; max-width: 100%; grid-column: auto !important; }
-  .cell-grid .cell, .cell-grid .cell * { overflow-wrap: normal !important; word-break: normal; hyphens: none; }
+  .cell-grid .cell :is(p:first-child, .stat):not(.break-anywhere) { overflow-wrap: normal !important; word-break: normal; hyphens: none; }
+  /* A card wrapped in its own box (CellGrid's stretching last card) sizes
+     from the card inside it. */
+  .cell-grid .cell { min-width: min-content !important; max-width: 100%; }
   .cell-grid .cell .stat { word-break: keep-all; }
   .cell-grid .cell, .cell-grid > .cell { container-type: normal; }
   .cell-grid .cell .stat, .cell-grid > .cell .stat { font-size: 28px; white-space: normal; }
