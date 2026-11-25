@@ -58,7 +58,7 @@ export default function ScreenTabs({ tabs, label }: { tabs: ScreenTab[]; label: 
           role="tablist"
           aria-label={label}
           ref={listRef}
-          className={cn(SEG_BAR, 'relative')}
+          className={cn(SEG_BAR, 'relative flex-wrap justify-center overflow-visible')}
         >
           <SlidingIndicator listRef={listRef} active={active} className="rounded-sm bg-card shadow-sm" />
           {tabs.map((t) => (

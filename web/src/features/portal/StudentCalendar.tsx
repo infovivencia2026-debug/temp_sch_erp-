@@ -99,7 +99,7 @@ export default function StudentCalendar() {
               <Tile i={2} icon={PartyPopper} hue="emerald" value={off} label={off === 1 ? 'holiday coming' : 'holidays coming'} />
             </div>
 
-            <div className="chip-scroll -mx-4 flex gap-2 px-4 pb-1" role="tablist" aria-label="Show">
+            <div className="-mx-4 flex flex-wrap gap-2 px-4 pb-1" role="tablist" aria-label="Show">
               {FILTERS.map((f) => (
                 <button key={f.key} type="button" role="tab" aria-selected={filter === f.key} onClick={() => setFilter(f.key)}
                   className={cn('min-h-[44px] shrink-0 rounded-full border px-4 text-[14px] font-medium', filter === f.key ? 'border-primary bg-primary text-primary-foreground' : 'bg-[var(--color-card,white)]')}>
