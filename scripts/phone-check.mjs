@@ -173,7 +173,7 @@ if (role === 'parent') {
 } else {
   routes = JSON.parse(fs.readFileSync(new URL('./phone-check-staff-routes.json', import.meta.url), 'utf8'))
 }
-if (filt) routes = routes.filter((r) => r.includes(filt))
+if (filt) routes = routes.filter((r) => filt.split('|').some((s) => r.includes(s)))
 const state = path.join(outDir, `state-${role}.json`)
 await lc.storageState({ path: state }); await lc.close()
 console.log(role, mode, 'routes', routes.length)
