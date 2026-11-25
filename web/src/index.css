@@ -6012,6 +6012,12 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
   padding-right: 28px;
 }
 .chip-scroll::-webkit-scrollbar { display: none; }
+/* A short row (eight chips or fewer) wraps instead of scrolling: every chip
+   stays in view at large text. Long lists keep the scroll and fade. */
+.chip-scroll:not(:has(> :nth-child(9))) {
+  flex-wrap: wrap; overflow-x: visible; padding-right: 0;
+  -webkit-mask-image: none; mask-image: none;
+}
 .chip-scroll > * { scroll-snap-align: start; flex-shrink: 0; }
 
 /* A greeting beside a photo: never squeezed into a jumble, the name may take
@@ -6081,8 +6087,8 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
   :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:first-child:not([colspan]) { font-weight: 600; font-size: 15px; }
   :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:empty { display: none; }
   /* Room for the table's corner controls beside the first title. */
-  :where(.table-frame:not([data-layout=scroll])) .responsive-table:not(:has(> thead button)) > tbody > tr:first-child > td:first-child { padding-right: 84px !important; }
-  :where(.table-frame:not([data-layout=scroll])) .responsive-table:has(> thead button) > thead > tr { padding-right: 84px; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table:not(:has(> thead button)) > tbody > tr:first-child > td:first-child { padding-right: 112px !important; }
+  :where(.table-frame:not([data-layout=scroll])) .responsive-table:has(> thead button) > thead > tr { padding-right: 112px; }
 }
 /* The corner controls stay small in the corner over a card table, never a
    row of their own. */
@@ -6128,4 +6134,17 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 }
 @container rtable (max-width: 34rem) {
   :where(.table-frame:not([data-layout=scroll])) .responsive-table:not(:has(> thead button)) > tbody > tr:first-child > td[colspan] { padding-top: 48px !important; }
+}
+
+/* Tab strips on a phone (owner, 2026-11-25: pills hidden past the edge of a
+   strip that scrolled with no visible bar). Every pill shows: the strip
+   wraps onto more rows, and a row that holds the strip and an action button
+   wraps so the button goes under it. Pills keep their own width. */
+@media (max-width: 639.98px) {
+  [role=tablist]:is(.overflow-x-auto, .chip-scroll):not(:has(> :nth-child(9))) {
+    flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none; mask-image: none; padding-right: 0;
+  }
+  [role=tablist].rounded-full:not(:has(> :nth-child(9))) { border-radius: 24px; }
+  :where(.flex:not(.flex-col)):has(> [role=tablist]) { flex-wrap: wrap; }
+  :where(.flex:not(.flex-col)):has(> [role=tablist]) > [role=tablist]:not(:has(> :nth-child(9))) { flex: 1 1 100%; }
 }
