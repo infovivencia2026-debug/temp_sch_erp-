@@ -302,7 +302,7 @@ function Register({
                 <div className="text-[12px] font-normal text-muted-foreground">
                   {r.employee_code || '-'}
                   {r.missing.length > 0 && (
-                    <span className="ml-1 text-destructive">no {r.missing.join(', ')}</span>
+                    <span className="block whitespace-normal text-destructive">no {r.missing.join(', ')}</span>
                   )}
                 </div>
               </Td>

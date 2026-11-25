@@ -3009,7 +3009,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
     : refused ? 'Your login is not allowed to see this. Ask the school admin if you need it.'
     : raw || 'Something went wrong. Try again, or reload the page.'
   return (
-    <Card className="empty-state p-10 text-center">
+    <Card className="empty-state px-4 py-10 text-center sm:p-10">
       <p role="alert" className="mx-auto max-w-md text-[15px] font-medium text-destructive">{msg}</p>
       {ended && <div className="mt-3 flex justify-center"><a href="/login" className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">Sign in again</a></div>}
       {!ended && !refused && (onRetry || qc) && (
@@ -3177,7 +3177,7 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <Card className="empty-state p-10 text-center">
+    <Card className="empty-state px-4 py-10 text-center sm:p-10">
       {/* Capped like the sentence under it.
 
           The body was already `max-w-md` and the title was not, so at 1920px a

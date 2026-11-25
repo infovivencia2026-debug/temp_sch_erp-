@@ -232,8 +232,8 @@ export default function ProfileView() {
             and never answers "whose account am I looking at" -- which is the
             first thing anybody checks on a shared machine. */}
         {!(editing && canEdit) && (
-          <div className="m-5 flex flex-col gap-4 rounded-2xl border bg-surface-sunken/40 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-4">
+          <div className="m-3 flex flex-col gap-4 rounded-2xl border bg-surface-sunken/40 p-4 sm:m-5 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex flex-col items-start gap-3 min-[420px]:flex-row min-[420px]:gap-4">
               {data?.photo_file_id ? (
                 <button type="button" onClick={() => setViewingPhoto(true)} aria-label="View photo"
                   className="h-16 w-16 flex-none overflow-hidden rounded-2xl border">
