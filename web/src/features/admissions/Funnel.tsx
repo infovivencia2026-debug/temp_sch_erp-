@@ -122,17 +122,17 @@ const VIEWS: Record<string, {
   assign_leads: {
     tab: 'leads',
     title: 'Assign leads',
-    description: 'Enquiries nobody is chasing yet. Tick several, pick the counsellor, and they all get an owner and a date.',
+    description: 'Unassigned enquiries. Tick and assign a counsellor.',
   },
   campus_visits: {
     tab: 'opendays',
     title: 'Campus visits',
-    description: 'Open houses, tours and counselling days: the slots on offer, who has booked, and who turned up.',
+    description: 'Open days: slots, bookings, attendance.',
   },
   waitlist: {
     tab: 'waitlist',
     title: 'Waiting list',
-    description: 'Who is next if a seat is given up, in order, with the date they went on.',
+    description: 'Waitlist, in order.',
   },
 }
 
@@ -195,7 +195,7 @@ export default function Funnel() {
            totals — so two of them read as the same page with something moved.
            A screen that does not say what you asked for has not answered you. */
         title={view?.title ?? 'The funnel'}
-        description={view?.description ?? 'Where enquiries came from, who is chasing them, and the quota register an inspection reads.'}
+        description={view?.description ?? 'Enquiry sources, follow-ups and quotas.'}
       />
       <PageBody>
         {/* The lead totals belong to the leads.
@@ -363,7 +363,7 @@ function Leads({ rows }: { rows: Lead[] }) {
       <Card>
         <CardHeader
           title="Leads"
-          description="Overdue follow-ups first, then whoever has been ignored longest."
+          description="Overdue first"
         />
         {rows.length === 0 ? (
           <EmptyState title="No enquiries" body="Enquiries taken at the desk or online appear here." />
@@ -434,7 +434,7 @@ function Sources() {
     <Card>
       <CardHeader
         title="Which advertisement worked"
-        description="All four numbers come from the same rows, so they always add up, which a dashboard assembled from separate queries famously does not. A conversion rate is withheld below five enquiries: one lead from a newspaper is not a 0% rate, it is not yet a rate."
+        description="Rates shown from 5 enquiries up."
       />
       {q.isLoading ? (
         <SkeletonTable columns={7} label="Counting…" />
@@ -532,7 +532,7 @@ function Register({
       <Card>
         <CardHeader
           title="Quotas"
-          description="A school defends its intake as a whole, so every quota is in one register rather than RTE having a screen of its own."
+          description="All quotas, including RTE."
           action={
             <label className="inline-flex h-9 cursor-pointer items-center rounded-sm border bg-card px-3 text-[14px] hover:bg-accent">
               {importing ? 'Importing…' : 'Import RTE lottery'}
@@ -582,7 +582,7 @@ function Register({
       <Card>
         <CardHeader
           title="The register"
-          description="What an inspection would find missing is named per row, because “three fields short” is not something a clerk can act on at four in the afternoon. Only what each quota requires is judged."
+          description="Missing details shown per row."
         />
         {incomplete.length > 0 && (
           <p className="border-b bg-destructive/5 px-4 py-2 text-[13px] text-destructive">
@@ -776,7 +776,7 @@ function Waitlist() {
       <Card>
         <CardHeader
           title="A seat opens"
-          description="Promotion takes the lowest rank rather than the earliest application: a school that has ranked its list has already decided the order, and promoting by date would quietly overrule it."
+          description="Promotes by rank, not date."
         />
         <div className="p-4">
           <FormGrid>
@@ -897,7 +897,7 @@ function OpenDays() {
       <Card>
         <CardHeader
           title="Schedule an open house"
-          description="Capacity lives on each slot rather than the event, because the whole point is to spread two hundred parents across a Saturday morning rather than have them all arrive at ten."
+          description="Set capacity per slot."
         />
         <div className="p-4">
           <FormGrid>
@@ -932,7 +932,7 @@ function OpenDays() {
       <Card>
         <CardHeader
           title="Open days"
-          description="Booked and turned up are different facts, and the ratio between them is the only honest measure of whether an open day worked."
+          description="Booked vs attended"
         />
         {rows.length === 0 ? (
           <EmptyState title="Nothing scheduled" body="Open houses appear here with their bookings." />
@@ -1116,7 +1116,7 @@ function Prospectus() {
       <Card>
         <CardHeader
           title="Sell a prospectus"
-          description="Receipt numbers are gapless within the year and allocated as the sale is recorded, a cash book with a hole in its numbering is a cash book somebody has to explain."
+          description="Receipt numbers run without gaps."
           action={
             <div className="flex gap-2">
               <Input value={stock} onChange={setStock} type="number" placeholder="Add stock" className="w-28" />
@@ -1273,7 +1273,7 @@ function Sessions() {
   return (
     <>
       <Card>
-        <CardHeader title="New admission session" description="An intake window, tied to the academic year the children will join." />
+        <CardHeader title="New admission session" description="Intake for an academic year" />
         <div className="p-4">
           <FormGrid>
             <Field label="Name" required>
@@ -1303,7 +1303,7 @@ function Sessions() {
         </div>
       </Card>
       <Card>
-        <CardHeader title="Sessions" description="A session with applications or forms in it can be closed, not deleted." />
+        <CardHeader title="Sessions" description="Has applications. Close it instead." />
         {list.isLoading ? (
           <SkeletonTable />
         ) : list.isError ? (

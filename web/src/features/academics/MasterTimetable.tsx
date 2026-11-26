@@ -357,7 +357,7 @@ export default function MasterTimetable() {
         ? {
             tone: 'done' as const,
             title: 'Every class has a timetable',
-            body: 'Make a new one only when the year, the staff or the subjects change.',
+            body: 'Only when year, staff or subjects change.',
           }
         : {
             tone: 'go' as const,
@@ -498,7 +498,7 @@ export default function MasterTimetable() {
                   'replaces those periods rather than doubling them.'
                 }
                 onDone={() => {
-                  setNote('Timetable loaded. It is live for teachers now, check a section below.')
+                  setNote('Timetable loaded and live.')
                   qc.invalidateQueries({ queryKey: ['master-timetable'] })
                 }}
               />
@@ -544,7 +544,7 @@ export default function MasterTimetable() {
               <Card>
                 <CardHeader
                   title={`${drafts.length - 1} earlier ${drafts.length === 2 ? 'attempt' : 'attempts'}`}
-                  description="Still open, and still only suggestions. Open one to read it, or leave them."
+                  description="Open suggestions"
                   action={
                     <Button variant="ghost" size="sm" onClick={() => setShowHistory(false)}>Hide</Button>
                   }
@@ -613,7 +613,7 @@ export default function MasterTimetable() {
         <Card>
           <CardHeader
             title="Class by class"
-            description="A school that has filled 96% of its periods can still have one class with no science lessons at all, which is why this is listed per class rather than as one number."
+            description="Gaps by class"
             action={
               <Button size="sm" variant="secondary"
                 onClick={() => setShowClasses(!showClasses)}>
@@ -766,7 +766,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
       <Card>
         <CardHeader
           title="What this will replace"
-          description="It replaces the timetable only for the classes it covers. Any class it says nothing about keeps the one it has."
+          description="Replaces only the classes in the file."
         />
         <div className="p-5 text-[13px]">
           <p>
@@ -894,7 +894,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
       <Card>
         <CardHeader
           title="Change a period"
-          description="Move one before you put the timetable in use. Every move is checked against the same rules, and if it cannot be done the reason says why."
+          description="Move periods before use. Each move is checked."
           action={
             <Select
               value={chosen}

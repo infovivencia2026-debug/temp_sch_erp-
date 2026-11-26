@@ -178,7 +178,7 @@ export default function Lifecycle() {
       <PageHead
         eyebrow="Employees"
         title="Joining and leaving"
-        description="The KYC an appointment depends on, the clearances a settlement must not outrun, and the letters a teacher takes to their next school."
+        description="Joining checks, exit clearance and letters."
       />
       <PageBody>
         {/* Where a joining actually starts.
@@ -262,7 +262,7 @@ function OnboardingTab({ rows }: { rows: Onboarding[] }) {
       <Card>
         <CardHeader
           title="Verify a joining file"
-          description="Every check is a date, not a tick. A row saying PAN was verified, with no day and nobody attached, is the record an audit treats as unverified."
+          description="Enter the date each check was done."
           action={
             <Select value={employeeId} onChange={setEmployeeId} placeholder="Choose an employee"
               options={rows.map((r) => ({ value: r.employee_id, label: `${r.full_name} · ${r.employee_code}` }))} />
@@ -306,7 +306,7 @@ function OnboardingTab({ rows }: { rows: Onboarding[] }) {
 
       <Card>
         <CardHeader title="Every appointment on file"
-          description="Employees with no file at all are listed too. A screen that showed only the started ones would read as nothing to do." />
+          description="Includes staff with no file yet." />
         <Table head={['Employee', 'Joined', 'Status', 'Aadhaar', 'PAN', 'Contract', 'Outstanding']}
           empty={rows.length === 0} emptyLabel="No employees yet.">
           {rows.map((r) => (
@@ -364,7 +364,7 @@ function ExitsTab({ rows }: { rows: Exit[] }) {
     <>
       <Card>
         <CardHeader title="Record a notice"
-          description="The clearance checklist is raised with the file, not when somebody remembers to ask for it. A settlement cannot be paid against an exit that has no list." />
+          description="Clearance checklist is created with the exit." />
         <div className="space-y-5 p-5">
           <FormGrid>
             <Field label="Employee" required>
@@ -385,7 +385,7 @@ function ExitsTab({ rows }: { rows: Exit[] }) {
             </Field>
             <Field label="Reason" wide>
               <Textarea value={reason} onChange={setReason} rows={2}
-                placeholder="A termination with no reason on file is the one a tribunal asks about first." />
+                placeholder="Reason required." />
             </Field>
           </FormGrid>
           <FormNotice error={create.error} />
@@ -397,7 +397,7 @@ function ExitsTab({ rows }: { rows: Exit[] }) {
 
       <Card>
         <CardHeader title="Exits in progress"
-          description="When every department has signed, send the exit to the institution admin. It leaves this list once they approve it." />
+          description="Once all sign, send to the admin for approval." />
         <Table head={['Employee', 'Kind', 'Notice', 'Last day', 'Interview', 'Clearance', 'Dues', 'State', '']}
           empty={inProgress.length === 0} emptyLabel="Nobody is leaving.">
           {inProgress.map((r) => (
@@ -426,7 +426,7 @@ function ExitsTab({ rows }: { rows: Exit[] }) {
       {past.length > 0 && (
         <Card>
           <CardHeader title="Past exits"
-            description="Approved by the institution admin. Their login is off and their records stay. Pay the settlement from here." />
+            description="Approved. Login off. Pay settlement here." />
           <Table head={['Employee', 'Kind', 'Relieved on', 'Dues', 'Settlement', '']}>
             {past.map((r) => (
               <tr key={r.id}>
@@ -503,7 +503,7 @@ function ExitDetail({ exit }: { exit: Exit }) {
     <>
       <Card>
         <CardHeader title={`Exit interview · ${exit.full_name}`}
-          description="Ratings are optional and the reason is not. A school that collects five stars and no sentence learns nothing it can act on." />
+          description="Reason required. Ratings optional." />
         <div className="space-y-5 p-5">
           <FormGrid>
             <Field label="Main reason for leaving" required>
@@ -526,7 +526,7 @@ function ExitDetail({ exit }: { exit: Exit }) {
 
       <Card>
         <CardHeader title="Departmental clearance"
-          description="Each department states what is outstanding before the money moves. Dues recorded here are deducted from the settlement, and the settlement is refused while any department is unsigned." />
+          description="Each department signs off. Dues are deducted." />
         <Table loading={clearances.isLoading} head={['Department', 'Status', 'Dues', 'Note', 'Signed', '']}
           empty={(clearances.data?.items ?? []).length === 0}>
           {(clearances.data?.items ?? []).map((c) => (
@@ -541,7 +541,7 @@ function ExitDetail({ exit }: { exit: Exit }) {
 
       <Card>
         <CardHeader title="Approval"
-          description="The institution admin approves the exit. Approving relieves the person, issues the relieving letter and experience certificate, and switches off their login. Their records stay." />
+          description="Approving issues letters and turns off login. Records stay." />
         <div className="space-y-4 p-5">
           {exit.status === 'returned' && exit.decision_note && (
             <p className="text-[14px]"><span className="font-medium">Sent back: </span>{exit.decision_note}</p>
@@ -731,7 +731,7 @@ function LettersTab() {
     <Card>
       <CardHeader
         title="Write a letter"
-        description="Appointment, a confirmed raise, a written warning, or a service certificate. Each gets a permanent serial and is kept exactly as it read on the day."
+        description="Appointment, raise, warning or service letter. Numbered and kept."
       />
       {done && <FormNotice ok={done} />}
       {issue.error && <FormNotice error={issue.error} />}
@@ -745,7 +745,7 @@ function LettersTab() {
         </Field>
         {kind === 'SALARY_REVISION' && (
           <>
-            <Field label="New monthly gross (₹)" required hint="Basic, HRA and the rest are raised in the same proportion, and payroll pays it from the start date.">
+            <Field label="New monthly gross (₹)" required hint="All pay parts rise in proportion from the start date.">
               <Input type="number" value={newGross} onChange={setNewGross} placeholder="e.g. 43010" />
             </Field>
             <Field label="Starts from" required>
@@ -762,7 +762,7 @@ function LettersTab() {
           label={kind === 'WARNING' ? 'What the warning is about' : kind === 'SALARY_REVISION' ? 'Anything else the letter should say' : 'What this letter says'}
           hint={
             kind === 'WARNING'
-              ? 'Required. A warning with no reason on it is worth nothing at a hearing.'
+              ? 'Required'
               : kind === 'SALARY_REVISION'
                 ? 'Optional. The figures are filled in from payroll.'
                 : 'Optional - the terms, or anything the letter should carry.'
@@ -784,7 +784,7 @@ function LettersTab() {
       <CardHeader title="Letters issued"
         description="From the same serial series as a student's transfer certificate, so a serial can never be handed out twice." />
       <Table loading={letters.isLoading} head={['Serial', 'Letter', 'Employee', 'Issued', 'Status', '']} empty={rows.length === 0}
-        emptyLabel="No letters issued yet. Write one above, or they are generated when an exit is approved.">
+        emptyLabel="No letters yet.">
         {rows.map((c) => (
           <tr key={c.serial_no}>
             <Td className="font-medium tabular-nums">{c.serial_no}</Td>
@@ -807,7 +807,7 @@ function LettersTab() {
     {(prints.data?.items.length ?? 0) > 0 && (
       <Card className="no-print">
         <CardHeader title="Who printed what"
-          description="Every printing of a school letter, with the person who did it. Recorded rather than restricted: the dishonest use of a letter is a thing people do, not a thing software prevents." />
+          description="Each letter print and who did it." />
         <Table head={['Serial', 'Employee', 'Printed by', 'When']}>
           {(prints.data?.items ?? []).map((p, i) => (
             <tr key={p.serial_no + '-' + i}>
@@ -860,7 +860,7 @@ function PostingsTab() {
     <>
       <Card>
         <CardHeader title="Record a posting order"
-          description="The destination may be a school this system has never heard of: the transfers a district actually runs go outside it." />
+          description="Any school, even outside this system." />
         <div className="space-y-5 p-5">
           <FormGrid>
             <Field label="Employee" required>
@@ -918,7 +918,7 @@ function PostingsTab() {
 
       <Card>
         <CardHeader title="Seniority"
-          description="Ordered by confirmation where there is one and by joining otherwise, which is what a service manual says and what transfer counselling runs on. Days on deputation are shown rather than applied: states differ on whether they count." />
+          description="By confirmation date, else joining date." />
         <Table head={['#', 'Employee', 'Designation', 'Joined', 'Confirmed', 'Years', 'Deputed']}
           empty={(seniority.data?.items ?? []).length === 0}>
           {(seniority.data?.items ?? []).map((s) => (

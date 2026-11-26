@@ -1615,7 +1615,7 @@ export default function StudentProfile() {
         <Card>
           <CardHeader
             title="Certificates the school issued"
-            description="What the school gave out, as opposed to what the family handed in."
+            description="Issued by the school"
           />
           <Table head={['Serial', 'Type', 'Issued']} empty={!p.documents.length}
             emptyLabel="Nothing issued for this child yet.">
@@ -1651,7 +1651,7 @@ export default function StudentProfile() {
         <Card>
           <CardHeader
             title="Bus route"
-            description="The route this child is allotted, and where they are picked up and dropped."
+            description="Route and stops"
           />
           <Table
             head={['Route', 'Vehicle', 'Pick-up', 'Drop', 'From']}

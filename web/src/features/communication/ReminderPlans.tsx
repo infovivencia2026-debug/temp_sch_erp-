@@ -63,20 +63,20 @@ const COPY: Record<PlanKind, Copy> = {
     eyebrow: 'Student dues',
     title: 'Automated fee reminders',
     description:
-      'Chase an overdue invoice on a schedule you set, and stop the moment it is settled.',
+      'Remind overdue fees. Stops once paid.',
     emptyTitle: 'No fee reminders set up',
     emptyBody:
-      'A reminder plan chases overdue invoices for you. Nothing goes out until you create one, and you can see exactly who it would reach before switching it on.',
+      'No plans yet. Nothing is sent until you create one.',
     newLabel: 'New reminder',
   },
   absence_alert: {
     eyebrow: 'Attendance',
     title: 'Absence alerts to guardians',
     description:
-      'Tell a guardian their child is marked absent today, once, after the register is taken, and not if the parent already explained it.',
+      'Tell parents about today’s absence, once. Skips explained absences.',
     emptyTitle: 'No absence alerts set up',
     emptyBody:
-      'An alert plan tells guardians about today’s absences. Nothing goes out until you create one, and you can see exactly who it would reach before switching it on.',
+      'No plans yet. Nothing is sent until you create one.',
     newLabel: 'New alert',
   },
 }
@@ -266,7 +266,7 @@ export default function ReminderPlans({ kind }: { kind: PlanKind }) {
                         variant="ghost"
                         tone="danger"
                         confirmLabel="Delete"
-                        question="Anything queued and not yet sent is withdrawn. The record of what was already sent is kept."
+                        question="Unsent messages are cancelled. History is kept."
                         onConfirm={() => remove.mutate(p.id)}
                       >
                         Delete
@@ -361,7 +361,7 @@ function PreviewPanel({ preview, onClose }: { preview: PlanPreview; onClose: () 
     <Card className="border-primary/30">
       <CardHeader
         title={`Dry run · ${preview.name}`}
-        description="Nothing was sent and nothing was queued. This is what would happen if the plan ran right now."
+        description="Preview only. Nothing sent."
         action={
           <Button variant="ghost" size="sm" onClick={onClose}>
             Close
@@ -408,7 +408,7 @@ function PreviewPanel({ preview, onClose }: { preview: PlanPreview; onClose: () 
         empty={preview.sample.length === 0}
         emptyLabel={
           preview.occurrences === 0
-            ? 'Nothing matches this plan right now, there is nothing to chase.'
+            ? 'No one to remind now.'
             : 'Every occurrence has already been covered.'
         }
       >
@@ -566,7 +566,7 @@ function PlanForm({
           <Field
             label="Name"
             required
-            hint="Appears beside every message this plan sends, so “why did this parent get an SMS” is one lookup."
+            hint="Shown beside each message sent."
           >
             <Input value={name} onChange={setName} placeholder="Weekly fee chase" />
           </Field>
@@ -582,7 +582,7 @@ function PlanForm({
           <Field
             label="Template"
             required
-            hint="The school’s own wording where it has written one, and a built-in where it has not."
+            hint="School wording, or the default."
           >
             <Select
               value={template}
@@ -597,7 +597,7 @@ function PlanForm({
               <Field
                 label="First reminder, days after the due date"
                 required
-                hint="Do not leave this blank, a blank saved as zero would chase every parent on the due date itself."
+                hint="Required"
               >
                 <Input value={firstAfter} onChange={setFirstAfter} type="number" placeholder="7" />
               </Field>
@@ -609,7 +609,7 @@ function PlanForm({
               <Field
                 label="At most, this many times"
                 required
-                hint="The cap. Without one, a hardship case is chased until somebody notices."
+                hint="Max reminders"
               >
                 <Input value={attempts} onChange={setAttempts} type="number" placeholder="3" />
               </Field>
@@ -622,7 +622,7 @@ function PlanForm({
             <>
               <Field
                 label="Do not look before"
-                hint="The register has to be taken first. At 08:00 half the school is unmarked, so half the school is not yet absent."
+                hint="Set after attendance is usually done."
               >
                 <TimePicker
                   value={sendAt}
@@ -635,7 +635,7 @@ function PlanForm({
                   checked={skipExplained}
                   onChange={setSkipExplained}
                   label="Say nothing when the absence has already been explained"
-                  hint="Covers the parent portal’s one-tap report and an ordinary leave application, pending or approved. An alert already queued is withdrawn if the explanation arrives late."
+                  hint="Skips absences parents already reported."
                 />
               </Field>
             </>
@@ -643,7 +643,7 @@ function PlanForm({
 
           <Field
             label="Quiet from"
-            hint="Both ends or neither. A message falling inside is held to the end of the window, never dropped."
+            hint="Set both or neither. Messages wait till it ends."
           >
             <TimePicker
               value={quietFrom}
@@ -660,7 +660,7 @@ function PlanForm({
               checked={active}
               onChange={setActive}
               label="Live, this plan may send"
-              hint="Leave it off until a dry run shows you who it would reach. Pausing later stops new messages; anything already queued is still withdrawn when the reason for it goes away."
+              hint="Keep off until you preview it."
             />
           </Field>
         </FormGrid>

@@ -83,7 +83,7 @@ export default function BankReconciliation() {
             <Card>
               <CardHeader
                 title="Periods"
-                description="One statement per account per month. A finalised period cannot silently change."
+                description="One statement per account per month."
                 action={
                   <Select
                     value={accountId}
@@ -104,7 +104,7 @@ export default function BankReconciliation() {
                   head={['Account', 'Period', { label: 'Opening', align: 'right' },
                     { label: 'Closing', align: 'right' }, 'Lines', 'Status', '']}
                   empty={rows.length === 0}
-                  emptyLabel="No period opened yet. Open one below and import the statement."
+                  emptyLabel="No period yet. Open one below."
                 >
                   {rows.map((p) => (
                     <tr key={p.id}>
@@ -266,7 +266,7 @@ function StatementView({
         <Card>
           <CardHeader
             title="Import the statement"
-            description="Upload the CSV your bank exports. Importing the same file twice adds nothing, every line is fingerprinted."
+            description="Upload the bank CSV. Duplicates are skipped."
             action={
               <Button
                 variant="secondary"
@@ -302,7 +302,7 @@ function StatementView({
       <Card>
         <CardHeader
           title="On the statement, not in the books"
-          description="Money the bank has recorded that the school has not. Each one is either a receipt nobody entered, or a bank charge to be explained."
+          description="In bank, not in school books."
         />
         {st.unmatched_bank.length === 0 ? (
           <EmptyState
@@ -331,7 +331,7 @@ function StatementView({
       <Card>
         <CardHeader
           title="In the books, not on the statement"
-          description="Money the school has recorded that the bank has not, a cheque not yet presented, a transfer still in flight, or a receipt that never reached the bank at all."
+          description="In school books, not in bank."
         />
         {st.unmatched_book.length === 0 ? (
           <EmptyState
@@ -702,7 +702,7 @@ function ImportHistory({ statement }: { statement: Statement }) {
     <Card>
       <CardHeader
         title="Imports"
-        description="Every upload against this account, including the ones that added nothing."
+        description="All uploads"
       />
       <Table
         head={['File', 'When', 'By', 'Read', 'New', 'Duplicate', 'Rejected']}
@@ -750,7 +750,7 @@ function FinalisePanel({ statement, onDone }: { statement: Statement; onDone: ()
     <Card>
       <CardHeader
         title="Close the period"
-        description="Freezes the statement as it stands. The residue is stored and the lines stop moving, reopening later takes a reason and leaves a record."
+        description="Locks this statement. Reopening needs a reason."
       />
       <div className="space-y-4 p-5">
         <div className="rounded-md border px-4 py-3 text-[13px]">
@@ -764,8 +764,8 @@ function FinalisePanel({ statement, onDone }: { statement: Statement; onDone: ()
           </p>
           <p className={clean ? 'mt-1 text-success' : 'mt-1 text-warning'}>
             {clean
-              ? 'The residue accounts for the difference exactly. This period ties.'
-              : 'The residue does not account for the difference. Something is unrecorded on both sides, or an amount is wrong.'}
+              ? 'Balanced.'
+              : 'Not balanced. Check for missing or wrong entries.'}
           </p>
         </div>
 
@@ -962,7 +962,7 @@ function RegisterAccount() {
             </Field>
             <Field
               label="Use for payouts"
-              hint="Only accounts marked here can be debited by a payout batch. It stops the collection account being emptied by accident."
+              hint="Only these accounts can pay out."
             >
               <Select
                 value={payouts ? 'yes' : 'no'}

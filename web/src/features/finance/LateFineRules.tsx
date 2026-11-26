@@ -54,7 +54,7 @@ export default function LateFineRules() {
       <PageHead
         eyebrow="Student dues"
         title="Late fine rules"
-        description="Configure the policy, preview what it would charge, then apply it deliberately."
+        description="Set rules, preview, then apply."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -394,7 +394,7 @@ function RuleForm({
                 ['per_invoice', 'Each term separately',
                  'Term 1, Term 2 and Term 3 each carry their own fine as they fall due.'],
                 ['final_term', 'Accumulate to the final term',
-                 'The same amounts accrue, and all of them are charged on the last instalment of the year.'],
+                 'All fines charged on the last instalment.'],
               ] as const).map(([value, label, note]) => (
                 <label key={value} className="flex items-start gap-3 text-[13px]">
                   <input
@@ -416,7 +416,7 @@ function RuleForm({
           <Field
             label="Grace period"
             required
-            hint="Nothing is charged while these days merely elapse. At exactly this many days there is still nothing to pay."
+            hint="No fine within these days."
           >
             <div className="flex items-center gap-2 text-[13px]">
               <Input
@@ -479,7 +479,7 @@ function RuleForm({
           checked={isActive}
           onChange={setIsActive}
           label="Active"
-          hint="Retiring a rule keeps it on file. Only one active rule may cover a given campus, structure and head."
+          hint="One active rule per campus, structure and head."
         />
 
         <FormNotice error={save.error ?? remove.error} />
@@ -493,7 +493,7 @@ function RuleForm({
           {rule && (
             <ConfirmButton
               confirmLabel="Remove"
-              question="Fines already raised under it are kept, but the rule is gone."
+              question="Existing fines stay."
               onConfirm={() => remove.mutate(undefined as never)}
               tone="danger"
             >
@@ -572,7 +572,7 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
     <Card>
       <CardHeader
         title="Preview a fine run"
-        description="Computes and shows the working. Nothing is charged until you apply it."
+        description="Preview only. Nothing charged."
         action={
           <span className="flex items-center gap-2">
             <Input type="date" value={asOf} onChange={changeAsOf} />
@@ -603,7 +603,7 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
       {!run ? (
         <EmptyState
           title="Nothing previewed yet"
-          body="Pick a date and a rule, then preview. Fines are never charged on a timer, somebody has to look at this first."
+          body="Pick a date and rule, then preview."
         />
       ) : preview.isLoading ? (
         <Skeleton />
