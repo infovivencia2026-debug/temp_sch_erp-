@@ -135,6 +135,13 @@
 .hx-kpis,.hx-today{display:flex;flex-wrap:wrap}
 .hx-kpis>*,.hx-today>*{flex:1 1 0;min-width:min-content;max-width:100%}
 .hx-kpi .num,.hx-chip .v{overflow-wrap:normal;word-break:keep-all}
+/* Panels below never grow past the screen; the month and class bar charts
+   scroll sideways as a chart when their labels do not fit. */
+.hx-grid2>*,.hx-stats>*,.hx-panel,.hx-item>*{min-width:0}
+.hx-item h3,.hx-item p{overflow-wrap:break-word}
+.hx-bars{overflow-x:auto;gap:8px}
+.hx-bars .c{min-width:max-content}
+.hx-hb .r{grid-template-columns:minmax(min-content,auto) minmax(2rem,1fr) max-content}
 }
 
 /* DARK THEME (2026-11-26 theme check). The design was drawn light only, so in

@@ -240,7 +240,7 @@ function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 /* The app's own dropdown (owner: "apply our dropdown style"), not the browser's. */
 function MiniSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[][] }) {
   return (
-    <div className="w-52 shrink-0">
+    <div className="w-52 min-w-0 max-w-full shrink">
       <Select value={value} onChange={onChange} options={options.map(([v, l]) => ({ value: v, label: l }))} />
     </div>
   )

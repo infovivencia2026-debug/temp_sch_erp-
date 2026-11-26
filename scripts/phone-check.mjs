@@ -125,7 +125,7 @@ const check = () => {
       const rg = document.createRange(); rg.setStart(n, m.index); rg.setEnd(n, m.index + m[0].length)
       const rs = [...rg.getClientRects()].filter((x) => x.width > 0)
       if (rs.length > 1 && Math.abs(rs[0].top - rs[rs.length - 1].top) > 2 && rs[0].right > 0 && rs[0].left < iw) {
-        if (!el.closest('.break-anywhere') && m[0].length < 30) o.split.push(m[0].slice(0, 24))
+        if (!el.closest('.break-anywhere') && m[0].length < 30) o.split.push(m[0].slice(0, 24) + '@' + el.tagName + '.' + String(el.className).slice(0, 60))
       }
     }
   }
@@ -186,7 +186,7 @@ const rep = []
 const combos = WIDTHS.flatMap((w) => FONTS.map((f) => [w, f]))
 const save = () => fs.writeFileSync(path.join(outDir, `report-${role}-${mode}.json`), JSON.stringify(rep))
 async function run([w, f]) {
-  const ctx = await b.newContext({ viewport: { width: w, height: 800 }, isMobile: true, hasTouch: true, serviceWorkers: 'block', deviceScaleFactor: 1, storageState: state })
+  const ctx = await b.newContext({ viewport: { width: w, height: Number(process.env.VH || 800) }, isMobile: true, hasTouch: true, serviceWorkers: 'block', deviceScaleFactor: 1, storageState: state })
   await wire(ctx, f)
   const p = await ctx.newPage()
   let js = []

@@ -84,7 +84,7 @@ export function ChannelPicker({ value, onChange, email = false, lockInApp = fals
               onClick={toggle}
               onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle() } }}
               className={cn(
-                'relative flex min-h-[64px] items-start gap-3 rounded-[12px] border p-3 text-left outline-none',
+                'relative flex min-h-[64px] flex-wrap items-start gap-3 rounded-[12px] border p-3 text-left outline-none',
                 'transition-transform duration-150 ease-out motion-reduce:transition-none',
                 'focus-visible:ring-2 focus-visible:ring-primary/50',
                 on ? 'border-primary bg-primary/[0.07]' : 'border-border bg-card',
@@ -92,7 +92,7 @@ export function ChannelPicker({ value, onChange, email = false, lockInApp = fals
               )}
             >
               <p.Icon aria-hidden className={cn('mt-0.5 h-6 w-6 shrink-0 sm:h-5 sm:w-5', on ? 'text-primary' : 'text-muted-foreground', !ok && 'opacity-60')} strokeWidth={1.75} />
-              <span className="min-w-0 flex-1">
+              <span className="min-w-min max-w-full flex-1">
                 <span className={cn('block text-[16px] font-medium sm:text-[14px]', !ok && 'text-muted-foreground')}>{p.label}</span>
                 <span className="block text-[14px] text-muted-foreground sm:text-[12px]">{p.note}</span>
                 <span className={cn('mt-1 block text-[14px] font-medium tabular-nums sm:text-[12px]', on ? 'text-primary' : 'text-muted-foreground')}>

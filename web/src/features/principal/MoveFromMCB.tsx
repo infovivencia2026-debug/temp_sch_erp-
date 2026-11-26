@@ -107,12 +107,12 @@ export default function MoveFromMCB() {
               each carrying its own state, the open one marked. */}
           <Card>
             <CardHeader title="Five files, in this order" description="Download each from MyClassBoard as Excel, save it as CSV, and bring it here. A dry run writes nothing." />
-            <ol className="px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+            <ol className="px-2 pb-4 pt-3 sm:px-5 sm:pb-5">
               {STEPS.map((x, i) => {
                 const st = stateOf(x.entity)
                 const here = x.entity === open
                 return (
-                  <li key={x.entity} className="relative flex gap-3">
+                  <li key={x.entity} className="relative flex gap-2 sm:gap-3">
                     {i < STEPS.length - 1 && (
                       <span aria-hidden className={cn('absolute left-[15px] top-9 h-[calc(100%-1.5rem)] w-px', st === 'done' ? 'bg-success' : 'bg-border')} />
                     )}
@@ -123,7 +123,7 @@ export default function MoveFromMCB() {
                       {st === 'done' ? '\u2713' : i + 1}
                     </span>
                     <button type="button" onClick={() => setOpen(x.entity)}
-                      className={cn('mb-1 flex min-h-11 w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg px-3 py-2 text-left transition-colors',
+                      className={cn('mb-1 flex min-h-11 w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg px-2 py-2 text-left sm:px-3 transition-colors',
                         here ? 'bg-muted' : 'hover:bg-muted/50')}>
                       <span className="min-w-0">
                         <span className="block text-[14.5px] font-semibold">{x.title}</span>
