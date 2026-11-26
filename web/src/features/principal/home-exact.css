@@ -1,6 +1,6 @@
 /* The owner's dashboard design (Desktop/Yajur Dashboard Redesign.html), scoped to .hx. */
 .hx{--hx-ink:#0f172a;--hx-sub:#5b6478;--hx-muted:#64748b;--hx-line:#e8ecf4;--hx-primary:#4f46e5;--hx-primary-soft:#eef0ff;
-  --hx-red:#d92d20;--hx-red-soft:#fff0f0;--hx-amber:#d97706;--hx-amber-soft:#fff7e6;--hx-green:#16a34a;
+  --hx-red:#b42318;--hx-red-soft:#fff0f0;--hx-amber:#d97706;--hx-amber-soft:#fff7e6;--hx-green:#16a34a;
   --hx-card:#fff;--hx-card-2:#fbfcff;--hx-track:#eef1f7;--hx-chip:rgba(246,248,255,.78);--hx-chip-line:rgba(214,220,240,.9);--hx-pill:rgba(255,255,255,.75);--hx-pill-line:rgba(255,255,255,.9);--hx-bar:#c7cdf6;--hx-hover-line:#dfe3ff;--hx-qa-hover:#c7cdfc;--hx-qa-ic:#f3f5fa;--hx-on-ink:#fff;--hx-grid:#eef1f7;--hx-target:#cbd2e1;
   --hx-ic-blue:#eef0ff;--hx-ic-cyan:#e9f8fd;--hx-ic-green:#ecfdf3;--hx-ic-amber:#fff7e6;
   --hx-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px -8px rgba(15,23,42,.10);--hx-up:0 2px 4px rgba(15,23,42,.05),0 18px 40px -12px rgba(79,70,229,.28);

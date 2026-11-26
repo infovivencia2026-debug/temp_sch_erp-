@@ -225,7 +225,7 @@ export function MonthGrid({
                   className={cn(
                     'flex min-h-[84px] flex-col items-start gap-1 bg-card p-1.5 text-left',
                     'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
-                    outside && 'opacity-60',
+                    outside && 'opacity-75',
                     closed && 'bg-muted/50',
                     picked === key ? 'ring-2 ring-inset ring-primary' : 'hover:bg-muted/60',
                   )}

@@ -49,11 +49,11 @@
 
   --sys-orange:        33 100% 43%;   /* #DB7800 */
   --sys-orange-fill:   33 100% 35%;
-  --sys-orange-ink:    33 100% 31%;
+  --sys-orange-ink:    33 100% 28%;   /* 2026-11-26: 31% was 4.46:1 on its own tint (badges) */
 
   --sys-red:            3  90% 56%;   /* #F4483B  iOS systemRed */
   --sys-red-fill:       3  90% 48%;
-  --sys-red-ink:        3  90% 43%;
+  --sys-red-ink:        3  90% 40%;   /* 2026-11-26: clears 4.5:1 on its tint */
 
   --sys-purple:       280  70% 60%;   /* #AF52DE-ish */
   --sys-purple-fill:  280  70% 55%;
@@ -117,7 +117,7 @@
   --ring:               var(--sys-accent);
   --success:            var(--sys-success-ink);
   --warning:            var(--sys-warning-ink);
-  --destructive:        var(--sys-danger-fill);
+  --destructive:        var(--sys-danger-ink);  /* fill was 3.9:1 as badge text on its tint */
   --info:               var(--sys-info-ink);
 
   /* --- an ordered palette for charts ---------------------------------------
