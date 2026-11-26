@@ -207,7 +207,7 @@ export default function CampaignSequences() {
       <PageHead
         eyebrow="Admissions"
         title="Multi-touch campaign sequences"
-        description="A planned run of follow-ups for a new enquiry, which stops the moment the parent converts or opts out."
+        description="Follow-up series. Stops when the parent joins or opts out."
         actions={
           <Button onClick={() => run.mutate()} disabled={run.isPending}>
             <Send className="h-3.5 w-3.5" />
@@ -317,7 +317,7 @@ export default function CampaignSequences() {
         {!campaignID && (
           <EmptyState
             title="Choose a sequence"
-            body="Its touches, the parents on it and what has gone out all belong to one sequence."
+            body="Steps, parents and sends for this sequence."
           />
         )}
 
@@ -325,7 +325,7 @@ export default function CampaignSequences() {
           <Card key={campaignID}>
             <CardHeader
               title={`${current?.name ?? 'Sequence'}, the touches`}
-              description="Days are counted from the moment the lead was enrolled, not from today."
+              description="Days from enrolment"
             />
             <div className="space-y-5 p-5">
               <FormGrid>
@@ -360,7 +360,7 @@ export default function CampaignSequences() {
                 <Field
                   label="Message template"
                   required
-                  hint="A template code from your messaging setup. A code with no template falls back to the built-in wording."
+                  hint="Template code. Unknown code = default text."
                 >
                   <Input
                     value={step.template_code}
@@ -370,7 +370,7 @@ export default function CampaignSequences() {
                 </Field>
                 <Field
                   label="Quiet hours"
-                  hint="Both ends or neither. A send landing inside the window is held until it ends, never dropped."
+                  hint="Set both or neither. Messages wait till it ends."
                 >
                   <div className="flex items-center gap-2">
                     <Input
@@ -454,7 +454,7 @@ export default function CampaignSequences() {
           <Card key={`${campaignID}-enrol`}>
             <CardHeader
               title="Who is on it"
-              description="Leads already converted, closed lost or opted out are never enrolled."
+              description="Converted, lost or opted-out leads are skipped."
             />
             <div className="flex flex-wrap items-end gap-3 p-5">
               <div className="min-w-[min(100%,220px)]">
@@ -531,7 +531,7 @@ export default function CampaignSequences() {
         <Card>
           <CardHeader
             title="What has gone out"
-            description="Every touch the runner has considered, and what became of it."
+            description="Send log"
             action={
               <div className="w-full sm:w-[200px]">
                 <Select

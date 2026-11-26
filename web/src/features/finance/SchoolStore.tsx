@@ -65,7 +65,7 @@ export default function SchoolStore() {
       <PageHead
         eyebrow="Collections"
         title="School store"
-        description="Uniforms, books and stationery, sold off the stock the stores module already counts."
+        description="Uniforms, books and stationery sales."
         width="wide"
       />
       <PageBody width="wide">
@@ -84,7 +84,7 @@ export default function SchoolStore() {
           <Card>
             <CardHeader
               title="No till is open"
-              description="A store sale comes out of a drawer somebody is accountable for. Open one before selling."
+              description="Open a till before selling."
             />
             <div className="p-5">
               <OpenStoreTill
@@ -98,7 +98,7 @@ export default function SchoolStore() {
         <Card>
           <CardHeader
             title="Today’s counter"
-            description="Sales and returns, newest first. Open one to take something back."
+            description="Sales and returns, newest first."
           />
           {sales.error ? (
             <div className="p-5"><ErrorState error={sales.error} /></div>
@@ -429,7 +429,7 @@ function StoreCounter({ session, disabled }: { session: TillSession; disabled: b
         {mode === 'wallet' && student && wallet.data && (
           <p className={`mt-4 text-[13px] ${walletShort ? 'text-destructive' : 'text-muted-foreground'}`}>
             {wallet.data.status === 'none'
-              ? 'This child has no wallet yet, top it up at the fee office, or take cash.'
+              ? 'No wallet. Take cash or top up at the fee office.'
               : wallet.data.status !== 'active'
                 ? `This wallet is ${wallet.data.status} and cannot be spent from.`
                 : `Wallet balance ${inr(wallet.data.balance_paise)}` +
@@ -508,7 +508,7 @@ function ReturnPanel({
         description={
           d.payment_mode === 'account'
             ? `Charged to ${d.student_name ?? 'an account'} on ${d.invoice_no ?? 'an invoice'}. The reversal reduces that invoice.`
-            : 'Paid in cash. The refund comes out of the open drawer, so the cash-up sees it.'
+            : 'Cash refund from the open till.'
         }
         action={<Button size="sm" variant="ghost" onClick={onDone}>Close</Button>}
       />
@@ -576,7 +576,7 @@ function PriceList({ products, disabled }: { products: StoreProduct[]; disabled:
       <Card>
         <CardHeader
           title="Price list"
-          description="What the store sells and for how much. Sizes are set up below, against the stores items that actually hold the stock."
+          description="Items and prices. Sizes below."
           action={
             <Button size="sm" variant="secondary" disabled={disabled}
               onClick={() => setEditing(editing === 'new' ? null : 'new')}>
@@ -674,7 +674,7 @@ function ProductEditor({
     <Card>
       <CardHeader
         title={record ? `Edit ${record.name}` : 'Add an item to the price list'}
-        description="The price here is what every size sells for unless a size overrides it."
+        description="Default price for all sizes."
       />
       <div className="p-5">
         <FormGrid>
@@ -767,7 +767,7 @@ function SizesPanel({ disabled }: { disabled: boolean }) {
     <Card>
       <CardHeader
         title="Sizes and colours"
-        description="Each size is its own shelf in the stores register, so “how many size 32 are left” has one answer."
+        description="Each size has its own stock."
       />
       <div className="p-5">
         {items.error ? (
@@ -783,7 +783,7 @@ function SizesPanel({ disabled }: { disabled: boolean }) {
               />
             </Field>
             <Field label="Stores item" required
-              hint="The shelf this size is counted on. Greyed-out rows already belong to another size.">
+              hint="Stock item for this size">
               <Select
                 value={itemId}
                 onChange={setItemId}

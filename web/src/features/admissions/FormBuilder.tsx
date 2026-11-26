@@ -212,7 +212,7 @@ export default function FormBuilder() {
       <PageHead
         eyebrow="Admissions"
         title="Online application form builder"
-        description="Design the form parents fill in. A published version is frozen so applications already submitted keep rendering as they were answered."
+        description="Build the application form. Published versions are locked."
       />
       <PageBody width="wide">
         <CellGrid cols={4}>
@@ -225,7 +225,7 @@ export default function FormBuilder() {
         <Card>
           <CardHeader
             title="Forms"
-            description="Each form has one live definition and, while you are editing, one draft."
+            description="One live version and one draft per form."
           />
           <div className="p-5">
             <FormGrid>
@@ -234,7 +234,7 @@ export default function FormBuilder() {
               </Field>
               <Field
                 label="Web address"
-                hint="Left blank, this is made from the name. It goes on the poster, so keep it short."
+                hint="Blank = from the name. Keep it short."
               >
                 <Input value={newSlug} onChange={setNewSlug} placeholder="nursery-2026" />
               </Field>
@@ -288,7 +288,7 @@ export default function FormBuilder() {
         {!formID && (
           <EmptyState
             title="Choose a form"
-            body="Its versions, its questions and the address applicants use all belong to one form."
+            body="Versions, questions and link for this form."
           />
         )}
 
@@ -442,7 +442,7 @@ export default function FormBuilder() {
               <Card>
                 <CardHeader
                   title="Add a question"
-                  description="Everything set here is enforced by the server when an applicant submits, not only in the browser."
+                  description="Checked on submit."
                 />
                 <div className="space-y-5 p-5">
                   <FormGrid>
@@ -466,7 +466,7 @@ export default function FormBuilder() {
                       hint={
                         RESERVED_CODES.includes(draft.code)
                           ? 'This code writes straight onto the application record.'
-                          : 'Left blank, made from the question. What exports and reports key on.'
+                          : 'Blank = from the question.'
                       }
                     >
                       <Input
@@ -504,7 +504,7 @@ export default function FormBuilder() {
                         </Field>
                         <Field
                           label="…or draw from a school list"
-                          hint="Uses a list your school already maintains, so the vocabulary lives in one place."
+                          hint="Uses an existing school list."
                         >
                           <Input
                             value={draft.option_kind}
@@ -561,7 +561,7 @@ export default function FormBuilder() {
 
                     <Field
                       label="Show only when"
-                      hint="The code of an earlier question. Leave blank to always show it."
+                      hint="Earlier question code. Blank = always show."
                     >
                       <Select
                         value={draft.when_field}
@@ -607,7 +607,7 @@ export default function FormBuilder() {
               <Card>
                 <CardHeader
                   title="Publish"
-                  description="Publishing freezes this version and retires the one it replaces."
+                  description="Publishing locks this version and replaces the old one."
                 />
                 <div className="p-5">
                   <FormNotice error={publish.error} />

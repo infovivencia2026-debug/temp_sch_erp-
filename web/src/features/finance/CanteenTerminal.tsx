@@ -61,7 +61,7 @@ export default function CanteenTerminal() {
       <PageHead
         eyebrow="Collections"
         title="Canteen counter"
-        description="Open a till with its float, ring up the break, and cash up against what is in the drawer."
+        description="Open till, sell, cash up."
         width="wide"
       />
       <PageBody width="wide">
@@ -87,7 +87,7 @@ export default function CanteenTerminal() {
           <Card>
             <CardHeader
               title="Other open drawers"
-              description="Pick the one you are working, so a sale lands on the right cash-up."
+              description="Pick your till"
             />
             <Table head={['Counter', 'Opened by', 'Since', { label: 'Cash', align: 'right' }, '']}>
               {live.map((s) => (
@@ -114,7 +114,7 @@ export default function CanteenTerminal() {
         <Card>
           <CardHeader
             title="Cashed up"
-            description="What each closed drawer was counted at, and how far that was from the till."
+            description="Counted vs expected"
           />
           {recent.error ? (
             <div className="p-5"><ErrorState error={recent.error} /></div>
@@ -199,7 +199,7 @@ function OpenTill({
     <Card>
       <CardHeader
         title="Open a till"
-        description="The float is what is in the drawer before the first sale. Count it now; at close it is what the variance is measured from."
+        description="Cash in the drawer before the first sale."
       />
       <div className="p-5">
         <FormGrid>
@@ -433,7 +433,7 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
         {mode === 'wallet' && student && wallet.data && (
           <p className={`mt-4 text-[13px] ${walletShort ? 'text-destructive' : 'text-muted-foreground'}`}>
             {wallet.data.status === 'none'
-              ? 'This child has no wallet yet, top it up at the fee office, or take cash.'
+              ? 'No wallet. Take cash or top up at the fee office.'
               : wallet.data.status !== 'active'
                 ? `This wallet is ${wallet.data.status} and cannot be spent from.`
                 : `Wallet balance ${inr(wallet.data.balance_paise)}` +
@@ -535,7 +535,7 @@ function CashUp({ session, disabled }: { session: TillSession; disabled: boolean
         <div className="mt-5">
           <ConfirmButton
             confirmLabel="Close the till"
-            question="Closing freezes the expected figure and the variance. It cannot be reopened."
+            question="Closing is final."
             disabled={disabled || close.isPending || countedPaise === null || (outside && !reason.trim())}
             onConfirm={() => close.mutate()}
           >
@@ -560,7 +560,7 @@ export function VariancePanel({ kind = 'canteen' as const }: { kind?: 'canteen' 
     <Card>
       <CardHeader
         title="Tills that did not reconcile"
-        description="Only the drawers outside the school’s tolerance, worst first. A till that balanced is not here."
+        description="Mismatched tills, worst first."
         action={
           report.data ? (
             <span className="text-sm tabular-nums">

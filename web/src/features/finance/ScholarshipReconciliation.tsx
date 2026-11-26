@@ -103,7 +103,7 @@ export default function ScholarshipReconciliation() {
       <PageHead
         eyebrow="Concessions"
         title="Scholarship reconciliation"
-        description="What the portal said each child would get, against what actually reached their account."
+        description="Sanctioned vs received, per child."
         width="wide"
       />
       <PageBody width="wide">
@@ -136,7 +136,7 @@ export default function ScholarshipReconciliation() {
           <Card>
             <CardHeader
               title="Money the portal owes children of this school"
-              description="Sanctioned, and nothing has reached the account. Nobody chases these because everybody assumes the portal has it in hand."
+              description="Sanctioned but not received."
             />
             <Table
               head={['Child', 'Scheme', 'Application', { label: 'Sanctioned', align: 'right' }, 'Where it should land']}
@@ -172,7 +172,7 @@ export default function ScholarshipReconciliation() {
         <Card>
           <CardHeader
             title="The register"
-            description="Every application the school knows about, and where it has got to."
+            description="All applications and status"
             action={
               <span className="flex flex-wrap gap-2">
                 <Input value={search} onChange={setSearch} placeholder="Name, admission or application no" />
@@ -383,7 +383,7 @@ function ImportPanel({ mayWrite }: { mayWrite: boolean }) {
     <Card>
       <CardHeader
         title="Import the portal's disbursement list"
-        description="A file, because that is what exists. There is no NSP API and nothing here pretends there is, download the list from the portal and upload it."
+        description="Download the list from NSP and upload it."
       />
 
       {mayWrite && (
@@ -560,7 +560,7 @@ function ImportDetail({ importId, mayWrite }: { importId: string; mayWrite: bool
     <>
       <CardHeader
         title={`Rows in ${d.import.filename ?? 'the file'}`}
-        description="Rows needing a person first. The ones that reconciled are below them."
+        description="Needs checking first"
       />
       <Table
         head={['Line', 'As the file gave it', 'Matched to', { label: 'Amount', align: 'right' },
@@ -694,7 +694,7 @@ function NewAward() {
     <Card>
       <CardHeader
         title="Record an application"
-        description="What the parent told the school they applied for. The portal is the authority on the outcome; this is the expectation the reconciliation compares against."
+        description="What the parent says they applied for."
       />
       <div className="space-y-5 px-5 py-5">
         <FormGrid>

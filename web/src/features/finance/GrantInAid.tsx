@@ -73,7 +73,7 @@ export default function GrantInAid() {
       <PageHead
         eyebrow="Concessions & refunds"
         title="Grant-in-aid"
-        description="Sanctions by head, what the treasury has released, what has been spent against it, and the certificate the school files."
+        description="Sanctioned, released, spent and certificates."
         width="wide"
         actions={
           <Select
@@ -98,7 +98,7 @@ export default function GrantInAid() {
         <Card>
           <CardHeader
             title={`Sanctions for ${fyLabel(fy)}`}
-            description="One row per head. Utilisation is measured against the sanction plus anything carried in."
+            description="One row per head."
           />
           <Table
             head={[
@@ -302,7 +302,7 @@ function SanctionDetail({ id, disabled }: { id: string; disabled: boolean }) {
             <Input value={eOn} onChange={setEOn} type="date" srLabel="Date spent" />
           </Field>
           <Field label="Particulars" required wide
-            hint="What the money went on. A blank entry is one nobody can certify.">
+            hint="What it was spent on">
             <Input value={eWhat} onChange={setEWhat} srLabel="Particulars of the expenditure" />
           </Field>
           <Field label="Voucher reference" hint="The file number on the school’s own paper.">
@@ -441,7 +441,7 @@ function HeadsPanel({ disabled }: { disabled: boolean }) {
     <Card>
       <CardHeader
         title="Sanctioned heads"
-        description="The heads the department sanctions against. Money sanctioned under one may only be spent under it."
+        description="Grant heads. Spend only under the same head."
       />
       {heads.error ? (
         <div className="p-5"><ErrorState error={heads.error} /></div>
@@ -522,7 +522,7 @@ function Certificates({
       <Card>
         <CardHeader
           title="Utilisation certificates"
-          description="What the school files. Issuing one freezes its figures; a voucher entered next week will not rewrite it."
+          description="Certificates. Issued ones are locked."
         />
         {list.error ? (
           <div className="p-5"><ErrorState error={list.error} /></div>
@@ -668,14 +668,14 @@ function CertificateDetail({ id, mayCertify }: { id: string; mayCertify: boolean
         <div className="p-5">
           <FormGrid>
             <Field label="Certified by" required
-              hint="The name that goes on the document. The department will not accept it unsigned.">
+              hint="Signatory name">
               <Input value={by} onChange={setBy} srLabel="Name of the certifying officer" />
             </Field>
           </FormGrid>
           <div className="mt-5">
             <ConfirmButton
               confirmLabel="Issue the certificate"
-              question="Issuing freezes every figure on this certificate. Later vouchers will not change it, and it cannot be edited afterwards."
+              question="Issuing locks this certificate."
               disabled={!mayCertify || issue.isPending || !by.trim()}
               onConfirm={() => issue.mutate()}
             >

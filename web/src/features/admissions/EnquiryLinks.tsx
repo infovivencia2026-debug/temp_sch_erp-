@@ -76,13 +76,13 @@ export default function EnquiryLinks({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       size="lg"
       title="Enquiry links"
-      description="A short form a family fills in itself. Each one that comes back is a lead in this list, due a call today."
+      description="Short form for families. Each reply becomes a lead."
       footer={<><Button variant="ghost" onClick={onClose}>Close</Button><Button onClick={() => setEditing('new')}><Plus className="h-3.5 w-3.5" /> New link</Button></>}
     >
       {q.isLoading && !q.data ? <p className="text-sm text-muted-foreground">Loading…</p> : q.error ? <ErrorState error={q.error} /> : items.length === 0 ? (
         <EmptyState
           title="No links yet"
-          body="Make one for each place you hand it out: the website, a WhatsApp reply, a poster. The count beside each shows which brings families in."
+          body="One link per channel to see which works."
         />
       ) : (
         <>
@@ -96,7 +96,7 @@ export default function EnquiryLinks({ onClose }: { onClose: () => void }) {
             <Stat
               label="Links taking enquiries"
               value={`${items.filter((l) => l.is_open).length} of ${items.length}`}
-              detail={items.some((l) => !l.is_open) ? 'A closed link tells the family to contact the office instead.' : 'All open.'}
+              detail={items.some((l) => !l.is_open) ? 'Closed links ask families to contact the office.' : 'All open.'}
             />
           </CellGrid>
           <ul className="mt-4 grid gap-3">
@@ -157,11 +157,11 @@ function LinkEditor({ link, data, onClose, onSaved }: { link: LinkItem | null; d
       onClose={onClose}
       size="lg"
       title={link ? `Edit ${link.name}` : 'New enquiry link'}
-      description={link ? 'The address stays the same; only what the form says and asks changes.' : 'Name it after where it will be handed out.'}
+      description={link ? 'Link stays the same.' : 'Name it after where it will be handed out.'}
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button disabled={save.isPending || f.name.trim() === ''} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : link ? 'Save' : 'Create link'}</Button></>}
     >
       <FormGrid>
-        <Field label="Where it is handed out" required hint="Shown beside each lead it brings, so you can tell channels apart.">
+        <Field label="Where it is handed out" required hint="Shown on each lead">
           <Input value={f.name} onChange={(v) => setF({ ...f, name: v })} placeholder="WhatsApp reply" />
         </Field>
         <Field label="Counts as" hint="The source recorded on each lead.">
@@ -177,7 +177,7 @@ function LinkEditor({ link, data, onClose, onSaved }: { link: LinkItem | null; d
 
       <fieldset className="mt-5">
         <legend className="text-[13px] font-medium text-secondary-foreground">What the form asks</legend>
-        <p className="mt-0.5 text-[12.5px] text-muted-foreground">The child’s name, your name and a phone number are always asked.</p>
+        <p className="mt-0.5 text-[12.5px] text-muted-foreground">Child, parent name and phone are always asked.</p>
         <ul className="mt-2.5 grid gap-2">
           {data.questions.map((qn) => (
             <li key={qn.key} className="flex flex-wrap items-center justify-between gap-2">
@@ -202,7 +202,7 @@ function LinkEditor({ link, data, onClose, onSaved }: { link: LinkItem | null; d
         <Field label="After they send it, say" wide hint="Leave empty for “Thank you. The school has your enquiry and will call you.”">
           <Input value={f.thanks} onChange={(v) => setF({ ...f, thanks: v })} placeholder="Thank you. Our admissions office will call you today." />
         </Field>
-        <Field label="Then offer the application" wide hint="The family can go straight on to this form, with what they just typed already filled in. Only a published, open form is offered to them.">
+        <Field label="Then offer the application" wide hint="Family can continue to this form, pre-filled.">
           <Select value={f.apply_form_id} onChange={(v) => setF({ ...f, apply_form_id: v })}
             options={[{ value: '', label: 'Do not offer it' }, ...data.forms.map((x) => ({ value: x.id, label: x.is_open ? x.name : `${x.name} (closed)` }))]} />
         </Field>

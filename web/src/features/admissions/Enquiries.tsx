@@ -185,8 +185,8 @@ export default function Enquiries() {
         title={mine ? 'My follow-ups' : 'All leads'}
         description={
           mine
-            ? 'The calls and visits due today and the overdue ones. What a counsellor opens first.'
-            : 'Every lead that has not become a student yet, with where it has got to and who is chasing it.'
+            ? 'Due today and overdue'
+            : 'Open leads, stage and owner.'
         }
         actions={
           <>
@@ -217,7 +217,7 @@ export default function Enquiries() {
               description={
                 issued.existing
                   ? 'This family already had an account, so nothing was changed.'
-                  : 'Shown once. Give it to the parent now, it cannot be read back.'
+                  : 'Shown once. Give it to the parent now.'
               }
               action={<Button variant="ghost" onClick={() => setIssued(null)}>Done</Button>}
             />
@@ -241,7 +241,7 @@ export default function Enquiries() {
                   up with neither. */}
               {issued.sent_to?.length
                 ? `Sent by ${issued.sent_to.join(', ')}. They can sign in and follow the admission from there.`
-                : 'Not sent to the parent, no messaging channel is set up. Give these to them now.'}
+                : 'Not sent (no messaging set up). Give these to the parent.'}
               {issued.note ? <div className="mt-1">{issued.note}</div> : null}
             </div>
           </Card>
@@ -308,7 +308,7 @@ export default function Enquiries() {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-1 text-muted-foreground">Open that lead instead, or save this one if it is a different child.</div>
+                <div className="mt-1 text-muted-foreground">Open that lead, or save if it is a different child.</div>
               </div>
             )}
             <div className="flex gap-2 border-t px-5 py-4">

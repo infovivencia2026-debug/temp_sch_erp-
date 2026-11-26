@@ -53,7 +53,7 @@ export default function Payables() {
       <PageHead
         eyebrow="Accounts"
         title="Vendors and accounts payable"
-        description="The creditor directory, the bills against it, and what is overdue. A bill becomes a liability when it is approved, not when it is paid."
+        description="Vendors, bills and overdue."
         width="wide"
       />
       <PageBody width="wide">
@@ -84,7 +84,7 @@ export default function Payables() {
 
         <Card>
           <CardHeader title="Vendor directory"
-            description="A GSTIN is stored uppercase because a lower case one fails the return it was collected for, and nobody finds out until the filing is rejected." />
+            description="Saved in capitals" />
           <Table head={['Code', 'Vendor', 'GSTIN', 'Terms', 'Bills',
             { label: 'Billed', align: 'right' }, { label: 'Outstanding', align: 'right' },
             { label: 'Overdue', align: 'right' }]}
@@ -201,7 +201,7 @@ function BillRow({ bill }: { bill: VendorBill }) {
         <tr>
           <Td colSpan={10}>
             <div className="space-y-4 py-2">
-              <Field label="Why is this bill rejected?" required hint="Kept on the bill. A rejected bill cannot be approved or paid.">
+              <Field label="Why is this bill rejected?" required hint="Rejected bills cannot be paid.">
                 <Textarea value={rejectWhy} onChange={setRejectWhy} />
               </Field>
               <Button tone="danger" onClick={() => reject.mutate()}
@@ -233,7 +233,7 @@ function BillRow({ bill }: { bill: VendorBill }) {
                   <Input value={ref} onChange={setRef} placeholder="NEFT9931" />
                 </Field>
                 <Field label="TDS withheld (₹)"
-                  hint="Credited to TDS payable, not to the vendor. Their account is relieved of the gross.">
+                  hint="Goes to TDS payable.">
                   <Input type="number" value={tds} onChange={setTds} />
                 </Field>
               </FormGrid>
@@ -278,7 +278,7 @@ function NewBill({ vendors }: { vendors: Vendor[] }) {
   return (
     <Card>
       <CardHeader title="Record a bill"
-        description="Recorded as a draft: nothing reaches the ledger until it is approved. The bill number is required because a vendor billing the same number twice is the duplicate-payment control an auditor tests first." />
+        description="Saved as draft until approved. Bill number required." />
       <div className="space-y-5 p-5">
         <FormGrid>
           <Field label="Vendor" required>
@@ -344,7 +344,7 @@ function NewVendor() {
   return (
     <Card>
       <CardHeader title="Add a vendor"
-        description="A code is allocated in sequence if you do not supply one, inside the transaction, so the directory never has two vendors sharing a number." />
+        description="Blank = auto" />
       <div className="space-y-5 p-5">
         <FormGrid>
           <Field label="Name" required><Input value={name} onChange={setName} placeholder="Sri Lakshmi Stationers" /></Field>

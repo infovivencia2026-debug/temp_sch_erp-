@@ -44,7 +44,7 @@ export default function GeneralLedger() {
       <PageHead
         eyebrow="Accounts"
         title="General ledger and trial balance"
-        description="Double-entry vouchers, the trial balance they add up to, and the income and expenditure account an auditor asks for."
+        description="Vouchers, trial balance, income and expenditure."
         width="wide"
         actions={
           <div className="w-44">
@@ -139,7 +139,7 @@ function PostVoucher() {
     <Card>
       <CardHeader
         title="Post a voucher"
-        description="Debits on the left, credits on the right, and the two must agree. The database refuses an entry that does not balance, so the running total below is a courtesy rather than the control."
+        description="Debits and credits must match."
         action={
           <Badge tone={balanced ? 'success' : dr || cr ? 'warning' : 'neutral'}>
             {dr || cr ? (balanced ? 'balanced' : `out by ${rupees(Math.abs(dr - cr))}`) : 'nothing entered'}
@@ -242,7 +242,7 @@ function VoucherRegister({ fy }: { fy: string }) {
     <>
       <Card>
         <CardHeader title="Every voucher for the year"
-          description="The value shown is the debit total, which for a balanced voucher is what the transaction was worth. Summing both sides would report each one at twice its value." />
+          description="Debit total" />
         <Table head={['Voucher', 'Date', 'Kind', 'Narration', 'Accounts', { label: 'Value', align: 'right' }, '']}
           empty={rows.length === 0} emptyLabel="No vouchers posted for this year yet.">
           {rows.map((v) => (
@@ -356,7 +356,7 @@ function StatementsTab({ fy }: { fy: string }) {
 
   if (ie.income.length === 0 && ie.expenditure.length === 0) {
     return <Card><EmptyState title="Nothing posted for this year"
-      body="The income and expenditure account is drawn from vouchers. Post one and it appears here." /></Card>
+      body="No vouchers yet." /></Card>
   }
 
   return (
