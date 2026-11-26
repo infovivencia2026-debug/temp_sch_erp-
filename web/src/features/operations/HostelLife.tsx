@@ -116,7 +116,7 @@ export default function HostelLife() {
       <PageHead
         eyebrow="Hostel"
         title="Outpasses, complaints and the mess"
-        description="Who is off campus and who said they could be, what is broken, and what is being served."
+        description="Outings, repairs and menu."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -222,7 +222,7 @@ function PassBoard({
     return (
       <EmptyState
         title="No outpasses yet"
-        body="A boarder or their guardian requests a pass; a warden permits it, the guardian consents, and the gate records the leaving."
+        body="Request, warden approves, guardian consents, gate logs."
       />
     )
   }
@@ -366,7 +366,7 @@ function Complaints() {
     <Card>
       <CardHeader
         title="Complaints"
-        description="Raised by boarders, fixed by the block. Oldest first, a geyser nobody has looked at for a week is the one worth seeing."
+        description="Repairs, oldest first."
         action={
           <Select
             value={status}
@@ -498,7 +498,7 @@ function Mess() {
     <Card>
       <CardHeader
         title="Mess menu"
-        description="One day at a time, saved together. Clearing a meal removes it, a fast day is a real thing to say."
+        description="One day at a time. Clear a meal to remove it."
         action={
           <Input
             type="date"

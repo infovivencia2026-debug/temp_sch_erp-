@@ -168,7 +168,7 @@ export default function Rostering() {
       <PageHead
         eyebrow="Attendance"
         title="Staff duty roster"
-        description="Assign staff to campus duties, gate, ground, exam supervision, bus escort, library and lab. You are warned if a duty clashes with a lesson they are already teaching."
+        description="Assign duties. Clashes with classes are flagged."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Input value={range.from} onChange={(v) => setRange({ ...range, from: v })} type="date" />
@@ -326,7 +326,7 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
               required
               hint={
                 teachers.error
-                  ? 'The staff list could not be loaded, so there is nobody to choose.'
+                  ? 'Could not load staff.'
                   : withoutLogin > 0
                     ? `${withoutLogin} of your staff have no login yet, so they cannot be given a duty. Issue one on Staff records.`
                     : undefined
@@ -402,7 +402,7 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
                         {mayWrite && (
                           <ConfirmButton
                             confirmLabel="Cancel duty"
-                            question="The slot will be left unfilled until somebody else is rostered."
+                            question="Slot will be empty."
                             onConfirm={() => cancel.mutate(d.id)}
                           >
                             Cancel
@@ -426,11 +426,11 @@ function ConflictsTab({ clashes }: { clashes: Clash[] }) {
     <Card>
       <CardHeader
         title="Conflicts"
-        description="Recomputed every time this is opened, not read from a stored verdict. Leave is approved and timetables are republished after a roster is written, so a check that only ran at assignment time is stale by the following Monday."
+        description="Clashes, checked fresh each time."
       />
       <Table head={['Date', 'Who', 'Kind', 'Detail']}
         empty={clashes.length === 0}
-        emptyLabel="Nothing on this roster clashes with leave, teaching or a declared unavailability.">
+        emptyLabel="No clashes.">
         {clashes.map((c, i) => (
           <tr key={i}>
             <Td>{formatDate(c.on_date)}</Td>

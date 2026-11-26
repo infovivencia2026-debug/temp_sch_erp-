@@ -101,7 +101,7 @@ export default function HallTicket() {
         <PageBody>
           <EmptyState
             title={isStaff ? 'No exam scheduled' : 'No hall ticket yet'}
-            body={isStaff ? 'Schedule an exam first; seating and tickets follow from it.' : 'The school issues tickets once seating is done. It will appear here.'}
+            body={isStaff ? 'Schedule an exam first; seating and tickets follow from it.' : 'Not issued yet.'}
           />
         </PageBody>
       </>
@@ -164,7 +164,7 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
       <PageHead
         eyebrow="Examinations"
         title="Seating plan"
-        description="Allocate candidates to halls, then print the plan. Re-running replaces it."
+        description="Allocate halls, then print. Re-run replaces."
         actions={
           <>
             {picker}
@@ -242,7 +242,7 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
           {seats.length === 0 ? (
             <EmptyState
               title="Not allocated yet"
-              body="Allocate seats and every candidate gets a desk and a ticket number."
+              body="Allocate seats to issue tickets."
             />
           ) : (
             <Table
@@ -368,7 +368,7 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
         <PageBody>
           <EmptyState
             title="No student record linked"
-            body="Your account is not linked to a student yet. Ask the school office to connect it."
+            body="Ask the school office to link your child."
           />
         </PageBody>
       </>
@@ -383,7 +383,7 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
           {notSeated ? (
             <EmptyState
               title="No ticket yet"
-              body="The school issues tickets once seating is done. It will appear here."
+              body="Not issued yet."
             />
           ) : (
             <ErrorState error={error} />
@@ -399,7 +399,7 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
         <PageBody>
           <EmptyState
             title="No ticket yet"
-            body="The school issues tickets once seating is done. It will appear here."
+            body="Not issued yet."
           />
         </PageBody>
       </>

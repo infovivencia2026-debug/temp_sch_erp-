@@ -158,7 +158,7 @@ export default function Recruitment() {
       <PageHead
         eyebrow="Hiring & growth"
         title="Staff hiring"
-        description="Create job openings, track who applies and how their demo lesson went, and turn a hire into a staff record without typing the details a second time."
+        description="Openings, applicants, demos and hiring."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -407,7 +407,7 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
       <Card>
         <CardHeader
           title="The funnel"
-          description="How many at each stage, and how long they have been sitting there. A shortlist nobody has rung in three weeks has already taken another job."
+          description="Count and waiting time per stage."
         />
         {stages.length === 0 ? (
           <EmptyState title="No candidates yet" body="Add one below and the funnel fills in." />
@@ -431,7 +431,7 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
       <Card>
         <CardHeader
           title="Add a candidate"
-          description="A phone number or an email is enough to start. Everything else can be filled in when the file arrives."
+          description="Phone or email is enough to start."
           action={
             <Select value={vacancy} onChange={setVacancy} placeholder="All posts"
               options={openPosts.map((v) => ({ value: v.id, label: `${v.code} · ${v.title}` }))} />
@@ -763,7 +763,7 @@ function InterviewsTab() {
       </Card>
 
       <Card>
-        <CardHeader title="Offers" description="The salary put in writing, and whether the candidate took it." />
+        <CardHeader title="Offers" description="Offer and response" />
         {mayWrite && (
           <div className="px-5 pb-4">
             <FormGrid>

@@ -43,7 +43,7 @@ export default function PTMNotes() {
       <PageHead
         eyebrow="Teaching workspace"
         title="PTM notes & action items"
-        description="Who came, what they raised, and what was agreed. Actions carry a date so nobody has to remember them."
+        description="Who came, what was raised, what was agreed."
         actions={
           <>
             <Button variant="secondary" onClick={() => setPendingOnly((p) => !p)}>
@@ -81,7 +81,7 @@ export default function PTMNotes() {
           {rows.length === 0 ? (
             <EmptyState
               title="No meetings recorded"
-              body="Record what a parent raised and what was agreed, and the follow-up will find its way back to you."
+              body="No notes yet."
             />
           ) : (
             <ul className="divide-y">
@@ -209,7 +209,7 @@ function Compose({ onClose }: { onClose: () => void }) {
     <Card>
       <CardHeader
         title="Record a meeting"
-        description="Saving again for the same child on the same day corrects the note rather than adding a second one."
+        description="Same child, same day = updates the note."
       />
       <form
         className="px-5 py-5"
@@ -258,7 +258,7 @@ function Compose({ onClose }: { onClose: () => void }) {
               options={ATTENDANCE_OPTIONS.map((a) => ({ value: a.value, label: a.label }))}
             />
           </Field>
-          <Field label="Name given at the desk" hint="Guardian records go out of date; write who actually sat down.">
+          <Field label="Name given at the desk" hint="Who actually attended">
             <Input
               value={f.attended_by}
               onChange={(v) => setF({ ...f, attended_by: v })}

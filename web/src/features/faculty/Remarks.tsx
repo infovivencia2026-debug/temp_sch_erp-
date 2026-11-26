@@ -29,7 +29,7 @@ export default function Remarks() {
       anecdotal={false}
       eyebrow="Teaching workspace"
       title="Remarks"
-      description="Academic and class observations about the children you teach. Shared with the parent unless you mark a remark staff-only."
+      description="Remarks on your students. Parents see them unless staff-only."
     />
   )
 }
@@ -100,8 +100,8 @@ export function RemarkBoard({
               title={anecdotal ? 'No notes yet' : 'Nothing written yet'}
               body={
                 anecdotal
-                  ? 'Anecdotal records stay with the staff who teach this child. They are never shown to the parent.'
-                  : 'Remarks you write appear here, and in the parent portal unless you mark them staff-only.'
+                  ? 'Staff only. Not shown to parents.'
+                  : 'No remarks yet.'
               }
             />
           ) : (
@@ -181,8 +181,8 @@ function Compose({ anecdotal, onClose }: { anecdotal: boolean; onClose: () => vo
         title={anecdotal ? 'New anecdotal record' : 'New remark'}
         description={
           anecdotal
-            ? 'Kept for the staff who teach this child. Never shown to the parent.'
-            : 'Say what you saw. A remark with an example in it is the one a parent can act on.'
+            ? 'Staff only. Not shown to parents.'
+            : 'Say what you saw, with an example.'
         }
       />
       <form

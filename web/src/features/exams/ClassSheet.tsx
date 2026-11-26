@@ -82,7 +82,7 @@ export default function ClassSheet({ papers, className, examName }: {
     reader.onerror = () => setProblems(['That file could not be read.'])
     reader.onload = () => {
       const got = readClassSheet(String(reader.result ?? ''), sheet)
-      if (!got.columns) { setProblems(['No subject columns in that file matched this class and exam. Export the sheet here and fill that one.']); return }
+      if (!got.columns) { setProblems(['No matching subjects. Export this sheet and fill it.']); return }
       setEdits((e) => {
         const next = { ...e }
         for (const [pid, bySid] of Object.entries(got.cells)) {
@@ -128,7 +128,7 @@ export default function ClassSheet({ papers, className, examName }: {
     setProblems(failed.map((f) => `Not saved — ${f}`))
   }
 
-  if (!papers.length) return <p className="px-5 py-4 text-[14px] text-muted-foreground">No subject of this exam has a date yet. Set the dates in Exams &amp; papers → Date sheet, and those subjects appear here.</p>
+  if (!papers.length) return <p className="px-5 py-4 text-[14px] text-muted-foreground">No exam dates yet. Set them in Exams &amp; papers → Date sheet.</p>
   return (
     <Card>
       <CardHeader
@@ -157,7 +157,7 @@ export default function ClassSheet({ papers, className, examName }: {
             <input type="file" accept=".csv,text/csv,text/plain" className="sr-only"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />
           </label>
-          <p className="mt-1 text-[12px] text-muted-foreground">Upload the filled sheet; marks appear below to check before you save.</p>
+          <p className="mt-1 text-[12px] text-muted-foreground">Upload the sheet, check, then save.</p>
         </div>
       </div>
       {(note || problems.length > 0) && (
@@ -186,7 +186,7 @@ export default function ClassSheet({ papers, className, examName }: {
           )}
         </div>
       )}
-      {!shown ? <p className="px-5 pb-4 text-[13px] text-muted-foreground">Export the sheet, fill in the marks, then Import it: the marks appear here to check and change before you save.</p> : loading ? <p className="px-5 pb-4 text-[13px] text-muted-foreground">Loading the class…</p> : (
+      {!shown ? <p className="px-5 pb-4 text-[13px] text-muted-foreground">Export, fill marks, Import, check, save.</p> : loading ? <p className="px-5 pb-4 text-[13px] text-muted-foreground">Loading the class…</p> : (
         <div className="overflow-x-auto border-t">
           <table className="w-full text-[13px]">
             <thead>
@@ -241,7 +241,7 @@ export default function ClassSheet({ papers, className, examName }: {
               ))}
             </tbody>
           </table>
-          {invalid && <p className="px-5 py-2 text-[13px] text-destructive">A box outlined in red is not a number between 0 and its maximum (or AB for absent).</p>}
+          {invalid && <p className="px-5 py-2 text-[13px] text-destructive">Red = invalid. Use 0 to max, or AB.</p>}
         </div>
       )}
     </Card>

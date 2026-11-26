@@ -320,7 +320,7 @@ export default function Leave() {
     onSuccess: (r) => {
       const id = (r as { id?: string } | undefined)?.id
       setSent(id ? { ...form, id } : null)
-      setApplied('Sent. Whoever approves leave here will see it, the head of department or the principal, whichever gets there first.')
+      setApplied('Sent for approval.')
       setForm({
         from_date: '', to_date: '', reason: '', is_half_day: false,
         leave_type_id: '', employee_id: '', kind: 'leave', hours: '', place: '', from_time: '', to_time: '',
@@ -369,10 +369,10 @@ export default function Leave() {
         }
         description={
           mine
-            ? 'Your own leave: what you have applied for, and where each request has got to.'
+            ? 'Your leave requests'
             : forWhom === 'staff'
-              ? 'Leave applied for by staff, awaiting a decision, and the history behind it.'
-              : 'Staff and student leave awaiting a decision, and the history behind it.'
+              ? 'Staff leave requests'
+              : 'Staff and student leave requests'
         }
       actions={<>{/* A teacher's own leave has no export: the register is HR's, and the button answered 403. */}{!mine && <ExportButton report={forWhom === 'staff' ? 'staff-leave' : 'leave'} />}<Button variant="secondary" onClick={printLeave}><Printer className="h-4 w-4" /> Print</Button></>}
         />
@@ -434,7 +434,7 @@ export default function Leave() {
         <Card>
           <CardHeader
             title="Apply for my leave"
-            description="Your own request. It goes to whoever approves leave at this school."
+            description="Goes to the leave approver."
             action={
               /* THE BUTTON'S WORDS SAT BELOW THE HEADING'S, ON THE SAME ROW.
 
@@ -784,7 +784,7 @@ function AttendanceFix() {
     <Card>
       <CardHeader
         title="Fix a day's attendance"
-        description="Forgot to punch, or the reader was down. HR decides; an approved request corrects the register."
+        description="Missed punch? HR approves the fix."
         action={
           <Button variant="ghost" aria-expanded={open} aria-label={open ? 'Close' : 'Open'} onClick={() => setOpen((v) => !v)}>
             <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} />

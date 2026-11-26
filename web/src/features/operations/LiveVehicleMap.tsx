@@ -231,7 +231,7 @@ export default function LiveVehicleMap() {
       <PageHead
         eyebrow="Transport"
         title="Live vehicle tracking"
-        description="Every bus on the fleet, where its phone last said it was, drawn on the street map."
+        description="Last known bus locations"
         width="wide"
         actions={
           <Select
@@ -347,8 +347,8 @@ export default function LiveVehicleMap() {
                 empty={vehicles.length === 0}
                 emptyLabel={
                   all.length === 0
-                    ? 'No vehicle is on the fleet yet. Buses are added under Transport, and one appears here as soon as it exists, running or not.'
-                    : 'No vehicle is on the route you have picked. Choose All routes to see the rest of the fleet.'
+                    ? 'No buses yet. Add them under Transport.'
+                    : 'No bus on this route. Choose All routes.'
                 }
               >
                 {vehicles.map((v) => (
@@ -434,26 +434,26 @@ function plotGap(
   if (all.length === 0)
     return {
       title: 'No vehicle is on the fleet yet',
-      body: 'Nothing can be tracked until a bus exists. Add vehicles under Transport, pair a driver phone with each, and they appear here from the first trip onwards.',
+      body: 'No buses yet. Add them under Transport and pair a driver phone.',
     }
   if (filtering && filtered.length === 0)
     return {
       title: 'Nothing on this route',
-      body: 'No vehicle on the fleet is on the route you have selected. Choose All routes to see the rest of them.',
+      body: 'No bus on this route. Choose All routes.',
     }
   if (filtered.every((v) => v.state === 'idle'))
     return {
       title: 'Every bus is parked',
-      body: 'No trip is open, so no position is being published. A bus appears on the plot from the moment its driver starts a run, and drops off it when the run ends. The list beside this shows the whole fleet meanwhile.',
+      body: 'No trips running.',
     }
   if (stopPoints.length === 0)
     return {
       title: 'No position and no landmark',
-      body: 'A trip is open but no phone on it has reported a position yet, and no stop on this route has coordinates recorded, so there is nothing to draw against. The transport office can add stop coordinates under Routes.',
+      body: 'No location yet. Add stop coordinates under Routes.',
     }
   return {
     title: 'No position reported yet',
-    body: 'A trip is open, but no phone on it has sent a position. Usually the phone is still finding satellites, or the OS has refused it location, the Location blocked count above tells the two apart.',
+    body: 'Trip running, no location yet. Check GPS on the phone.',
   }
 }
 

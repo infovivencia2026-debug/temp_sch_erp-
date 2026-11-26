@@ -138,12 +138,12 @@ export default function AcademicCalendar() {
       <PageHead
         eyebrow="Academics"
         title="Academic calendar"
-        description="Holidays, vacations, exams, parents’ meetings and the days pulled back to make up for them."
+        description="Holidays, exams, PTMs and make-up days."
       />
       <PageBody>
         <MonthGrid
           entries={gridEntries}
-          description="Every holiday, vacation, exam and meeting in the year, on the month it falls in. The filter below does not narrow this grid."
+          description="Whole year by month."
         />
         <CellGrid cols={4}>
           <Stat
@@ -168,7 +168,7 @@ export default function AcademicCalendar() {
         <Card>
           <CardHeader
             title="The year"
-            description="Exams and terms are shown as they are set elsewhere; only the school’s own entries can be changed here."
+            description="Exams and terms are edited on their own screens."
             action={
               <div className="flex items-center gap-2">
                 <Select
@@ -184,7 +184,7 @@ export default function AcademicCalendar() {
           {rows.length === 0 ? (
             <EmptyState
               title="Nothing on the calendar yet"
-              body="Add the first holiday below and the working-day count follows from it."
+              body="No holidays yet. Add one below."
             />
           ) : (
             <Table head={['Date', 'Entry', 'Kind', 'Applies to', 'Days', '']}>
@@ -325,7 +325,7 @@ function NewEntry({ editing, done }: { editing: Entry | null; done: () => void }
     <div id="calendar-entry-form" className="scroll-mt-20"><Card>
       <CardHeader
         title={editing ? `Edit ${editing.name}` : 'Add to the calendar'}
-        description="A working day pulls a Sunday back into the count, which is what a school does after a bandh."
+        description="Makes a Sunday a working day."
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>
@@ -452,7 +452,7 @@ function Terms() {
     <Card className="mt-4">
       <CardHeader
         title="Terms"
-        description="The spans the year is divided into. A report card, a fee instalment and a co-scholastic grade each belong to one."
+        description="Terms of the year"
       />
       <div className="px-5 pb-5 pt-4">
         {rows.length > 0 && (
