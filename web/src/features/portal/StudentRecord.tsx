@@ -55,7 +55,7 @@ export default function StudentRecord() {
               </Ring>
               <div className="min-w-0 flex-1">
                 <p className="text-[18px] font-semibold leading-snug">{(life ?? 0) >= 90 ? 'You hardly miss a day!' : (life ?? 0) >= 75 ? 'Solid attendance.' : 'Every day in class counts.'}</p>
-                <p className="mt-1 text-[13px] text-muted-foreground">Across all your years here. Schools look for 75% or more.</p>
+                <p className="mt-1 text-[13px] text-muted-foreground">All years. Aim for 75% or more.</p>
               </div>
             </section>
 
@@ -100,7 +100,7 @@ export default function StudentRecord() {
                         )}
                       </div>
                     ) : (
-                      <p className="mt-3 text-[13px] text-muted-foreground">Your result for this year appears once the school shares the report card.</p>
+                      <p className="mt-3 text-[13px] text-muted-foreground">Shown once the report card is out.</p>
                     )}
                     {y.class_teacher_remarks && <p className="mt-3 rounded-xl bg-muted/60 px-3 py-2 text-[14px]">“{y.class_teacher_remarks}”</p>}
                   </li>

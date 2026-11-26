@@ -458,7 +458,7 @@ export default function Calendar() {
             <Card>
               <div className="px-5 py-6 text-[13.5px] text-muted-foreground">
                 {only
-                  ? 'Nothing of that kind on this day. Press the chip again for everything.'
+                  ? 'None on this day. Tap the chip again to show all.'
                   : 'Nothing on this day.'}
               </div>
             </Card>

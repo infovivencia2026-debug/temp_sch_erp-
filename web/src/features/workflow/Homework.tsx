@@ -325,7 +325,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
           <Card>
             <EmptyState
               title={day ? (kind ? `No ${kindLabel(kind).toLowerCase()} on this day` : 'Nothing set on this day') : (kind ? `No ${kindLabel(kind).toLowerCase()} yet` : 'Nothing set yet')}
-              body={canPublish ? 'Press Set homework to give this class some work. Days with work have a dot under the date.' : 'Days with work have a dot under the date.'}
+              body={canPublish ? 'No homework yet. Press Set homework to add.' : 'No homework yet.'}
             />
           </Card>
         ) : (

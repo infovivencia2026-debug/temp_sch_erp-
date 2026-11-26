@@ -41,7 +41,7 @@ export default function StudentAttendance() {
   const months = [...new Set([todayISO().slice(0, 7), ...days.map((x) => x.date.slice(0, 7))])].sort()
   const mi = months.indexOf(month)
   const pct = s.data?.attendance_pct ?? 0
-  const word = pct >= 90 ? 'Brilliant! You are here nearly every day.' : pct >= 75 ? 'Doing well. Keep it above 75%.' : "Let's get back above 75%."
+  const word = pct >= 90 ? 'Great attendance.' : pct >= 75 ? 'Good. Stay above 75%.' : 'Aim for 75% or more.'
 
   return (
     <PullToRefresh onRefresh={() => Promise.all([qc.invalidateQueries({ queryKey: sq.queryKey }), qc.invalidateQueries({ queryKey: dq.queryKey })])}>

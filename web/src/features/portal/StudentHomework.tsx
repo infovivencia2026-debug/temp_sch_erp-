@@ -90,7 +90,7 @@ export default function StudentHomework() {
         {q.error ? <ErrorState error={q.error} /> : !q.data ? (
           <div className="space-y-3">{[0, 1, 2].map((i) => <Bone key={i} className="h-[68px] w-full rounded-2xl" />)}</div>
         ) : !items.length ? (
-          <div className="card px-4 py-8 text-center text-[15px] text-muted-foreground">No homework yet. Enjoy the free time!</div>
+          <div className="card px-4 py-8 text-center text-[15px] text-muted-foreground">No homework yet.</div>
         ) : GROUPS.map((g) => {
           const rows = items.filter((h) => g.test(h.id === linger ? { ...h, submitted: false } : h)).sort((a, b) => (g.key === 'done' ? (b.due_on ?? '').localeCompare(a.due_on ?? '') : (a.due_on ?? '9').localeCompare(b.due_on ?? '9')))
           if (!rows.length) return null
@@ -173,7 +173,7 @@ function Row({ h, open, pop, onToggle, onHanded, onFail }: { h: StudentHomework;
             </div>
           ) : (
             <>
-              <Textarea rows={4} value={text} onChange={setText} placeholder="Type your answer here (or take a photo of your notebook)" aria-label="Your answer" />
+              <Textarea rows={4} value={text} onChange={setText} placeholder="Type your answer or add a photo" aria-label="Your answer" />
               <div className="flex flex-wrap items-center gap-2">
                 <label className="btn inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border px-4 font-medium" data-variant="secondary">
                   <Camera className="h-5 w-5" /> {busy ? 'Uploading…' : 'Take a photo'}

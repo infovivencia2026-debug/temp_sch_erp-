@@ -142,7 +142,7 @@ export default function StudentHome() {
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[#a7f3d0] bg-card"><CalendarCheck className="h-6 w-6 text-success" aria-hidden /></span>
             <span>
               <span className="block text-[16px] font-bold text-[#065f46]">No classes today</span>
-              <span className="block text-[13px] text-[#047857]">Enjoy your day off. School is not in session.</span>
+              <span className="block text-[13px] text-[#047857]">No school today.</span>
             </span>
           </section>
         ) : <NowNextCard periods={s.today} to={toTimetable} />) : <Bone className="h-[76px] w-full rounded-2xl" />}
@@ -175,7 +175,7 @@ export default function StudentHome() {
           {homework.isLoading ? (
             <div className="space-y-2 px-4 py-3"><Bone className="h-11 w-full" /><Bone className="h-11 w-full" /></div>
           ) : homework.error ? (
-            <p className="px-4 py-3 text-[14px] text-destructive">Could not load your homework. Pull down to try again.</p>
+            <p className="px-4 py-3 text-[14px] text-destructive">Could not load homework. Pull down to retry.</p>
           ) : pending.length === 0 ? (
             <p className="flex items-center gap-2 px-4 py-3 text-[14px] text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-success" /> Nothing due today or tomorrow.</p>
           ) : (
@@ -283,7 +283,7 @@ export default function StudentHome() {
         )}
 
         {s?.next_day && s.next_day.periods.length === 0 && (
-          <section className="card px-5 py-4 text-[14px] text-muted-foreground">Nothing is timetabled for the next school day.</section>
+          <section className="card px-5 py-4 text-[14px] text-muted-foreground">No classes set for the next school day.</section>
         )}
         </div>
         </div>

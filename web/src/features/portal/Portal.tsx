@@ -518,7 +518,7 @@ function SchoolMessages({ query, notes, onOpen, onGo }: {
       ) : query.error && !query.data ? (
         <ErrorState error={query.error} />
       ) : rows.length === 0 ? (
-        <EmptyState title="Nothing yet" body="Notices from the school will appear here" />
+        <EmptyState title="Nothing yet" body="No notices yet." />
       ) : (
         <ul className="scroll-x max-h-[32rem] min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 pb-3 pt-1 lg:max-h-none">
           {rows.map((item) => {

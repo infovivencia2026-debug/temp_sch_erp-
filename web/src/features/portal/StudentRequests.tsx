@@ -65,7 +65,7 @@ function Certificates() {
               <div className="card stu-rise px-5 py-8 text-center">
                 <FileBadge2 className="mx-auto h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
                 <p className="mt-2 text-[16px] font-semibold">No requests yet</p>
-                <p className="mt-1 text-[14px] text-muted-foreground">Need a bonafide or another certificate? Ask below and follow it here.</p>
+                <p className="mt-1 text-[14px] text-muted-foreground">Ask for a bonafide or other certificate.</p>
               </div>
             ) : (
               <ul className="space-y-3">
@@ -99,7 +99,7 @@ function Certificates() {
 
             <section className="card stu-rise p-4" style={{ ['--i' as string]: 3 }} aria-label="Ask for a certificate">
               <h2 className="text-[16px] font-semibold">Ask for a certificate</h2>
-              <p className="text-[13px] text-muted-foreground">Pick one, say what it is for, and the office will make it.</p>
+              <p className="text-[13px] text-muted-foreground">Pick one and say what it is for.</p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Which certificate">
                 {types.isLoading ? <Bone className="h-[52px] rounded-xl" /> : (types.data?.items ?? []).map((t) => (
                   <button key={t.code} type="button" role="radio" aria-checked={code === t.code} onClick={() => setCode(t.code)}

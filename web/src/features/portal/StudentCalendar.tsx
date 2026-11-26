@@ -89,7 +89,7 @@ export default function StudentCalendar() {
               ) : (
                 <>
                   <span className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl', HUE.emerald.bg, HUE.emerald.fg)}><Sun className="h-6 w-6" strokeWidth={1.75} /></span>
-                  <div><p className="text-[18px] font-semibold">Nothing planned yet</p><p className="text-[13px] text-muted-foreground">New exams and holidays appear here as the school adds them.</p></div>
+                  <div><p className="text-[18px] font-semibold">Nothing planned yet</p><p className="text-[13px] text-muted-foreground">Exams and holidays show here.</p></div>
                 </>
               )}
             </section>

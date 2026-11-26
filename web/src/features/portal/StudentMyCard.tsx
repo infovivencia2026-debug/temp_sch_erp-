@@ -44,7 +44,7 @@ export default function StudentMyCard() {
   return (
     <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: ['student-id-card', ''] })}>
       <StudentPage>
-        <StudentHeader title="My ID card" sub="Show this screen at the gate or the library"
+        <StudentHeader title="My ID card" sub="Show at the gate or library"
           right={<button type="button" onClick={() => printDocument({ title: 'Student ID card' })} aria-label="Print my card" className="card stu-press inline-flex h-11 w-11 items-center justify-center"><Printer className="h-5 w-5" strokeWidth={1.75} /></button>} />
 
         {q.error ? <ErrorState error={q.error} /> : !card || !pass ? (
@@ -71,7 +71,7 @@ export default function StudentMyCard() {
                 <span className="mx-auto mt-2 block h-1.5 max-w-[220px] overflow-hidden rounded-full bg-muted" aria-hidden>
                   <span className="block h-full origin-left rounded-full bg-success transition-transform duration-1000 ease-linear" style={{ transform: `scaleX(${Math.min(1, left / 150)})` }} />
                 </span>
-                <p className="mt-1.5 text-center text-[12px] text-muted-foreground">Changes every couple of minutes, so a photo of it will not work. Card {pass.serial}</p>
+                <p className="mt-1.5 text-center text-[12px] text-muted-foreground">Changes every 2 min. Card {pass.serial}</p>
               </div>
             </section>
 
@@ -85,7 +85,7 @@ export default function StudentMyCard() {
                 <Detail icon={Phone} hue="emerald" label="Their phone" value={card.guardian_phone && <a className="inline-flex min-h-[44px] items-center text-primary" href={`tel:${card.guardian_phone}`}>{card.guardian_phone}</a>} />
                 {card.allergies && <Detail icon={ShieldCheck} hue="amber" label="Allergies" value={card.allergies} />}
               </dl>
-              <p className="px-4 pb-3 pt-1 text-[12px] text-muted-foreground">Something wrong? Tell your class teacher or the school office.</p>
+              <p className="px-4 pb-3 pt-1 text-[12px] text-muted-foreground">Wrong? Tell your class teacher.</p>
             </section>
           </>
         )}

@@ -29,8 +29,8 @@ const q = { queryKey: ['student-results'], queryFn: () => api.get<ResultView>('/
 export function cheer(p: number): { text: string; hue: Hue } {
   if (p >= 85) return { text: 'Outstanding work!', hue: 'emerald' }
   if (p >= 70) return { text: 'Great job, keep it up!', hue: 'indigo' }
-  if (p >= 50) return { text: 'Good going. A little more each week adds up.', hue: 'sky' }
-  return { text: 'Keep at it. Ask your teacher where to start.', hue: 'amber' }
+  if (p >= 50) return { text: 'Good going.', hue: 'sky' }
+  return { text: 'Keep at it. Ask your teacher for help.', hue: 'amber' }
 }
 export function ordinal(n: number) {
   const s = ['th', 'st', 'nd', 'rd'], v = n % 100
@@ -89,7 +89,7 @@ export default function StudentResults() {
           <div className="card stu-rise px-5 py-10 text-center">
             <Award className="mx-auto h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
             <p className="mt-3 text-[16px] font-semibold">No results shared yet</p>
-            <p className="mt-1 text-[14px] text-muted-foreground">Your marks appear here once the school publishes a report card.</p>
+            <p className="mt-1 text-[14px] text-muted-foreground">Shown once the report card is out.</p>
           </div>
         ) : (
           <>
