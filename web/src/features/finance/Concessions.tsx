@@ -127,7 +127,7 @@ export default function Concessions() {
     onSuccess: (_r, v) => {
       setNote(
         v.decision === 'approved'
-          ? 'Approved. It applies to the next demand raised for this student.'
+          ? 'Approved. Applies to the next bill.'
           : 'Rejected.',
       )
       refreshConcessions(qc)
@@ -211,7 +211,7 @@ export default function Concessions() {
       <PageHead
         eyebrow="Fees"
         title="Concessions & refunds"
-        description="Discounts and scholarships awaiting sign-off, and money going back out."
+        description="Discounts, scholarships and refunds"
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -228,7 +228,7 @@ export default function Concessions() {
         <Card>
           <CardHeader
             title="Concessions"
-            description="Unsigned first, a concession only reduces a bill once it is approved"
+            description="Pending first"
             action={
               <Select
                 value={status}
@@ -339,7 +339,7 @@ export default function Concessions() {
                           tone="danger"
                           disabled={decide.isPending}
                             confirmLabel="Reject"
-                            question="Refuse this concession? It stays on the record with your reason, and the person who asked is told."
+                            question="Refuse this concession? The requester is told your reason."
                           onConfirm={() => decide.mutate({ id: c.id, decision: 'rejected' })}
                         >
                           Reject
@@ -356,7 +356,7 @@ export default function Concessions() {
         <Card>
           <CardHeader
             title="Refunds"
-            description="Money returned, and what it was against. Raised by the office, signed off, then marked paid, a refund cannot exceed what the family actually paid."
+            description="Refunds. Cannot exceed what was paid."
           />
           {mayDecide && (
             <div className="flex flex-wrap items-end gap-3 border-b px-4 py-3">

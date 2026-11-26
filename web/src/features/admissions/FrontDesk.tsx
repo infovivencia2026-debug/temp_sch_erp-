@@ -142,19 +142,19 @@ const OPENS_ON: Record<string, Tab> = {
 const TITLES: Record<string, [string, string]> = {
   visitors_log: [
     'Visitors log',
-    'Who is on the premises right now, who has signed out, and the pass each was issued.',
+    'Visitors in and out, with passes.',
   ],
   parent_appointments: [
     'Parent appointments',
-    'Meetings booked with the principal and with teachers, in date order.',
+    'Booked meetings, by date.',
   ],
   daily_call_log: [
     'Daily call log',
-    'What was said on the telephone, and which messages still have to be passed on.',
+    'Calls and messages to pass on.',
   ],
   dispatch_courier: [
     'Dispatch & courier',
-    'Post and couriers in and out, and what is still lying at the desk undelivered.',
+    'Post and couriers in and out.',
   ],
 }
 
@@ -162,7 +162,7 @@ export default function FrontDesk() {
   const { featureSlug } = useParams()
   const [title, description] = TITLES[featureSlug ?? ''] ?? [
     'The desk',
-    'Who is on the premises, who is booked in, what was said on the telephone and what came in the post.',
+    'Visitors, meetings, calls and post.',
   ]
 
   const [tab, setTab] = useState<Tab>(OPENS_ON[featureSlug ?? ''] ?? 'visitors')
@@ -401,7 +401,7 @@ function Visitors({ rows }: { rows: Visitor[] }) {
                 }))}
               />
             </Field>
-            <Field label="About which child" hint="Naming the child is what makes an unauthorised pickup visible.">
+            <Field label="About which child" hint="Name the child being picked up.">
               <Select
                 value={form.student_id ?? ''}
                 onChange={set('student_id')}
@@ -431,7 +431,7 @@ function Visitors({ rows }: { rows: Visitor[] }) {
       <Card>
         <CardHeader
           title="Today"
-          description="Still inside first, longest first, the order the desk needs at closing time."
+          description="Still inside first."
           action={
             <span className="flex flex-wrap items-center gap-2">
               <Showing shown={shown.length} total={rows.length} noun="visitors" />
@@ -611,7 +611,7 @@ function Appointments() {
       <Card>
         <CardHeader
           title="The next thirty days"
-          description="A diary looks forward. Every other list here reports on what has happened; this one would be useless if it did."
+          description="Upcoming meetings only."
           action={
             <span className="flex flex-wrap items-center gap-2">
               <Showing shown={shown.length} total={rows.length} noun="meetings" />
@@ -762,7 +762,7 @@ function Calls({ rows }: { rows: Call[] }) {
       <Card>
         <CardHeader
           title="Log a call"
-          description="The commonest complaint a school receives is “I rang and told somebody”. Without this the school cannot agree or disagree."
+          description="Log every call."
         />
         <div className="p-4">
           <FormGrid>
@@ -932,7 +932,7 @@ function PostLog({ rows }: { rows: Post[] }) {
       <Card>
         <CardHeader
           title="Record post"
-          description="Schools lose board correspondence, and only ever discover it later. The register records who physically took it and when."
+          description="Records who took each item and when."
         />
         <div className="p-4">
           <FormGrid>
@@ -1114,7 +1114,7 @@ function Blocklist() {
       <Card>
         <CardHeader
           title="Refuse entry"
-          description="A reason is required. The case this exists for is usually a custody order, which is exactly when a list nobody can defend becomes a problem, and when the person at the desk is being told a convincing story."
+          description="Reason required (e.g. custody order)."
         />
         <div className="p-4">
           <FormGrid>
@@ -1131,7 +1131,7 @@ function Blocklist() {
                 placeholder="Interim custody order dated 12 June 2026, not to collect the child."
               />
             </Field>
-            <Field label="In force until" hint="Court orders are varied; a block with no end outlives its order.">
+            <Field label="In force until" hint="Set an end date if the order has one.">
               <Input type="date" value={form.effective_to ?? ''} onChange={set('effective_to')} />
             </Field>
           </FormGrid>

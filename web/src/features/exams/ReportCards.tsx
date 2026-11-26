@@ -506,7 +506,7 @@ export default function ReportCards() {
       <PageHead
         eyebrow={nav.section?.name ?? 'Examinations'}
         title={nav.feature?.name ?? 'Report cards'}
-        description="Every child in the section in roll order, with the subject breakdown behind each row. Publishing tells the parent."
+        description="All children in roll order. Publishing notifies parents."
         actions={
           <>
             {/* The marks behind these cards, as a sheet — the raw scores a
@@ -698,8 +698,8 @@ export default function ReportCards() {
               }
               description={
                 outstanding.length
-                  ? 'A card generated now totals the marks that exist over the marks that were expected, so an unmarked paper prints as a failed one.'
-                  : 'Marks are complete for every paper in this exam. The cards will be right.'
+                  ? 'Some marks missing. Unmarked papers will print as fails.'
+                  : 'All marks entered.'
               }
             />
             {outstanding.length > 0 && (
@@ -771,7 +771,7 @@ export default function ReportCards() {
                   }}
                   purpose="signature"
                   label={signature.data?.file_id ? 'Replace it' : 'Upload a signature'}
-                  hint="Sign on a plain sheet and photograph it. The paper is dropped when it prints, only the pen strokes come through, so a phone photograph is fine and a transparent PNG is not needed."
+                  hint="Sign on white paper and upload a photo."
                 />
                 {saveSignature.error && <FormNotice error={saveSignature.error} />}
                 {signature.data?.file_id && (
@@ -924,10 +924,10 @@ export default function ReportCards() {
                 would do. */}
             <p className="px-5 pt-4 text-[13px] text-muted-foreground">
               {mayPublish && awaiting.length
-                ? 'Signed off by the class teacher and waiting on you. Tick rows below to act on some of them, or leave them unticked to act on all.'
+                ? 'Waiting for you. Tick rows, or none for all.'
                 : maySubmit && toSubmit.length
-                  ? 'The principal approves before a card reaches a family. Tick rows below to send only those, or leave them unticked to send the whole section.'
-                  : 'These are with the families. Correcting one means generating it again and releasing it again, it cannot be taken off somebody who has read it.'}
+                  ? 'Principal approves first. Tick rows, or none for all.'
+                  : 'Sent to families. To correct, generate and release again.'}
             </p>
             <div className="flex flex-wrap items-center gap-2 px-5 pb-4 pt-3">
               {maySubmit && toSubmit.length > 0 && (

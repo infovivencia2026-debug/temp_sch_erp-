@@ -196,7 +196,7 @@ function Holds({ rows }: { rows: Reservation[] }) {
       <Card>
         <CardHeader
           title="Place a hold"
-          description="A hold is on the book, not on a particular copy, reserving one copy would leave a reader waiting behind a book that is lost while three identical ones sit on the shelf."
+          description="Holds are per title, not per copy."
         />
         <div className="p-4">
           <FormGrid>
@@ -235,10 +235,10 @@ function Holds({ rows }: { rows: Reservation[] }) {
       <Card>
         <CardHeader
           title="The queue"
-          description="Books behind the counter first, then whoever is still waiting. When a copy comes back the next reader is promoted at that moment, not overnight."
+          description="Ready books first, then waiting."
         />
         {live.length === 0 ? (
-          <EmptyState title="Nobody is waiting" body="Holds placed on a title appear here in the order they were made." />
+          <EmptyState title="Nobody is waiting" body="No holds yet." />
         ) : (
           <Table
             head={[
@@ -368,7 +368,7 @@ function StockAudit({ audits }: { audits: Audit[] }) {
       <Card>
         <CardHeader
           title="No audit open"
-          description="Walk the shelves scanning each book. Anything on the register that nobody scans is what is missing."
+          description="Scan each book. Unscanned = missing."
         />
         <div className="p-4">
           <Button disabled={start.isPending} onClick={() => start.mutate()}>
@@ -434,7 +434,7 @@ function StockAudit({ audits }: { audits: Audit[] }) {
       </Card>
 
       <Card>
-        <CardHeader title="Not found yet" description="Everything the register expects on the shelf that nobody has scanned." />
+        <CardHeader title="Not found yet" description="Not scanned yet" />
         {missing.isLoading ? (
           <SkeletonTable columns={3} label="Counting…" />
         ) : (missing.data?.items ?? []).length === 0 ? (
@@ -460,7 +460,7 @@ function StockAudit({ audits }: { audits: Audit[] }) {
       <Card>
         <CardHeader
           title="Close the audit"
-          description="Say what it found. An audit that ends with unaccounted books and no note is not an audit."
+          description="Note what you found."
         />
         <div className="p-4">
           <Field label="What the audit found" required>
@@ -560,7 +560,7 @@ function Indents() {
       <Card>
         <CardHeader
           title="This year's indent"
-          description="Three counts and three moments. The gaps between them are the reason to track it at all."
+          description="Ordered, delivered, handed out"
         />
         {rows.length === 0 ? (
           <EmptyState title="Nothing ordered yet" body="Add a line per class and book above." />
@@ -705,7 +705,7 @@ function SpineLabels() {
     <Card>
       <CardHeader
         title="Spine labels"
-        description="A sheet of call tags with a real Code 39 barcode, sized for a spine. Print on plain label stock, the numbers are the accession numbers already in the register."
+        description="Spine labels with barcodes. Print on label paper."
         action={rows.length > 0 ? <PrintButton /> : undefined}
       />
       <div className="p-4 print:hidden">

@@ -145,7 +145,7 @@ export default function LeavePolicy() {
       <PageHead
         eyebrow="Attendance & Leave"
         title="Staff leave & attendance policy"
-        description="Leave types and how many days each allows, the late-arrival grace period, and how half days and unpaid leave are deducted, set in one place, and every leave request and payslip follows it."
+        description="Leave types, late rules and deductions. Used by leave and payroll."
         actions={<Button onClick={() => save.mutate(draft)} disabled={save.isPending}>Save all changes</Button>}
       />
       <PageBody>
@@ -226,12 +226,12 @@ export function RulesTab({
       {types.length === 0 ? (
       <Card>
         <EmptyState title="No staff leave types yet"
-          body="Add one above. Every school grants different leave, so none are assumed." />
+          body="No leave types yet. Add one above." />
       </Card>
       ) : (
     <Card>
       <CardHeader title="What each type allows"
-        description="The quota, whether it is paid and whether it carries forward live on the leave type itself and are shown here for context. Everything editable below is the policy the database enforces when a request is made." />
+        description="Quota, paid and carry-forward are set on each leave type." />
       <Table head={['Type', 'Days a year', 'Most in a month', 'Paid', 'Carry up to', 'Half days', 'Max spell', 'Notice', 'Proof after', 'Probation', 'Restricted to', 'Apply from', 'Apply to', '']}>
         {types.map((t) => editing !== t.leave_type_id ? (
           <tr key={t.leave_type_id}>
@@ -429,7 +429,7 @@ function NewLeaveType() {
         <div className="mt-4 space-y-3">
           <Checkbox checked={f.paid} onChange={(v) => setF({ ...f, paid: v })}
             label="Paid"
-            hint="Unpaid leave costs a day. Paid leave costs nothing until the quota is used up." />
+            hint="Unpaid = 1 day cut. Paid = free until quota ends." />
           <Checkbox checked={f.carry} onChange={(v) => setF({ ...f, carry: v })}
             label="Unused days carry into next year" />
         </div>
@@ -456,7 +456,7 @@ function LOPRulesTab({
     <>
       <Card>
         <CardHeader title="Half a day"
-          description="Stored rather than assumed to be exactly half: a school with a six-period morning and an eight-period day does not split evenly." />
+          description="Fraction of a day a half day counts as." />
         <div className="p-5">
           <FormGrid>
             <Field label="A half day costs" hint="As a fraction of a day's pay, between 0 and 1">
@@ -478,7 +478,7 @@ function LOPRulesTab({
 
       <Card>
         <CardHeader title="Late arrival"
-          description="Past the grace window the day earns a late mark, and enough marks make a day. Beyond the half-day threshold the morning is simply gone and no mark is counted, so nobody is charged twice for one late bus." />
+          description="After grace: late mark. After half-day time: half day, no late mark." />
         <div className="p-5">
           <FormGrid>
             <Field label="The day starts at">
@@ -494,7 +494,7 @@ function LOPRulesTab({
                 onChange={(v) => onChange('late_marks_per_lop_day', Number(v || 1))} />
             </Field>
             <Field label="Half a day after (minutes)"
-              hint="Leave blank to switch the rule off. Zero would charge every arrival.">
+              hint="Blank = off">
               <Input type="number" value={policy.late_half_day_after_minutes?.toString() ?? ''}
                 onChange={(v) => onChange('late_half_day_after_minutes', v ? Number(v) : undefined)} />
             </Field>
@@ -504,7 +504,7 @@ function LOPRulesTab({
 
       <Card>
         <CardHeader title="What becomes loss of pay"
-          description="Payroll pro-rates every earning on the days actually paid, so what is switched on here is what a payslip will show as deducted." />
+          description="What is on here is deducted in payslips." />
         <div className="space-y-5 p-5">
           <Checkbox checked={policy.lop_on_absent} onChange={(v) => onChange('lop_on_absent', v)}
             label="An unexplained absence costs a full day" />
@@ -517,7 +517,7 @@ function LOPRulesTab({
             hint="Counted across the school's year. Only the days past the entitlement are charged; a type with no quota set is never exhausted." />
           <FormGrid>
             <Field label="Most days a month may lose"
-              hint="Leave blank for no cap. A month can never cost more days than it has.">
+              hint="Blank = no cap">
               <Input type="number" value={policy.max_lop_days_per_month?.toString() ?? ''}
                 onChange={(v) => onChange('max_lop_days_per_month', v ? Number(v) : undefined)} />
             </Field>
@@ -544,7 +544,7 @@ function RegisterTab() {
     <Card>
       <CardHeader
         title="Loss of pay for the month"
-        description="Read from the same function payroll calls, so this screen and the payslip cannot disagree. Only staff who lost something are listed."
+        description="Same figures as payroll. Only staff with deductions."
         action={
           <div className="flex flex-wrap gap-2">
             <Select value={month} onChange={setMonth}
@@ -557,7 +557,7 @@ function RegisterTab() {
         <SkeletonTable columns={6} label="Working out the month…" />
       ) : rows.length === 0 ? (
         <EmptyState title="Nobody lost a day"
-          body="Every member of staff was present, on paid leave, or inside the grace period." />
+          body="No deductions." />
       ) : (
         <Table head={['Employee', 'Absent', 'Half days', 'Unpaid leave', 'Past quota', 'Late marks', 'Days lost']}>
           {rows.map((r) => (

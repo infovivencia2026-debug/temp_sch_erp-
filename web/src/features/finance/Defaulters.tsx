@@ -253,7 +253,7 @@ export default function Defaulters() {
                     + 'Reminders stop the moment the money is in.'
                   : plan.active
                     ? 'Choose at least one channel, or switch this off.'
-                    : 'Nothing is sent automatically. Families are chased only when somebody presses Remind below.'}
+                    : 'Nothing sent automatically. Press Remind to send.'}
               </p>
 
               <div className="flex items-center justify-end gap-3">

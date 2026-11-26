@@ -144,7 +144,7 @@ export default function StaffAttendance() {
   }
   const printRange = async () => {
     const days = rangeDays(); if (!days) return
-    if (days.length > 31) { setRangeErr('Print one month at a time (31 days at most) so it fits on A4. Use Export for longer ranges.'); return }
+    if (days.length > 31) { setRangeErr('Max 31 days per print. Use Export for more.'); return }
     setRangeBusy(true)
     try {
       const { staff, marks } = await loadRange(days)
@@ -190,7 +190,7 @@ export default function StaffAttendance() {
             <ImportButton
               entity="staff_attendance"
               title="Import staff attendance"
-              hint="One row per employee per day, with the mark. Nothing is written until the dry run passes."
+              hint="One row per staff per day. Checked before saving."
             />
           )}
           <ExportButton report="staff-attendance" />
