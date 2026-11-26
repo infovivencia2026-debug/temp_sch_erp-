@@ -138,7 +138,7 @@ try {
     const bar = document.createElement('div')
     bar.setAttribute('role', 'status')
     bar.style.cssText =
-      'position:fixed;left:0;right:0;top:0;z-index:2147483000;display:flex;gap:12px;align-items:center;' +
+      'position:fixed;left:0;right:0;top:0;z-index:2147483000;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;' +
       'justify-content:center;padding:10px 16px;background:#111b21;color:#fff;font:600 14px/1.3 system-ui,sans-serif;' +
       'box-shadow:0 2px 12px rgba(0,0,0,.25)'
     bar.innerHTML =
