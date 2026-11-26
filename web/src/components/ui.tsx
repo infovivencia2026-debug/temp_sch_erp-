@@ -502,7 +502,12 @@ function FitFigure({ children }: { children: ReactNode }) {
          font-size set here a second time. */
       el.style.zoom = ''
       if (el.scrollWidth - el.clientWidth > 1 && el.clientWidth > 0) {
-        el.style.zoom = String(Math.max(0.4, Math.floor((el.clientWidth / el.scrollWidth) * 100) / 100))
+        const k = Math.floor((el.clientWidth / el.scrollWidth) * 100) / 100
+        /* Below 70% the figure is too small to read at a glance: the card
+           takes the whole row instead (the observer measures again). */
+        const card = el.closest<HTMLElement>('.cell-grid .cell')
+        if (k < 0.7 && card && !card.dataset.wide) { card.dataset.wide = '1'; card.style.setProperty('flex-basis', '100%', 'important'); return }
+        el.style.zoom = String(Math.max(0.4, k))
       }
     }
     const ro = new ResizeObserver(() => { if (!raf) raf = requestAnimationFrame(fit) })
@@ -2461,7 +2466,9 @@ export function Select({
     ]
     const extraRow = 'flex min-h-[48px] w-full items-center rounded-[12px] px-[14px] py-3 text-left text-[16px] [-webkit-tap-highlight-color:transparent] [@media(hover:hover)]:hover:bg-muted/50'
     return (
-      <div ref={box} className="relative">
+      /* At least 14em wide, so beside a label on a narrow phone the field
+         goes under the label rather than splitting its words. */
+      <div ref={box} className="relative !min-w-[min(100%,14em)]">
         <SheetTrigger label={shownLabel} placeholder={placeholder || 'Choose'} open={open}
           onOpen={() => { setOpen(true); setQuery(''); setTyped(false) }} />
         <OptionSheet

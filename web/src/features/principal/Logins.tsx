@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/Skeleton'
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, startTransition, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Check, Copy, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
@@ -245,7 +245,12 @@ export default function Logins() {
   /* Opening Parents while "1 cannot sign in" was still held from Staff showed
      a table of parents under a heading nobody had asked for. A tile belongs to
      the tab it was pressed on. */
-  const pickTab = (k: string) => { setTileLens(''); setRollFilter(''); setRecord(k) }
+  /* The pill lights at once; the list behind it re-renders as a transition,
+     so a tab press never freezes the screen while hundreds of rows rebuild
+     (owner, 2026-11-26: 480-540ms on a slow phone). */
+  const [tabUi, setTabUi] = useState(record)
+  useEffect(() => { setTabUi(record) }, [record])
+  const pickTab = (k: string) => { setTabUi(k); startTransition(() => { setTileLens(''); setRollFilter(''); setRecord(k) }) }
 
   const { roles } = useRoleCatalog()
   const [creating, setCreating] = useState(false)
@@ -369,7 +374,7 @@ export default function Logins() {
               : k && rollCount[k] !== undefined ? rollCount[k]!
               : k ? everyone.filter((u) => u.record === k).length
               : everyone.length
-            const on = record === k
+            const on = tabUi === k
             return (
               <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => pickTab(k)}
                 className={cn(/* One row that scrolls on a phone: wrapped, the pills squeezed
