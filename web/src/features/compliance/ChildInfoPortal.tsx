@@ -188,7 +188,7 @@ export default function ChildInfoPortal() {
         <Card>
           <CardHeader
             title="Export a school's roster"
-            description="The file you upload on the portal. Its columns match what the reconciliation reads back, so a round trip needs no mapping step."
+            description="File to upload on the portal."
           />
           <div className="flex flex-wrap items-end gap-3 px-5 pb-5 pt-4">
             <div className="min-w-64">
@@ -416,7 +416,7 @@ export default function ChildInfoPortal() {
         <Card>
           <CardHeader
             title="Exchange history"
-            description="What an operator did and when. A logbook, not a scheduler, nothing here ran on its own."
+            description="Log of actions"
           />
           {runs.error && <ErrorState error={runs.error} />}
           <Table

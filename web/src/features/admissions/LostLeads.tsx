@@ -134,7 +134,7 @@ export default function LostLeads() {
       <PageHead
         eyebrow="Admissions"
         title="Lost lead reason analysis"
-        description="Why enquiries did not convert, grouped the four ways a pattern shows up in."
+        description="Why enquiries were lost"
         actions={
           <RangePicker value={range} onChange={setRange} options={presets.data?.items ?? []} />
         }
@@ -153,7 +153,7 @@ export default function LostLeads() {
         <Card>
           <CardHeader
             title="Close a lead"
-            description="The reason is required. The moment the counsellor gives up is the only moment anybody still knows the answer."
+            description="Reason required."
           />
           <div className="space-y-5 p-5">
             <FormGrid>
@@ -182,7 +182,7 @@ export default function LostLeads() {
               </Field>
               <Field
                 label="Note"
-                hint="What a code cannot carry: “wanted a 30% concession”, “moving to Pune in June”."
+                hint="Details, e.g. wanted a 30% concession"
                 wide
               >
                 <Textarea value={note} onChange={setNote} rows={2} />
@@ -211,7 +211,7 @@ export default function LostLeads() {
         <Card>
           <CardHeader
             title="The pattern"
-            description="Share is withheld below five enquiries in a group, one lost enquiry is not a rate."
+            description="Share shown from 5 enquiries up."
             action={
               <div className="w-full sm:w-[220px]">
                 <Select value={by} onChange={setBy} options={LOST_DIMENSIONS} />
@@ -348,7 +348,7 @@ export default function LostLeads() {
         {unrecorded > 0 && (
           <EmptyState
             title={`${unrecorded} lost leads carry no reason`}
-            body="They predate this screen, or were closed elsewhere. They are counted as “Not recorded” rather than dropped, because pretending they do not exist would flatter every other number on this page."
+            body="Closed without a reason. Counted as Not recorded."
           />
         )}
       </PageBody>

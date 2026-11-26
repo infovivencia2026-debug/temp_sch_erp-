@@ -86,7 +86,7 @@ export default function DepartmentStudents() {
       <PageHead
         eyebrow="Students"
         title="Department students"
-        description="The children each department reaches through its own teachers, with attendance, marks and backlogs alongside."
+        description="Students per department"
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -105,7 +105,7 @@ export default function DepartmentStudents() {
           <Card>
             <CardHeader
               title="Departments"
-              description="Reach is counted through allocation, so a department with no subjects allocated shows none."
+              description="Based on subject allocation"
             />
             <Table head={['Department', 'Head', 'Staff', 'Sections', 'Students']}>
               {depts.map((d) => (
@@ -124,7 +124,7 @@ export default function DepartmentStudents() {
         <Card>
           <CardHeader
             title="The roll"
-            description="Absences are excluded from the marks figure rather than scored nought, a child who was ill has not failed."
+            description="Absences not counted as zero."
             action={
               <div className="flex flex-wrap items-center gap-2">
                 <Input
@@ -154,7 +154,7 @@ export default function DepartmentStudents() {
           {rows.length === 0 ? (
             <EmptyState
               title="No students reached"
-              body="A department reaches children through the subjects its teachers are allocated. Allocate one and the roll fills."
+              body="No subjects allocated yet."
             />
           ) : (
             <Table

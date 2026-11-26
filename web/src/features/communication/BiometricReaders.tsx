@@ -93,13 +93,13 @@ export default function BiometricReaders() {
       <PageHead
         eyebrow="Staff"
         title="Attendance readers"
-        description="The fingerprint readers this school runs. Each one dials out to us as punches happen, so staff attendance is current rather than collected at the end of the day."
+        description="Fingerprint readers. Punches arrive live."
       />
       <PageBody>
         <Card>
           <CardHeader
             title="Readers"
-            description="A reader is registered before it is trusted. Activate it once it shows as seen."
+            description="Activate once it shows as seen."
             action={
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="secondary" onClick={() => setAdding((v) => !v)}>
@@ -120,7 +120,7 @@ export default function BiometricReaders() {
                 <Field
                   label="Serial"
                   required
-                  hint="Printed on the label on the back of the reader, and the only thing it tells us about itself."
+                  hint="On the label at the back"
                 >
                   <Input value={f.serial} onChange={(v) => setF({ ...f, serial: v })} />
                 </Field>
@@ -150,7 +150,7 @@ export default function BiometricReaders() {
           ) : rows.length === 0 ? (
             <EmptyState
               title="No readers registered"
-              body="Add the serial from the label on the back, then point the reader at this site."
+              body="No readers. Add the serial from the back label."
             />
           ) : (
             <Table head={['Reader', 'Serial', 'Last seen', 'Punches today', 'Unclaimed', '']}>
@@ -208,7 +208,7 @@ export default function BiometricReaders() {
           <Card>
             <CardHeader
               title="Not yet matched to staff"
-              description="Reader ids whose punches are not linked to anyone on the staff list yet. They are matched by the name enrolled on the reader; the reader holds no phone numbers, so a name it cannot match one person to stays here for the office to link."
+              description="Unmatched reader IDs. Link them to staff."
             />
             <Table head={['Reader id', 'Name on the reader', 'Punches', 'First punch', 'Latest punch']}>
               {orphans.map((o) => (

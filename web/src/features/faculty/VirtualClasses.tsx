@@ -49,7 +49,7 @@ export default function VirtualClasses() {
       <PageHead
         eyebrow="Teaching workspace"
         title="Live virtual class launcher"
-        description="Schedule a live class for a section and start it when the period comes."
+        description="Schedule and start live classes."
         actions={
           <Button onClick={() => setComposing((c) => !c)}>
             <Plus className="h-3.5 w-3.5" />
@@ -65,7 +65,7 @@ export default function VirtualClasses() {
               body={
                 configured.length > 0
                   ? `${configured.map((p) => p.display_name).join(', ')} is recorded for this school, but no meeting API is wired to it yet, so the school cannot create meetings automatically. Create the meeting in Zoom or Meet and paste its join link onto the session, everything else on this screen works.`
-                  : 'The school has not connected Zoom, Google Meet or Teams, and no meeting API is wired in this build. Create the meeting yourself and paste its join link onto the session, scheduling, the register and the launch record all work.'
+                  : 'Create the meeting in Zoom/Meet/Teams and paste the link.'
               }
               technical={[
                 { label: 'Status', value: 'provider integration blocked' },
@@ -92,7 +92,7 @@ export default function VirtualClasses() {
           {rows.length === 0 ? (
             <EmptyState
               title="No live classes scheduled"
-              body="Schedule one for a section you teach; paste the meeting link and it becomes joinable."
+              body="No live classes yet."
             />
           ) : (
             <Table head={['Topic', 'Class', 'Subject', 'When', 'For', 'Status', '']}>
@@ -231,7 +231,7 @@ function Schedule({ onDone }: { onDone: () => void }) {
     <Card>
       <CardHeader
         title="Schedule a live class"
-        description="Paste a meeting link now to make it joinable, or add one later."
+        description="Paste the meeting link (or add later)."
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>
@@ -272,7 +272,7 @@ function Schedule({ onDone }: { onDone: () => void }) {
           </Field>
           <Field
             label="Meeting link"
-            hint="Optional. Without one the session waits, and cannot be started."
+            hint="Needed to start the class."
           >
             <Input value={joinURL} onChange={setJoinURL} placeholder="https://zoom.us/j/…" />
           </Field>

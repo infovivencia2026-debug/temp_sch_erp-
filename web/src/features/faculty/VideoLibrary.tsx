@@ -232,7 +232,7 @@ function Uploader({ lib, onChange, onUploaded }: { lib: Library; onChange: () =>
             <input ref={fileRef} type="file" accept={ACCEPT} className="sr-only" disabled={!!busy} data-testid="video-file"
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void pick(f) }} />
           </label>
-          <span className="text-[13px] text-muted-foreground">To resume an upload that stopped, choose the same file again.</span>
+          <span className="text-[13px] text-muted-foreground">To resume, choose the same file.</span>
         </div>
         {err && <p className="text-[13px] text-destructive">{err}</p>}
         {job && (
@@ -312,7 +312,7 @@ export default function VideoLibrary({ back }: { back?: () => void }) {
                 <div className="w-full sm:w-40"><Field label="Status"><Select value={status} onChange={setStatus} options={[{ value: '', label: 'Any' }, { value: 'ready', label: 'Ready' }, { value: 'uploading', label: 'Uploading' }, { value: 'failed', label: 'Failed' }]} /></Field></div>
                 {d.admin && <label className="flex h-9 items-center gap-2 text-[14px]"><input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Only mine</label>}
               </div>
-              {!d.items.length ? <EmptyState title="No videos yet" body="Upload a video above; it can then be used in any of your lessons." /> : (
+              {!d.items.length ? <EmptyState title="No videos yet" body="No videos yet." /> : (
                 <ul className="divide-y border-t">
                   {d.items.map((v) => (
                     <li key={v.id} className="px-[var(--card-pad)] py-3" data-testid="video-row">
@@ -332,7 +332,7 @@ export default function VideoLibrary({ back }: { back?: () => void }) {
                               v.lessons ? `in ${v.lessons} lesson${v.lessons === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ')}
                           </p>
                           {v.description && <p className="text-[13px]">{v.description}</p>}
-                          {v.status === 'uploading' && <p className="text-[13px] text-muted-foreground">To finish, choose the same file again above; only the missing parts are sent.</p>}
+                          {v.status === 'uploading' && <p className="text-[13px] text-muted-foreground">Choose the same file again to finish.</p>}
                         </div>
                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                           {v.status === 'ready' && <Button size="sm" onClick={() => { setUsing(v); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>Use in lesson</Button>}
@@ -457,6 +457,6 @@ export function VideoPick({ value, onChange }: { value: string; onChange: (id: s
   if (q.isLoading) return <Loading />
   if (q.error) return <FormNotice error={q.error} />
   const items = q.data?.items ?? []
-  if (!items.length) return <p className="text-[13px] text-muted-foreground">Your video library is empty. Upload a video in LMS → Video library first.</p>
+  if (!items.length) return <p className="text-[13px] text-muted-foreground">No videos. Upload in LMS → Video library.</p>
   return <Select value={value} onChange={onChange} placeholder="Choose a video" options={items.map((v) => ({ value: v.id, label: `${v.title}${v.duration_seconds ? ` (${fmtDur(v.duration_seconds)})` : ''}` }))} />
 }

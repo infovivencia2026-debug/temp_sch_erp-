@@ -124,12 +124,12 @@ export default function BaselineAnalysis() {
         <Card>
           <CardHeader
             title="Each cohort against its own baseline"
-            description="Both ends are named. Anyone can reproduce the figure from the marks register."
+            description="Between these two assessments"
           />
           {cohorts.length === 0 ? (
             <EmptyState
               title="No marks yet this year"
-              body="Growth needs two assessments to measure between. Enter a paper and the first baseline appears here."
+              body="Needs two assessments."
             />
           ) : (
             <Table head={['Class', 'Baseline exam', 'Baseline', 'Latest exam', 'Latest', 'Movement', 'Assessments']}>
@@ -165,7 +165,7 @@ export default function BaselineAnalysis() {
           <Card>
             <CardHeader
               title="Where the movement is"
-              description="Subject by subject, between the same two assessments as above."
+              description="By subject"
             />
             <Table head={['Subject', 'Baseline', 'Latest', 'Movement']}>
               {(d?.subjects ?? []).map((m) => (
@@ -184,7 +184,7 @@ export default function BaselineAnalysis() {
           <Card>
             <CardHeader
               title="Child by child"
-              description="A cohort average hides the child who fell twenty points while the class rose four."
+              description="By child"
             />
             <Table head={['Child', 'Admission no', 'Baseline', 'Latest', 'Movement']}>
               {(d?.students ?? []).map((m) => (
@@ -210,7 +210,7 @@ export default function BaselineAnalysis() {
                 an explanation. */}
             <EmptyState
               title="Choose a class for the detail"
-              body="Subject and per-child movement are shown one cohort at a time; across the whole school they are thousands of rows and no conclusion."
+              body="Pick a class to see details."
             />
           </Card>
         )}

@@ -26,15 +26,15 @@ interface Step {
 const STEPS: Step[] = [
   { entity: 'classes', title: 'Classes and sections', mcb: 'SIS > Time Table > Timetable Structure, or Organisation > Branch Settings > Classes', note: 'Do this first: every other file names a class.',
     map: { name: 'Class', sections: 'Sections', capacity: 'Capacity', strength: 'Strength' } },
-  { entity: 'students', title: 'Students, with their parents', mcb: 'SIS > Reports > Student Contact Details (export to Excel), saved as CSV', note: 'One row per child. Father, mother and guardian come across on the same row and get their logins from here.',
+  { entity: 'students', title: 'Students, with their parents', mcb: 'SIS > Reports > Student Contact Details (export to Excel), saved as CSV', note: 'One row per child, with parents.',
     map: { full_name: 'Student Name', admission_no: 'Admission No', date_of_birth: 'Date Of Birth', gender: 'Gender', class: 'Class', section: 'Section', roll_no: 'Roll No', blood_group: 'Blood Group', medium: 'Medium',
       address: 'Address', city: 'City', state: 'State', pincode: 'Pincode', admission_date: 'Date Of Admission', prior_school: 'Previous School',
       father_name: 'Father Name', father_phone: 'Father Mobile', father_email: 'Father Email', mother_name: 'Mother Name', mother_phone: 'Mother Mobile', mother_email: 'Mother Email' } },
-  { entity: 'staff', title: 'Staff', mcb: 'HR > Reports > Staff Details Report', note: 'Teachers, office and support staff alike. Designation and department are created when they are new.',
+  { entity: 'staff', title: 'Staff', mcb: 'HR > Reports > Staff Details Report', note: 'All staff',
     map: { employee_code: 'Employee Id', first_name: 'First Name', last_name: 'Last Name', email: 'Email', phone: 'Mobile', designation: 'Designation', department: 'Department', employment_type: 'Employment Type', joined_on: 'Date Of Joining', qualification: 'Qualification' } },
-  { entity: 'fee_structures', title: 'Fee structures', mcb: 'Finance > Fee Management > Assign Fee to Students (the fee plan list), or Audit Reports > Fee Plan details report', note: 'What each class pays under each head for the year, and in how many instalments.',
+  { entity: 'fee_structures', title: 'Fee structures', mcb: 'Finance > Fee Management > Assign Fee to Students (the fee plan list), or Audit Reports > Fee Plan details report', note: 'Class fees and instalments',
     map: { structure: 'Fee Plan', class: 'Class', fee_head: 'Fee Head', annual_amount: 'Amount', instalments: 'Installments' } },
-  { entity: 'fee_payments', title: 'Fee receipts already taken this year', mcb: 'Finance > Collection Reports > Fee Collection Reports (export for the year)', note: 'So the dues are right from the first day. Receipt numbers are kept as MCB printed them.',
+  { entity: 'fee_payments', title: 'Fee receipts already taken this year', mcb: 'Finance > Collection Reports > Fee Collection Reports (export for the year)', note: 'Past receipts, numbers kept.',
     map: { admission_no: 'Admission No', receipt_no: 'Receipt No', paid_on: 'Receipt Date', amount: 'Amount', mode: 'Payment Mode', remarks: 'Remarks' } },
 ]
 
@@ -106,7 +106,7 @@ export default function MoveFromMCB() {
               sequence, so they are drawn as one: numbered, joined by a line,
               each carrying its own state, the open one marked. */}
           <Card>
-            <CardHeader title="Five files, in this order" description="Download each from MyClassBoard as Excel, save it as CSV, and bring it here. A dry run writes nothing." />
+            <CardHeader title="Five files, in this order" description="Export from MyClassBoard as CSV and upload. Dry run saves nothing." />
             <ol className="px-2 pb-4 pt-3 sm:px-5 sm:pb-5">
               {STEPS.map((x, i) => {
                 const st = stateOf(x.entity)
@@ -157,7 +157,7 @@ export default function MoveFromMCB() {
 
               <div>
                 <h3 className="text-[14px] font-semibold">Match the columns</h3>
-                <p className="mt-0.5 text-[13px] text-muted-foreground">MyClassBoard&rsquo;s own column names are filled in already. Change one only where that school&rsquo;s export differs; leave it empty if there is no such column.</p>
+                <p className="mt-0.5 text-[13px] text-muted-foreground">Column names pre-filled. Change only if different.</p>
                 {fields.isLoading ? <Loading shape="inline" /> : fields.error ? <ErrorState error={fields.error} /> : (
                   <div className="mt-3 divide-y rounded-lg border">
                     {(fields.data?.fields ?? []).map((f) => (

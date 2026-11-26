@@ -164,7 +164,7 @@ export default function WorkingDays() {
       <PageHead
         eyebrow="Statutory returns"
         title="Working days & instructional hours"
-        description="Counted from the academic calendar and the timetable, against the RTE minimum for each stage. The point is to see a shortfall while there is still term left to fix it."
+        description="Working days vs RTE minimum."
         width="wide"
         actions={
           <Button variant="secondary" onClick={() => setToDate((v) => !v)}>
@@ -268,7 +268,7 @@ export default function WorkingDays() {
             <Card>
               <CardHeader
                 title="Adjustments"
-                description="Half days, unscheduled closures, a Saturday worked to make it back. Every one carries a reason, because the return has to be able to explain the difference between the calendar and what it reports."
+                description="Half days, closures and make-up days, with reasons."
               />
               <div className="space-y-3 px-5 pb-5 pt-1">
                 <FormGrid>
@@ -314,7 +314,7 @@ export default function WorkingDays() {
               <Table
                 head={['Date', 'Class', 'Days', 'Minutes', 'Reason', 'Recorded by', '']}
                 empty={!adjustments.data?.items.length && !adjustments.error}
-                emptyLabel="No adjustments, the figures above are the calendar as planned."
+                emptyLabel="No adjustments."
               >
                 {(adjustments.data?.items ?? []).map((a) => (
                   <tr key={a.id}>
@@ -330,7 +330,7 @@ export default function WorkingDays() {
                         variant="ghost"
                         tone="danger"
                         confirmLabel="Remove"
-                        question="Remove this adjustment? The figures go back to what the calendar says."
+                        question="Remove this adjustment?"
                         onConfirm={() => removeAdjustment.mutate(a.id)}
                       >
                         Remove
@@ -344,7 +344,7 @@ export default function WorkingDays() {
             <Card>
               <CardHeader
                 title="The statutory minimum"
-                description="RTE Act figures for classes I–VIII; the secondary bands are the common state norm and are editable, because states amend them and a stricter board norm is the one you will be inspected on."
+                description="RTE norms for I–VIII. Others editable."
               />
               {norms.error && <ErrorState error={norms.error} />}
               <Table

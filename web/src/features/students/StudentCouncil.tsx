@@ -94,7 +94,7 @@ export default function StudentCouncil() {
       <PageHead
         eyebrow="Students"
         title="Student council"
-        description="The posts this year, the children elected to them, and the duties they were actually given."
+        description="Council posts, members and duties."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -161,7 +161,7 @@ export default function StudentCouncil() {
         <Card>
           <CardHeader
             title="Council members"
-            description="A duty logged against a member is what a testimonial is written from three years later."
+            description="Duties done"
           />
           {members.length === 0 ? (
             <EmptyState title="Nobody seated yet" body="Seat a child against a post below." />
@@ -276,7 +276,7 @@ function NewPosition({ onSaved }: { onSaved: () => void }) {
     <Card>
       <CardHeader
         title="Define a post"
-        description="Four house captains are one post with four seats, not four posts."
+        description="Seats for this post"
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>
@@ -359,7 +359,7 @@ function SeatMember({
     <Card>
       <CardHeader
         title="Seat a member"
-        description="A post with every seat taken refuses another, rather than quietly overfilling."
+        description="All seats filled."
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>
