@@ -199,6 +199,7 @@ async function run([w, f]) {
     await p.waitForTimeout(1200).catch(() => {})
     await p.waitForFunction(() => !/Loading|Looking up|Opening your|OPENING YOUR/i.test(document.body.innerText) && !!document.querySelector("main") && !/Loading|Looking up/.test(document.querySelector('main')?.innerText || document.body.innerText), null, { timeout: 15000 }).catch(() => {})
     await p.waitForTimeout(600).catch(() => {})
+    await p.evaluate(() => Promise.race([Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, 3000))])).catch(() => {})
     const c = await p.evaluate(check).catch((e) => ({ err: String(e).slice(0, 80) }))
     if (process.env.SHOTS) await p.screenshot({ path: path.join(outDir, `${w}-${f}-${r.replace(/\W+/g, '_')}.png`), fullPage: true }).catch(() => {})
     rep.push({ w, f, route: r, ...c, js: [...new Set(js)] })
