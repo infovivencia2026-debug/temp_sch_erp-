@@ -216,7 +216,7 @@ export default function TallyExport() {
                 checked={includeExported}
                 onChange={setIncludeExported}
                 label="Include vouchers that have been exported before"
-                hint="Off by default. Importing the same voucher into Tally twice has to be undone by deleting each one."
+                hint="Off by default. Avoid importing twice."
               />
             </Field>
           </FormGrid>
@@ -328,7 +328,7 @@ function Blocked({ v }: { v: TallyValidation }) {
     <Card>
       <CardHeader
         title="This period cannot be exported yet"
-        description="Tally rejects an entire import for one unmapped ledger, so the file is not produced until every account below has a Tally name against it."
+        description="Map every account to a Tally name first."
         action={<Badge tone="danger">Blocked</Badge>}
       />
       <div className="space-y-2 p-5 pb-4">
@@ -396,12 +396,12 @@ function Runs({
     <Card>
       <CardHeader
         title="Exports so far"
-        description="Every file this school has produced. A voucher already in Tally is painful to remove, so this is the record that stops it being sent twice."
+        description="Export history"
       />
       {runs.length === 0 ? (
         <EmptyState
           title="Nothing has been exported yet"
-          body="The first export will be listed here with its period and voucher count."
+          body="No exports yet."
         />
       ) : (
         <Table

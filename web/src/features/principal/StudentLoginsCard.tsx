@@ -172,7 +172,7 @@ export function StudentLoginsCard({ policyOnly = false }: { policyOnly?: boolean
           {p.enabled ? <Badge tone="success">On</Badge> : <Badge>Off</Badge>}{' '}
           {p.enabled
             ? `Children${p.min_level !== null ? ` from class level ${p.min_level} up` : ''} can sign in with their own login and see only their own timetable, homework, marks, attendance, fees and courses.`
-            : 'Children cannot be given a login, and any login a child already has cannot sign in.'}
+            : 'Student logins are off.'}
           {!p.chosen && ' (Not chosen yet: this follows whether the school has issued student logins before.)'}
         </p>
         <p className="text-muted-foreground">
@@ -218,7 +218,7 @@ export function StudentLoginsCard({ policyOnly = false }: { policyOnly?: boolean
               </div>
               <Button needsNetwork disabled={!target} pending={issue.isPending && !issue.variables} onClick={() => issue.mutate(false)}>Issue logins</Button>
               <Button needsNetwork variant="secondary" disabled={!target} pending={issue.isPending && !!issue.variables}
-                onClick={() => { if (window.confirm('Give every child in this class or section a new code? The codes they hold now stop working.')) issue.mutate(true) }}>
+                onClick={() => { if (window.confirm('New codes for this class? Old codes stop working.')) issue.mutate(true) }}>
                 Reset every code
               </Button>
             </div>
@@ -308,8 +308,8 @@ export function IssueLoginsCard({ kind }: { kind: 'guardians' | 'staff' }) {
         title={kind === 'staff' ? 'Issue staff logins' : 'Issue parent logins'}
         description={
           kind === 'staff'
-            ? 'Everybody on the roll who has no login yet. They sign in with their staff number, email or phone.'
-            : 'Every guardian of the children in a class or section. They sign in with their phone number.'
+            ? 'Staff without a login yet.'
+            : 'Guardians sign in with their phone.'
         }
       />
       <div className="space-y-4 px-[var(--card-pad)] py-4 text-[14px]">

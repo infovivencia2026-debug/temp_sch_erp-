@@ -101,7 +101,7 @@ function StaffSyllabus({ employeeID }: { employeeID: string }) {
   if (!q.isLoading && !q.error && !items.length) return null
   return (
     <Card>
-      <CardHeader title="Syllabus" description="Chapters covered per class and subject, from Lesson plan → Chapters." />
+      <CardHeader title="Syllabus" description="Chapters covered per class and subject." />
       {q.isLoading ? <div className="p-5"><Loading shape="inline" /></div>
         : q.error ? <div className="p-4"><ErrorState error={q.error} /></div>
         : (
@@ -767,7 +767,7 @@ export default function StaffRecord({ employeeID, onClose }: {
           <Card>
             <CardHeader
               title="Bank & statutory"
-              description="Used by payroll to pay this person and to file their returns."
+              description="Used for salary and returns."
             />
             <div className="grid gap-3 p-4 sm:grid-cols-2">
               {([
@@ -847,7 +847,7 @@ export default function StaffRecord({ employeeID, onClose }: {
           <Card>
             <CardHeader
               title="Subjects they teach"
-              description="The same allocation the timetable reads. Changing it here changes it there."
+              description="Also updates the timetable."
               action={
                 <Button size="sm" variant={adding ? 'secondary' : 'primary'}
                   onClick={() => setAdding(!adding)}>
@@ -1150,7 +1150,7 @@ export default function StaffRecord({ employeeID, onClose }: {
       key: 'tasks', label: 'Tasks', badge: s?.tasks.length || undefined,
       render: () => summary.error ? <ErrorState error={summary.error} /> : !s ? <Loading shape="inline" /> : (
         <Card>
-          <CardHeader title="Open tasks" description="Given to them and not yet done. Done tasks are on the timeline." />
+          <CardHeader title="Open tasks" description="Open tasks" />
           <Table head={['Task', 'Due', 'Priority', 'Given by']} empty={!s.tasks.length} emptyLabel="No open tasks.">
             {s.tasks.map((k) => (
               <tr key={k.id}>

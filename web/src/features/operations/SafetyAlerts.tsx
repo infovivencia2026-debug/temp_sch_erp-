@@ -120,7 +120,7 @@ function ReviewBox({
   // button, is the difference between a rule the screen teaches and one it
   // springs on you.
   const why = trimmed.length === 0
-    ? 'Say what was done about it, the alert cannot be closed without a note.'
+    ? 'Note required to close.'
     : trimmed.length < 5
       ? 'A few words at least: whoever reads this next was not there.'
       : ''
@@ -241,7 +241,7 @@ export default function SafetyAlerts() {
           <Card>
             <CardHeader
               title={openOnly === 'true' ? 'Open alerts' : 'All alerts'}
-              description="Open first, newest first. The most recent 300 are kept on this screen."
+              description="Open first. Latest 300."
             />
             <Table
               head={[
@@ -255,8 +255,8 @@ export default function SafetyAlerts() {
               empty={items.length === 0}
               emptyLabel={
                 openOnly === 'true'
-                  ? 'Nothing open. Every alert raised has been closed with a note.'
-                  : 'No alerts have been raised. Either the fleet is driving well or no bus is reporting position.'
+                  ? 'No open alerts.'
+                  : 'No alerts.'
               }
             >
               {items.map((e) => (

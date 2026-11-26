@@ -861,7 +861,7 @@ function FeeManagement({ hub }: { hub: Hub }) {
               )
             })}
           </Table>
-          <div className="px-[var(--card-pad)] pb-4"><FormNotice error={assign.error} /><p className="text-[12.5px] text-muted-foreground">Transport and after-school activities are assigned the same way, by their plan (route or activity). Each instalment of the plan is billed with its own due date.</p></div>
+          <div className="px-[var(--card-pad)] pb-4"><FormNotice error={assign.error} /><p className="text-[12.5px] text-muted-foreground">Transport and activities: assign a plan. Each instalment has its own due date.</p></div>
         </>
       )}
       {tab === 'misc' && <MiscFee hub={hub} />}

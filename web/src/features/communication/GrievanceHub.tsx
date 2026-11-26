@@ -220,7 +220,7 @@ export default function GrievanceHub() {
       <PageHead
         eyebrow="Communication"
         title="Parent feedback & grievances"
-        description="Every concern a parent or student has raised, who owns it, and whether the school kept the date it promised."
+        description="Concerns, owners and deadlines."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -359,7 +359,7 @@ export default function GrievanceHub() {
         <Card>
           <CardHeader
             title="What recurs, and what takes longest"
-            description="The queue tells you what is open today. This is the half a governing body asks about."
+            description="Trends and deadlines met"
           />
           {summary.isLoading ? (
             <SkeletonTable columns={9} />
@@ -399,7 +399,7 @@ export default function GrievanceHub() {
         <Card>
           <CardHeader
             title="What the school promises"
-            description="The deadline stamped onto a case at triage. Changing it here does not move deadlines already given."
+            description="Applies to new cases only."
           />
           <Table loading={slas.isLoading}
             head={['Category', 'First response', 'Resolution', 'Owner', 'Department', 'Active']}
@@ -604,7 +604,7 @@ function CaseCard({
             </div>
 
             <div className="space-y-2 border-t pt-4">
-              <Field label="Resolution" hint="Always sent to the raiser, who can rate it or reopen it within 14 days.">
+              <Field label="Resolution" hint="Sent to the raiser. They can reopen within 14 days.">
                 <Textarea value={resolution} onChange={setResolution} rows={3} />
               </Field>
               <div className="flex flex-wrap gap-2">

@@ -179,7 +179,7 @@ export default function Circulars() {
         title="Circulars"
         description={
           canPublish
-            ? 'Publish to the portal, and push it as SMS or email as well. Address it to parents, to students or to both, and to the whole school or named sections.'
+            ? 'Publish to the portal, with SMS or email, to chosen groups.'
             : 'Notices the school has published, newest first.'
         }
       />
@@ -378,7 +378,7 @@ export default function Circulars() {
               checked={requiresAck}
               onChange={setRequiresAck}
               label="Require acknowledgement"
-              hint="Each recipient is asked to confirm they have read it, and the count appears below."
+              hint="Recipients confirm they have read it."
             />
 
             {publish.isError && (
@@ -530,7 +530,7 @@ function Delivery({ id }: { id: string }) {
     <Card>
       <CardHeader
         title={d.title}
-        description="Everyone this circular was delivered to, and whether they have acknowledged it."
+        description="Delivered to, and read by"
       />
       <CellGrid cols={3}>
         <Stat label="Delivered to" value={d.delivered} hint="On their portal and in their bell" />
@@ -544,7 +544,7 @@ function Delivery({ id }: { id: string }) {
       <Table
         head={['Name', 'Who they are', 'About', 'Acknowledged']}
         empty={d.people.length === 0}
-        emptyLabel="Nobody could be reached, no parent or staff account matches this audience."
+        emptyLabel="No one matches this audience."
       >
         {d.people.map((p, i) => (
           <tr key={`${p.name}-${i}`}>

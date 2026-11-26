@@ -148,7 +148,7 @@ export default function ReportDigests() {
         <Panel className="p-4 sm:p-5">
           <SectionHead
             title="When they go out"
-            note="The daily digest is sent at 07:00; the weekly on Monday at 07:00, for the week just closed."
+            note="Daily at 07:00. Weekly on Monday 07:00."
           />
           <div className="mt-3 space-y-2">
             <Checkbox
@@ -173,7 +173,7 @@ export default function ReportDigests() {
         <Panel className="p-4 sm:p-5">
           <SectionHead
             title="Reports"
-            note="Turn off what is not necessary, and choose the channels for the rest."
+            note="Choose reports and channels."
           />
           <div className="mt-3 space-y-4">
             {reports.map((r) => {
@@ -217,7 +217,7 @@ export default function ReportDigests() {
         <Panel className="p-4 sm:p-5">
           <SectionHead
             title="Who receives it"
-            note="Board members and institution admins. This list is resolved for every run, so a new board member is added automatically."
+            note="Board members and admins."
           />
           <div className="mt-3">
             <Stat label="Recipients" value={String(settings.data?.recipient_count ?? 0)} />
@@ -226,7 +226,7 @@ export default function ReportDigests() {
             {recipients.length === 0 ? (
               <EmptyState
                 title="No recipients yet"
-                body="No one currently holds board member or institution admin, so a digest would reach nobody."
+                body="No board members or admins yet."
               />
             ) : (
               <ul className="space-y-2">

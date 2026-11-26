@@ -337,7 +337,7 @@ function Compose({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string) 
     <Card>
       <CardHeader
         title="Add a question"
-        description="Tag it now, a question nobody can find is a question nobody reuses."
+        description="Add tags so it can be found."
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>
@@ -352,7 +352,7 @@ function Compose({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string) 
               }))}
             />
           </Field>
-          <Field label="Question type" hint="Any type the desktop QMaker has; pictures can go in while typing.">
+          <Field label="Question type" hint="All QMaker types. Pictures allowed.">
             <Select
               value={type}
               onChange={setType}
@@ -489,7 +489,7 @@ async function generateFromPDF(form: FormData): Promise<GenResult> {
     })
   } catch (e) {
     if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) throw new Error('This took too long on this connection. Try again.')
-    throw new Error('Could not reach the server. Check the connection and try again.')
+    throw new Error('Could not connect. Try again.')
   }
   const text = await res.text()
   let body: any = null
@@ -574,7 +574,7 @@ function GenerateFromLesson({ onDone }: { onDone: () => void }) {
     <Card>
       <CardHeader
         title="Generate from a lesson (PDF)"
-        description="Upload a lesson or exercise PDF and the assistant drafts questions you can review."
+        description="Upload a PDF to draft questions."
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>

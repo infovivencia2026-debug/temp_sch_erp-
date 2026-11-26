@@ -176,7 +176,7 @@ export default function HostelRoomChecks() {
       <PageHead
         eyebrow="Hostel"
         title="Room inventory checklists"
-        description="What was in the room when the boarder moved in, and what was there when they moved out."
+        description="Room items at check-in and check-out."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -198,7 +198,7 @@ export default function HostelRoomChecks() {
         <Card>
           <CardHeader
             title="Inspections"
-            description="Check-in and check-out use the same list, so the two can be read against each other."
+            description="Same list for both."
             action={
               <span className="flex items-center gap-2">
                 <Select
@@ -346,7 +346,7 @@ export default function HostelRoomChecks() {
                 checked={head.boarder_signed}
                 onChange={(v) => setHead({ ...head, boarder_signed: v })}
                 label="The boarder has seen and agreed this list"
-                hint="A recovery raised against a child who never saw the sheet is the argument this settles."
+                hint="Boarder signs to confirm."
               />
               <div className="flex flex-wrap items-center gap-2">
                 <Button
@@ -371,7 +371,7 @@ export default function HostelRoomChecks() {
           {rows.length === 0 ? (
             <EmptyState
               title="No inspections yet"
-              body="Walk a room at check-in so there is something to compare the check-out against."
+              body="No checks yet."
             />
           ) : (
             <Table head={['Room', 'Boarder', 'Kind', 'Date', 'Lines', 'Recoverable', '']}>

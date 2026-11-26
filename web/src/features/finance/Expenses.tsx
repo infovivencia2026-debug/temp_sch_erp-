@@ -44,7 +44,7 @@ export default function Expenses() {
       <PageHead
         eyebrow="Accounts"
         title="Expenses"
-        description="Every head the school spent against this year, and where each charge came from. Drawn from the ledger, so it agrees with the income and expenditure account by construction."
+        description="Spending by head this year."
         width="wide"
         actions={<div className="w-44"><Select value={fy} onChange={setFy} options={fyOptions()} /></div>}
       />
@@ -63,10 +63,10 @@ export default function Expenses() {
 
         <Card>
           <CardHeader title="By head"
-            description="Ordered by what was actually spent. Closing vouchers are excluded, so a closed year still shows what it cost to run rather than the nil balance the close left behind." />
+            description="Highest spend first" />
           {rows.length === 0 ? (
             <EmptyState title="Nothing spent yet this year"
-              body="Approve a vendor bill, pass a petty cash slip, or record a direct payment below." />
+              body="No expenses yet." />
           ) : (
             <Table head={['Code', 'Head', 'Group', 'Vouchers',
               { label: 'Bills', align: 'right' }, { label: 'Petty cash', align: 'right' },
@@ -139,7 +139,7 @@ function RecordExpense() {
   return (
     <Card>
       <CardHeader title="Record a direct payment"
-        description="The plumber paid at the gate, the courier charge, the sweets for a prize day, money that never became a bill. It posts a full voucher: the expense head is debited and the cash or bank account credited." />
+        description="Small payments with no bill." />
       <div className="space-y-5 p-5">
         <FormGrid>
           <Field label="Expense head" required>

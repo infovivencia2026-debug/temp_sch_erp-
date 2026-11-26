@@ -93,7 +93,7 @@ function StaffConcerns() {
       <PageHead
         eyebrow="My profile"
         title="My concerns"
-        description="Raise a concern with HR and follow it to an answer. You can raise it anonymously."
+        description="Raise a concern with HR (can be anonymous)."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -126,7 +126,7 @@ function StaffConcerns() {
               checked={anonymous}
               onChange={setAnonymous}
               label="Raise this anonymously"
-              hint="HR will not see your name. You can still follow it and write back here, but you will not get notifications for it."
+              hint="HR won’t see your name. No notifications."
             />
             <div className="flex flex-wrap items-center gap-3">
               <Button disabled={!subject.trim() || !description.trim() || raise.isPending} onClick={() => raise.mutate()}>
@@ -189,8 +189,8 @@ export function ConcernsCard() {
       />
       <p className="px-[var(--card-pad)] py-4 text-[14px] text-muted-foreground">
         {family
-          ? 'Raise a concern with the school and follow it until it is answered.'
-          : 'Raise a concern with HR, anonymously if you prefer, and follow it until it is answered.'}
+          ? 'Raise and track a concern.'
+          : 'Raise and track a concern with HR.'}
       </p>
     </Card>
   )

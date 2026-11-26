@@ -188,7 +188,7 @@ export default function Certificates() {
       <PageHead
         eyebrow={nav.section?.name ?? 'Students'}
         title={nav.feature?.name ?? 'Certificates & transfers'}
-        description="Issue bonafide, character and transfer certificates with a numbered serial and a frozen record snapshot."
+        description="Issue bonafide, character and transfer certificates."
       />
       <PageBody>
         <div className="no-print flex flex-wrap items-center gap-1 border-b">
@@ -226,7 +226,7 @@ export default function Certificates() {
           <Card>
             <CardHeader
               title={`${pending.length} ${pending.length === 1 ? 'request' : 'requests'} from families`}
-              description="Asked for through the parent and student portal. Answering one tells the whole household."
+              description="Requests from families"
             />
             <Table head={['Serial', 'Document', 'For which child', 'Who asked', 'Asked', 'Reason', '']}
               empty={false}>
@@ -275,7 +275,7 @@ export default function Certificates() {
         )}
 
         <Card>
-          <CardHeader title="Issue a certificate" description="Choose the student and the certificate. You see it before it prints." />
+          <CardHeader title="Issue a certificate" description="Pick student and certificate. Preview first." />
           <div className="space-y-3 p-5">
             {/* One short row (owner: the old form was long and ugly). */}
             <div className="flex flex-wrap items-center gap-2.5">
@@ -397,7 +397,7 @@ export default function Certificates() {
                 + (answering.class_name ? ` · ${answering.class_name}-${answering.section_name}` : '')}
               description={
                 (answering.asked_by ? `Asked for by ${answering.asked_by}. ` : '')
-                + 'What you write here is what the family reads. Everyone in the household is told, and the child.'
+                + 'The family will see this.'
               }
             />
             <div className="space-y-3 p-4">

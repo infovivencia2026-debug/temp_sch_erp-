@@ -89,21 +89,21 @@ export default function SmsVendor() {
         {chosen && <p className="mt-3 text-[13px] text-muted-foreground">{chosen.note}</p>}
 
         <FormGrid>
-          <Field label="Endpoint" hint="Filled by the vendor above; editable, because a vendor may move it." wide>
+          <Field label="Endpoint" hint="Filled from the vendor. Editable." wide>
             <Input value={endpoint} onChange={setEndpoint} placeholder="https://…" />
           </Field>
           <Field label="Sender header" hint="The six characters the operator approved for this school.">
             <Input value={sender} onChange={setSender} placeholder="YAJURS" />
           </Field>
-          <Field label="DLT entity id (PE ID)" hint="The 19-digit Principal Entity id from the DLT portal. Public, not a secret.">
+          <Field label="DLT entity id (PE ID)" hint="19-digit PE id from DLT">
             <Input value={entity} onChange={setEntity} placeholder="1701172544496584296" />
           </Field>
-          <Field label="Entity name" hint="The society or trust registered on DLT, as the portal spells it.">
+          <Field label="Entity name" hint="Name as on DLT">
             <Input value={entityName} onChange={setEntityName} placeholder="MEGHAA EDUCATIONAL SOCIETY" />
           </Field>
           <Field
             label={current?.has_secret ? 'API key (stored, type to replace)' : 'API key'}
-            hint="MSG91 calls this the authkey; Gupshup uses the account password."
+            hint="MSG91 authkey or Gupshup password"
           >
             <Input value={key} onChange={setKey} type="password" placeholder="••••••••" />
           </Field>

@@ -121,7 +121,7 @@ export default function LanguageAllocation() {
       <PageHead
         eyebrow="My classes"
         title="Language subject allocation"
-        description="First, second and third language per child, and the groups they produce."
+        description="1st, 2nd, 3rd language per child."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -138,7 +138,7 @@ export default function LanguageAllocation() {
         <Card>
           <CardHeader
             title="What this class offers"
-            description="Each option is an existing class subject, named as a choice in one slot."
+            description="Options are class subjects."
           />
           <div className="p-5 space-y-5">
             <FormGrid>
@@ -207,7 +207,7 @@ export default function LanguageAllocation() {
         {!classID && (
           <EmptyState
             title="Choose a class"
-            body="The allocation, the children who have not chosen and the clashes are all per class."
+            body="Pick a class"
           />
         )}
 
@@ -242,7 +242,7 @@ export default function LanguageAllocation() {
             <Card>
               <CardHeader
                 title="Not yet chosen"
-                description="A slot with no option defined for this class is never counted as missing."
+                description="Slots without options are skipped."
               />
               <Table
                 head={['Adm no', 'Child', 'Section', 'Missing']}

@@ -50,7 +50,7 @@ function NewPaper({ slots, slotsLoading, onClose, onMade }: { slots: Slot[]; slo
   return (
     <Dialog
       title="New paper"
-      description="Choose the exam it is for and the paper starts with its name, class, subject and marks filled in. You can also start blank."
+      description="Pick an exam to pre-fill, or start blank."
       onClose={onClose}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -76,7 +76,7 @@ function useOpenFile(onOpened: (ids: string[]) => void) {
   const open = useMutation({
     mutationFn: async (file: File) => {
       const got = readBundle(parseBundle(await file.text()))
-      if (!got.papers.length) throw new Error(got.questions.length ? 'This file is a question bank. Open it in the Question bank tab.' : 'This file has no paper in it.')
+      if (!got.papers.length) throw new Error(got.questions.length ? 'This is a question bank. Open it in Question bank.' : 'This file has no paper in it.')
       const ids: string[] = []
       for (const p of got.papers) {
         const { boxes: [body], images } = await uploadBundleImages([p.body], got.images, (d, t) => setProgress(`Uploading pictures: ${d} of ${t}`))
@@ -125,7 +125,7 @@ export default function QuestionMaker({ embedded = false, slots: given }: { embe
       <Head
         eyebrow={nav.section?.name}
         title={nav.feature?.name ?? 'Question maker'}
-        description="Write a question paper on the page, with its answer key, then print it, save it as a Word file or send it for approval."
+        description="Write a paper and key. Print, save as Word, or send for approval."
         actions={<>
           <Button variant="secondary" pending={open.isPending} disabled={open.isPending} onClick={() => file.current?.click()}><FileUp className="size-4" /> Open a .qpaper file</Button>
           <Button onClick={() => setStarting(true)}><Plus className="size-4" /> New paper</Button>
@@ -142,7 +142,7 @@ export default function QuestionMaker({ embedded = false, slots: given }: { embe
         <Card>
           <CardHeader title="My papers" description="Only you see these until you send one." />
           {drafts.error ? <ErrorState error={drafts.error} /> : !drafts.isLoading && items.length === 0 ? (
-            <EmptyState title="No papers yet." body="Start one with New paper, or open a .qpaper file made in the desktop QMaker." />
+            <EmptyState title="No papers yet." body="No papers. Press New paper or open a .qpaper file." />
           ) : (
             <Table head={['Paper', 'For', 'Changed', 'Status', '']} loading={drafts.isLoading}>
               {items.map((d) => (
