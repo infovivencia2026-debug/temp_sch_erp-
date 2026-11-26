@@ -56,7 +56,7 @@ export default function ReceiptSeries() {
       <PageHead
         eyebrow="Collections"
         title="Receipt numbering"
-        description="A gapless series per financial year, and the GST treatment of each fee head."
+        description="Receipt numbering and GST per fee head."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -81,7 +81,7 @@ export default function ReceiptSeries() {
         <Card>
           <CardHeader
             title="Series"
-            description="The shape of each number. The position of the counter is deliberately not editable here."
+            description="Number format"
           />
           {series.isLoading ? (
             <Skeleton />
@@ -91,7 +91,7 @@ export default function ReceiptSeries() {
             <Table
               head={['Series', 'Format', 'Next number', 'Counter', 'Year', 'Last issued', '']}
               empty={!items.length}
-              emptyLabel="No numbering series configured. One is created the first time a receipt is issued."
+              emptyLabel="None yet. Created with the first receipt."
             >
               {items.map((s) => (
                 <tr key={s.kind}>

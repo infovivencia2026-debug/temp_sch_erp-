@@ -80,7 +80,7 @@ export default function Rules() {
                   <Checkbox checked={dg.daily} onChange={(v) => setDig({ ...dg, daily: v })} label="Every evening: attendance, fees collected and dues, admissions, staff attendance and leave" />
                   <Checkbox checked={dg.weekly} onChange={(v) => setDig({ ...dg, weekly: v })} label="Every week: the same, for the week" />
                   </div>
-                  <p className="text-[12.5px] text-muted-foreground">Which reports and on which channels is chosen under Reports, Scheduled digests.</p>
+                  <p className="text-[12.5px] text-muted-foreground">Choose reports under Reports, Scheduled digests.</p>
                   <FormNotice error={saveDigest.error} />
                   <Button disabled={!dig || saveDigest.isPending} onClick={() => saveDigest.mutate(dg)}>Save</Button>
                 </div>
@@ -96,7 +96,7 @@ export default function Rules() {
                     <Field label="Quiet to"><TimePicker value={ms.quiet_to} onChange={(v) => setMsg({ ...ms, quiet_to: v })} /></Field>
                     <Field label="At most, per family, per day" hint="Messages beyond this wait for the digest."><Input type="number" value={ms.daily_cap} onChange={(v) => setMsg({ ...ms, daily_cap: v })} placeholder="No cap" /></Field>
                   </FormGrid>
-                  <p className="text-[12.5px] text-muted-foreground">An urgent message, a bus alert or an absence, goes through quiet hours anyway.</p>
+                  <p className="text-[12.5px] text-muted-foreground">Urgent, bus and absence alerts still go.</p>
                   <FormNotice error={saveMessaging.error} />
                   <Button disabled={!msg || saveMessaging.isPending} onClick={() => saveMessaging.mutate(ms)}>Save</Button>
                 </div>
@@ -106,10 +106,10 @@ export default function Rules() {
             <Card>
               <CardHeader title="Always on, nothing to set" />
               <ul className="space-y-2 px-5 pb-5 pt-4 text-[13.5px] text-muted-foreground">
-                <li>A parent is told the same morning when their child is marked absent.</li>
+                <li>Parents told the same morning.</li>
                 <li>A receipt reaches the family the moment a fee is taken.</li>
                 <li>The class teacher sees a child's leave in the register the day it is approved.</li>
-                <li>Staff documents and vehicle papers that are about to lapse show on the HR and transport homes.</li>
+                <li>Shown on HR and transport homes.</li>
               </ul>
             </Card>
           </div>

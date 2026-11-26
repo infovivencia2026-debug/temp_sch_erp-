@@ -52,7 +52,7 @@ export default function ChartOfAccounts() {
       <PageHead
         eyebrow="Accounts"
         title="Chart of accounts"
-        description="The shape of the books, and which account each automatic posting uses. Group headings organise; only the accounts beneath them can be posted to."
+        description="Accounts and default postings."
         width="wide"
       />
       <PageBody width="wide">
@@ -77,7 +77,7 @@ export default function ChartOfAccounts() {
         <Card>
           <CardHeader
             title="The chart"
-            description="Balances are to date across every year, so an account that looks dormant but holds money is visible here rather than only on the balance sheet."
+            description="Balances to date"
             action={
               <Button variant="secondary" size="sm" onClick={() => setShowAll(!showAll)}>
                 {showAll ? 'Only accounts in use' : `Show all ${rows.length}`}
@@ -146,7 +146,7 @@ function NewAccount({ accounts }: { accounts: LedgerAccount[] }) {
   return (
     <Card>
       <CardHeader title="Add an account"
-        description="The seeded chart covers an ordinary school. Add to it when a head genuinely repeats, one account per recurring expense beats a Miscellaneous line nobody can explain at the year end." />
+        description="Add accounts for recurring expenses." />
       <div className="space-y-5 p-5">
         <FormGrid>
           <Field label="Code" required hint="Numbered by type: 1 assets, 2 liabilities, 3 corpus, 4 income, 5 expenditure">
@@ -244,7 +244,7 @@ function ControlAccounts() {
   return (
     <Card>
       <CardHeader title="Control accounts"
-        description="Which account each automatic posting uses. Nothing here is guessed: a fee receipt, a vendor payment or a depreciation run refuses rather than choosing an account for you, because the wrong control account is a mistake nobody notices for a year." />
+        description="Account used by each automatic posting." />
       <div className="space-y-5 p-5">
         <FormGrid>
           {CONTROLS.map((c) => (
@@ -255,7 +255,7 @@ function ControlAccounts() {
             </Field>
           ))}
           <Field label="Petty cash limit (₹)"
-            hint="Above this a slip needs a second signature. School policy, not law.">
+            hint="Second signature above this amount.">
             <Input type="number"
               value={limitDraft ?? String((settings.data?.petty_cash_limit_paise ?? 0) / 100)}
               onChange={setLimitDraft} />

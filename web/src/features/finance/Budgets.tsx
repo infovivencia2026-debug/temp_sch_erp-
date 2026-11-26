@@ -53,7 +53,7 @@ export default function Budgets() {
       <PageHead
         eyebrow="Accounts"
         title="Budget and variance"
-        description="What each head was allowed and what it has actually cost, taken from the ledger so the two can never drift apart."
+        description="Budget vs actual, by head."
         width="wide"
         actions={<div className="w-44"><Select value={fy} onChange={setFy} options={fyOptions()} /></div>}
       />
@@ -76,12 +76,12 @@ export default function Budgets() {
         <Card>
           <CardHeader
             title={b?.budget_id ? `${b.name} · ${b.fy_label}` : `Budget · ${fy}`}
-            description="The budget in force is the revision where there is one and the original otherwise. Both are shown, because a board reading a variance needs to know which figure it was measured against."
+            description="Original and revised budgets"
             action={b?.status ? <Badge tone={b.status === 'approved' ? 'success' : 'neutral'}>{b.status}</Badge> : undefined}
           />
           {lines.length === 0 ? (
             <EmptyState title="No budget lines for this year"
-              body="Set an allocation against an expense head above and it appears here with its actual spend." />
+              body="No budget lines yet." />
           ) : (
             <Table head={['Code', 'Head', 'Department',
               { label: 'Allocated', align: 'right' }, { label: 'Revised', align: 'right' },
@@ -157,7 +157,7 @@ function SetLine({ fy }: { fy: string }) {
   return (
     <Card>
       <CardHeader title="Set an allocation"
-        description="Saving the same head twice amends the line rather than adding a second one, so a budget cannot quietly hold two figures for the same account." />
+        description="Same head again = updates the line." />
       <div className="space-y-5 p-5">
         <FormGrid>
           <Field label="Head" required>

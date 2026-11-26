@@ -63,7 +63,7 @@ export default function TaxAudit() {
       <PageHead
         eyebrow="Accounts"
         title="Taxation and audit"
-        description="GST charged on purchases, tax withheld at source, what is still owed to the government, and the checks a reviewer runs before signing."
+        description="GST, TDS, dues and audit checks."
         width="wide"
         actions={
           <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ export default function TaxAudit() {
         <Card>
           <CardHeader
             title="Audit checks"
-            description="Each of these is a question somebody would otherwise run by hand against the database."
+            description="Automatic checks"
             action={
               <Badge tone={a?.clean ? 'success' : 'danger'} solid={!a?.clean}>
                 {a?.clean ? 'clean' : `${a?.failing} failing`}
@@ -159,7 +159,7 @@ export default function TaxAudit() {
             description="What has been withheld and not yet paid over. These are liabilities to the government sitting in the school's own bank account." />
           {dues.length === 0 ? (
             <EmptyState title="Nothing withheld and unpaid"
-              body="PF, ESI, professional tax, TDS and GST accounts all stand at nil." />
+              body="Nothing owed." />
           ) : (
             <Table head={['Code', 'Head', { label: 'Outstanding', align: 'right' }]} empty={false}>
               {dues.map((d) => (
@@ -180,7 +180,7 @@ export default function TaxAudit() {
         <Card>
           <CardHeader
             title={`Purchases and withholding · ${t?.fy_label ?? fy}`}
-            description="A vendor charging tax without a GSTIN on file, or holding a GSTIN and charging none, is exactly what a reviewer is looking for, so both are listed rather than filtered out."
+            description="GSTIN and tax mismatches"
           />
           {(t?.vendors ?? []).length === 0 ? (
             <EmptyState title="No approved purchase bills this year"

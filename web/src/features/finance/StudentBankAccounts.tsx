@@ -74,7 +74,7 @@ export default function StudentBankAccounts() {
       <PageHead
         eyebrow="Accounts"
         title="Student bank accounts"
-        description="Where a scholarship credit or a fee refund goes. Account numbers are masked; revealing one is recorded."
+        description="For scholarships and refunds. Numbers masked."
         width="wide"
       />
       <PageBody width="wide">
@@ -110,7 +110,7 @@ export default function StudentBankAccounts() {
         <Card>
           <CardHeader
             title="The register"
-            description="Masked. The last four digits are enough to check a row against a passbook."
+            description="Last 4 digits shown"
             action={
               <span className="flex flex-wrap gap-2">
                 <Input
@@ -262,7 +262,7 @@ function AccountRow({
               error={reveal.error ?? makePrimary.error ?? verify.error}
               ok={
                 shown
-                  ? 'Shown in full, and recorded in the audit log with your name and the time.'
+                  ? 'Viewing is logged.'
                   : undefined
               }
             />
@@ -334,7 +334,7 @@ function AddAccount() {
     <Card>
       <CardHeader
         title="Add an account"
-        description="Check it against a passbook or a cancelled cheque before saving. A wrong digit is a scholarship paid to a stranger, and it is not recoverable."
+        description="Check against passbook or cheque before saving."
         action={
           <Button variant="secondary" size="sm" onClick={() => setOpen(!open)}>
             {open ? 'Hide' : 'Add an account'}
@@ -451,13 +451,13 @@ function AddAccount() {
               checked={seeded}
               onChange={setSeeded}
               label="Aadhaar-seeded"
-              hint="What the parent told you. DBT refuses an unseeded account, and this is the warning before the credit fails."
+              hint="Aadhaar-seeded for DBT"
             />
             <Checkbox
               checked={primary}
               onChange={setPrimary}
               label="Make this the primary account"
-              hint="The one a refund or a DBT run pays into. Only one per student."
+              hint="One primary per student"
             />
           </div>
 

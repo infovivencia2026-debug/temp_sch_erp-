@@ -75,7 +75,7 @@ export default function BankingPayouts() {
       <PageHead
         eyebrow="Accounts"
         title="Banking payouts"
-        description="Assemble outbound payments as a batch, have somebody else release it, and export the file your bank accepts."
+        description="Batch payments, get approval, export the bank file."
         width="wide"
       />
       <PageBody width="wide">
@@ -88,7 +88,7 @@ export default function BankingPayouts() {
                 <p className="font-medium">This does not send money to the bank by itself.</p>
                 <p className="mt-1 text-muted-foreground">
                   {providers.data?.items?.[0]?.why ??
-                    'Approved batches are exported as a file for you to upload to your bank’s own portal.'}{' '}
+                    'Upload the exported file to your bank.'}{' '}
                   A batch marked <em>exported</em> means the file has been produced, not that
                   anybody has been paid. The reconciliation will tell you when the money actually
                   left, by matching the payout against the bank statement.
@@ -306,7 +306,7 @@ function BatchDetail({
                   {b.approval_blocked ??
                     'This batch is waiting for somebody else to release it.'}{' '}
                   {mayApprove
-                    ? 'That separation is the control, it is enforced on the server, not by this screen.'
+                    ? 'A different person must release it.'
                     : ''}
                 </p>
               )}
@@ -435,7 +435,7 @@ function AddBeneficiaries({ batchId, onDone }: { batchId: string; onDone: () => 
     <Card>
       <CardHeader
         title="Add what this batch pays"
-        description="Only documents already approved by their own workflow appear here. Anything already in a live batch is left out, a bill cannot be paid twice."
+        description="Approved items not already in a batch."
         action={
           <Select
             value={kind}
@@ -544,7 +544,7 @@ function NewBatch() {
     <Card>
       <CardHeader
         title="Start a batch"
-        description="You assemble it; somebody else releases it. That separation is enforced on the server."
+        description="Someone else must release it."
         action={
           <Button variant="secondary" size="sm" onClick={() => setOpen(!open)}>
             {open ? 'Hide' : 'New batch'}

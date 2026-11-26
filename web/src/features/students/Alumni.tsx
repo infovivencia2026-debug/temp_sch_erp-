@@ -120,7 +120,7 @@ export default function Alumni() {
       <PageHead
         eyebrow="Students"
         title="Alumni programme"
-        description="The leaving batches, the reunions, and what past students have given back."
+        description="Batches, reunions and donations."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -152,7 +152,7 @@ export default function Alumni() {
           <Card>
             <CardHeader
               title="Leavers not yet on the register"
-              description="Entered once, they stay on the register for good; the batch year is worked out from the leaving date."
+              description="Batch year from leaving date."
             />
             <Table head={['Student', 'Admission', 'Left', 'Batch', '']}>
               {candidates.slice(0, 15).map((c) => (
@@ -237,7 +237,7 @@ export default function Alumni() {
         <Card>
           <CardHeader
             title="Events"
-            description="The gap between who said yes and who came is what next year’s catering is ordered from."
+            description="RSVP vs attended"
           />
           {(events.data?.items.length ?? 0) === 0 ? (
             <EmptyState title="No events yet" body="Plan the first reunion below." />
@@ -408,7 +408,7 @@ function NewContribution({
     <Card>
       <CardHeader
         title="Record a gift"
-        description="Kept out of the fee ledger on purpose: a donation posted there reads as school income against a student account."
+        description="Kept separate from fees."
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>
@@ -508,7 +508,7 @@ function EditProfile({ alumni, onSaved }: { alumni: Alumnus[]; onSaved: () => vo
     <Card>
       <CardHeader
         title="Update a record"
-        description="Contactable is consent. Unticking it drops them out of every mailing the office runs."
+        description="Untick = no mailings."
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>

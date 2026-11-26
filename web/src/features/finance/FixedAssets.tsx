@@ -48,7 +48,7 @@ export default function FixedAssets() {
       <PageHead
         eyebrow="Accounts"
         title="Fixed assets and depreciation"
-        description="What the school owns, what it has written off, and what it is worth in the books. Straight line and written-down value side by side, chosen per asset."
+        description="Assets, depreciation and book value."
         width="wide"
         actions={<div className="w-44"><Select value={fy} onChange={setFy} options={fyOptions()} /></div>}
       />
@@ -67,7 +67,7 @@ export default function FixedAssets() {
 
         <Card>
           <CardHeader title="The register"
-            description="Each asset carries its own method and its own input, a useful life for straight line, a prescribed rate for written-down value. Neither can be inferred from the other, so an asset with neither cannot be depreciated at all and the schema refuses it." />
+            description="Set useful life (straight line) or rate (WDV)." />
           <Table head={['Tag', 'Asset', 'Account', 'Bought', 'Method',
             { label: 'Cost', align: 'right' }, { label: 'Depreciation', align: 'right' },
             { label: 'Book value', align: 'right' }, 'Years', 'Status']}
@@ -233,7 +233,7 @@ function NewAsset() {
   return (
     <Card>
       <CardHeader title="Add an asset"
-        description="The register is a subsidiary ledger and has to agree with the account it summarises. The audit report reconciles the two, so an asset entered here whose purchase never reached the books shows up rather than quietly understating what the school owns." />
+        description="Register vs ledger" />
       <div className="space-y-5 p-5">
         <FormGrid>
           <Field label="Asset" required>
@@ -249,7 +249,7 @@ function NewAsset() {
           </Field>
           <Field label="Cost (₹)" required><Input type="number" value={cost} onChange={setCost} /></Field>
           <Field label="Salvage value (₹)"
-            hint="What it should fetch at the end. Straight line spreads cost less salvage; written-down value ignores it.">
+            hint="Value at end of life">
             <Input type="number" value={salvage} onChange={setSalvage} />
           </Field>
           <Field label="Method"
@@ -272,7 +272,7 @@ function NewAsset() {
         </FormGrid>
         <Checkbox checked={capitalise} onChange={setCapitalise}
           label="Also post the purchase to the ledger"
-          hint="Leave off when the purchase was already booked through a vendor bill or is an opening balance, capitalising again would record the same asset twice." />
+          hint="Off if already booked via a bill or opening balance." />
         <FormNotice error={save.error}
           ok={save.isSuccess
             ? `Added as ${save.data?.tag_no}${save.data?.voucher_no ? ` and posted as ${save.data.voucher_no}` : ''}.`

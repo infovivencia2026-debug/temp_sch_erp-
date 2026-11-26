@@ -110,7 +110,7 @@ export default function LoanAssistance() {
         <Card>
           <CardHeader
             title="Applications"
-            description="Oldest movement first, so the ones nobody has touched come to the top."
+            description="Least recently updated first"
             action={
               <span className="flex flex-wrap gap-2">
                 <Input value={search} onChange={setSearch} placeholder="Name or admission number" />
@@ -255,7 +255,7 @@ function ApplicationDetail({
 
       <CardHeader
         title="What the lender wants"
-        description="Missing first. The ones marked as issued by the school are already in the office, a parent should not be sent away for those."
+        description="Missing first"
       />
       <Table
         head={['Document', 'Status', 'Provided', 'Where it is', '']}
@@ -569,7 +569,7 @@ function NewApplication({ onCreated }: { onCreated: (id: string) => void }) {
     <Card>
       <CardHeader
         title="Open an application"
-        description="The standard document checklist is issued with it, so the office has a list to work from rather than remembering."
+        description="Adds the standard document checklist."
       />
       <div className="space-y-5 px-5 py-5">
         <FormGrid>
@@ -608,7 +608,7 @@ function NewApplication({ onCreated }: { onCreated: (id: string) => void }) {
           </Field>
           <Field
             label="Amount the parent is seeking (₹)"
-            hint="What the parent says they need. Not an assessment and not an offer."
+            hint="Amount the parent needs"
           >
             <Input value={amount} onChange={setAmount} />
           </Field>
@@ -663,7 +663,7 @@ function LendersPanel({ mayWrite }: { mayWrite: boolean }) {
     <Card>
       <CardHeader
         title="Lenders the school has dealt with"
-        description="A contact list, in the order a parent would find useful. No rates and no ranking, the school is not recommending a product."
+        description="Contacts only. Not a recommendation."
         action={
           mayWrite && !open ? (
             <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
