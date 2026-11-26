@@ -67,7 +67,7 @@ export default function Users() {
       <PageHead
         eyebrow="Access & Security"
         title="Users"
-        description="One person can hold several roles at once. The roles stay separate, the account switches between them rather than merging into one super-user."
+        description="One person can hold several roles and switch between them."
         actions={
           <Button onClick={() => { setEditing(null); setCreating((c) => !c) }}>
             {creating ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
@@ -326,7 +326,7 @@ function AccountForm({
       }
       // Not echoed back — the admin typed it. Saying so beats a blank screen.
       setChosen('')
-      setResetNote('That password is in effect and every session of theirs is signed out.')
+      setResetNote('Password set. They are signed out everywhere.')
     },
   })
 
@@ -335,7 +335,7 @@ function AccountForm({
       <Card className="p-5">
         <p className="text-[14px] font-medium">Account ready</p>
         <p className="mt-1 text-[14px] text-muted-foreground">
-          {sent ?? 'Give them this one-time password. It is shown once and cannot be retrieved later.'}
+          {sent ?? 'One-time password. Shown once only.'}
         </p>
         <p className="mt-3 rounded-md bg-muted px-3 py-2 font-mono text-[15px] tracking-wider">
           {tempPassword}
@@ -353,7 +353,7 @@ function AccountForm({
         title={editing ? `Roles for ${user!.full_name}` : 'New account'}
         description={
           editing
-            ? 'Adding a role grants a whole workspace; removing one takes it away at the next request.'
+            ? 'Each role gives a workspace.'
             : 'A person, not a role. Give them everything they do, one login for all of it.'
         }
         action={
@@ -383,7 +383,7 @@ function AccountForm({
           <div className="border-t pt-5">
             <Field
               label="Set a password"
-              hint="At least 12 characters. Leave empty to have one generated and shown once instead."
+              hint="12+ characters. Blank = auto-generate."
             >
               <Input
                 type="password"
@@ -475,7 +475,7 @@ function HandOver({
     <Card>
       <CardHeader
         title={`Hand over ${from.full_name}’s roles`}
-        description="The joiner gains the role exactly when the leaver loses it, one action, so the school is never left with two people holding the same job, or none."
+        description="Moves the role from one person to another in one step."
         action={
           <Button size="sm" variant="ghost" onClick={onClose} title="Close">
             <X className="h-4 w-4" />
@@ -497,7 +497,7 @@ function HandOver({
           </Field>
           <Field
             label="Leave the outgoing account"
-            hint="Somebody handing over one hat of three is still on the staff, so this is optional."
+            hint="Optional."
           >
             <Select
               value={leaverStatus}
@@ -620,7 +620,7 @@ function CustomAccount({ onClose }: { onClose: () => void }) {
     <Card>
       <CardHeader
         title="Custom account"
-        description="An account with a role of its own. Start from a preset or from nothing, then dial exactly what it can see and edit on the role grid."
+        description="Start from a preset or blank, then set what it can see and edit."
         action={
           <Button size="sm" variant="ghost" onClick={onClose} title="Close">
             <X className="h-4 w-4" />
@@ -671,7 +671,7 @@ function CustomAccount({ onClose }: { onClose: () => void }) {
 
             <Field
               label="Start from a preset"
-              hint="Accounts, HR and the rest are starting points, not the only shapes a school can have. Leave this empty and the account starts able to see nothing."
+              hint="Blank = starts with no access."
             >
               <Select
                 value={copyFrom}
@@ -700,7 +700,7 @@ function CustomAccount({ onClose }: { onClose: () => void }) {
               </Button>
               <span className="text-[13px] text-muted-foreground">
                 {copyFrom
-                  ? 'Starts with that preset’s permissions, and every one of them can be changed.'
+                  ? 'Starts with the preset. All can be changed.'
                   : 'Starts able to sign in and see nothing.'}
               </span>
             </div>

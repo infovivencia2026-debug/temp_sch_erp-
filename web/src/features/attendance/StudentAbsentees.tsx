@@ -304,12 +304,12 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
           tab === 'present' ? (
             <EmptyState
               title="Nobody marked present for this day."
-              body="Once the register is taken, every child marked present appears here."
+              body="No one marked present yet."
             />
           ) : (
             <EmptyState
               title="Nobody is marked absent for this day."
-              body="Once attendance is taken and a child is marked away, they appear here so the follow-up can be watched."
+              body="No absent children yet."
             />
           )
         ) : tab === 'present' ? (
@@ -409,7 +409,7 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
           <PageHead
             eyebrow="Attendance"
             title="Present & absent"
-            description="Who came in and who is away today, and where the call home stands, updates live as the office records each call."
+            description="Today's present and absent, with call status."
             actions={controls}
           />
           <PageBody>{content}</PageBody>

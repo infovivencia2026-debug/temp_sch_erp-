@@ -92,7 +92,7 @@ export default function AttendanceMonitoring() {
               empty={!rows.length}
               emptyLabel={
                 noRegisterYet
-                  ? 'No register has been marked in the last thirty days, so nobody can be counted as short. This is not a clean bill of health.'
+                  ? 'No attendance marked in the last 30 days.'
                   : 'Every student is above the threshold.'
               }
             >

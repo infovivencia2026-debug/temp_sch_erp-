@@ -214,7 +214,7 @@ export default function MyClasses() {
       <PageHead
         eyebrow="My classes"
         title="How each child is doing"
-        description="Attendance, marks, homework and conduct in one row per child, with the reason wherever something needs attention."
+        description="One row per child: attendance, marks, homework, conduct."
       />
       <PageBody>
         {/* THE OWNER'S LAYOUT: four figures, then one card holding the class,

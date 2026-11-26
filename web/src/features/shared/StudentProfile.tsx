@@ -713,7 +713,7 @@ export default function StudentProfile() {
           {!searching && !browsing ? (
             <EmptyState
               title="Pick a class, or search for a student"
-              body="Choose a class and section to see who is in it, or type at least two characters of a name or admission number." />
+              body="Pick a class, or type a name or admission no." />
           ) : results.isLoading ? (
             <SkeletonTable columns={7} />
           ) : (
@@ -962,7 +962,7 @@ export default function StudentProfile() {
         }
         description={
           issued.password
-            ? 'Shown once and not stored anywhere. Copy it now, if it is lost, reset it again rather than looking this one up.'
+            ? 'Shown once. Copy it now.'
             : issued.note
         }
       />
@@ -1012,7 +1012,7 @@ export default function StudentProfile() {
             <Card className="lg:col-span-2">
               <CardHeader
                 title="Edit details"
-                description="Everything the school holds about this child. Blank is allowed, a field nobody has filled in yet is better than a guess."
+                description="Fill what you know. Blanks are fine."
               />
               <div className="p-4">
                 {record.isLoading ? <Loading /> : record.error ? (
@@ -1097,8 +1097,8 @@ export default function StudentProfile() {
                 p.status === 'active'
                   ? 'On the roll and being taught.'
                   : p.status === 'suspended'
-                    ? 'Still enrolled and still holding a seat, the fees, the register and the class list are unchanged.'
-                    : 'Off the roll. The record is kept in full: marks, attendance, fees and documents are all still here.'
+                    ? 'Stays enrolled. Fees and register unchanged.'
+                    : 'Off the roll. The full record is kept.'
               }
               action={
                 <Badge tone={p.status === 'active' ? 'success'
@@ -1170,7 +1170,7 @@ export default function StudentProfile() {
             <Card className="border-danger lg:col-span-2">
               <CardHeader
                 title="This child is suspended"
-                description="They are still enrolled and still on the roll, the seat, the fees and the register are unchanged. Lift the suspension when they return."
+                description="Stays enrolled. Lift the suspension when they return."
               />
             </Card>
           )}
@@ -1192,7 +1192,7 @@ export default function StudentProfile() {
             <Card className="lg:col-span-2">
               <CardHeader
                 title="Record that this child has left"
-                description="Nothing is deleted. The record stays and can be put back on the roll if this was a mistake."
+                description="Nothing is deleted. Can be undone."
               />
               <div className="p-4">
                 <ExitForm
@@ -1208,7 +1208,7 @@ export default function StudentProfile() {
             <Card className="lg:col-span-2 border-destructive">
               <CardHeader
                 title={`Delete ${p.full_name} permanently`}
-                description="The record and everything attached to it, enrolment, guardians, attendance, transport, is erased. This is not the same as a child leaving, and it cannot be undone."
+                description="Erases the record and everything linked to it. Cannot be undone."
               />
               <div className="space-y-3 p-4">
                 <p className="text-[14px] text-muted-foreground">
@@ -1477,7 +1477,7 @@ export default function StudentProfile() {
                     hint: 'Only if it differs from the address above' },
                   { k: 'Emergency contact', v: p.emergency_contact_name,
                     field: 'emergency_contact_name', placeholder: 'Enter name',
-                    hint: 'Somebody to ring when no parent answers. They get no login and no messages.' },
+                    hint: 'Called when no parent answers. No login, no messages.' },
                   { k: 'Their phone', v: p.emergency_contact_phone,
                     field: 'emergency_contact_phone', placeholder: 'Enter phone number' },
                   { k: 'Relation', v: p.emergency_contact_relation,
@@ -1747,7 +1747,7 @@ export default function StudentProfile() {
           ) : remarkRows.length === 0 ? (
             <EmptyState
               title="Nothing written yet"
-              body="Observations a teacher records about this child appear here, newest first."
+              body="No remarks yet."
             />
           ) : (
             <ul className="divide-y">
@@ -1790,7 +1790,7 @@ export default function StudentProfile() {
           <Card>
           <CardHeader
             title="Enrolment history"
-            description="Every year this child has been on the roll, and how each one ended."
+            description="Each year on the roll"
           />
           {/* This said three things the header already said. A promotion
               closes one enrolments row and opens the next, so the record of
@@ -2439,7 +2439,7 @@ function StudentForm({
             alerts; the neighbour who holds a spare key should get none of
             them, so this is three plain fields rather than another parent. */}
         <p className="mb-3 text-[12.5px] text-muted-foreground">
-          Somebody to ring when no parent answers. They get no login and no messages.
+          Called when no parent answers. No login, no messages.
         </p>
         <FormGrid>
           <FormField label="Name"><Input value={f.emergency_contact_name} onChange={set('emergency_contact_name')} /></FormField>
@@ -2789,7 +2789,7 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
         <FormField label="Annual income (₹)" hint="As declared; used for concessions and RTE.">
           <Input value={f.annual_income} onChange={set('annual_income')} placeholder="3,60,000" />
         </FormField>
-        <FormField label="Portal access until" hint="Blank keeps it open. After this date they see nothing and hear nothing.">
+        <FormField label="Portal access until" hint="Blank = no end date">
           <Input value={until} onChange={setUntil} placeholder="YYYY-MM-DD" />
         </FormField>
       </FormGrid>

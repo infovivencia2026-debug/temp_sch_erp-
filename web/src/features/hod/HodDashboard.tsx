@@ -136,7 +136,7 @@ export default function HodDashboard() {
                 an explanation. */}
             <EmptyState
               title="No department is assigned to you"
-              body="The figures above are the whole school, not a department of your own. Once the school creates departments and puts you on one, everything here narrows to it."
+              body="Whole-school figures. Shows your department once assigned."
             />
           </Card>
         )}

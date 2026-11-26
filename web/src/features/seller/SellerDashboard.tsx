@@ -105,7 +105,7 @@ export default function SellerDashboard() {
       <PageHead
         eyebrow="Platform"
         title="The business"
-        description="What the book looks like, whether the schools are actually using it, and the one place to tell all of them something at once."
+        description="Schools, usage and announcements."
       />
       <PageBody>
         <CellGrid cols={4}>

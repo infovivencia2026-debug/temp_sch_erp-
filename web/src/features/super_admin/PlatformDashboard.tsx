@@ -122,7 +122,7 @@ export default function PlatformDashboard() {
         <Card>
           <CardHeader
             title="Campuses"
-            description="Ordered by what is outstanding, the campus needing attention first. Open one for its own totals."
+            description="Most outstanding first. Open one for details."
           />
           {d.campuses_detail.length === 0 ? (
             <EmptyState title="No campuses yet" />

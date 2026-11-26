@@ -250,7 +250,7 @@ export default function MyPay() {
           {d.attendance.days_marked === 0 && (
             <EmptyState
               title="Nothing marked yet"
-              body="Your attendance appears here once the office starts marking the staff register."
+              body="No attendance marked yet."
             />
           )}
           {d.attendance.days_marked > 0 && (

@@ -251,7 +251,7 @@ export default function ClassOverview() {
         ) : !sectionId ? (
           <EmptyState
             title="Choose a section to begin."
-            body="Pick a class above to see its roster, attendance, results and timetable."
+            body="Pick a class above."
           />
         ) : overview.isLoading ? (
           <Loading />

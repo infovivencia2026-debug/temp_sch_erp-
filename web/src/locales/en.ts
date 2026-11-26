@@ -997,7 +997,7 @@ export const en = {
   'bento.principal.eyebrow': 'Home',
   'bento.principal.title': 'Executive overview',
   'bento.principal.loading': 'Opening the school on one page…',
-  'bento.principal.failed': 'That did not load. Nothing here is a figure you can rely on until it does.',
+  'bento.principal.failed': 'Could not load. Figures not reliable.',
   'bento.principal.anchor_label': 'Attendance today, and fee collection',
   'bento.principal.attendance_marked': '{count} marked today',
   'bento.principal.trend_sr': 'Attendance, percentage present, last 30 days',
@@ -1186,8 +1186,7 @@ export const en = {
      that nothing was REPORTED, with the reason it might not have been said
      next to it. */
   'bento.principal.attention_clear': 'Nothing reported for this check',
-  'bento.principal.attention_clear_note':
-    'Only what your permissions cover is counted, so this is “nothing reported”, not a certified all-clear.',
+  'bento.principal.attention_clear_note': 'Nothing reported within your access.',
   'bento.principal.attention_no_level': 'No level',
   'bento.principal.attention_failed': "Couldn't load what needs attention",
   'bento.principal.attention_loading': 'Checking…',
@@ -1471,8 +1470,7 @@ export const en = {
   'bento.principal.cover_class_sr': 'Uncovered periods by class',
   'bento.principal.grievances_sub': 'Queue age',
   'bento.principal.grievances_change': 'Of {count} tickets fetched · oldest {oldest} days',
-  'bento.principal.grievances_capped':
-    'The queue is cut at {count} tickets. What is drawn is the oldest {count}, not the whole of it',
+  'bento.principal.grievances_capped': 'Showing the oldest {count} tickets only',
   'bento.principal.grievances_none': 'Nothing open',
   'bento.principal.grievances_days_sr':
     'How long {count} open tickets have been open, none to {oldest} days',
@@ -1817,7 +1815,7 @@ export const en = {
   'bento.finance.eyebrow': 'Home',
   'bento.finance.title': 'Finance overview',
   'bento.finance.loading': 'Counting what has come in…',
-  'bento.finance.failed': 'That did not load. Nothing here is a figure you can rely on until it does.',
+  'bento.finance.failed': 'Could not load. Figures not reliable.',
 
   // The anchor. The label is the widget's name in the board's own chrome, so
   // it is short; the range is named on the card itself, where there is room
@@ -1837,17 +1835,17 @@ export const en = {
   // THERE IS NO TARGET. Said on the card rather than left as an absence a
   // future reader fills in with an invented denominator — which is exactly
   // what happened here once already.
-  'bento.finance.no_target': 'No billed total and no collection target is recorded anywhere in this data, so no progress against one is shown.',
-  'bento.finance.no_daily_series': 'No day-by-day series is recorded for the period, so no daily distribution is drawn.',
+  'bento.finance.no_target': 'No billed total or target recorded.',
+  'bento.finance.no_daily_series': 'No daily figures for this period.',
 
   // Ageing, from the due date on each overdue invoice.
   'bento.finance.ageing': 'Overdue, by age',
   'bento.finance.ageing_sr': 'Overdue money and invoice counts, by how far past the due date each invoice is',
   'bento.finance.ageing_loading': 'Ageing the overdue invoices…',
-  'bento.finance.ageing_failed': 'The overdue invoices did not load, so the ageing is unknown, not zero.',
+  'bento.finance.ageing_failed': 'Overdue list did not load. Ageing unknown.',
   'bento.finance.ageing_none': 'Nothing overdue.',
   'bento.finance.ageing_count': 'Across {count} overdue invoices, with their counts at the right.',
-  'bento.finance.ageing_capped': 'The server returns the 300 most recent overdue invoices, so these cover {covered} of the {total} overdue.',
+  'bento.finance.ageing_capped': 'Latest 300 shown: {covered} of {total} overdue.',
   'bento.finance.age_1': '1–30d',
   'bento.finance.age_2': '31–60d',
   'bento.finance.age_3': '61–90d',
@@ -1863,7 +1861,7 @@ export const en = {
   'bento.finance.today_of_period': 'Of {amount} collected in {label}.',
   'bento.finance.today_day_of': 'Day {day} of {span} in the selected period.',
   'bento.finance.today_position': 'Day {day} of {span} in {label}',
-  'bento.finance.today_outside': '{label} does not include today, so today is not part of that total and no comparison with it is drawn.',
+  'bento.finance.today_outside': '{label} does not include today.',
   'bento.finance.per_day': '{amount} a day on average across {label} so far',
   'bento.finance.period_track_sr': 'Where today sits in {label}, which runs from {from} to {to}',
 
@@ -1871,7 +1869,7 @@ export const en = {
   'bento.finance.outstanding': 'Outstanding',
   'bento.finance.overdue_note': '{amount} of it overdue.',
   'bento.finance.overdue_note_loading': '{amount} of it overdue. Ageing the invoices…',
-  'bento.finance.overdue_ageing_failed': '{amount} of it overdue. The invoice list did not load, so the ageing is unknown, not zero.',
+  'bento.finance.overdue_ageing_failed': '{amount} overdue. Ageing unknown (list did not load).',
   'bento.finance.concentration': 'The largest {n} carry {pct}% of the {listed} listed.',
   'bento.finance.ranked_title': 'Largest {n} of {total} listed',
   'bento.finance.ranked_sr': 'The {n} largest overdue invoices, largest first, each with what is still due on it and how far past due it is',
@@ -1910,7 +1908,7 @@ export const en = {
   'bento.finance.dots_each': 'One dot each',
   'bento.finance.dots_capped': 'One dot each, first {shown} of {total}',
   'bento.finance.dots_sr': '{shown} of {total} {thing}, one dot each.',
-  'bento.finance.no_share': 'No total is recorded for this count, so it is drawn as a count and not as a share.',
+  'bento.finance.no_share': 'No total recorded. Shown as a count.',
 
   // --- bento: the three daily personas ------------------------------------
   // The student, parent and faculty landing screens in the Bento layout.

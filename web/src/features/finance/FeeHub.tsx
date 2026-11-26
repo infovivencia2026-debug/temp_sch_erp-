@@ -378,7 +378,7 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
 
       {step === 2 && !picked.length && (
         <div className="space-y-3 p-[var(--card-pad)]">
-          <p className="text-[14px]">Tick the fees to pay in step 1 to take a new payment. Every receipt this student has is below.</p>
+          <p className="text-[14px]">Tick fees in step 1 to take a payment. Receipts below.</p>
           <Button variant="secondary" onClick={() => setStep(1)}>Go to fee details</Button>
         </div>
       )}
@@ -393,7 +393,7 @@ function ReceiptEntry({ hub, preset }: { hub: Hub; preset: string[] | null }) {
             {needsUtr && <Field label="UTR / transaction no" required hint={mode === 'upi' ? '12 digits. A UTR is accepted once.' : 'A UTR is accepted once.'}><Input value={utr} onChange={setUtr} /></Field>}
             {isCheque && <Field label={mode === 'dd' ? 'DD no' : 'Cheque no'} required><Input value={utr} onChange={setUtr} /></Field>}
             {isCheque && <Field label="Bank and branch" required><Input value={bank} onChange={setBank} /></Field>}
-            {isCheque && <Field label="Cheque date" required hint="Held until it clears; a later date goes to Post-dated cheques."><Input type="date" value={chequeDate} onChange={setChequeDate} /></Field>}
+            {isCheque && <Field label="Cheque date" required hint="Held until cleared. Later date = post-dated cheque."><Input type="date" value={chequeDate} onChange={setChequeDate} /></Field>}
             <Field label="Receipt date"><Input type="date" value={paidOn} onChange={setPaidOn} max={todayISO()} /></Field>
             <Field label="Receiving account">
               <Select value={account} onChange={setAccount} options={[{ value: '', label: 'Not chosen' }, { value: 'Cash', label: 'Cash' },
@@ -507,13 +507,13 @@ function QrDialog({ hub, amount, onClose }: { hub: Hub; amount: number; onClose:
   const value = amount || owed
   return (
     <Dialog onClose={onClose} title="QR code for the parent" footer={<Button variant="secondary" onClick={onClose}>Close</Button>}>
-      {!s?.upi_vpa ? <p className="text-[14px] text-muted-foreground">No UPI ID is set for the school, so there is no code to show. It goes under Setup, School profile.</p>
-        : value <= 0 ? <p className="text-[14px] text-muted-foreground">Nothing is due now. Tick fee lines in Receipt entry to make a code for that amount.</p>
+      {!s?.upi_vpa ? <p className="text-[14px] text-muted-foreground">No school UPI ID. Add it in Setup, School profile.</p>
+        : value <= 0 ? <p className="text-[14px] text-muted-foreground">Nothing due. Tick fee lines to make a code.</p>
         : (
           <div className="mx-auto max-w-xs space-y-2 text-center">
             <p className="text-[14px]">{formatPaise(value)} {amount ? 'for the ticked lines' : 'due now'}</p>
             <UpiQr vpa={s.upi_vpa} payeeName={s.upi_payee_name || s.name || ''} amountPaise={value} note={upiNote('Fee', hub.student.admission_no)} reference={hub.student.admission_no} size={220} />
-            <p className="text-[12.5px] text-muted-foreground">The parent scans it with any UPI app. Record the receipt with the UTR once it is paid.</p>
+            <p className="text-[12.5px] text-muted-foreground">Parent scans with any UPI app. Record the UTR once paid.</p>
           </div>
         )}
     </Dialog>
@@ -718,7 +718,7 @@ function RemoveFees({ hub, lines, reqs }: { hub: Hub; lines: Line[]; reqs: Req[]
   const removable = lines.filter((l) => l.paid_paise === 0)
   return (
     <div className="space-y-4 p-[var(--card-pad)]">
-      <p className="text-[13px] text-muted-foreground">A fee is removed only after approval, and never once money is paid on it.</p>
+      <p className="text-[13px] text-muted-foreground">Needs approval. Not allowed once paid.</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Fee line"><Select value={line} onChange={setLine} placeholder="Choose" options={removable.map((l) => ({ value: l.line_id, label: `${l.description} · ${inst(l.instalment_no)} · ${formatPaise(l.net_paise)}` }))} /></Field>
         {line && <RequestForm hub={hub} kind="remove_fee" line={line} label="Send for approval" onDone={() => setLine('')} />}
@@ -750,7 +750,7 @@ function Transactions({ hub }: { hub: Hub }) {
       {view && <ReceiptDialog paymentId={view} onClose={() => setView(null)} />}
       {req && (
         <Dialog onClose={() => setReq(null)} title={req.kind === 'cancel' ? 'Cancel this receipt' : 'Change this receipt'}>
-          <p className="mb-3 text-[13px] text-muted-foreground">{req.kind === 'cancel' ? 'The receipt keeps its number and moves to Cancelled once approved. The money comes off the fee lines it paid.' : 'Mode, UTR, date or remarks change once approved. The amount and receipt number do not change.'}</p>
+          <p className="mb-3 text-[13px] text-muted-foreground">{req.kind === 'cancel' ? 'After approval the receipt is cancelled and its amount is taken off.' : 'Changes mode, UTR, date or remarks after approval. Amount and number stay.'}</p>
           {req.kind === 'change' ? <ChangeForm hub={hub} paymentId={req.id} onDone={() => setReq(null)} /> : <RequestForm hub={hub} kind="cancel" payment={req.id} label="Send for approval" minReason={10} onDone={() => setReq(null)} />}
         </Dialog>
       )}
@@ -1001,7 +1001,7 @@ function EditAmount({ hub }: { hub: Hub }) {
     <Card>
       <CardHeader title="Edit fee amount" />
       <div className="space-y-3 p-[var(--card-pad)]">
-        <p className="text-[13px] text-muted-foreground">The new amount applies once approved. It cannot go below what is already paid on the line.</p>
+        <p className="text-[13px] text-muted-foreground">Applies after approval. Not below the amount paid.</p>
         <FormGrid>
           <Field label="Fee line"><Select value={line} onChange={(v) => { setLine(v); setAmount('') }} placeholder="Choose" options={hub.lines.filter((x) => x.invoice_status !== 'cancelled').map((x) => ({ value: x.line_id, label: `${x.year} · ${x.description} · ${inst(x.instalment_no)} · ${formatPaise(x.amount_paise)}` }))} /></Field>
           <Field label="New amount (₹)" hint={l ? `Now ${formatPaise(l.amount_paise)}, paid ${formatPaise(l.paid_paise)}` : undefined}><Input value={amount} onChange={setAmount} type="number" /></Field>

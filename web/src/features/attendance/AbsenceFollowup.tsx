@@ -285,7 +285,7 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
         ) : total === 0 ? (
           <EmptyState
             title="Nobody is marked absent for this day."
-            body="Once attendance is taken and a child is marked away, they appear here for a call home."
+            body="No absent children yet."
           />
         ) : (
           <>

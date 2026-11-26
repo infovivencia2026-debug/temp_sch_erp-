@@ -31,14 +31,14 @@ export default function FeeCounter() {
       <PageHead
         eyebrow="Fee Workspace"
         title="Fee counter"
-        description="Find a student, take payment against the fee lines they owe, and issue a numbered receipt."
+        description="Find a student, take payment, issue a receipt."
         actions={
           <>
             {can('finance.payments.write') && (
               <ImportButton
                 entity="fee_payments"
                 title="Import fee payments"
-                hint="Payments already taken elsewhere, a bank statement, a term collected before the school was on the system. The dry run checks each against an outstanding invoice before anything is written."
+                hint="Import past payments. Each is checked against a due invoice first."
               />
             )}
             <ExportButton name="collections" />

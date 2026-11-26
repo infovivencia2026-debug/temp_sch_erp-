@@ -192,7 +192,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
         eyebrow={canPublish ? 'Homework & diary' : 'Academics'}
         title={canPublish ? 'Work you have set' : 'Homework & diary'}
         description={canPublish
-          ? 'Published straight to the class and their parents. Pick a day to see what was set and who has turned it in.'
+          ? 'Goes to the class and parents. Pick a day to see work and submissions.'
           : undefined}
         actions={canPublish && (
           <Button onClick={() => setComposing((c) => !c)}>
@@ -655,7 +655,7 @@ function Compose({ canPublish, onClose }: { canPublish: boolean; onClose: () => 
     <Card>
       <CardHeader
         title="Set homework"
-        description="Visible to the class and their parents the moment it is published."
+        description="Class and parents see it once published."
       />
       <form
         className="px-5 py-5"

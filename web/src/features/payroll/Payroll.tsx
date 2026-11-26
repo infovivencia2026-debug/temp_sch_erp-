@@ -347,7 +347,7 @@ export default function Payroll() {
           <Card>
             <CardHeader
               title={`${unmarked.staff_with_no_marks} ${unmarked.staff_with_no_marks === 1 ? 'person has' : 'people have'} days with no attendance marked`}
-              description="Nobody marked their register, so they would be paid in full with no loss of pay. Untick anyone who should not be paid this month, or mark their attendance first on Staff register."
+              description="No attendance marked, so full pay. Untick anyone not to be paid, or mark attendance first."
             />
             {(unmarked.staff ?? []).length > 0 && (
               <Table head={['Pay this month', 'Code', 'Name', 'Days not marked', 'Monthly pay']}>

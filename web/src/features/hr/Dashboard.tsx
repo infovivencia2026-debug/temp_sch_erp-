@@ -85,7 +85,7 @@ export default function HRDashboard() {
           <Card>
             <CardHeader
               title="Needs attention"
-              description="Paperwork and access that is not finished. Nothing here means nothing is outstanding."
+              description="Unfinished paperwork and access"
             />
             <div className="divide-y">
               {attention.map((a) => (
