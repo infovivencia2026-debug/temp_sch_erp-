@@ -166,7 +166,7 @@ const tabsScript = (lang: LoginLang) => {
     input.setAttribute('inputmode', c.mode)
     input.setAttribute('autocomplete', c.ac)
     if (focus) tabs[i].focus()
-    try { localStorage.setItem('login-tab', c.id) } catch (e) {}
+    try { sessionStorage.setItem('login-tab', c.id) } catch (e) {}
     if (input.form) {
       var tf = input.form.querySelector('input[name="tab"]')
       if (!tf) { tf = document.createElement('input'); tf.type = 'hidden'; tf.name = 'tab'; input.form.appendChild(tf) }
@@ -177,7 +177,10 @@ const tabsScript = (lang: LoginLang) => {
   }
   var start = 0
   try {
-    var saved = localStorage.getItem('login-tab')
+    /* Parent first on every fresh open (Yajur, 2026-11-26: "let parent be default
+       in sign in page"); the tab is kept only within this visit, so a wrong
+       password does not flip staff back to Parent. */
+    var saved = sessionStorage.getItem('login-tab')
     for (var k = 0; k < T.length; k++) if (T[k].id === saved) start = k
   } catch (e) {}
   tabs.forEach(function (b, i) {

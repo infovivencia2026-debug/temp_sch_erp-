@@ -1316,7 +1316,7 @@ function registerWorkflow(r: Router) {
        A mark the office made always wins; the reader only fills what is
        empty, which is what COALESCE says here. */
     const rows = await c.db.prepare(`
-      SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status, e.device_user_id AS reader_id,
+      SELECT u.id AS user_id, e.employee_code, ${fullName2('e')} AS full_name, sa.status, e.device_user_id AS reader_id, dp.name AS department,
              /* A tap within an hour of the first is the same arrival; one tap
                 after noon is leaving, with the in left for the office (as
                 routes/setup/imports.ts rollUpImportedDay saves the day). */
@@ -1327,6 +1327,7 @@ function registerWorkflow(r: Router) {
                   WHEN julianday(bp.last_punch) - julianday(bp.first_punch) >= 60.0 / 1440 THEN bp.last_punch
                   WHEN time(bp.first_punch, '+330 minutes') >= '15:00' THEN bp.last_punch END AS check_out
         FROM employees e LEFT JOIN users u ON u.id = e.user_id
+        LEFT JOIN departments dp ON dp.id = e.department_id
         LEFT JOIN staff_attendance sa ON sa.user_id = u.id AND sa.on_date = ?1
         LEFT JOIN (SELECT p.employee_id, MIN(p.punched_at) AS first_punch, MAX(p.punched_at) AS last_punch
                      FROM biometric_punches p
@@ -1345,6 +1346,8 @@ function registerWorkflow(r: Router) {
     return ok({ holiday: holiday ?? undefined, items: rows.results.map((v) => ({
       user_id: v.user_id ?? '', needs_login: v.user_id == null,
       employee_code: v.employee_code, full_name: v.full_name, on_reader: v.reader_id != null,
+      /* Staff group and biometric ID for the register's filter and export (Yajur, 2026-11-26). */
+      department: (v.department as string | null) ?? undefined, biometric_id: v.reader_id != null ? String(v.reader_id) : undefined,
       status: v.status ?? (holiday && !v.check_in ? 'holiday' : undefined), check_in: hhmmIn(tz, v.check_in as string | null) ?? undefined,
       check_out: hhmmIn(tz, v.check_out as string | null) ?? undefined,
     })) })

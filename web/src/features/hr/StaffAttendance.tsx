@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, SkeletonTable, ErrorState, FormNotice, ExportButton,
+  Button, Input, Select, SkeletonTable, ErrorState, FormNotice, ExportButton,
 } from '@/components/ui'
 import { ImportButton } from '@/components/DataPortActions'
 import { StaffMonth } from './StaffMonth'
@@ -38,6 +38,10 @@ interface StaffRow {
   check_in?: string
   /* The last punch of the day, 24-hour like check_in (owner, 2026-10-13: "add in and out time 24 hours format"). */
   check_out?: string
+  /** The staff group (department), e.g. Teaching staff / Non Teaching. */
+  department?: string
+  /** The PIN on the biometric reader. */
+  biometric_id?: string
 }
 
 const MARKS: { value: string; short: string; label: string; tone: string }[] = [
@@ -83,7 +87,18 @@ export default function StaffAttendance() {
     },
   })
 
-  const rows = q.data?.items ?? []
+  /* STAFF GROUP (Yajur, 2026-11-26: "let them choose staff or non staff, what
+     names we have"): the groups are the school's own departments. Screen,
+     print and export all follow the choice. */
+  const [group, setGroup] = useState('')
+  const NO_DEPT = '(none)'
+  const inGroup = (r: { department?: string }) => !group || (group === NO_DEPT ? !r.department : r.department === group)
+  const allRows = q.data?.items ?? []
+  const groups = [...new Set(allRows.map((r) => r.department).filter(Boolean) as string[])].sort()
+  const groupOptions = [{ value: '', label: 'All staff' }, ...groups.map((g) => ({ value: g, label: g })),
+    ...(allRows.some((r) => !r.department) ? [{ value: NO_DEPT, label: 'No department' }] : [])]
+  const groupLabel = groupOptions.find((o) => o.value === group)?.label ?? 'All staff'
+  const rows = allRows.filter(inGroup)
   const value = (r: StaffRow) => draft[r.user_id] ?? r.status ?? ''
   const marked = rows.filter((r) => value(r)).length
   const present = rows.filter((r) => ['present', 'late', 'half_day', 'wfh'].includes(value(r))).length
@@ -118,28 +133,56 @@ export default function StaffAttendance() {
   const loadRange = async (days: string[]) => {
     const lists: List<StaffRow>[] = []
     for (let i = 0; i < days.length; i += 10) lists.push(...await Promise.all(days.slice(i, i + 10).map((d) => api.get<List<StaffRow>>(`/api/v1/workflow/staff-register?on_date=${d}`))))
-    const staff = new Map<string, { user_id: string; employee_code: string; full_name: string }>()
+    const staff = new Map<string, StaffRow>()
     const marks: Record<string, Record<string, string>> = {}
-    lists.forEach((l, i) => { marks[days[i]] = {}; for (const r of l.items) { staff.set(r.user_id, r); if (r.status) marks[days[i]][r.user_id] = r.status } })
-    return { staff: [...staff.values()].sort((a, b) => a.employee_code.localeCompare(b.employee_code)), marks }
+    const ins: Record<string, Record<string, string>> = {}
+    /* Keyed by code: a person with no login yet has no user_id. */
+    lists.forEach((l, i) => { marks[days[i]] = {}; ins[days[i]] = {}; for (const r of l.items) { if (!inGroup(r)) continue; staff.set(r.employee_code, r); if (r.status) marks[days[i]][r.employee_code] = r.status; if (r.check_in) ins[days[i]][r.employee_code] = r.check_in } })
+    return { staff: [...staff.values()].sort((a, b) => a.employee_code.localeCompare(b.employee_code)).map((r) => ({ ...r, user_id: r.employee_code })), marks, ins }
   }
+  /* EXPORT AS EXCEL (Yajur, 2026-11-26: "export should be there with dates,
+     highlight the absentees and late comers", "all the staff with their
+     biometric id"). A real date over every column with the weekday, the
+     biometric ID beside each name, Absent in red and Late in amber. Saved as
+     an Excel sheet (HTML table), which keeps the colours; a day with no mark
+     but a punch shows the in-time. */
   const exportRange = async () => {
     const days = rangeDays(); if (!days) return
     if (days.length > 366) { setRangeErr('Export at most one year at a time.'); return }
     setRangeBusy(true)
     try {
-      const { staff, marks } = await loadRange(days)
-      const SHORT: Record<string, string> = { present: 'P', absent: 'A', late: 'L', half_day: 'HD', leave: 'Lv', week_off: 'W', on_duty: 'OD' }
-      const cell = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
-      const lines = [['Code', 'Employee', ...days, 'Present', 'Absent', 'Leave', 'Late', 'Half day'].map(cell).join(',')]
-      for (const st of staff) {
-        const ms = days.map((d) => marks[d][st.user_id] ?? '')
-        const n = (k: string) => String(ms.filter((m) => m === k).length)
-        lines.push([st.employee_code, st.full_name, ...ms.map((m) => SHORT[m] ?? m), n('present'), n('absent'), n('leave'), n('late'), n('half_day')].map(cell).join(','))
-      }
-      const url = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }))
-      const a = document.createElement('a'); a.href = url; a.download = `staff-register-${rangeFrom}-to-${rangeTo}.csv`
-      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 0)
+      const { staff, marks, ins } = await loadRange(days)
+      const SHORT: Record<string, string> = { present: 'P', absent: 'A', late: 'L', half_day: 'HD', leave: 'Lv', week_off: 'W', on_duty: 'OD', permission: 'Pr', wfh: 'H', holiday: 'Hol' }
+      const FILL: Record<string, string> = { absent: '#fecaca', late: '#fde68a', half_day: '#fef3c7', leave: '#e2e8f0', holiday: '#f1f5f9', week_off: '#f1f5f9' }
+      const INK: Record<string, string> = { absent: '#991b1b', late: '#92400e' }
+      const esc = (v: string) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
+      const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      const head = (d: string) => { const t = new Date(d + 'T00:00:00Z'); return `${d.slice(8)} ${MON[t.getUTCMonth()]}<br>${WD[t.getUTCDay()]}` }
+      const fmt = (d: string) => `${d.slice(8)} ${MON[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`
+      const th = (v: string, w = '') => `<th style="background:#1e3a8a;color:#fff;border:1px solid #94a3b8;padding:4px 6px${w}">${v}</th>`
+      const td = (v: string, st = '') => `<td style="border:1px solid #cbd5e1;padding:3px 6px;mso-number-format:'\@';${st}">${esc(v)}</td>`
+      const body = staff.map((st) => {
+        const ms = days.map((d) => marks[d][st.employee_code] ?? '')
+        const n = (...k: string[]) => String(ms.filter((m) => k.includes(m)).length)
+        const cells = days.map((d, i) => {
+          const m = ms[i]; const v = m ? (SHORT[m] ?? m) : (ins[d][st.employee_code] ?? '')
+          return td(v, `text-align:center;${FILL[m] ? `background:${FILL[m]};` : ''}${INK[m] ? `color:${INK[m]};font-weight:bold;` : ''}`)
+        }).join('')
+        return `<tr>${td(st.employee_code)}${td(st.biometric_id ?? '')}${td(st.full_name, 'white-space:nowrap')}${td(st.department ?? '')}${cells}${td(n('present', 'permission', 'on_duty', 'wfh'), 'text-align:center')}${td(n('absent'), 'text-align:center;background:#fecaca;color:#991b1b;font-weight:bold')}${td(n('late'), 'text-align:center;background:#fde68a;color:#92400e;font-weight:bold')}${td(n('half_day'), 'text-align:center')}${td(n('leave'), 'text-align:center')}</tr>`
+      }).join('')
+      const school = session.institution?.display_name ?? 'School'
+      const span = days.length + 9
+      const html = `<html><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif">
+<table><tr><td colspan="${span}" style="font-size:16pt;font-weight:bold">${esc(school)}: Staff attendance register</td></tr>
+<tr><td colspan="${span}">${esc(groupLabel)} &middot; ${fmt(rangeFrom)} to ${fmt(rangeTo)} &middot; ${staff.length} staff</td></tr>
+<tr><td colspan="${span}"><span style="background:#fecaca;color:#991b1b;font-weight:bold">&nbsp;A = Absent&nbsp;</span> <span style="background:#fde68a;color:#92400e;font-weight:bold">&nbsp;L = Late&nbsp;</span> P = Present, HD = Half day, Lv = Leave, Pr = Permission, Hol = Holiday, W = Week off; a time = punched in, not marked</td></tr><tr></tr>
+<tr>${th('Code')}${th('Biometric ID')}${th('Name')}${th('Group')}${days.map((d) => th(head(d), ';text-align:center')).join('')}${th('Present')}${th('Absent')}${th('Late')}${th('Half day')}${th('Leave')}</tr>
+${body}</table></body></html>`
+      const url = URL.createObjectURL(new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel' }))
+      const a = document.createElement('a'); a.href = url
+      a.download = `staff-register-${(group ? groupLabel : 'all-staff').replace(/[^\w-]+/g, '-').toLowerCase()}-${rangeFrom}-to-${rangeTo}.xls`
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (e) { setRangeErr((e as Error).message) } finally { setRangeBusy(false) }
   }
   const printRange = async () => {
@@ -212,6 +255,7 @@ export default function StaffAttendance() {
       <PageBody>
         <Card>
           <div className="flex flex-wrap items-end gap-2.5 p-4">
+            <div className="min-w-[170px]"><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">Staff group</label><Select value={group} onChange={setGroup} options={groupOptions} /></div>
             <div className="min-w-[150px]"><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">Print register from</label><Input type="date" value={rangeFrom} onChange={setRangeFrom} /></div>
             <div className="min-w-[150px]"><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">To</label><Input type="date" value={rangeTo} onChange={setRangeTo} /></div>
             <Button variant="secondary" onClick={printRange} disabled={rangeBusy}>
