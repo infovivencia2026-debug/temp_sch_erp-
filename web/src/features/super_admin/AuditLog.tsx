@@ -166,10 +166,10 @@ export default function AuditLog() {
                         <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="break-anywhere text-[14px]">
+                        <p className="text-[14px]">
                           <span className="font-medium">{r.actor ?? 'Someone'}</span>{' '}
                           <span className="text-muted-foreground">{verb.label}</span>{' '}
-                          <Badge tone={verb.tone}>{r.entity_type}</Badge>
+                          <Badge tone={verb.tone}><span className="break-anywhere">{r.entity_type}</span></Badge>
                         </p>
                         <p className="mt-0.5 truncate font-mono text-[12px] text-muted-foreground">
                           {path}
