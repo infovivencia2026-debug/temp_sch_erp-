@@ -760,7 +760,7 @@ export function ChatThread({
                       !first && 'chat-run',
                       m.failed && 'ring-1 ring-destructive',
                       // Not sent: a white bubble with a red edge, as the owner's design (2026-11-09).
-                      right && m.delivery === 'failed' && '!bg-none !bg-white !text-foreground !border-[1.5px] !border-solid !border-[#fda29b] [&_.chat-meta]:!text-muted-foreground',
+                      right && m.delivery === 'failed' && '!bg-none !bg-card !text-foreground !border-[1.5px] !border-solid !border-[#fda29b] [&_.chat-meta]:!text-muted-foreground',
                       m.pending && 'opacity-80',
                     )}
                   >
@@ -983,7 +983,7 @@ export function ChatThread({
                 accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*,video/*"
               />
             )}
-            <div className="chat-pill flex min-w-0 flex-1 items-end rounded-[24px] bg-white shadow-sm focus-within:shadow-[0_0_0_2px_rgba(77,122,254,0.35)] sm:rounded-[20px]">
+            <div className="chat-pill flex min-w-0 flex-1 items-end rounded-[24px] bg-card shadow-sm focus-within:shadow-[0_0_0_2px_rgba(77,122,254,0.35)] sm:rounded-[20px]">
             {allowAttachments && (
               <button
                 type="button"

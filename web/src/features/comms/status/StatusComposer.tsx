@@ -394,14 +394,14 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
   if (done) return createPortal(
     <div className={cn('posted-overlay fixed inset-0 grid place-items-center bg-[rgba(17,24,39,0.4)] p-5 backdrop-blur-[6px]', raised ? 'z-[140]' : 'z-[100]')}
       role="dialog" aria-label="Status posted" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="posted-card relative w-full max-w-[320px] rounded-[24px] bg-white px-6 pb-6 pt-8 text-center shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.05)]">
+      <div className="posted-card relative w-full max-w-[320px] rounded-[24px] bg-card px-6 pb-6 pt-8 text-center shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.05)]">
         <button type="button" onClick={onClose} aria-label="Close"
-          className="absolute right-4 top-4 grid size-8 place-items-center rounded-full bg-[#F3F4F6] text-[14px] text-[#6B7280] transition-colors hover:bg-[#E5E7EB] hover:text-[#111827]">✕</button>
-        <div className="mx-auto mb-5 grid size-16 place-items-center rounded-full bg-[#ECFDF5] shadow-[0_0_0_8px_#F4FBF7]">
+          className="absolute right-4 top-4 grid size-8 place-items-center rounded-full bg-muted text-[14px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">✕</button>
+        <div className="mx-auto mb-5 grid size-16 place-items-center rounded-full bg-[#ECFDF5] shadow-[0_0_0_8px_#F4FBF7] dark:bg-[#14532d] dark:shadow-[0_0_0_8px_rgba(20,83,45,.35)]">
           <Check className="size-8 text-[#10B981]" strokeWidth={2.5} />
         </div>
-        <h2 className="mb-2 text-[22px] font-bold tracking-[-0.02em] text-[#111827]">{done.startsWith('Sent') ? 'Sent for approval' : 'Status Posted'}</h2>
-        <p className="mb-7 text-[15px] leading-normal text-[#6B7280]">{done}</p>
+        <h2 className="mb-2 text-[22px] font-bold tracking-[-0.02em] text-foreground">{done.startsWith('Sent') ? 'Sent for approval' : 'Status Posted'}</h2>
+        <p className="mb-7 text-[15px] leading-normal text-muted-foreground">{done}</p>
         {problem && <p className="-mt-4 mb-5 text-[13px] text-[#E11D48]">{problem}</p>}
         <button type="button" onClick={onClose} autoFocus
           className="w-full rounded-[14px] bg-[#E11D48] p-3.5 text-[16px] font-semibold text-white shadow-[0_4px_14px_rgba(225,29,72,0.25)] transition-[transform,background-color,box-shadow,color] duration-200 hover:-translate-y-0.5 hover:bg-[#BE123C] hover:shadow-[0_6px_20px_rgba(225,29,72,0.35)] active:translate-y-px">

@@ -813,7 +813,7 @@ function ModulePage({ d, m, kids, subtree, here, isHere, titleOf, openItem, open
                 </div>
               </div>
               {all.length > 0 && (
-                <div className="flex shrink-0 items-center gap-4 self-start rounded-2xl border border-slate-200/70 bg-slate-50/80 p-3 sm:self-auto">
+                <div className="flex shrink-0 items-center gap-4 self-start rounded-2xl border border-slate-200/70 dark:border-border bg-slate-50/80 dark:bg-muted p-3 sm:self-auto">
                   <div className="px-3 text-center">
                     <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Progress</span>
                     <span className={cn('font-mono text-[18px] font-bold', fin ? 'text-emerald-600' : 'text-indigo-600')}>{pct}%</span>
@@ -906,11 +906,11 @@ function DayCards({ d, days, here, titleOf, onOpen }: { d: Detail; days: SDay[];
           <li key={x.key}>
             <button type="button" disabled={locked} onClick={() => onOpen(x.key)}
               className={cn('group flex h-full w-full flex-col justify-between gap-3 rounded-2xl border p-4 text-left transition-all',
-                locked ? 'cursor-not-allowed border-slate-200/80 bg-muted/50 opacity-70'
-                  : isHere ? 'border-indigo-300 bg-white shadow-md ring-2 ring-indigo-200/60'
-                    : 'border-slate-200/80 bg-slate-50/70 hover:border-emerald-300 hover:bg-white hover:shadow-md')}>
+                locked ? 'cursor-not-allowed border-slate-200/80 dark:border-border bg-muted/50 opacity-70'
+                  : isHere ? 'border-indigo-300 bg-white dark:bg-card shadow-md ring-2 ring-indigo-200/60'
+                    : 'border-slate-200/80 dark:border-border bg-slate-50/70 dark:bg-muted hover:border-emerald-300 hover:bg-white dark:hover:bg-card hover:shadow-md')}>
               <span className="flex items-center justify-between">
-                <span className="text-[12px] font-bold text-slate-700">{shortDay(x)}</span>
+                <span className="text-[12px] font-bold text-slate-700 dark:text-foreground">{shortDay(x)}</span>
                 {fin ? <span className="grid size-5 place-items-center rounded-full bg-emerald-500 text-white"><Check className="size-3" strokeWidth={3.5} aria-hidden /></span>
                   : locked ? <Lock className="size-4 text-muted-foreground" aria-hidden />
                     : <span className="text-[11px] font-semibold text-muted-foreground">{x.done}/{x.total}</span>}
@@ -920,8 +920,8 @@ function DayCards({ d, days, here, titleOf, onOpen }: { d: Detail; days: SDay[];
                 <span className="block truncate text-[11px] text-slate-500">{locked ? (x.reason ?? 'Not open yet') : kinds || 'Nothing yet'}</span>
               </span>
               <span className={cn('w-full rounded-xl border py-1.5 text-center text-[12px] font-semibold transition-colors',
-                locked ? 'border-slate-200 bg-white text-muted-foreground'
-                  : fin ? 'border-slate-200 bg-white text-slate-700 group-hover:border-emerald-200 group-hover:bg-emerald-50 group-hover:text-emerald-800'
+                locked ? 'border-slate-200 dark:border-border bg-white dark:bg-card text-muted-foreground'
+                  : fin ? 'border-slate-200 dark:border-border bg-white dark:bg-card text-slate-700 dark:text-foreground group-hover:border-emerald-200 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950 group-hover:text-emerald-800 dark:group-hover:text-emerald-300'
                     : 'border-indigo-500 bg-indigo-500 text-white group-hover:bg-indigo-600')}>
                 {locked ? 'Locked' : fin ? 'Review' : x.done ? 'Continue' : 'Start'}
               </span>

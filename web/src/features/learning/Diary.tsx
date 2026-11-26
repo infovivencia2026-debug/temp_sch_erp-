@@ -156,7 +156,7 @@ export default function Diary() {
      header with the progress box on the right, then Add item (5/12) beside
      the list (7/12), with labels, wrapped chips and dark pill tabs. */
   const card = 'rounded-[14px] border bg-card px-4 py-3.5 shadow-[0_2px_8px_rgba(15,23,42,0.04)] lg:rounded-2xl lg:border-slate-200/80 lg:p-6 lg:shadow-sm'
-  const field = 'min-h-[44px] w-full rounded-lg border-[1.5px] bg-background px-3 text-[14px] outline-none focus:border-[#4f46e5] lg:min-h-[42px] lg:rounded-xl lg:border lg:bg-slate-50 lg:px-3.5 lg:text-[14px] lg:focus:ring-2 lg:focus:ring-indigo-500/20'
+  const field = 'min-h-[44px] w-full rounded-lg border-[1.5px] bg-background px-3 text-[14px] outline-none focus:border-[#4f46e5] lg:min-h-[42px] lg:rounded-xl lg:border lg:bg-slate-50 dark:lg:bg-muted lg:px-3.5 lg:text-[14px] lg:focus:ring-2 lg:focus:ring-indigo-500/20'
   const chips = '-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0'
   const label = 'hidden text-[12px] font-semibold text-slate-600 lg:mb-1 lg:block'
   const streakChip = streak > 0 ? (
@@ -190,7 +190,7 @@ export default function Diary() {
               </div>
             </div>
             {/* Progress: a bar under the title on a phone, a box on the right on a computer. */}
-            <div className="mt-2.5 lg:mt-0 lg:flex lg:shrink-0 lg:items-center lg:gap-4 lg:rounded-xl lg:border lg:border-slate-200/60 lg:bg-slate-50 lg:px-4 lg:py-3">
+            <div className="mt-2.5 lg:mt-0 lg:flex lg:shrink-0 lg:items-center lg:gap-4 lg:rounded-xl lg:border lg:border-slate-200/60 dark:lg:border-border lg:bg-slate-50 dark:lg:bg-muted lg:px-4 lg:py-3">
               <div className="flex justify-between text-[11.5px] font-semibold text-muted-foreground lg:block lg:text-right">
                 <span className="hidden text-[11px] font-semibold uppercase tracking-wider text-slate-400 lg:block">Today&apos;s progress</span>
                 <span className="lg:text-[14px] lg:font-bold lg:text-slate-800">{done} of {items.length} done</span>
@@ -216,7 +216,7 @@ export default function Diary() {
                   {KINDS.map((k) => (
                     <button key={k.value} type="button" role="radio" aria-checked={kind === k.value} onClick={() => setKind(k.value)}
                       className={cn('shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors lg:rounded-lg lg:font-medium',
-                        kind === k.value ? 'border-[#4f46e5] bg-[#eef2ff] text-[#4f46e5] lg:border-indigo-200 lg:bg-indigo-50 lg:text-indigo-700' : 'bg-card text-muted-foreground lg:text-slate-600 lg:hover:bg-slate-50')}>
+                        kind === k.value ? 'border-[#4f46e5] bg-[#eef2ff] dark:bg-primary/15 text-[#4f46e5] lg:border-indigo-200 lg:bg-indigo-50 dark:lg:bg-primary/15 lg:text-indigo-700 dark:lg:text-primary' : 'bg-card text-muted-foreground lg:text-slate-600 dark:lg:text-muted-foreground lg:hover:bg-slate-50 dark:lg:hover:bg-accent')}>
                       {k.emoji} {k.label}
                     </button>
                   ))}
@@ -227,7 +227,7 @@ export default function Diary() {
                 <div className={chips}>
                   {PRESETS.map((p) => (
                     <button key={p} type="button" onClick={() => setBody(p)}
-                      className="shrink-0 rounded-md border bg-muted/60 px-2.5 py-1 text-[11px] text-foreground/80 lg:border-0 lg:bg-slate-100 lg:text-[12px] lg:text-slate-600 lg:hover:bg-slate-200">{p}</button>
+                      className="shrink-0 rounded-md border bg-muted/60 px-2.5 py-1 text-[11px] text-foreground/80 lg:border-0 lg:bg-slate-100 dark:lg:bg-muted lg:text-[12px] lg:text-slate-600 dark:lg:text-muted-foreground lg:hover:bg-slate-200 dark:lg:hover:bg-accent">{p}</button>
                   ))}
                 </div>
               </div>
@@ -249,7 +249,7 @@ export default function Diary() {
                           className={cn('flex-1 rounded-md text-[12.5px] font-semibold transition-colors lg:rounded-xl lg:border',
                             priority === p
                               ? (p === 'urgent' ? 'bg-[#fee2e2] text-[#b91c1c] lg:border-rose-200' : 'bg-[#dcfce7] text-[#15803d] lg:border-emerald-200')
-                              : 'text-muted-foreground lg:border-slate-200 lg:bg-white lg:text-slate-600')}>
+                              : 'text-muted-foreground lg:border-slate-200 dark:lg:border-border lg:bg-white dark:lg:bg-card lg:text-slate-600 dark:lg:text-muted-foreground')}>
                           {p === 'urgent' ? '🔥 Urgent' : 'Normal'}
                         </button>
                       ))}
@@ -278,7 +278,7 @@ export default function Diary() {
                     className={cn('flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors lg:flex-none lg:rounded-xl lg:px-4 lg:py-2 lg:text-[14px]',
                       filter === f
                         ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.06)] lg:bg-slate-900 lg:text-white lg:shadow-none'
-                        : 'text-muted-foreground lg:text-slate-600 lg:hover:bg-slate-100')}>
+                        : 'text-muted-foreground lg:text-slate-600 dark:lg:text-muted-foreground lg:hover:bg-slate-100 dark:lg:hover:bg-accent')}>
                     {f === 'done' ? `Done (${done})` : f === 'pending' ? `Pending (${items.length - done})` : `All (${items.length})`}
                   </button>
                 ))}
@@ -306,7 +306,7 @@ export default function Diary() {
                          also an easier target. The phone keeps its own
                          sizes -- there the cards already fill the screen. */
                       className={cn('flex cursor-pointer items-center justify-between gap-3 rounded-lg border-[1.5px] px-3.5 py-3 transition-transform active:scale-[0.98] lg:gap-5 lg:rounded-2xl lg:border lg:px-6 lg:py-6',
-                        e.done ? 'border-[#bbf7d0] bg-[#f0fdf4] lg:border-emerald-200 lg:bg-emerald-50/60' : 'bg-card lg:border-slate-200 lg:hover:border-slate-300')}>
+                        e.done ? 'border-[#bbf7d0] bg-[#f0fdf4] lg:border-emerald-200 lg:bg-emerald-50/60' : 'bg-card lg:border-slate-200 dark:lg:border-border lg:hover:border-slate-300')}>
                       <div className="flex min-w-0 flex-1 items-center gap-3">
                         <span className={cn('grid size-[26px] shrink-0 place-items-center rounded-full border-2 transition-colors lg:size-9',
                           e.done ? 'border-[#16a34a] bg-[#16a34a] text-white lg:border-emerald-500 lg:bg-emerald-500' : 'border-[#cbd5e1] bg-card text-transparent',
