@@ -172,26 +172,26 @@ export default function HomeExact() {
       </div>
       <section className="hx-kpis">
         <div className="hx-kpi" onClick={() => openScreen('institution_admin.students.student_360', 'student_360')}>
-          <div className="top"><span className="lbl">Students</span><span className="ic" style={{ background: '#eef0ff', color: '#4f46e5' }}><Icon d={I.users} /></span></div>
+          <div className="top"><span className="lbl">Students</span><span className="ic" style={{ background: 'var(--hx-ic-blue)', color: 'var(--hx-primary)' }}><Icon d={I.users} /></span></div>
           <div className="num">{k?.students ?? '–'}</div>
           <div className="meta">{k?.sections ?? 0} sections</div>
           <div className="bar"><span style={{ width: grown ? '81%' : 0 }} /></div>
         </div>
         <div className="hx-kpi" onClick={() => openScreen('hr.records.staff_records', 'staff_records')}>
-          <div className="top"><span className="lbl">Staff</span><span className="ic" style={{ background: '#e9f8fd', color: '#0891b2' }}><Icon d={I.staff} /></span></div>
+          <div className="top"><span className="lbl">Staff</span><span className="ic" style={{ background: 'var(--hx-ic-cyan)', color: '#0891b2' }}><Icon d={I.staff} /></span></div>
           <div className="num">{k?.staff ?? '–'}</div>
           <div className="meta">{k?.staff_teaching ?? 0} teaching · {k?.staff_non_teaching ?? 0} non-teaching</div>
           <div className="bar"><span style={{ width: grown && k?.staff ? `${Math.round((k.staff_teaching / k.staff) * 100)}%` : 0 }} /></div>
         </div>
         <div className="hx-kpi" onClick={() => openScreen('institution_admin.academics.student_absentees', 'student_absentees')}>
-          <div className="top"><span className="lbl">Attendance</span><span className="ic" style={{ background: '#ecfdf3', color: '#16a34a' }}><Icon d={I.check} /></span></div>
+          <div className="top"><span className="lbl">Attendance</span><span className="ic" style={{ background: 'var(--hx-ic-green)', color: 'var(--hx-green)' }}><Icon d={I.check} /></span></div>
           <div className="num">{k?.attendance_range_pct != null ? `${Math.round(k.attendance_range_pct)}%` : '–'}</div>
           <div className="meta">{k?.attendance_today_pct != null ? `Today ${Math.round(k.attendance_today_pct)}%` : 'Today not marked yet'}</div>
           <svg className="spark" viewBox="0 0 120 34" preserveAspectRatio="none"><path d={trend.slice(-9).map((t, i, a) => `${i ? 'L' : 'M'}${(i * 120) / Math.max(1, a.length - 1)} ${32 - (t.pct / 100) * 30}`).join(' ')} fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" /></svg>
         </div>
         {canMoney && (
           <div className="hx-kpi" onClick={() => openScreen('institution_admin.fees.fee_dashboard', 'fee_dashboard')}>
-            <div className="top"><span className="lbl">Fees banked</span><span className="ic" style={{ background: '#fff7e6', color: '#d97706' }}><Icon d={I.rupee} /></span></div>
+            <div className="top"><span className="lbl">Fees banked</span><span className="ic" style={{ background: 'var(--hx-ic-amber)', color: 'var(--hx-amber)' }}><Icon d={I.rupee} /></span></div>
             <div className="num">{k ? rupees(k.collected_paise) : '–'}</div>
             <div className="meta">{k && <><span style={{ color: 'var(--hx-red)', fontWeight: 700 }}>{rupees(k.outstanding_paise)}</span> still unpaid</>}</div>
             <div className="bar"><span style={{ width: grown && k ? `${Math.min(100, Math.round((k.collected_paise / Math.max(1, k.collected_paise + k.outstanding_paise)) * 100))}%` : 0 }} /></div>
@@ -297,19 +297,19 @@ export default function HomeExact() {
                 <linearGradient id="hxg" x1="0" x2="1"><stop offset="0" stopColor="#5fd3f3" /><stop offset=".5" stopColor="#4f7cf7" /><stop offset="1" stopColor="#8b5cf6" /></linearGradient>
                 <linearGradient id="hxf" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#4f7cf7" stopOpacity=".22" /><stop offset="1" stopColor="#8b5cf6" stopOpacity="0" /></linearGradient>
               </defs>
-              {[25, 50, 75, 100].map((n) => <g key={n}><line x1={P} x2={W - P} y1={y(n)} y2={y(n)} stroke="#eef1f7" /><text x="2" y={y(n) + 4} fontSize="10" fill="#94a3b8">{n}</text></g>)}
-              <line x1={P} x2={W - P} y1={y(90)} y2={y(90)} stroke="#cbd2e1" strokeDasharray="5 5" />
+              {[25, 50, 75, 100].map((n) => <g key={n}><line x1={P} x2={W - P} y1={y(n)} y2={y(n)} stroke="var(--hx-grid)" /><text x="2" y={y(n) + 4} fontSize="10" fill="var(--hx-muted)">{n}</text></g>)}
+              <line x1={P} x2={W - P} y1={y(90)} y2={y(90)} stroke="var(--hx-target)" strokeDasharray="5 5" />
               <path d={`${line} L${x(trend.length - 1)},${H - P} L${P},${H - P}Z`} fill="url(#hxf)" />
               <path d={line} fill="none" stroke="url(#hxg)" strokeWidth="3.5" strokeLinecap="round" />
               {pts.map(([a, b], i) => (
-                <circle key={i} cx={a} cy={b} r={5} fill="#fff" stroke="#4f7cf7" strokeWidth="2.5" style={{ cursor: 'pointer' }}
+                <circle key={i} cx={a} cy={b} r={5} fill="var(--hx-card)" stroke="#4f7cf7" strokeWidth="2.5" style={{ cursor: 'pointer' }}
                   onMouseEnter={() => setTip({ x: a / W, y: b / H, t: `${new Date(trend[i].date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · ${Math.round(trend[i].pct)}% present` })} />
               ))}
             </svg>
           )}
           {tip && <div className="hx-tip" style={{ left: `${tip.x * 100}%`, top: `${tip.y * 100}%` }}>{tip.t}</div>}
         </div>
-        <div className="hx-legend"><span><i style={{ background: 'linear-gradient(90deg,#5fd3f3,#8b5cf6)' }} />Present %</span><span><i style={{ background: '#e8ecf4' }} />Target 90%</span></div>
+        <div className="hx-legend"><span><i style={{ background: 'linear-gradient(90deg,#5fd3f3,#8b5cf6)' }} />Present %</span><span><i style={{ background: 'var(--hx-line)' }} />Target 90%</span></div>
       </section>
 
       <SetupProgress />

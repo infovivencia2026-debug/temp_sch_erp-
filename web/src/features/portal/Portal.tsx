@@ -67,10 +67,10 @@ interface AttendanceDay {
 
 const DOT: Record<string, string> = {
   /* Light tints: the owner found the solid forest green ugly. */
-  present: 'bg-[#dcfce7] border-[#86efac]',
-  late: 'bg-[#fef3c7] border-[#fcd34d]',
-  absent: 'bg-[#fee2e2] border-[#fca5a5]',
-  half_day: 'bg-[#ffedd5] border-[#fdba74]',
+  present: 'bg-[#dcfce7] border-[#86efac] dark:bg-[#14532d] dark:border-[#22c55e] dark:text-[#dcfce7]',
+  late: 'bg-[#fef3c7] border-[#fcd34d] dark:bg-[#713f12] dark:border-[#eab308] dark:text-[#fef3c7]',
+  absent: 'bg-[#fee2e2] border-[#fca5a5] dark:bg-[#7f1d1d] dark:border-[#ef4444] dark:text-[#fee2e2]',
+  half_day: 'bg-[#ffedd5] border-[#fdba74] dark:bg-[#7c2d12] dark:border-[#f97316] dark:text-[#ffedd5]',
   leave: 'bg-muted-foreground/40',
   holiday: 'bg-border',
 }

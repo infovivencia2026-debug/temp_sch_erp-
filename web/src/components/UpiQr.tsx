@@ -104,7 +104,7 @@ export default function UpiQr({
           />
         ) : (
           <div
-            className="grid place-items-center text-[13px] text-muted-foreground"
+            className="grid place-items-center text-[13px] text-[#555]"
             style={{ width: size, height: size }}
           >
             {code.isError ? `The code could not be fetched. Pay to ${vpa} instead.` : 'Getting the code…'}
