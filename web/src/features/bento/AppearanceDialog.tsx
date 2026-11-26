@@ -1257,8 +1257,20 @@ export function AppearanceDialog({
      Fifteen families is roughly two megabytes; paying that on every visit so a
      dialog most people never open can draw its specimens would be the whole
      cost of this feature landing on the wrong person. */
+  /* NOT ON THE OPENING FRAMES (owner, 2026-11-26: "settings opening is stuck,
+     very rough"). Each family's stylesheet that lands re-lays-out the whole
+     page (measured 80-100ms a time at 1440), and fifteen of them arriving
+     during the grow-out animation were the stutter. Asked for once the window
+     has finished opening and the page is idle. */
   useEffect(() => {
-    if (open) ensureAllFonts()
+    if (!open) return
+    const w = window as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void }
+    let idle = 0
+    const timer = window.setTimeout(() => {
+      if (w.requestIdleCallback) idle = w.requestIdleCallback(ensureAllFonts, { timeout: 1500 })
+      else ensureAllFonts()
+    }, 700)
+    return () => { window.clearTimeout(timer); if (idle && w.cancelIdleCallback) w.cancelIdleCallback(idle) }
   }, [open])
 
   /* Scroll to the requested section when the dialog opens */

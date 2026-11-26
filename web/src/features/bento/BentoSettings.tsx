@@ -13,7 +13,13 @@ const AppearanceDialog = lazy(() => loadDialog().then((m) => ({ default: m.Appea
 /* Fetched once the page is idle, so the first press of the gear opens at once
    instead of waiting on the download (owner, 2026-10-10: "no waiting"). */
 if (typeof window !== 'undefined') {
-  const warm = () => { void loadDialog().catch(() => {}) }
+  /* The phone's /settings page too (owner, 2026-11-26: "stuck"): it was only
+     fetched on the press, so the gear did nothing visible for seconds on a
+     slow phone while the page's chunk downloaded. */
+  const warm = () => {
+    void loadDialog().catch(() => {})
+    if (window.matchMedia('(max-width: 767px)').matches) void import('./SettingsPage').catch(() => {})
+  }
   const ric = (window as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback
   if (ric) ric(warm, { timeout: 4000 })
   else window.setTimeout(warm, 2500)
