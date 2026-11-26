@@ -40,9 +40,9 @@ function Kpi({ label, value, small, tone }: { label: string; value: string; smal
 function Tag({ tone, children }: { tone: 'good' | 'warn' | 'bad' | 'plain'; children: React.ReactNode }) {
   return (
     <span className={cn('inline-flex rounded-md px-2 py-0.5 text-[12px] font-semibold',
-      tone === 'good' ? 'bg-[#f0fdf4] text-[#15803d]'
-        : tone === 'warn' ? 'bg-[#fefce8] text-[#b45309]'
-          : tone === 'bad' ? 'bg-[#fef2f2] text-[#b91c1c]' : 'bg-muted text-muted-foreground')}>
+      tone === 'good' ? 'bg-[#f0fdf4] text-[#15803d] dark:bg-[#14532d] dark:text-[#bbf7d0]'
+        : tone === 'warn' ? 'bg-[#fefce8] text-[#b45309] dark:bg-[#713f12] dark:text-[#fde68a]'
+          : tone === 'bad' ? 'bg-[#fef2f2] text-[#b91c1c] dark:bg-[#7f1d1d] dark:text-[#fecaca]' : 'bg-muted text-muted-foreground')}>
       {children}
     </span>
   )
@@ -175,7 +175,7 @@ export function FeesYear({ invoices, payments, outstanding, breakdown }: {
   const pay = payments.filter((x) => academicYear(x.paid_on) === year)
   const billed = inv.reduce((a, x) => a + Number(x.net_paise), 0)
   const paid = pay.filter((x) => x.status === 'success').reduce((a, x) => a + Number(x.amount_paise), 0)
-  const modeTone = (m: string) => /upi|online|card|net/i.test(m) ? 'bg-primary/10 text-primary' : /cash/i.test(m) ? 'bg-[#f0fdf4] text-[#15803d]' : 'bg-muted text-foreground'
+  const modeTone = (m: string) => /upi|online|card|net/i.test(m) ? 'bg-primary/10 text-primary' : /cash/i.test(m) ? 'bg-[#f0fdf4] text-[#15803d] dark:bg-[#14532d] dark:text-[#bbf7d0]' : 'bg-muted text-foreground'
   return (
     <>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

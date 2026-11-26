@@ -44,7 +44,7 @@ function Shortcut({ icon: Icon, title, detail, onClick, main = false }: { icon: 
       <span className={cn('grid size-11 shrink-0 place-items-center rounded-2xl', main ? 'bg-primary-foreground/15' : 'bg-primary/10 text-primary')}><Icon className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1">
         <span className="block font-semibold">{title}</span>
-        <span className={cn('block text-sm', main ? 'opacity-80' : 'text-muted-foreground')}>{detail}</span>
+        <span className={cn('block text-sm', main ? '' : 'text-muted-foreground')}>{detail}</span>
       </span>
       <ArrowUpRight className={cn('h-5 w-5 shrink-0 self-start transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5', main ? 'opacity-80' : 'text-muted-foreground group-hover:text-primary')} />
     </button>

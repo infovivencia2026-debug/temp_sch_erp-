@@ -161,7 +161,7 @@ function MonthGrid({ days, ym, large = false }: { days: AttendanceDay[]; ym: str
                 large ? 'h-11 rounded-lg border text-[14px] font-medium' : 'aspect-square rounded text-[11px]',
                 // The number stays legible on every ground: white on the solid
                 // statuses, ordinary text on the pale ones and on a blank day.
-                status ? DOT[status] ?? 'bg-muted' : sunday ? 'bg-border text-muted-foreground' : 'text-muted-foreground',
+                status ? DOT[status] ?? 'bg-muted' : sunday ? 'bg-border text-secondary-foreground' : 'text-muted-foreground',
                 status === 'present' ? 'font-semibold text-[#15803d]'
                   : status === 'absent' ? 'font-semibold text-[#b91c1c]'
                   : status === 'late' || status === 'half_day' ? 'font-semibold text-[#b45309]'

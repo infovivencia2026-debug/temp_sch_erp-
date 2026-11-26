@@ -506,11 +506,11 @@ function CallButton({ label, name, phone, primary }: { label: string; name: stri
         <span className="block break-words">
           {label}
           {name && name !== label ? (
-            <span className="font-normal opacity-80"> · {name}</span>
+            <span className="font-normal"> · {name}</span>
           ) : null}
-          {primary ? <span className="font-normal opacity-80"> · Primary</span> : null}
+          {primary ? <span className="font-normal"> · Primary</span> : null}
         </span>
-        <span className="block font-mono text-[12px] opacity-80">{phone}</span>
+        <span className="block font-mono text-[12px]">{phone}</span>
       </span>
     </a>
   )

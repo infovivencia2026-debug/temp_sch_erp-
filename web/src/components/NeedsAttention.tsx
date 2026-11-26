@@ -263,7 +263,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
             {/* A heading, not a grey caption: the owner asked for the words
                 "Needs your attention" to read properly. */}
             <h2 className="flex items-center gap-2 text-[16px] font-bold tracking-[-0.01em]">
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-[#fef3c7] text-[13px] text-[#b45309]">!</span>
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-[#fef3c7] text-[13px] text-[#b45309] dark:bg-[#713f12] dark:text-[#fde68a]">!</span>
               Needs your attention
               <Badge tone="danger">{items.length}</Badge>
             </h2>
@@ -303,7 +303,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
                       'grid size-11 shrink-0 place-items-center rounded-[14px]',
                       item.severity === 'critical' && 'bg-destructive/10 text-destructive',
                       item.severity === 'warning' &&
-                        'bg-[hsl(var(--warn,38_92%_90%))] text-[hsl(var(--warning,38_92%_35%))]',
+                        'bg-[hsl(var(--warn,38_92%_90%))] text-[hsl(var(--warning,38_92%_35%))] dark:bg-warning/15 dark:text-warning',
                       item.severity === 'info' && 'bg-muted text-muted-foreground',
                     )}
                   >

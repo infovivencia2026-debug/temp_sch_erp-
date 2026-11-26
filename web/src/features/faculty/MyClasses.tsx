@@ -354,8 +354,8 @@ export default function MyClasses() {
                   </Td>
                   <Td>
                     <span className={cn('inline-flex rounded-md px-2 py-0.5 text-[12px] font-semibold',
-                      r.risk_band === 'none' ? 'bg-[#f0fdf4] text-[#15803d]'
-                        : r.risk_band === 'watch' ? 'bg-[#fefce8] text-[hsl(var(--sys-orange-ink))]' : 'bg-[#fef2f2] text-[#b91c1c]')}
+                      r.risk_band === 'none' ? 'bg-[#f0fdf4] text-[#15803d] dark:bg-[#14532d] dark:text-[#bbf7d0]'
+                        : r.risk_band === 'watch' ? 'bg-[#fefce8] text-[hsl(var(--sys-orange-ink))] dark:bg-[#713f12] dark:text-[#fde68a]' : 'bg-[#fef2f2] text-[#b91c1c] dark:bg-[#7f1d1d] dark:text-[#fecaca]')}
                       title={r.risks.join('; ') || undefined}>
                       {r.risk_band === 'none' ? 'On track' : r.risk_band === 'watch' ? 'Under watch' : 'Intervention required'}
                     </span>

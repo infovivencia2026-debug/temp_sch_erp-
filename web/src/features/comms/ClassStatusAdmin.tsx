@@ -155,7 +155,7 @@ export default function ClassStatusAdmin() {
                     <h2 className="text-[16px] font-bold tracking-[-0.01em]">Class Status</h2>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">Manage publishing rules and visibility</p>
                   </div>
-                  <span className={'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ' + (d.enabled ? 'bg-[#ecfdf5] text-[#059669]' : 'bg-muted text-muted-foreground')}>
+                  <span className={'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ' + (d.enabled ? 'bg-[#ecfdf5] text-[#047857] dark:bg-[#14532d] dark:text-[#bbf7d0]' : 'bg-muted text-muted-foreground')}>
                     <span className={'h-1.5 w-1.5 rounded-full ' + (d.enabled ? 'bg-[#10b981]' : 'bg-muted-foreground')} />{d.enabled ? 'Active' : 'Off'}
                   </span>
                 </div>
