@@ -697,6 +697,19 @@ export function Shell({
     setNavOpen(false)
   }, [location.pathname])
 
+  /* The staff bar's menu button sits at the top right (Yajur, 2026-10-21). */
+  const staffMenuButton = (
+    <button
+      ref={openerRef}
+      aria-label="Open navigation"
+      aria-expanded={navOpen}
+      aria-controls="shell-nav"
+      className="order-last ml-auto grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
+      onClick={() => setNavOpen(true)}
+    >
+      <Menu className="h-6 w-6 md:h-5 md:w-5" />
+    </button>
+  )
   return (
     <div className="flex h-full">
       {/* Shown once per person, over whatever they landed on. */}
@@ -1299,17 +1312,10 @@ export function Shell({
                the line of the page's own title and back button instead of taking
                a row of its own (Yajur, 2026-10-30). */
             location.pathname.startsWith('/settings') && 'max-md:absolute max-md:right-0 max-md:top-0 max-md:!bg-transparent max-md:px-3 max-md:py-[16px] max-md:![backdrop-filter:none]')}>
-            <button
-              ref={openerRef}
-              aria-label="Open navigation"
-              aria-expanded={navOpen}
-              aria-controls="shell-nav"
-              /* The staff bar's menu button sits at the top right (Yajur, 2026-10-21). */
-              className="order-last ml-auto grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
-              onClick={() => setNavOpen(true)}
-            >
-              <Menu className="h-6 w-6 md:h-5 md:w-5" />
-            </button>
+            {/* On Settings the menu button stands alone; elsewhere it travels
+                with the header's other icons (StaffHeaderContent), so at large
+                text the whole group moves together (owner, 2026-11-26). */}
+            {location.pathname.startsWith('/settings') && staffMenuButton}
             {/* The sidebar opens and closes where it always did (owner, 2026-10-30):
                 the panel's own button hides it, and this brings it back. */}
             {railHidden && (
@@ -1327,7 +1333,8 @@ export function Shell({
             {!location.pathname.startsWith('/settings') && <StaffHeaderContent signIns={signIns} dashboard={['home', 'dashboard'].includes(location.pathname.split('/')[2] ?? '')}
               /* Every staff role gets this bar (owner, 2026-10-30, "all should have like" the teacher's);
                  the school and year switchers from the old bar come along, and draw nothing for one school, one year. */
-              extra={<><InstitutionSwitch /><GroupReportLink /><YearSwitch /></>} />}
+              extra={<><InstitutionSwitch /><GroupReportLink /><YearSwitch /></>}
+              menu={staffMenuButton} />}
           </header>
         )}
         {!chromeless && !staffLayout && !staffNav && (

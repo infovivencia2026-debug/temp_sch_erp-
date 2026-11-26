@@ -353,7 +353,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
 /** The one bar across the workspace: greeting and date, search, who is signed in. */
 /* `dashboard`: the greeting, name and sign-in times show on the dashboard
    only; other screens keep just the bar's controls (owner, 2026-10-24). */
-export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean; extra?: ReactNode }) {
+export function StaffHeaderContent({ signIns, dashboard, extra, menu }: { signIns: ReturnType<typeof useTodaySignIns>; dashboard: boolean; extra?: ReactNode; menu?: ReactNode }) {
   const session = useSession()
   const phone = usePhone()
   const now = new Date()
@@ -378,7 +378,7 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
         <PersonAvatar name={fullName || '?'} photoId={session.user?.avatar_key} size={44} />
         <div className="phone-head-name min-w-0 flex-1">
           {dashboard && <>
-            <p className="break-words text-[18px] font-extrabold leading-tight tracking-[-0.01em]">{fullName || first}</p>
+            <p className="text-[18px] font-extrabold leading-tight tracking-[-0.01em] overflow-hidden text-ellipsis [overflow-wrap:normal]">{fullName || first}</p>
             {(d?.employee_code || times) && (
               <p className="text-[12px] font-medium text-muted-foreground tabular-nums">
                 {d?.employee_code && <>ID: <span className="font-bold text-warning">{d.employee_code}</span></>}
@@ -387,7 +387,7 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
             )}
           </>}
         </div>
-        <div className="flex shrink-0 items-center gap-1"><AssistantHeaderButton /><CommandSearch /><Notifications /></div>
+        <div className="flex shrink-0 items-center gap-1"><AssistantHeaderButton /><CommandSearch /><Notifications />{menu}</div>
       </div></div>
     )
   }
@@ -411,6 +411,7 @@ export function StaffHeaderContent({ signIns, dashboard, extra }: { signIns: Ret
             floating orb sat on an Apply button at 820x1180. CSS shows it below 1024 only. */}
         <AssistantHeaderButton />
         <Notifications />
+        {menu}
       </div>
     </div>
   )

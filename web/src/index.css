@@ -6137,7 +6137,9 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
    - an empty or loading table's note keeps clear of the corner controls. */
 @media (max-width: 639.98px) {
   :where(.flex:not(.flex-col):not(.overflow-x-auto):not(.scroll-x):not(.chip-scroll):not(.flex-nowrap)):has(> .btn, > .picker) { flex-wrap: wrap; }
-  .field { max-width: calc(100vw - 64px); }
+  .field, :where(.relative):has(> input.field) { max-width: calc(100vw - 64px); }
+  /* a field's own button (calendar, clear) stays inside the field */
+  :where(.relative):has(> input.field) > input.field { max-width: 100%; }
 }
 @container rtable (max-width: 34rem) {
   :where(.table-frame:not([data-layout=scroll])) .responsive-table:not(:has(> thead button)) > tbody > tr:first-child > td[colspan] { padding-top: 48px !important; }
