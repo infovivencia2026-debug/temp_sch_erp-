@@ -300,7 +300,7 @@ export default function BoardResultImport() {
             <Card>
               <CardHeader
                 title="Matched results"
-                description="How each line was matched is kept, because a name match is a guess and somebody has to be able to look at the guesses."
+                description="Check name matches."
                 action={
                   report.import_id && !report.published ? (
                     <div className="flex flex-wrap items-center gap-3">
@@ -355,7 +355,7 @@ export default function BoardResultImport() {
         <Card>
           <CardHeader
             title="Files already imported"
-            description="A board publishes more than once, the main result and then the supplementary, so each file is kept with its own reconciliation."
+            description="Each result file kept separately."
           />
           {(imports.data?.items.length ?? 0) === 0 ? (
             <EmptyState title="No result file has been imported yet" />

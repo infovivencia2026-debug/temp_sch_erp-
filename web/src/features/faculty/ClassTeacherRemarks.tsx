@@ -93,7 +93,7 @@ export default function ClassTeacherRemarks() {
         </Card>
 
         {!classItems.length && !classes.isLoading ? (
-          <EmptyState title="You are not class teacher of a class" body="Class teacher remarks are written by the class teacher. The office sets class teachers in Classes & sections." />
+          <EmptyState title="You are not class teacher of a class" body="Only class teachers write these." />
         ) : !examItems.length && !exams.isLoading ? (
           <EmptyState title="This school has no exams yet" body="The remark prints on an exam's report card. Ask the exam office to set up the exams first." />
         ) : !sectionID || !examID ? (

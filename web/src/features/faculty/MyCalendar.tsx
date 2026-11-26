@@ -39,7 +39,7 @@ export default function MyCalendar() {
       <PageHead
         eyebrow="My work"
         title="My calendar"
-        description="Exams, the duties you are rostered on, the homework you set falling due, and your own leave."
+        description="Exams, duties, homework due, your leave."
       />
       <PageBody>
         <MonthGrid
@@ -47,7 +47,7 @@ export default function MyCalendar() {
           loading={feed.isFetching || range === null}
           error={feed.error}
           onRange={(from, to) => setRange({ from, to })}
-          description="Your own month. A day the school is closed to staff is shaded; a day only the children are off is not, because it is still a working day for you."
+          description="Shaded = staff holiday."
         />
       </PageBody>
     </>

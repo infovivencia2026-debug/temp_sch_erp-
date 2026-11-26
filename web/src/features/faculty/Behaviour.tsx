@@ -112,7 +112,7 @@ export default function Behaviour() {
       <PageHead
         eyebrow="My Classes"
         title="Behaviour"
-        description="Badges for what a child did well, and notes on what needs correcting. One record, read in order."
+        description="Badges and notes"
       />
       <PageBody>
         <CellGrid cols={3}>

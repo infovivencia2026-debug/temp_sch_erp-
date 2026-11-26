@@ -216,7 +216,7 @@ export default function AchievementsShowcase() {
       <PageHead
         eyebrow="Communication"
         title="School achievements"
-        description="Awards, sporting wins and academic honours, recorded here, and published to parents only once the school has confirmed the parent agreed."
+        description="Awards. Published only with parent consent."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -234,7 +234,7 @@ export default function AchievementsShowcase() {
           <Card>
             <CardHeader
               title="Record an achievement"
-              description="Created unpublished, always. Publishing is a separate decision by a separate person."
+              description="Saved unpublished."
             />
             <div className="space-y-4 p-5">
               <FormGrid>
@@ -556,7 +556,7 @@ export default function AchievementsShowcase() {
                     <FormGrid>
                       <Field
                         label="Picture link"
-                        hint="Object storage is not configured on this deployment, so uploads answer 503 and a link is the working route."
+                        hint="Uploads not set up. Use a link."
                       >
                         <Input
                           value={media.external_url}

@@ -144,7 +144,7 @@ export default function PortfolioBuilder() {
           <Card>
             <CardHeader
               title="The portfolio"
-              description="A school award and a self-declared claim are shown as what they are, never merged."
+              description="School awards and self-reported items shown separately."
             />
             <Table
               head={['Kind', 'Title', 'When', 'Verdict', 'On report', '']}

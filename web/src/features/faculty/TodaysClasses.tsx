@@ -263,7 +263,7 @@ export default function TodaysClasses() {
                 title="No lessons timetabled today"
                 body={weekday >= 6
                   ? 'Today is the weekend. Your full week is on My timetable.'
-                  : 'If that is wrong, the timetable for your subjects may not be published yet; your whole week is on My timetable.'}
+                  : 'Wrong? The timetable may not be published yet.'}
               />
             ) : (
               /* Today only (Yajur, 2026-10-24): the day timeline at every size; a one-day grid

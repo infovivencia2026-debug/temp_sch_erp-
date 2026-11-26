@@ -170,8 +170,8 @@ export default function HolisticCard() {
             title={isStaff ? 'No students to show' : 'No child is linked to this account'}
             body={
               isStaff
-                ? 'Once students are enrolled and allocated to your classes, their cards appear here.'
-                : 'Ask the school office to link your child to this account, and the card will appear here.'
+                ? 'No students yet.'
+                : 'Ask the school office to link your child.'
             }
           />
         </PageBody>

@@ -179,7 +179,7 @@ export default function CounselorChannel() {
       <PageHead
         eyebrow="Messages"
         title="Counsellor"
-        description="A conversation with the school counsellor about your child, readable only by the people listed on it."
+        description="Private chat with the counsellor about your child."
       />
       <PageBody>
         <Card>
@@ -416,7 +416,7 @@ export default function CounselorChannel() {
                         label="Reason"
                         wide
                         required
-                        hint="The parent sees this. It is the record of why their conversation was widened."
+                        hint="The parent will see this."
                       >
                         <Input
                           value={addition.reason}

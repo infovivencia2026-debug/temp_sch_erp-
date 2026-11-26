@@ -143,7 +143,7 @@ export default function PaperDeadlines() {
       ) : rows.error ? (
         <FormNotice error={rows.error} />
       ) : (rows.data?.items.length ?? 0) === 0 ? (
-        <EmptyState title="Nothing set up yet" body="This exam has no subject with a date. Set dates in Exams &amp; papers → Date sheet first." />
+        <EmptyState title="Nothing set up yet" body="No dates. Set them in Exams &amp; papers → Date sheet." />
       ) : (
         <Table head={['Subject', 'Asked', '']}>
           {(rows.data?.items ?? []).map((r) => (

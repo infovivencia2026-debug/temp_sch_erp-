@@ -301,7 +301,7 @@ export default function MyClasses() {
           {showPending ? null : shown.length === 0 ? (
             <EmptyState
               title={rows.length === 0 ? 'No children here yet' : 'Nobody in this filter'}
-              body={rows.length === 0 ? 'Once the class is assigned and the register is marked, each child appears here.' : 'Choose All students to see the whole class.'}
+              body={rows.length === 0 ? 'No students yet.' : 'Choose All students to see the whole class.'}
             />
           ) : (
             <Table

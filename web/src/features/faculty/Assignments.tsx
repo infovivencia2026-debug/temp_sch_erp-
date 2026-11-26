@@ -76,7 +76,7 @@ export default function Assignments() {
           {rows.length === 0 ? (
             <EmptyState
               title="Nothing set yet"
-              body="Work you set for your classes appears here, with a count of who has handed in."
+              body="No assignments yet."
             />
           ) : (
             <>

@@ -473,7 +473,7 @@ function ConnectDialog({ c, onClose }: { c: MailConnection; onClose: () => void 
     <Dialog
       onClose={onClose}
       title={c.connected ? 'Your mailbox' : 'Connect your mailbox'}
-      description="Sign in once with your own mailbox password. Your mail is then sent through the school mail server as you, and your mail comes in by itself. Only you can use this; the office cannot see the password."
+      description="Sign in once with your mailbox password. Only you can see it."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>

@@ -77,7 +77,7 @@ export default function CCESummative() {
           {rows.length === 0 ? (
             <EmptyState
               title="No papers to mark"
-              body="A summative exam has to be scheduled by the examination office before marks can be entered."
+              body="No summative exam scheduled yet."
             />
           ) : (
             <Table head={['Exam', 'Class', 'Subject', 'Sat', 'Out of', 'Entered', 'Average', '']}>

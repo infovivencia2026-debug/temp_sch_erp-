@@ -255,7 +255,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
     <Dialog
       onClose={onClose}
       title="Import from file"
-      description="A CSV with an employee code or Staff Name column and an Email ID column. Other columns are not read."
+      description="CSV with employee code (or name) and Email ID."
       size="xl"
       footer={
         <>
@@ -283,7 +283,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
               <Button size="sm" variant="secondary" pending={setDomain.isPending} onClick={() => setDomain.mutate(plan.suggested_domain!)}>Set domain to {plan.suggested_domain}</Button>
             </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">No school mail domain is set. Set it on this screen first, then choose the file again.</p>
+            <p className="text-[13px] text-muted-foreground">Set the mail domain first.</p>
           )
         )}
         {plan && (

@@ -372,7 +372,7 @@ export default function StatusComposer({ file: initial, asSchool = false, onClos
       <div className={cn('relative w-full shrink-0 overflow-hidden rounded-xl bg-foreground/90', full ? 'h-full' : 'h-40')}>
         {isVideo ? (
           <video src={preview} className="size-full object-cover" autoPlay loop muted playsInline
-            onError={() => setProblem('This video format cannot be played. Save it as an MP4 (H.264) and choose it again.')} />
+            onError={() => setProblem('Unsupported video. Use MP4.')} />
         ) : (
           <img src={preview} alt="" className="size-full object-cover" />
         )}

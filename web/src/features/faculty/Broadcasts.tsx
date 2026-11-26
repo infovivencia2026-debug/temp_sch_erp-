@@ -68,7 +68,7 @@ export default function Broadcasts() {
           {rows.length === 0 ? (
             <EmptyState
               title="Nothing sent yet"
-              body="A notice you send appears here with a running count of how many parents have acknowledged it."
+              body="No notices yet."
             />
           ) : (
             <ul className="divide-y">
@@ -257,7 +257,7 @@ function Compose({ onClose }: { onClose: () => void }) {
           checked={f.requires_ack}
           onChange={(v) => setF({ ...f, requires_ack: v })}
           label="Ask for an acknowledgement"
-          hint="Use it when you need to know the parent read it, consent, money, a deadline."
+          hint="Ask parents to confirm they read it."
         />
 
         {/* The same three the principal's circular offers. A notice that only

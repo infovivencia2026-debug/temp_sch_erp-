@@ -45,7 +45,7 @@ export default function DeliveryReceipts() {
   const items = list.data?.items ?? []
   return (
     <Card>
-      <CardHeader title="Delivery per notice" description="Every notice and alert sent to families, with what the providers reported back." />
+      <CardHeader title="Delivery per notice" description="Sent messages and delivery status." />
       {items.length === 0 ? <EmptyState title="Nothing sent yet" /> : (
         <Table head={['Notice', 'Sent', 'Status', 'Not received', '']}>
           {items.map((s) => (

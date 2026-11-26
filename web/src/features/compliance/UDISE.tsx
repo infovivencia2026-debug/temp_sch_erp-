@@ -43,7 +43,7 @@ export default function UDISE() {
       <PageHead
         eyebrow="Compliance"
         title="UDISE+ return"
-        description="Validate every student record against the annual return before submission. UDISE+ rejects the whole file on field errors."
+        description="Check student records before UDISE+ upload."
         actions={
           <>
             <ExportButton report="udise" />

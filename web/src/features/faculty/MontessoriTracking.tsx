@@ -173,7 +173,7 @@ export default function MontessoriTracking() {
           <Card>
             <CardHeader
               title="Record an observation"
-              description="One material, one stage, one date, and the sentence that makes it worth reading."
+              description="Material, stage, date and a note."
             />
             <div className="p-5 space-y-5">
               <FormGrid>
@@ -219,7 +219,7 @@ export default function MontessoriTracking() {
           <Card>
             <CardHeader
               title="Where this child is"
-              description="The current stage is the most recent observation, not the highest ever reached."
+              description="Stage = latest observation"
             />
             <Table
               head={['Area', 'Material', 'Stage', 'Last seen', 'Observations']}

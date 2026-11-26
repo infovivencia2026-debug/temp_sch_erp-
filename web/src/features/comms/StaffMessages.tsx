@@ -433,7 +433,7 @@ export default function StaffMessages() {
       <PageHead
         eyebrow="Communication"
         title="Messages"
-        description="Colleagues, and the parents who have written to you. For something the whole school needs, write a circular instead."
+        description="Colleagues and parents. Use a circular for everyone."
       />
       <PageBody>
         {box === 'parents' ? (

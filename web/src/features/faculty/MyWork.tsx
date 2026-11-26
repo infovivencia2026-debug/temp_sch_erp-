@@ -115,8 +115,8 @@ export default function MyWork() {
               title="Clear"
               body={
                 d.sections === 0
-                  ? 'Once the office makes you class teacher of a section, or gives you a subject in one, your work appears here.'
-                  : 'Every submission is marked, every paper is entered and nothing is waiting on your acknowledgement.'
+                  ? 'No classes assigned yet.'
+                  : 'All done.'
               }
             />
           ) : (

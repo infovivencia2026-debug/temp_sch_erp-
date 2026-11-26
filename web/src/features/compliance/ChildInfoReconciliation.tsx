@@ -285,7 +285,7 @@ export default function ChildInfoReconciliation() {
           ) : !rows.length ? (
             <EmptyState
               title="Nothing outstanding"
-              body="Either the two rosters agree, or everything that differs has already been decided about."
+              body="All matched."
             />
           ) : (
             <Table
@@ -359,7 +359,7 @@ export default function ChildInfoReconciliation() {
         <Card>
           <CardHeader
             title="Settled differences"
-            description="These are why the next reconciliation is short. Forget one and it comes straight back on the next run."
+            description="Saved decisions"
           />
           {resolutions.error && <ErrorState error={resolutions.error} />}
           {!resolutions.error && (

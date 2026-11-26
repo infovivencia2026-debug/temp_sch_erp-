@@ -263,7 +263,7 @@ export function BoardRoll(props: RollProps) {
         <Card>
           <CardHeader
             title="The roll"
-            description="What the school has entered, and what the board has said about it. A submitted candidate can no longer be edited, corrections after submission are amendments."
+            description="Entries and board status. Submitted ones are locked."
           />
           {rows.length === 0 ? (
             <EmptyState
@@ -355,7 +355,7 @@ export function BoardRoll(props: RollProps) {
           <Card>
             <CardHeader
               title={`Correct ${selected.candidate_name}`}
-              description="Still a draft, so the particulars can be changed in place. Correcting a row clears its check, somebody has to look at the new values."
+              description="Draft. Edits need re-checking."
             />
             <div className="space-y-5 p-5">
               <FormGrid>
@@ -546,7 +546,7 @@ export function BoardRoll(props: RollProps) {
           {(eligible.data?.items.length ?? 0) === 0 ? (
             <EmptyState
               title="Everyone eligible is already on the roll"
-              body="Children enrolled in the class that sits this examination and not yet entered appear here."
+              body="Everyone is entered."
             />
           ) : (
             <Table head={['', 'Candidate', 'Admission no', 'Class', 'Date of birth', "Father's name", 'Medium']}>

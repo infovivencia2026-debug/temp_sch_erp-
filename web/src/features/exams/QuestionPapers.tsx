@@ -218,8 +218,8 @@ export default function QuestionPapers() {
             title="No exam papers to write against yet."
             body={
               (slots.data.items.length ?? 0) > 0
-                ? 'Every exam paper for your classes already has a paper submitted. There is nothing left to set.'
-                : 'This school has no exams scheduled for your classes. Once the office schedules one, each subject you teach appears here to attach a paper to.'
+                ? 'All papers submitted.'
+                : 'No exams for your classes yet.'
             }
           />
         )}
@@ -262,7 +262,7 @@ export default function QuestionPapers() {
               onChange={setFile}
               purpose="question_paper"
               label="Attach the paper"
-              hint="A PDF, a document, or a photograph of the paper. Any file type is accepted. It is not shown to students."
+              hint="Any file. Not shown to students."
             />
             <div className="flex flex-wrap items-center gap-2 pt-4">
               <Button

@@ -472,7 +472,7 @@ function StaffThread({
         empty="Nothing said yet."
         onSend={() => undefined}
         canSend={false}
-        cannotSendNote="You are reading a conversation between two colleagues. To write to either of them, open Messages."
+        cannotSendNote="Read only. Use Messages to write."
         height="min-h-0"
       />
     </ThreadPane>

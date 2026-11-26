@@ -183,7 +183,7 @@ export default function BoardLOC() {
       <PageHead
         eyebrow="Boards & accreditation"
         title="Board exam List of Candidates"
-        description="Build the LOC from the board roll, see exactly who would be rejected and why, then file it. A filed list is frozen, what went to the board stays readable however the roll is corrected afterwards."
+        description="Build the LOC, check rejections, file it. Filed lists are locked."
         width="wide"
         actions={
           current && d ? (
@@ -206,7 +206,7 @@ export default function BoardLOC() {
               <Card>
                 <CardHeader
                   title="Start a List of Candidates"
-                  description="Candidates are read from the board roll you already registered. Nothing is duplicated here."
+                  description="From the board roll"
                 />
                 <div className="px-5 pb-5 pt-4">
                   <NewForm form={form} setForm={setForm} create={create} mayFile={mayFile} />
@@ -399,7 +399,7 @@ export default function BoardLOC() {
                   <Card>
                     <CardHeader
                       title="File this list with the board"
-                      description="Revalidates against the roll first, then freezes. Nothing on a filed list can be edited afterwards."
+                      description="Checks, then locks the list."
                     />
                     <div className="space-y-3 px-5 pb-5 pt-4">
                       <FormGrid>

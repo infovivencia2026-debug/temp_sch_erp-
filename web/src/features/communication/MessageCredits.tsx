@@ -78,7 +78,7 @@ export function ChannelMeter({ credit }: { credit: CreditBalance }) {
           ) : credit.low ? (
             <>Below the {credit.low_water.toLocaleString('en-IN')} you set as the warning point.</>
           ) : (
-            <>Each message sent takes one. Email and in-app cost nothing and are never metered.</>
+            <>One per SMS/WhatsApp. Email and in-app are free.</>
           )}
         </p>
 

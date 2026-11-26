@@ -68,8 +68,8 @@ function CourseList({ onOpen, onVideos }: { onOpen: (k: { section_id: string; cl
           {adding && opts.data && <Card><AddCourse o={opts.data} cls={cls} sec={sec} done={() => { setAdding(false); qc.invalidateQueries({ queryKey: ['lms-courses'] }) }} /></Card>}
           {q.error ? <ErrorState error={q.error} /> : q.isLoading ? <Loading /> : !all.length ? (
             admin
-              ? <EmptyState title="No courses yet" body="Press Add course, pick a class, its sections and a subject, then choose how it is laid out: topics and days, days only, or topics only." />
-              : <EmptyState title="No courses yet" body="A course appears for every subject you teach in a section. Ask the office to allocate your subjects." />
+              ? <EmptyState title="No courses yet" body="No courses. Press Add course." />
+              : <EmptyState title="No courses yet" body="No subjects allocated yet." />
           ) : (
             <Card>
               <CardHeader title={(() => {
@@ -705,7 +705,7 @@ export function QuizForm({ d, done, unitId, day }: { d: CourseDetail; done: () =
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="secondary" onClick={() => setQs([...qs, { stem: '', options: ['', '', '', ''], correct: 0 }])}>Add a question</Button>
         <Button disabled={!title.trim() || !qs.some((x) => x.stem.trim())} pending={save.isPending} onClick={() => save.mutate()}>Publish quiz</Button>
-        <span className="text-[13px] text-muted-foreground">Mark the correct option with the circle. Marked the moment a child hands in.</span>
+        <span className="text-[13px] text-muted-foreground">Tick the correct option. Auto-marked.</span>
         <FormNotice error={save.error} />
       </div>
     </div>

@@ -46,7 +46,7 @@ export default function OnlineTests() {
       <PageHead
         eyebrow="Question papers & online tests"
         title="Objective online test creation"
-        description="Assemble an auto-marked test from your question bank and publish it to a class."
+        description="Make an auto-marked test from your question bank."
         actions={
           <Button onClick={() => setComposing((c) => !c)}>
             <Plus className="h-3.5 w-3.5" />

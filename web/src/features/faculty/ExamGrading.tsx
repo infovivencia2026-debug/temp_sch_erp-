@@ -121,7 +121,7 @@ export default function ExamGrading() {
       <PageHead
         eyebrow="Question papers & online tests"
         title="No-OMR exam grading"
-        description="Type answers against the key, or grade what the portal captured, then read the paper, not just the class."
+        description="Grade answers, then see question analysis."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -243,7 +243,7 @@ export default function ExamGrading() {
           <Card>
             <CardHeader
               title="Item analysis"
-              description="Facility is the share of those who attempted it who got it right. Discrimination compares the strongest and weakest 27%."
+              description="Facility = % correct. Discrimination = top vs bottom 27%."
             />
             <Table
               head={['#', 'Question', 'Attempted', 'Correct', 'Facility', 'Discrimination', 'Pulled most', 'Verdict']}

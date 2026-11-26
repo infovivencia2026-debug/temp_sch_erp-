@@ -77,7 +77,7 @@ export default function ClassStatus() {
       <PageBody>
         <StatusRings />
         <Card>
-          <CardHeader title="My posts" description="Live for 24 hours from when they went live. Pinned posts stay in the class gallery." />
+          <CardHeader title="My posts" description="Live for 24 hours. Pinned posts stay." />
           {mine.isError ? <ErrorState error={mine.error} /> : !mine.data ? <Loading shape="table" rows={3} /> : mine.data.items.length === 0 ? (
             <EmptyState title="Nothing posted yet" body="Take a photo of today's class and share it with the families." />
           ) : (
