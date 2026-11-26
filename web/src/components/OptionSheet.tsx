@@ -308,7 +308,7 @@ export function SheetTrigger({
       onClick={onOpen}
       className="field flex !h-auto min-h-[52px] w-full items-center justify-between gap-2 rounded-[12px] px-4 py-2 text-left text-[16px] text-foreground"
     >
-      <span className={cn('min-w-0 break-words', !label && 'text-muted-foreground')} style={style}>{label || placeholder}</span>
+      <span className={cn('min-w-0 overflow-hidden text-ellipsis [overflow-wrap:normal]', !label && 'text-muted-foreground')} style={style}>{label || placeholder}</span>
       <ChevronDown className={cn('field-chevron size-6 shrink-0 opacity-60 transition-transform', open && 'rotate-180')} aria-hidden="true" />
     </button>
   )
