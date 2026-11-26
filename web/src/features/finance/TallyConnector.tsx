@@ -328,7 +328,7 @@ function LedgerMapping({ fy }: { fy: string }) {
     <Card>
       <CardHeader
         title={`Ledger mapping for ${fyLabel(Number(fy))}`}
-        description="Each account, with the Tally ledger name it imports as. Busiest first: the account blocking the most vouchers is the one worth mapping first. Clearing a name unmaps the account."
+        description="Tally ledger name per account. Busiest first."
         action={
           <Checkbox
             checked={onlyUnmapped}

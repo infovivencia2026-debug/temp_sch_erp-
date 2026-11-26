@@ -25,7 +25,7 @@ export default function FeeSheet() {
       <Card>
         {/* The card's own header and padding, so title, text and controls share one left edge. */}
         <CardHeader title="Download the fee sheet"
-          description="One row per child, class by class. For each child: total fee, concession and net fee, then Term 1, Term 2, Term 3, Books, Uniform and Transport (fee, paid and due), and the total paid and due. This year only." />
+          description="One row per child: fees, paid and due by term. This year." />
         <div className="flex flex-wrap items-center gap-2 px-[var(--card-pad)] pb-4">
           <div className="w-full sm:w-64">
             <Select value={klass} onChange={(v) => { setKlass(v); setSection('') }} options={options} placeholder="Whole school" />

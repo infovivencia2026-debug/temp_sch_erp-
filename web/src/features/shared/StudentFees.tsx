@@ -108,7 +108,7 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
     <Card>
       <CardHeader
         title="Fee and concessions"
-        description="What this class costs, what has been waived for this child, and the bill."
+        description="Class fee, concession and bill."
       />
 
       {q?.has_structure ? (

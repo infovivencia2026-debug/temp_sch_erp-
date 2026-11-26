@@ -164,7 +164,7 @@ export default function BoardResultImport() {
         <Card>
           <CardHeader
             title="The file the board published"
-            description="Column names are read loosely: hall ticket, HTNO or roll no all work, and any other numeric column is read as a subject mark."
+            description="Hall ticket/HTNO/roll no; number columns are marks."
           />
           <div className="space-y-5 p-5">
             <FormGrid>

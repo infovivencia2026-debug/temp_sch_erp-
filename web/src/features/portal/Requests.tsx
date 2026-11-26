@@ -290,7 +290,7 @@ function DocumentsOnFile() {
             title="No documents on file"
             body={'The school has not recorded any document for '
               + 'your child yet — no birth certificate, no transfer certificate, nothing. '
-              + 'Anything you hand in at the office appears here once it has been filed.'}
+              + 'No documents yet.'}
           />
         </div>
       ) : (

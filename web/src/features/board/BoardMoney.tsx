@@ -41,7 +41,7 @@ export default function BoardMoney() {
       <PageHead
         eyebrow="Board"
         title="Where the money goes"
-        description="Every campus for the period: what came in, what is still owed, what went out in salaries, and who that was for."
+        description="Income, dues and salaries per campus."
         actions={<RangePicker value={range} onChange={setRange} options={presets.data?.items ?? []} />}
       />
       <PageBody>

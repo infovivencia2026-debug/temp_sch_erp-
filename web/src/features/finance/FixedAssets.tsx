@@ -144,7 +144,7 @@ function DepreciationRun({ fy }: { fy: string }) {
     <Card>
       <CardHeader
         title="Charge the year's depreciation"
-        description="Charged annually, not monthly: schools close their books once a year and the statutory rates are annual, so a monthly charge would only invent twelve chances to round differently. The first year is apportioned, pro-rata by days on straight line, half rate under 180 days on written-down value."
+        description="Charged yearly. First year is pro-rated."
         action={
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => dry.mutate()} disabled={dry.isPending}>

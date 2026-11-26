@@ -141,7 +141,7 @@ export default function ThemeSelection() {
       <PageHead
         eyebrow="Home"
         title="Appearance"
-        description="How the portal looks on every device you sign in on, not just this one."
+        description="Applies on all your devices."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -165,7 +165,7 @@ export default function ThemeSelection() {
         <Card>
           <CardHeader
             title="Choose"
-            description="These are the looks the portal already has. Nothing new is being added."
+            description="Available looks"
           />
           <div className="space-y-5 p-5">
             <FormGrid>

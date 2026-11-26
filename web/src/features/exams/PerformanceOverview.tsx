@@ -247,7 +247,7 @@ export default function PerformanceOverview() {
         <Card>
           <CardHeader
             title="Children carrying a backlog"
-            description="Worst first: most subjects below the pass mark, then lowest overall. This is the remedial list, not a ranking."
+            description="Needs help most, first."
           />
           {(d?.at_risk.length ?? 0) === 0 ? (
             <EmptyState title="Nobody is below the pass mark" />

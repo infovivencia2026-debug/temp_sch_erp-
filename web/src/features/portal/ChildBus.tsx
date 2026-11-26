@@ -50,7 +50,7 @@ export default function ChildBus() {
             <p className="text-[12.5px] text-muted-foreground">
               {every && visible
                 ? `Refreshing every ${every} seconds while this tab is in front of you.`
-                : 'Not refreshing, nothing is on a run, or this tab is in the background.'}
+                : 'Not live right now.'}
             </p>
           </>
         )}

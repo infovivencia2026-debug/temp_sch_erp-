@@ -115,7 +115,7 @@ function Enqueue({ onQueued }: { onQueued: (taskID: string) => void }) {
     <Card>
       <CardHeader
         title="Trigger background work"
-        description="These return 202 immediately, nothing heavy runs inside a request."
+        description="Runs in the background."
       />
       <div className="flex flex-wrap items-center gap-3 p-4">
         <Button onClick={() => fanout.mutate()} disabled={fanout.isPending}>

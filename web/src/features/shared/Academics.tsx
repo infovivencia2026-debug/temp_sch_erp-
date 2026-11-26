@@ -49,7 +49,7 @@ export default function Academics() {
       <PageHead
         eyebrow={nav.section?.name}
         title={nav.feature?.name ?? 'Academics'}
-        description="Reference data the rest of the system hangs off: sections, classes, subjects and the academic year."
+        description="Classes, sections, subjects and year."
         actions={
           /* Import matches the tab in view: classes, sections and subjects each
              have a server importer; the academic-year tab has none, so no

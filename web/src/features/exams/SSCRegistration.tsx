@@ -9,7 +9,7 @@ export default function SSCRegistration() {
       stage="ssc"
       eyebrow="Examinations"
       title="SSC board registration"
-      description="The Class 10 nominal roll for BSE Telangana: who is entered, what they are entered for, and what the board has said about each of them."
+      description="Class 10 roll for BSE Telangana."
       defaultBoard="BSE Telangana"
       defaultExamName={`SSC Public Examination March ${new Date().getFullYear() + 1}`}
       defaultSubjects="Telugu, Hindi, English, Mathematics, Science, Social Studies"
