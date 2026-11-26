@@ -71,7 +71,7 @@ function DesignCard({ t, saved }: { t: Tmpl; saved: Design }) {
         {style === 'background' && (
           <div className="rounded-xl border bg-muted/20 p-4">
             <FilePicker value={bg} onChange={setBg} purpose="certificate_background" label="Upload the certificate background"
-              hint="A4 portrait scan or PDF-exported image of your printed certificate (PNG or JPG). The words print on top." />
+              hint="A4 portrait PNG or JPG. Text prints on top." />
             {!bg && saved.background_file_id && <img src={thumb(saved.background_file_id)} alt="Current background" className="mt-3 max-h-40 rounded border object-contain" />}
           </div>
         )}

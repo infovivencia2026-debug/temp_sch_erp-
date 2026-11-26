@@ -52,7 +52,7 @@ export function PayAdjustments({ month, year, people, locked, canWrite }: {
     <Card>
       <CardHeader
         title="Changes to pay this month"
-        description="A bonus or arrears adds to pay; a deduction takes off. The reason is printed on the payslip. Allowed until the month is locked."
+        description="Bonus, arrears or deduction. Reason shows on payslip."
       />
       {editable && (
         <div className="flex flex-wrap items-end gap-2 border-b px-5 py-4">

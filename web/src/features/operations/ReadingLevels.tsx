@@ -72,7 +72,7 @@ export default function ReadingLevels() {
             <Stat label="Older than six months" value={d.summary.stale} onClick={() => setOnly(only === 'stale' ? '' : 'stale')} active={only === 'stale'} />
           </CellGrid>
           <Card>
-            <CardHeader title="Expected band per class" description="What a child in each class is expected to read at. A child measured below it is marked."
+            <CardHeader title="Expected band per class" description="Expected level per class"
               action={<Button variant="secondary" onClick={() => { setEditBands(!editBands); setBandRows(editBands ? null : (d.bands.length ? d.bands : [{ class_level: 1, label: '' }])) }}>{editBands ? 'Close' : d.bands.length ? 'Change' : 'Set bands'}</Button>} />
             {!editBands && (
               <div className="flex flex-wrap gap-2 px-5 pb-5">

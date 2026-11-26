@@ -237,7 +237,7 @@ export default function ClassOverview() {
         {!mayOpen ? (
           <EmptyState
             title="You do not have access to Class 360."
-            body="This overview is granted separately. Ask an administrator to enable Class 360 for your role."
+            body="No access. Ask the admin for Class 360."
           />
         ) : sections.isLoading ? (
           <Loading />
@@ -246,7 +246,7 @@ export default function ClassOverview() {
         ) : items.length === 0 ? (
           <EmptyState
             title="You do not have a class to look at yet."
-            body="Class 360 opens the sections you teach or are class teacher of. When one is assigned to you, it appears here."
+            body="No sections assigned to you."
           />
         ) : !sectionId ? (
           <EmptyState

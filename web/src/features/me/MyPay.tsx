@@ -138,7 +138,7 @@ export default function MyPay() {
               description={
                 latest.locked
                   ? 'Final.'
-                  : 'The office has not closed this month yet, so these figures can still change.'
+                  : 'Not final yet.'
               }
             />
             <CellGrid>
@@ -163,7 +163,7 @@ export default function MyPay() {
           <Card>
             <CardHeader
               title="Why your pay was reduced"
-              description="Said in full, because a payslip that is short and does not say why is why people walk to the office."
+              description="Deductions explained"
             />
             {/* Inset to the card's own gutter. The list carried no
                 horizontal padding at all, so the bullet in front of "2 late

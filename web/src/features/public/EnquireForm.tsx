@@ -70,7 +70,7 @@ export default function EnquireForm() {
     return (
       <Frame>
         <h1 style={h1}>This enquiry form is not open</h1>
-        <p style={{ opacity: 0.75, lineHeight: 1.6 }}>The link may be old, or the school may have closed it. Please contact the school office.</p>
+        <p style={{ opacity: 0.75, lineHeight: 1.6 }}>Link closed. Please contact the school office.</p>
       </Frame>
     )
   }

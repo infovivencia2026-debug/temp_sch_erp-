@@ -119,7 +119,7 @@ export function MonthGrid({
   error,
   onRange,
   title = 'Month',
-  description = 'A day the school is closed is shaded. Everything else is marked on the day it falls.',
+  description = 'Shaded = school closed.',
 }: {
   entries: CalendarEntry[]
   loading?: boolean

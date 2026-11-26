@@ -91,7 +91,7 @@ const GROUPS: Group[] = [
            admission -- had no roll number and no way to be given one short of
            re-importing the class. Blank clears it. */
         name: 'roll_no', label: 'Roll number',
-        hint: 'The number in this section’s register. Leave empty if the class is not numbered yet.',
+        hint: 'Blank if not numbered yet.',
         placeholder: 'e.g. 12',
       },
       {
@@ -161,7 +161,7 @@ const GROUPS: Group[] = [
         /* NOT a guardian. A guardian gets a login, fee reminders and absence
            alerts; the neighbour who holds a spare key should get none of
            them. */
-        hint: 'Somebody to ring when no parent answers. They get no login and no messages.',
+        hint: 'Called when no parent answers. No login, no messages.',
       },
       { name: 'emergency_contact_phone', label: 'Phone number', placeholder: 'Enter phone number' },
       { name: 'emergency_contact_relation', label: 'Relation', placeholder: 'e.g. Uncle' },

@@ -126,7 +126,7 @@ export default function Consent() {
         description={
           boards
             ? t('portal.consent.description')
-            : 'Circulars the school has asked you to read and sign. Signing is one tap, and the date is kept.'
+            : 'Circulars to read and sign.'
         }
       />
       <Freshness query={passes} />

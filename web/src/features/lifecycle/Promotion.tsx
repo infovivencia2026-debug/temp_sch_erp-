@@ -152,7 +152,7 @@ export default function Promotion() {
             <div className="p-6">
               <EmptyState
                 title="Pick a section to start"
-                body="Its roster appears here so you can hold individual children back before promoting the rest."
+                body="Untick children to hold back."
               />
             </div>
           </Card>

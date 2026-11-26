@@ -68,7 +68,7 @@ export default function FillFromBank({ subjectHint, onAdd, onClose }: {
   return (
     <Dialog
       title="Fill from the bank"
-      description="Say how many questions of each kind; the bank supplies them at random. Each row becomes a section of the paper."
+      description="How many of each kind. Picked at random."
       size="xl"
       onClose={onClose}
       footer={<>

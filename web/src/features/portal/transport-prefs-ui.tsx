@@ -26,7 +26,7 @@ export function ChildScope({
       hint={
         mixed
           ? 'Your children are not all on the same setting at the moment, so the numbers below are one child’s. Saving with "All my children" gives every one of them the same setting.'
-          : 'Saving against one child leaves your other children on whatever they have now.'
+          : 'Applies to this child only.'
       }
     >
       <Select value={value} onChange={onChange} options={childOptions(rows)} />

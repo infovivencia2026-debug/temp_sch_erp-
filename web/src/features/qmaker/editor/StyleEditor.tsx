@@ -33,7 +33,7 @@ export default function StyleEditor({ value, onChange }: { value: PaperStyle; on
       <FontPick label="English" list={LATIN_FONTS} value={value.latinFont} sample={SAMPLES.latin} onChange={(id) => onChange({ latinFont: id })} />
       <FontPick label="Hindi" list={HINDI_FONTS} value={value.hindiFont} sample={SAMPLES.hindi} onChange={(id) => onChange({ hindiFont: id })} />
       <FontPick label="Telugu" list={TELUGU_FONTS} value={value.teluguFont} sample={SAMPLES.telugu} onChange={(id) => onChange({ teluguFont: id })} />
-      <p className="text-[12px] text-muted-foreground">Printing uses these fonts exactly. A Word file uses Nirmala UI for Hindi and Telugu, so it opens correctly on any Windows computer.</p>
+      <p className="text-[12px] text-muted-foreground">Print fonts. Word uses Nirmala UI for Hindi/Telugu.</p>
     </div>
   )
 }

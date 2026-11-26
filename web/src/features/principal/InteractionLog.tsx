@@ -92,7 +92,7 @@ export default function InteractionLog() {
       <PageHead
         eyebrow="Staff"
         title="Interaction log"
-        description="Every message, remark, counselling reply and fee payment between people at this school, in one place. Pick one or two people to narrow it."
+        description="All messages, remarks and payments. Pick people to filter."
         actions={
           <Button variant="secondary" onClick={exportCSV} disabled={!rows.length}>
             <Download className="h-3.5 w-3.5" /> Export CSV

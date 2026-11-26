@@ -150,7 +150,7 @@ export default function GoTo() {
       <PageBody>
         <EmptyState
           title="This link points at a screen your workspace does not have"
-          body="It may have been renamed since the message was sent, or it may belong to a role you no longer hold."
+          body="Renamed, or you no longer have access."
         />
         <p className="mt-4 text-center text-[13px] text-muted-foreground">
           {/* Named, not just linked: somebody who does not know what was meant by

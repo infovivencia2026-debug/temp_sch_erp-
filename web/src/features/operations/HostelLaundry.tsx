@@ -150,7 +150,7 @@ export default function HostelLaundry() {
         <Card>
           <CardHeader
             title="Laundry book"
-            description="Still out first, so the bundle nobody has chased is the first thing on the page."
+            description="Not returned first"
             action={
               <span className="flex items-center gap-2">
                 <Select

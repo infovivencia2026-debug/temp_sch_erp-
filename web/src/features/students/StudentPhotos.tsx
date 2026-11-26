@@ -308,7 +308,7 @@ function DirectoryPanel({
     <Card>
       <CardHeader
         title="Student photo coverage"
-        description="Who already has a photograph on file, and who the ID cards and report cards are still missing one for."
+        description="Who has a photo and who is missing one."
         action={
           <ExportRows
             rows={scoped.filter((s) => !covered(s))}
@@ -615,7 +615,7 @@ export default function StudentPhotos() {
               <ImageIcon className="h-8 w-8 text-muted-foreground" aria-hidden />
               <p className="text-[14px] font-medium">Drag and drop photographs here</p>
               <p className="text-[13px] text-muted-foreground">or choose the folder the photographer delivered</p>
-              <p className="text-[12px] text-muted-foreground">Anything that is not an image is ignored, and nothing is attached until you press Import.</p>
+              <p className="text-[12px] text-muted-foreground">Images only. Press Import to attach.</p>
             </div>
           ) : (
             <>

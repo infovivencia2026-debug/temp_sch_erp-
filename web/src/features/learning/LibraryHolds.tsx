@@ -201,7 +201,7 @@ export default function LibraryHolds() {
             <Card>
               <CardHeader
                 title="The catalogue"
-                description="Reserve anything, whether or not a copy is in. A book on the shelf is held for you straight away."
+                description="Reserve any book. Available ones are held now."
                 action={
                   <div className="w-64">
                     <Field label="Search">

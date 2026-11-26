@@ -76,7 +76,7 @@ export function BulkFeatures({
   return (
     <Dialog open onClose={onClose} size="lg"
       title={`Turn features off for ${people}`}
-      description="Choose the features, then who loses them. They lose them the next time they open the app; turn them back on below."
+      description="Pick features and who loses them."
       footer={
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>Close</Button>

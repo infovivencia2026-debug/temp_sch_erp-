@@ -74,7 +74,7 @@ export default function PeriodUpload({
           <p className="text-[13.5px] font-medium">Which period is this file?</p>
           <p className="mt-0.5 text-[12.5px] text-muted-foreground">
             {periodNote ??
-              'Anything in the file outside these dates is refused, so the wrong month cannot be loaded by mistake.'}{' '}
+              'Rows outside these dates are skipped.'}{' '}
             Leave both empty to upload a whole year at once.
           </p>
         </div>

@@ -35,7 +35,7 @@ export default function ReturnsReadiness() {
                 <CardHeader title={g.title} description={open.length ? `${open.length} ${open.length === 1 ? 'thing' : 'things'} still missing` : 'Nothing missing today'}
                   action={open.length ? <Badge tone="warning">Not ready</Badge> : <Badge tone="success">Ready</Badge>} />
                 {g.items.length === 0 ? (
-                  <p className="px-5 pb-5 text-[13.5px] text-muted-foreground">No training requirement is set for this year. Set one under Staff training & development and the gap shows here.</p>
+                  <p className="px-5 pb-5 text-[13.5px] text-muted-foreground">No training target set.</p>
                 ) : (
                   <Table head={['What the return asks for', { label: 'Missing', align: 'right' }, { label: 'Of', align: 'right' }, 'Filled on']}>
                     {g.items.map((i) => (

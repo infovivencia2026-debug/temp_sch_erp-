@@ -61,7 +61,7 @@ export default function Exports() {
       <PageHead
         eyebrow="Reports"
         title="Data exports"
-        description="Download any dataset your role permits as CSV, TSV or Excel. The list below is filtered to what you may take out."
+        description="Download data as CSV, TSV or Excel."
       />
       <PageBody width="form">
         <Card>

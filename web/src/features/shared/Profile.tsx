@@ -291,7 +291,7 @@ export default function ProfileView() {
             {emailChanged && (
               <Field
                 label="Your current password"
-                hint="Moving the address you sign in with needs it, so a session left open on a shared machine cannot lock you out of your own school."
+                hint="Needed to change your sign-in."
               >
                 <Input type="password" value={pwForEmail} onChange={setPwForEmail} />
               </Field>

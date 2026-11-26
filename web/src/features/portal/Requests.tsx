@@ -182,7 +182,7 @@ export default function Requests() {
                 required
                 wide
                 hint={typeCode === 'OTHER'
-                  ? 'Say it in your own words. The office will tell you whether they can issue it.'
+                  ? 'Describe what you need.'
                   : undefined}
               >
                 <Textarea

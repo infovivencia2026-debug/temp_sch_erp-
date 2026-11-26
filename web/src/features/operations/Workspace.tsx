@@ -51,7 +51,7 @@ export default function OperationsWorkspace() {
       <PageHead
         eyebrow="Specialist Workspace"
         title="Operations"
-        description="Library, transport, hostel and stores, the dashboard changes with your permissions."
+        description="Library, transport, hostel and stores."
       />
       <PageBody>
         <CellGrid cols={4}>

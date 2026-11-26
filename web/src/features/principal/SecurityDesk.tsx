@@ -71,7 +71,7 @@ export function OnlineNow() {
         description={
           flagged
             ? `${flagged} sign-in${flagged === 1 ? '' : 's'} carry a flag worth a look.`
-            : 'Every live sign-in at the school, most recent activity first. Refreshes every minute.'
+            : 'Live sign-ins, latest first.'
         }
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -81,7 +81,7 @@ export function OnlineNow() {
             <ConfirmButton
               tone="danger"
               disabled={everyone.isPending || all.length === 0}
-              question="Sign every device at the school out now, except yours? Everyone signs in again with their password."
+              question="Sign everyone out except you?"
               confirmLabel="Sign everyone out"
               onConfirm={() => everyone.mutate()}
             >

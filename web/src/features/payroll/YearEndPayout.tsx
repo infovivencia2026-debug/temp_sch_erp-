@@ -146,7 +146,7 @@ function Loaded({ d, yearId, setYearId, pay, setPay, canWrite, refresh }: {
           <div className="border-t px-5 py-3 text-[13px]">This school's database needs migration 0087 before rates or a payout can be saved. The figures below use the default rates.</div>
         )}
         {d.pay_holidays_worked && (
-          <div className="border-t px-5 py-3 text-[13px]">Holidays worked are already paid every month (Taxes &amp; statutory, Settings). Paying them here as well pays them twice: set the holiday amounts to 0 or switch that off.</div>
+          <div className="border-t px-5 py-3 text-[13px]">Holidays worked are already paid monthly. Set to 0 to avoid paying twice.</div>
         )}
       </Card>
 

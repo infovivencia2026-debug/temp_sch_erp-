@@ -62,7 +62,7 @@ export default function ImportStudents() {
       <PageHead
         eyebrow="Getting started"
         title="Import students"
-        description="Upload your existing roll as a spreadsheet. Rows are checked before anything is written."
+        description="Upload your student list. Checked before saving."
         actions={
           <a href="/api/v1/students/import/template" download>
             <Button variant="secondary">

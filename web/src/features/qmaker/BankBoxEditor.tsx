@@ -106,7 +106,7 @@ export default function BankBoxEditor({ id, onClose }: { id: string; onClose: ()
     <Maker.Provider value={maker}>
       <Dialog
         title="Edit the question"
-        description="As it prints on a paper. Changes reach papers it is inserted into from now on; papers it is already on keep their copy."
+        description="Changes apply to new papers only."
         size="full"
         onClose={onClose}
         footer={<>

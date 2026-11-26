@@ -46,7 +46,7 @@ export function MonthDays({ month, year, people, locked, canWrite }: {
     <Card>
       <CardHeader
         title="Vacation taken"
-        description="Vacation days and dates for the month, shown on the salary statement. Pay for holidays worked goes in Changes to pay above."
+        description="Vacation days for the month."
       />
       {editable && (
         <div className="flex flex-wrap items-end gap-2 border-b px-5 py-4">

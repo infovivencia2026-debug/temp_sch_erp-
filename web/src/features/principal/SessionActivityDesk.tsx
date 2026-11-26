@@ -218,7 +218,7 @@ function SessionList() {
         <Table
           head={['Person', 'Signed in', 'Ended', 'Active', 'Screens', 'Device', 'Address', '']}
           empty={!rows.length}
-          emptyLabel="No session activity recorded. Turn recording on above; new sign-ins will appear here."
+          emptyLabel="No activity. Turn recording on above."
         >
           {rows.map((r) => (
             <Fragment key={r.session_id}>

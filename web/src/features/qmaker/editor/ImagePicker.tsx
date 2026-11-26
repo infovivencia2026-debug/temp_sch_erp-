@@ -78,7 +78,7 @@ export function ImageStorePane({ onPick, uploadTrigger = 0, outline = false }: {
         {list.isLoading ? <Loading shape="cards" /> : list.error ? <ErrorState error={list.error} /> : !list.data?.length ? (
           <EmptyState
             title={q.trim() ? 'No picture has that name.' : 'No pictures yet.'}
-            body={q.trim() ? 'Try part of the name, or add the picture from this device with Insert.' : 'Pictures you add to a paper with Insert are kept here under their file name.'}
+            body={q.trim() ? 'Try part of the name, or add the picture from this device with Insert.' : 'No pictures yet.'}
           />
         ) : (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">

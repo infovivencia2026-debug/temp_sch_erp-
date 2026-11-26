@@ -94,7 +94,7 @@ export default function BoxInserter({ onPick, onClose, subjectHint }: {
           <EmptyState title="Choose a subject." body="The bank shows the questions of one class and subject at a time." />
         ) : bank.isLoading ? <Loading shape="table" rows={4} /> : bank.error ? <ErrorState error={bank.error} /> : !bank.data?.items.length ? (
           <EmptyState title={q.trim() ? 'No question matches.' : 'No questions banked for this subject yet.'}
-            body="Save any question on a paper to the bank with the bookmark button over it, or add them in the Question bank tab." />
+            body="No saved questions yet." />
         ) : (
           <>
             <FormNotice error={take.error} />

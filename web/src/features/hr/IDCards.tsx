@@ -126,7 +126,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
         <Card className="no-print">
           <CardHeader
             title="Your card design"
-            description="Upload the front and the back as your printer supplies them. Names and codes are printed over the front; the back is printed as it is. Leave both empty to use the plain card."
+            description="Upload front and back designs. Blank = plain card."
             action={
               <Button
                 onClick={() => saveTpl.mutate()}

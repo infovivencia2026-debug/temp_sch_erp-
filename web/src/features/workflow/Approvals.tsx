@@ -135,7 +135,7 @@ export default function Approvals() {
       <PageHead
         eyebrow="Approvals"
         title={d.total === 0 ? 'Nothing is waiting on you' : `${d.total} waiting on you`}
-        description="Leave, attendance corrections, fee concessions, joinings and staff exits, in the order they were raised."
+        description="Pending approvals, oldest first."
       />
       <PageBody>
         {/* FIVE ZEROES IS NOT A SUMMARY.
@@ -196,7 +196,7 @@ export default function Approvals() {
           {items.length === 0 ? (
             <EmptyState
               title="Clear"
-              body="Nothing of this kind is pending. New requests appear here as they are raised."
+              body="Nothing pending."
             />
           ) : (
             /* Five rows, then it scrolls inside itself.

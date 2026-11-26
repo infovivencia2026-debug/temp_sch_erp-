@@ -40,7 +40,7 @@ export default function SaveToBank({ box, subjectHint, onClose }: { box: Box; su
   return (
     <Dialog
       title="Save to the question bank"
-      description="It can then be inserted into any paper for this subject, by you or any teacher of it."
+      description="Reusable by any teacher of this subject."
       onClose={onClose}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>

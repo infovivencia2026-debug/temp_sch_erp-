@@ -40,7 +40,7 @@ export default function ChildBus() {
         {rows.length === 0 ? (
           <EmptyState
             title="No child of yours is on a school bus"
-            body="This page shows children with a current transport allocation. If your child travels by bus and is not listed, the transport office holds that record."
+            body="Child not listed? Contact the transport office."
           />
         ) : (
           <>

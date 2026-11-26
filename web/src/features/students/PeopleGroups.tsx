@@ -208,7 +208,7 @@ export default function PeopleGroups() {
           <Card className="mb-4">
             <CardHeader
               title={editing ? 'Edit this group' : 'A new group'}
-              description="Give it a name. Add rules if the group should keep itself right; leave them off and add people by hand instead."
+              description="Name it. Add rules, or add people by hand."
             />
             <div className="space-y-4 p-4">
               <FormGrid>
@@ -441,7 +441,7 @@ export default function PeopleGroups() {
             ) : (members.data?.items.length ?? 0) === 0 ? (
               <EmptyState
                 title="Nobody matches yet"
-                body="Either the rules are narrower than the roll, or nobody has been added by hand."
+                body="No one in this group."
               />
             ) : (
               <Table head={[{ label: 'Name' }, { label: 'Code' }, { label: '' }, { label: 'How' }, { label: '' }]}>
