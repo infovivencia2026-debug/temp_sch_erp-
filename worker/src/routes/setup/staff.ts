@@ -871,11 +871,16 @@ export function registerStaff(r: Router): void {
   })
 
   r.get('/setup/biometric-devices/unclaimed', 'hr.employees.read', async (c) => {
-    const rows = await c.db.prepare(`SELECT p.device_user_id, COUNT(*) AS punches, MIN(p.punched_at) AS first_seen, MAX(p.punched_at) AS last_seen,
-          (SELECT u.name FROM biometric_device_users u WHERE u.device_id = MAX(p.device_id) AND u.device_user_id = p.device_user_id) AS name
-        FROM biometric_punches p WHERE p.employee_id IS NULL GROUP BY 1 ORDER BY 2 DESC, 1`).all<{ device_user_id: string; punches: number; first_seen: string; last_seen: string; name: string | null }>()
+    /* MAX() inside the name lookup was a misuse of an aggregate in SQLite: every
+       school got a 500 here. The newest device is picked first, then joined. */
+    const rows = await c.db.prepare(`SELECT g.device_user_id, g.punches, g.first_seen, g.last_seen,
+          (SELECT u.name FROM biometric_device_users u WHERE u.device_id = g.device_id AND u.device_user_id = g.device_user_id) AS name
+        FROM (SELECT p.device_user_id, COUNT(*) AS punches, MIN(p.punched_at) AS first_seen, MAX(p.punched_at) AS last_seen, MAX(p.device_id) AS device_id
+          FROM biometric_punches p WHERE p.employee_id IS NULL GROUP BY p.device_user_id) g
+        ORDER BY g.punches DESC, g.device_user_id`).all<{ device_user_id: string; punches: number; first_seen: string; last_seen: string; name: string | null }>()
     // "25 Sep 2024, 4:17 PM": the school reads a 12-hour clock, not 16:17.
-    const stamp = (iso: string) => new Date(iso).toLocaleString('en-IN', {
+    // A time the clock wrote oddly is shown as written: an invalid date made toLocaleString throw (500).
+    const stamp = (iso: string) => Number.isNaN(new Date(iso).getTime()) ? String(iso ?? '') : new Date(iso).toLocaleString('en-IN', {
       timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
     }).replace(/(am|pm)/, (m) => m.toUpperCase())
     const items = rows.results.map((v) => ({

@@ -2958,7 +2958,9 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
     /* The server's refusals are written lowercase and unpunctuated ("a fuel
        entry needs the litres, ..."); shown to a person they read as a log
        line. A capital and a full stop make them a sentence. */
-    const raw = error instanceof Error ? error.message.trim() : ''
+    /* A plain sentence (Yajur Connect templates: "WhatsApp is not connected")
+       is shown as written; it printed "Something went wrong" instead. */
+    const raw = error instanceof Error ? error.message.trim() : typeof error === 'string' ? error.trim() : ''
     const status = error instanceof ApiError ? error.status : 0
     /* A refusal reads as a sentence about the person, never as "Forbidden."
        or a permission key like hr.payroll.write (owner, 2026-10-08: "looks
