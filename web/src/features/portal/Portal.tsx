@@ -3,7 +3,7 @@ import JoinActivities from './JoinActivities'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PickerMenu } from '@/components/PickerMenu'
-import { CalendarCheck, Wallet, Bell, FileText, CalendarDays, Users, Info, Check } from 'lucide-react'
+import { CalendarCheck, BookMarked, Wallet, GraduationCap, ArrowRight, Bell, FileText, CalendarDays, Users, Info, Check } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, SkeletonTiles, ErrorState,
@@ -13,11 +13,9 @@ import { ScreenError } from './screen-error'
 import { ScreenSkeleton } from './screen-state'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useSession } from '@/lib/session'
 import type { UseQueryResult } from '@tanstack/react-query'
 import WeeklyNoteCard from '@/components/ai/WeeklyNoteCard'
-import { SegToggle } from '@/components/SegToggle'
-import { useChildProfile, useParentYear } from './parent-child'
-import { ParentChildCard, SubjectCards } from './ParentChildCard'
 
 interface PortalChild {
   student_id: string; admission_no: string; full_name: string
@@ -252,6 +250,18 @@ const monthName = (m: string) =>
 /* Every month from the earliest mark to now, newest first, so the home's
    calendar can be flipped back through the term. An empty register still
    gives the current month, so the picker is never blank. */
+function monthList(days: AttendanceDay[]): string[] {
+  const now = thisMonth()
+  const earliest = days.length ? days.map((d) => d.date.slice(0, 7)).sort()[0] : now
+  const start = earliest < now ? earliest : now
+  const [fy, fm] = start.split('-').map(Number)
+  const [ty, tm] = now.split('-').map(Number)
+  const out: string[] = []
+  for (let y = fy, m = fm; y < ty || (y === ty && m <= tm); m === 12 ? (m = 1, y++) : m++) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`)
+  }
+  return out.reverse()
+}
 
 /* A stronger edge on the key, so each colour reads at a glance. */
 const KEY: Record<string, string> = {
@@ -390,9 +400,23 @@ function childLine(c?: PortalChild) {
  * deciding is whether tonight has to be spent on it. So it counts down, and
  * says "overdue" plainly when the moment has passed rather than dressing a
  * missed deadline as a date. */
+function submissionLeft(iso: string) {
+  const days = Math.round(
+    (new Date(iso + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000,
+  )
+  if (days < 0) return `${-days} ${-days === 1 ? 'day' : 'days'} overdue`
+  if (days === 0) return 'Submission due today'
+  if (days === 1) return '1 day left to submit'
+  return `${days} days left to submit`
+}
 
 /* Anything inside two days is tonight's problem rather than next week's, and
    that is the whole reason the deadline sits next to the count. */
+function isUrgent(iso: string) {
+  return (
+    (new Date(iso + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000 <= 2
+  )
+}
 
 /**
  * Shared by the student and parent portals. The difference is entirely in the
@@ -459,21 +483,13 @@ function noteType(n: FamilyNote): 'Fees' | 'Attendance' | null {
   return null
 }
 
-interface TodayHomework { id: string; title: string; subject?: string; instructions?: string; due_on?: string; assigned_on: string; student_id?: string }
-
-function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
+function SchoolMessages({ query, notes, onOpen, onGo }: {
   query: UseQueryResult<List<SchoolMessage>>
   notes: FamilyNote[]
   onOpen: () => void
   onGo: (link: string) => void
-  /** Today's homework for the child on screen (the Homework side of the toggle). */
-  homework: { items: TodayHomework[]; loading: boolean }
-  onHomework: () => void
 }) {
   const qc = useQueryClient()
-  /* Announcements first; Homework is today's work, each with its subject
-     (owner, 2026-11-26). The toggle is the sign-in page's segmented control. */
-  const [tab, setTab] = useState<'news' | 'homework'>('news')
   const items: HomeItem[] = [
     ...(query.data?.items ?? []).map((c): HomeItem => ({ key: 'c' + c.id, type: 'Circular', at: c.published_at, c })),
     ...notes.flatMap((n): HomeItem[] => {
@@ -492,38 +508,12 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
       <CardHeader
         title="Messages from school"
         action={
-          tab === 'news' && rows.length > 0 ? (
+          rows.length > 0 ? (
             <Button size="sm" variant="secondary" onClick={onOpen}>Open</Button>
-          ) : tab === 'homework' ? (
-            <Button size="sm" variant="secondary" onClick={onHomework}>Open</Button>
           ) : undefined
         }
       />
-      <div className="px-3 pb-2">
-        <SegToggle value={tab} onChange={setTab} ariaLabel="Messages from school"
-          className="sm:max-w-[360px]"
-          options={[{ value: 'news', label: 'Announcements' }, { value: 'homework', label: 'Homework' }]} />
-      </div>
-      {tab === 'homework' ? (
-        homework.loading ? <SkeletonTiles count={2} /> : homework.items.length === 0 ? (
-          <EmptyState title="No homework today" body="Nothing was set today." />
-        ) : (
-          <ul className="space-y-2.5 px-3 pb-3 pt-1">
-            {homework.items.map((h) => (
-              <li key={`${h.id}:${h.student_id ?? ''}`}>
-                <button type="button" onClick={onHomework}
-                  className="flex min-h-[56px] w-full items-start gap-3 rounded-xl border bg-card px-3.5 py-3 text-left shadow-sm transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md">
-                  <span className="mt-0.5 shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[12px] font-semibold text-primary">{h.subject ?? 'Homework'}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-semibold leading-snug">{noStop(h.title)}</span>
-                    {h.instructions && <span className="mt-0.5 line-clamp-2 block text-[13px] leading-snug text-muted-foreground">{noStop(h.instructions)}</span>}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )
-      ) : query.isLoading && !query.data ? (
+      {query.isLoading && !query.data ? (
         <SkeletonTiles count={3} />
       ) : query.error && !query.data ? (
         <ErrorState error={query.error} />
@@ -594,6 +584,13 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
 
 export default function Portal() {
   const t = useT()
+  /* A "Pay now" button is only honest where there is a way to pay online
+     (Yajur, 2026-11-20: the school has set no UPI address and no gateway, so
+     the button led a parent to a fees page with nothing to pay with). It
+     shows the moment the school sets a UPI address or a gateway, and hides
+     until then; the amount due still shows either way. */
+  const session = useSession()
+  const payOnline = !!(session.institution?.upi_vpa || session.institution?.simulated_pay)
   const [params, setParams] = useSearchParams()
   const [selected, setSelected] = useState<string | null>(
     () => params.get('student_id') ?? rememberedChild(),
@@ -601,6 +598,7 @@ export default function Portal() {
   /* The month the home's calendar is showing. The attendance figure above it
      reads the same month, so flipping the calendar back a month moves the
      percentage with it (Yajur, 2026-11-19). */
+  const [pickedYm, setPickedYm] = useState<string>(thisMonth())
   /* One component serves the dashboard and the attendance register.
 
      The attendance page is asked one question — how often has this child been
@@ -629,7 +627,6 @@ export default function Portal() {
       setSelected(id)
       try {
         localStorage.setItem(LAST_CHILD_KEY, id)
-        sessionStorage.setItem('portal-child', id)
       } catch {
         /* private window or blocked storage; the URL still carries the choice */
       }
@@ -676,15 +673,6 @@ export default function Portal() {
     queryFn: () => api.get<{ items: FamilyNote[] }>(`/api/v1/portal/notifications${selected ? `?student_id=${selected}` : ''}`),
   })
 
-  /* The child card and Academics (owner, 2026-11-26), for the year picked in the card. */
-  const [year, setYear] = useParentYear()
-  const profile = useChildProfile(activeId, year)
-  const homework = useQuery({
-    queryKey: ['homework', 'diary', false],
-    queryFn: () => api.get<List<TodayHomework>>('/api/v1/homework'),
-    enabled: !isAttendance,
-  })
-
   if (children.isLoading && !children.data) return <ScreenSkeleton />
   if (children.error && !children.data) return <ScreenError error={children.error} />
 
@@ -705,97 +693,199 @@ export default function Portal() {
 
   const s = summary.data
   const days = attendance.data?.items ?? []
-  const today = new Date()
-  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  const todayMark = days.find((d) => d.date === todayIso)
-  const todayStatus = !todayMark ? 'Not marked'
-    : todayMark.on_leave ? 'On leave'
-      : todayMark.status.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
-  const todayHomework = (homework.data?.items ?? [])
-    .filter((h) => (!h.student_id || h.student_id === activeId) && h.assigned_on.slice(0, 10) === todayIso)
-  const academicsHref = (extra: string) => `/${location.pathname.split('/')[1] || 'parent'}/academics/homework_academics?${extra}${activeId ? `&student_id=${activeId}` : ''}${year ? `&ay=${year}` : ''}`
+  const months = monthList(days)
+  const ym = months.includes(pickedYm) ? pickedYm : thisMonth()
+  const month = monthFacts(days, ym)
   /* Each figure opens its own screen, in whichever workspace this is (parent or student). */
   const role = location.pathname.split('/')[1] || 'parent'
   const go = (rest: string) => () => navigate(`/${role}/${rest}${activeId ? `?student_id=${activeId}` : ''}`)
 
-  const head = (
-    <PageHead
-      eyebrow={t('portal.portal.eyebrow')}
-      title={s?.full_name ?? t('portal.portal.title')}
-      titleAfter={
-        kids.length > 1 ? (
-          <PickerMenu
-            value={activeId ?? ''}
-            ariaLabel={t('bento.parent_week.switch_child')}
-            align="start"
-            onChange={chooseChild}
-            options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}
-          />
-        ) : undefined
-      }
-      description={childLine(kids.find((c) => c.student_id === activeId)) ?? t('portal.portal.description')}
-    />
-  )
-
-  /* THE ATTENDANCE REGISTER keeps its own heading, the child's name, and the
-     month-by-month calendar. */
-  if (isAttendance) {
-    return (
-      <>
-        {head}
-        <PageBody>
-          {summary.isLoading && !summary.data ? <SkeletonTiles count={5} />
-            : summary.error && !summary.data ? <ErrorState error={summary.error} />
-              : !s ? <EmptyState title={t('portal.portal.empty_title')} body={t('portal.portal.empty_body')} />
-                : <AttendanceReport days={days} childLabel={[s.full_name, childLine(kids.find((c) => c.student_id === activeId))].filter(Boolean).join(' · ')} />}
-        </PageBody>
-      </>
-    )
-  }
-
-  /* THE PARENT'S HOME (owner, 2026-11-26): no greeting and no name heading.
-     The child card (photo, class, joined, academic year, child switcher),
-     then Fee outstanding and Today side by side, the school's messages with
-     the Announcements / Homework toggle, and the child's subjects. The month
-     calendar lives on the Attendance screen. */
-  const subjects = profile.data?.subjects ?? []
   return (
-    <PageBody>
-      <ParentChildCard profile={profile.data} kids={kids} activeId={activeId}
-        onChild={chooseChild} year={year} onYear={setYear} loading={profile.isLoading} />
-      {summary.error && !summary.data ? <ErrorState error={summary.error} /> : (
-        <CellGrid cols={2}>
-          <Stat
-            label="Fee outstanding"
-            value={s ? formatPaise(s.outstanding_paise) : '…'}
-            icon={Wallet}
-            hint={s ? (s.outstanding_paise ? t('portal.portal.fees_payable') : t('portal.portal.fees_settled')) : undefined}
-            onClick={go('fees/fees_payments')}
-          />
-          <Stat
-            label="Today"
-            value={attendance.isLoading && !attendance.data ? '…' : todayStatus}
-            icon={CalendarCheck}
-            onClick={go('attendance/attendance')}
-          />
-        </CellGrid>
-      )}
-      {activeId && <WeeklyNoteCard studentId={activeId} />}
-      <SchoolMessages
-        query={circulars}
-        notes={schoolNotes.data?.items ?? []}
-        onGo={(link) => navigate(link + (activeId && !link.includes('?') ? `?student_id=${activeId}` : ''))}
-        onOpen={() => navigate(`/${role}/communication/circulars_from_school${activeId ? `?student_id=${activeId}` : ''}`)}
-        homework={{ items: todayHomework, loading: homework.isLoading }}
-        onHomework={() => navigate(academicsHref(''))}
+    <>
+      <PageHead
+        /* On the family's own home the crumb led nowhere useful (owner,
+           2026-11-19): just the child's name. */
+        eyebrow={location.pathname.includes('/home/') ? undefined : t('portal.portal.eyebrow')}
+        /* The child's name is the heading (Yajur, 2026-11-19), with the class
+           and roll underneath. A guardian of two or more switches child from a
+           small dropdown right beside the name; a parent of one sees neither a
+           switcher nor a second copy of the name. */
+        title={s?.full_name ?? t('portal.portal.title')}
+        titleAfter={
+          kids.length > 1 ? (
+            <PickerMenu
+              value={activeId ?? ''}
+              ariaLabel={t('bento.parent_week.switch_child')}
+              align="start"
+              onChange={chooseChild}
+              options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}
+            />
+          ) : undefined
+        }
+        description={childLine(kids.find((c) => c.student_id === activeId)) ?? t('portal.portal.description')}
       />
-      {subjects.length > 0 && (
-        <section aria-label="Academics" className="space-y-3">
-          <h2 className="text-[18px] font-bold">Academics</h2>
-          <SubjectCards subjects={subjects} hrefFor={(x) => academicsHref(`view=subject&cs=${x.class_subject_id}`)} />
-        </section>
-      )}
-      <JoinActivities studentId={activeId ?? undefined} />
-    </PageBody>
+      <PageBody>
+        {/* The weekly AI note about this child, once one has been written. */}
+        {activeId && <WeeklyNoteCard studentId={activeId} />}
+        {/* One dashboard rather than three tabs of it. What needs attention
+            comes first: an unpaid fee or an absence to explain is the reason a
+            parent opened the application at all, and making them find it on a
+            second screen is how it goes unread. */}
+        {/* The shell already draws "Needs your attention" above every page,
+            so drawing it again here gave a parent the same two rows twice on
+            one screen — the second copy reading as a different list until you
+            compared them line by line. */}
+        {/* ONCE THERE ARE FIGURES, THEY STAY ON SCREEN.
+
+            This was `summary.isLoading`, which is true again for every reload
+            of the query, not only the first -- so each refresh tore the report
+            down to a skeleton and built it back. That is the blinking: the
+            page flashing grey and filling in, over and over, with nothing
+            wrong and nothing changing.
+
+            It also lost the month. AttendanceReport holds the chosen month in
+            its own state, and a component that unmounts does not hold
+            anything: every reload put a parent back on the current month a
+            moment after they had picked another, which reads exactly like a
+            picker that does not work.
+
+            So the skeleton is for the first load only -- when there is nothing
+            to show yet. A reload keeps the figures up while it runs, and the
+            freshness line says one is in flight. */}
+        {summary.isLoading && !summary.data ? (
+          <SkeletonTiles count={5} />
+        ) : summary.error && !summary.data ? (
+          /* `!s` used to fall through to the spinner, so a summary that came
+             back 403 or 500 left a parent watching "Loading…" for the rest of
+             the session. The failure has a message; show it. */
+          <ErrorState error={summary.error} />
+        ) : !s ? (
+          <EmptyState
+            title={t('portal.portal.empty_title')}
+            body={t('portal.portal.empty_body')}
+          />
+        ) : (
+          <>
+            {isAttendance ? (
+              <AttendanceReport days={days} childLabel={[s.full_name, childLine(kids.find((c) => c.student_id === activeId))].filter(Boolean).join(' · ')} />
+            ) : (
+            <>
+            {/* THE PARENT'S HOME: four figures, each opening its own screen,
+                then today's classes beside what needs paying and this month's
+                attendance. On a phone the column that needs action comes first. */}
+            <CellGrid cols={4}>
+              {/* Fees first, attendance last (Yajur, 2026-11-19). The
+                  attendance card opens the month-by-month register (the
+                  calendar with the running total), which the report already
+                  draws with a month picker. */}
+              <Stat
+                label={t('portal.portal.stat_fees')}
+                value={formatPaise(s.outstanding_paise)}
+                icon={Wallet}
+                hint={s.outstanding_paise ? t('portal.portal.fees_payable') : t('portal.portal.fees_settled')}
+                onClick={go('fees/fees_payments')}
+              />
+              <Stat
+                label={t('portal.portal.stat_homework')}
+                value={t('portal.portal.stat_homework_value', { count: s.homework_due })}
+                icon={BookMarked}
+                delta={
+                  s.homework_due === 0
+                    ? { value: t('portal.portal.homework_none'), positive: true }
+                    : s.next_homework_due
+                      ? { value: submissionLeft(s.next_homework_due), positive: !isUrgent(s.next_homework_due) }
+                      : undefined
+                }
+                hint={s.homework_due > 0 ? s.next_homework_title : undefined}
+                onClick={go('academics/homework_academics')}
+              />
+              {s.latest_result_pct != null ? (
+                <Stat
+                  label="Latest result"
+                  value={`${s.latest_result_pct.toFixed(1)}%`}
+                  icon={GraduationCap}
+                  hint={[s.latest_result_grade && `Grade ${s.latest_result_grade}`, s.latest_result_exam].filter(Boolean).join(' · ')}
+                  onClick={go('academics/results_report_cards')}
+                />
+              ) : (
+                <Stat label={t('portal.portal.stat_next_exam')} value={s.next_exam ?? '-'} icon={GraduationCap} />
+              )}
+              {/* Reads the month the calendar below is showing (Yajur,
+                  2026-11-19): flip the calendar back and this figure follows.
+                  'this month' when it is the current one, else the month's
+                  name, so the number is never read against the wrong month. */}
+              <Stat
+                label={t('portal.portal.stat_attendance')}
+                value={month.pct === null ? '—' : `${month.pct}%`}
+                icon={CalendarCheck}
+                delta={{ value: `${month.present} of ${month.marked} days present`, positive: (month.pct ?? 100) >= 75 }}
+                hint={ym === thisMonth() ? 'This month' : monthName(ym)}
+                onClick={go('attendance/attendance')}
+              />
+            </CellGrid>
+
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+              {/* Taken out of the flow on a wide screen, so the row is exactly
+                  as tall as the calendar column and the messages fill it. */}
+              <div className="relative order-1 min-w-0 lg:order-1">
+                <div className="lg:absolute lg:inset-0">
+                  <SchoolMessages
+                    query={circulars}
+                    notes={schoolNotes.data?.items ?? []}
+                    onGo={(link) => navigate(link + (activeId && !link.includes('?') ? `?student_id=${activeId}` : ''))}
+                    onOpen={() => navigate(`/${role}/communication/circulars_from_school${activeId ? `?student_id=${activeId}` : ''}`)}
+                  />
+                </div>
+              </div>
+              <div className="order-3 min-w-0 lg:col-start-1"><JoinActivities studentId={activeId ?? undefined} /></div>
+
+              <div className="order-2 min-w-0 space-y-6 lg:order-2">
+                {s.outstanding_paise > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                    <div className="min-w-0">
+                      <div className="text-[15px] font-bold text-destructive">{formatPaise(s.outstanding_paise)} due</div>
+                      <div className="text-[12.5px] text-muted-foreground">{t('portal.portal.fees_payable')}</div>
+                    </div>
+                    {payOnline && <Button onClick={go('fees/fees_payments')}>Pay now <ArrowRight className="h-3.5 w-3.5" /></Button>}
+                  </div>
+                )}
+                {/* The month's attendance beside today, as the home had it a month
+                    ago (owner, 2026-11-19). The next school day stays off. */}
+                <Card>
+                  {/* Only the month dropdown names the month (Yajur,
+                      2026-11-19): a card title repeating "November 2026" above
+                      a dropdown that already says it was the same name twice.
+                      With a single month on record there is nothing to flip, so
+                      a plain label stands in for the dropdown. */}
+                  <div className="flex items-center justify-between gap-2 px-[var(--card-pad)] pb-2 pt-[var(--card-pad)]">
+                    {months.length > 1 ? (
+                      <PickerMenu
+                        value={ym}
+                        ariaLabel="Month"
+                        align="start"
+                        onChange={setPickedYm}
+                        options={months.map((x) => ({ value: x, label: x === thisMonth() ? `${monthName(x)} · this month` : monthName(x) }))}
+                      />
+                    ) : (
+                      <h3 className="text-[15px] font-semibold">{ym === thisMonth() ? `${monthName(ym)} · this month` : monthName(ym)}</h3>
+                    )}
+                  </div>
+                  <div className="px-[var(--card-pad)] pb-4">
+                    <MonthGrid days={month.monthDays} ym={ym} />
+                    <div className="mt-3"><Legend /></div>
+                    <button type="button" onClick={go('attendance/attendance')}
+                      className="mt-3 text-[12.5px] font-medium text-primary hover:underline">
+                      Full attendance report
+                    </button>
+                  </div>
+                </Card>
+              </div>
+            </div>
+            </>
+            )}
+          </>
+        )}
+      </PageBody>
+    </>
   )
 }

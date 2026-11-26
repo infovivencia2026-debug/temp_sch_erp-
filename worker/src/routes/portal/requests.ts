@@ -531,10 +531,8 @@ async function listConcernRecipients(c: Ctx): Promise<Response> {
 
 async function raisePortalConcern(c: Ctx): Promise<Response> {
   const body = await readJSON<Record<string, unknown>>(c.req)
-  /* "What happened" is optional (owner, 2026-11-26): the heading alone is a
-     concern, and stands in for the details when none are written. */
-  const subject = str(body.subject), text = str(body.body) || subject
-  if (subject === '') throw badRequest('a concern needs a heading')
+  const subject = str(body.subject), text = str(body.body)
+  if (subject === '' || text === '') throw badRequest('a concern needs a heading and what happened')
   let category = raw(body.category)
   if (category === '') category = 'other'
   if (!CONCERN_CATEGORIES.has(category)) throw badRequest('choose one of the listed categories')

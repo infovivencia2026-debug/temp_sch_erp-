@@ -16,7 +16,6 @@ import { BentoSettings } from '@/features/bento/BentoSettings'
 import { HelpButton } from '@/features/help/HelpEntry'
 import { usePhone } from '@/lib/viewport'
 import { featurePath, useCatalogIfAny, type ApiSection } from '@/lib/catalog'
-import { sectionPath, viewMatches } from '@/features/portal/parent-nav'
 import { CONNECT_MENU, CONNECT_SLUG } from '@/features/comms/connect-menu'
 import { SIGN_INS_PATH, type TodaySignIns } from '@/lib/staff-layout'
 import { useSession } from '@/lib/session'
@@ -244,7 +243,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
     if (hidden.has(f.slug)) continue
     const to = target(f.slug, g.section.slug)
     if (!bySection.has(to)) bySection.set(to, [])
-    bySection.get(to)!.push({ section: sectionPath(g.section), f })
+    bySection.get(to)!.push({ section: g.section.slug, f })
   }
   /* Only the first Home is called Home; a role with several workspaces names
      the others after their workspace (owner, 2026-10-24: three Homes). */
@@ -314,7 +313,7 @@ export function StaffNavList({ roleKey, workspaces, items, onNavigate, label }: 
               <NavLink key={f.key} data-row to={goTo(from, f)} onClick={onNavigate} title={f.summary}
                 className={({ isActive }) => {
                   // A grouped item stays lit while one of its tabs is open.
-                  const on = (isActive && viewMatches(f.slug, search)) || !!comboOf(f.slug)?.slugs.includes(here)
+                  const on = isActive || !!comboOf(f.slug)?.slugs.includes(here)
                   return staffItemClass(on, f.live)
                 }}>
                 <LineIcon name={`${f.slug} ${f.name}`} icon={icons[i]} size={20} />

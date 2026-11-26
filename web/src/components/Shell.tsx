@@ -18,7 +18,6 @@ import ShareInbox from '@/components/ShareInbox'
 import { LiveToasts } from '@/components/LiveToasts'
 import { AnnouncementsBanner } from '@/features/seller/AnnouncementsBanner'
 import { useOfflineWarm } from '@/lib/offline-warm'
-import { sectionPath, useParentNavRole, viewMatches } from '@/features/portal/parent-nav'
 /* Both are corner furniture, not the screen: the assistant (with its markdown,
    speech and import code) and the once-per-person tour load after the shell
    has painted, in their own chunks. */
@@ -341,8 +340,7 @@ export function Shell({
      while the phone is idle and online — so the next dead spot still paints.
      See lib/offline-warm.ts. */
   useOfflineWarm(catalog, session.user?.id)
-  /* The parent's menu as the owner laid it out (features/portal/parent-nav.ts). */
-  const role = useParentNavRole(useActiveRole())
+  const role = useActiveRole()
   /* Whether this person may look into every office in the building. Held by
      the principal, and the reason the workspace menu opens for somebody with a
      single workspace. */
@@ -1015,7 +1013,7 @@ export function Shell({
                   </span>
                 )}
                 <span className="block min-w-0 flex-1">
-                  <span className="block truncate text-[calc(16px*var(--font-scale,1))] font-extrabold leading-tight" title={brandName}>
+                  <span className="block whitespace-normal break-words text-[calc(16px*var(--font-scale,1))] font-extrabold leading-tight">
                     {brandName}
                   </span>
                   <span className="mt-0.5 flex items-center gap-1 text-[calc(13.5px*var(--font-scale,1))] font-semibold text-muted-foreground">
@@ -1165,7 +1163,7 @@ export function Shell({
               return (
                 <NavLink
                   key={ws.slug}
-                  to={featurePath(role.key, sectionPath(ws.sections[0]), onlyItem.slug)}
+                  to={featurePath(role.key, ws.sections[0].slug, onlyItem.slug)}
                   onClick={() => setNavOpen(false)}
                   data-row
                   className={({ isActive }) => cn(navItem(isActive, 0, !onlyItem.live), 'nav-tap')}
@@ -1187,7 +1185,7 @@ export function Shell({
                   if (home) {
                     const first = items[0]
                     return (
-                      <NavLink key={section.slug} to={featurePath(role!.key, sectionPath(section), first.slug)}
+                      <NavLink key={section.slug} to={featurePath(role!.key, section.slug, first.slug)}
                         onClick={() => setNavOpen(false)} data-row className={({ isActive }) => cn(navItem(isActive, 0, !first.live), 'nav-tap')}>
                         <span className="truncate">{shortLabel('Home')}</span>
                       </NavLink>
@@ -1233,11 +1231,11 @@ export function Shell({
                       {items.map((f) => (
                         <NavLink
                           key={f.key}
-                          to={featurePath(role!.key, sectionPath(section), f.slug)}
+                          to={featurePath(role!.key, section.slug, f.slug)}
                           onClick={() => setNavOpen(false)}
                           title={f.summary}
                           data-row
-                          className={({ isActive }) => navItem(isActive && viewMatches(f.slug, location.search), 0, !f.live)}
+                          className={({ isActive }) => navItem(isActive, 0, !f.live)}
                         >
                           <span className="truncate">{shortLabel(f.name)}</span>
                         </NavLink>

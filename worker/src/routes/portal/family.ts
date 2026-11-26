@@ -847,84 +847,6 @@ async function getPortalAdmission(c: Ctx): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
-// GET /portal/child-profile (the parent home's child card and Academics)
-
-/* One child as the parent home draws them (owner, 2026-11-26): photo, name,
-   class and section, the date they joined, every academic year they have
-   been enrolled in (the year picker), the subjects of the chosen year's class
-   with each subject's teacher, photo and periods a week, and whether the
-   child is in any extra-curricular activity (the ECA menu entry shows only
-   then). `academic_year_id` picks the year; none means the current one, else
-   the latest enrolment. */
-async function getChildProfile(c: Ctx): Promise<Response> {
-  const sid = await whichChild(c, c.url.searchParams.get('student_id'))
-  const st = await c.db.prepare(`SELECT st.id, ${fullName('st')} AS full_name, st.admission_no, st.admission_date, st.photo_file_id
-      FROM students st WHERE st.id = ?`).bind(sid)
-    .first<{ id: string; full_name: string; admission_no: string; admission_date: string | null; photo_file_id: string | null }>()
-  if (!st) throw notFound()
-  const years = (await c.db.prepare(`
-    SELECT ay.id AS academic_year_id, ay.name AS academic_year, ay.is_current, en.class_id, en.section_id,
-           cl.name AS class_name, sec.name AS section_name, en.roll_no, en.enrolled_on
-      FROM enrollments en
-      JOIN academic_years ay ON ay.id = en.academic_year_id
-      LEFT JOIN classes cl ON cl.id = en.class_id
-      LEFT JOIN sections sec ON sec.id = en.section_id
-     WHERE en.student_id = ?
-     ORDER BY ay.starts_on DESC, en.enrolled_on DESC`).bind(sid)
-    .all<{ academic_year_id: string; academic_year: string; is_current: number; class_id: string; section_id: string
-      class_name: string | null; section_name: string | null; roll_no: number | null; enrolled_on: string }>()).results
-  const seen = new Set<string>()
-  const uniq = years.filter((y) => (seen.has(y.academic_year_id) ? false : (seen.add(y.academic_year_id), true)))
-  const asked = c.url.searchParams.get('academic_year_id') ?? ''
-  const pick = uniq.find((y) => y.academic_year_id === asked) ?? uniq.find((y) => !!y.is_current) ?? uniq[0]
-  let subjects: Record<string, unknown>[] = []
-  if (pick) {
-    const rows = await c.db.prepare(`
-      SELECT cs.id AS class_subject_id, sub.name AS subject, cs.periods_per_week AS planned,
-             (SELECT count(*) FROM timetable_entries te WHERE te.section_id = ?2 AND te.academic_year_id = ?3 AND te.class_subject_id = cs.id) AS timetabled,
-             COALESCE(
-               (SELECT sst.teacher_user_id FROM section_subject_teachers sst WHERE sst.section_id = ?2 AND sst.class_subject_id = cs.id LIMIT 1),
-               (SELECT te.teacher_user_id FROM timetable_entries te WHERE te.section_id = ?2 AND te.academic_year_id = ?3 AND te.class_subject_id = cs.id
-                  AND te.teacher_user_id IS NOT NULL GROUP BY te.teacher_user_id ORDER BY count(*) DESC LIMIT 1)) AS teacher_user_id
-        FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id
-       WHERE cs.class_id = ?1
-       ORDER BY sub.name`).bind(pick.class_id, pick.section_id, pick.academic_year_id)
-      .all<{ class_subject_id: string; subject: string; planned: number; timetabled: number; teacher_user_id: string | null }>()
-    const ids = [...new Set(rows.results.map((r) => r.teacher_user_id).filter((x): x is string => !!x))]
-    const people = new Map<string, { full_name: string; photo: string | null }>()
-    if (ids.length) {
-      const q = inList('u.id', ids)
-      const ps = await c.db.prepare(`SELECT u.id, u.full_name,
-          (SELECT e.photo_file_id FROM employees e WHERE e.user_id = u.id AND e.photo_file_id IS NOT NULL LIMIT 1) AS photo
-          FROM users u WHERE ${q.sql}`).bind(...q.args).all<{ id: string; full_name: string; photo: string | null }>()
-      for (const p of ps.results) people.set(p.id, { full_name: p.full_name, photo: p.photo })
-    }
-    subjects = rows.results.map((r) => {
-      const o: Record<string, unknown> = { class_subject_id: r.class_subject_id, subject: r.subject,
-        periods_per_week: Number(r.timetabled) || Number(r.planned) || 0 }
-      const t = r.teacher_user_id ? people.get(r.teacher_user_id) : undefined
-      if (t) { o.teacher = t.full_name; put(o, 'teacher_photo', t.photo) }
-      return o
-    })
-  }
-  const eca = await c.db.prepare(`SELECT a.id, a.name, a.category, a.schedule, a.venue
-      FROM student_activities sa JOIN activities a ON a.id = sa.activity_id
-     WHERE sa.student_id = ? AND sa.status = 'enrolled' ORDER BY a.name`).bind(sid)
-    .all<{ id: string; name: string; category: string | null; schedule: string | null; venue: string | null }>()
-  const o: Record<string, unknown> = { student_id: st.id, full_name: st.full_name, admission_no: st.admission_no }
-  put(o, 'admission_date', st.admission_date); put(o, 'photo_file_id', st.photo_file_id)
-  o.years = uniq.map((y) => ({ academic_year_id: y.academic_year_id, academic_year: y.academic_year, is_current: bool(y.is_current) }))
-  if (pick) {
-    o.academic_year_id = pick.academic_year_id; o.academic_year = pick.academic_year
-    put(o, 'class_name', pick.class_name); put(o, 'section_name', pick.section_name)
-    put(o, 'roll_no', pick.roll_no === null ? null : Number(pick.roll_no))
-  }
-  o.subjects = subjects
-  o.eca = eca.results
-  return ok(o)
-}
-
-// ---------------------------------------------------------------------------
 
 export function registerPortalFamily(r: Router): void {
   r.get('/portal/students', GROUP, listMyStudents)
@@ -932,7 +854,6 @@ export function registerPortalFamily(r: Router): void {
   r.get('/portal/family-details', GROUP, getFamilyDetails)
   r.put('/portal/family-details', GROUP, updateFamilyDetails)
   r.get('/portal/summary', GROUP, getPortalSummary)
-  r.get('/portal/child-profile', GROUP, getChildProfile)
   r.get('/portal/attendance', GROUP, listPortalAttendance)
   r.get('/portal/fees', GROUP, getFamilyFees)
   r.get('/portal/notes', GROUP, listDisciplineNotes)
