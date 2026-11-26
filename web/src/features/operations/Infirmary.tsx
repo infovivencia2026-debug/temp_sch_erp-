@@ -59,7 +59,7 @@ export default function Infirmary() {
       <PageHead
         eyebrow="Operations"
         title="Infirmary"
-        description="Allergies, chronic conditions and emergency contacts, for the moment somebody needs them quickly."
+        description="Allergies, conditions and emergency contacts."
       />
       <PageBody>
         <CellGrid cols={4}>

@@ -82,7 +82,7 @@ function Receipts() {
       </Card>
       {student && (
         <Card>
-          <CardHeader title="Receipts" description="Void one issued by mistake, or move one taken against the wrong child." />
+          <CardHeader title="Receipts" description="Void or move a receipt." />
           {q.isLoading ? <Loading /> : q.error ? <ErrorState error={q.error} /> : (
             <Table head={['Receipt', 'Date', 'Mode', { label: 'Amount', align: 'right' }, 'Status', 'Note', '']} empty={!(q.data?.items ?? []).length} emptyLabel="No receipts for this child.">
               {(q.data?.items ?? []).map((p) => (
@@ -110,7 +110,7 @@ function Receipts() {
                         <span className="flex gap-2">
                           {acting.what === 'void' ? (
                             <ConfirmButton size="sm" tone="danger" disabled={reason.trim().length < 10 || run.isPending} confirmLabel="Void it"
-                              question="Void this receipt? The money counts as never received and the dues come back. The receipt number stays on the record with your reason."
+                              question="Void this receipt? Dues come back."
                               onConfirm={() => run.mutate({ id: p.id, what: 'void' })}>Void</ConfirmButton>
                           ) : (
                             <Button size="sm" disabled={!to || reason.trim().length < 10 || run.isPending} onClick={() => run.mutate({ id: p.id, what: 'move' })}>Move it</Button>
@@ -144,7 +144,7 @@ function PendingOnline() {
   const rows = q.data?.items ?? []
   return (
     <Card>
-      <CardHeader title="Online payments the gateway never confirmed" description="Mark one received only when the bank or the gateway has confirmed it to you. It then counts like any receipt." />
+      <CardHeader title="Online payments the gateway never confirmed" description="Mark received only after bank confirms." />
       <Table head={['Receipt', 'Child', 'Date', 'Gateway', { label: 'Amount', align: 'right' }, '']} empty={!rows.length} emptyLabel="Nothing is pending at the gateway.">
         {rows.map((p) => (
           <tr key={p.id}>
@@ -158,7 +158,7 @@ function PendingOnline() {
                 <Input className="w-40" value={txn[p.id] ?? ''} onChange={(v) => setTxn({ ...txn, [p.id]: v })} placeholder="Gateway reference" />
                 <Input className="w-48" value={reason[p.id] ?? ''} onChange={(v) => setReason({ ...reason, [p.id]: v })} placeholder="How it was confirmed" />
                 <ConfirmButton size="sm" disabled={(reason[p.id] ?? '').trim().length < 10 || force.isPending} confirmLabel="Mark received"
-                  question="Mark this payment received? Only do this when the gateway or the bank has confirmed the money."
+                  question="Mark received? Only if the bank confirmed."
                   onConfirm={() => force.mutate(p.id)}>Mark received</ConfirmButton>
               </span>
             </Td>
@@ -183,7 +183,7 @@ function EndFee() {
   })
   return (
     <Card>
-      <CardHeader title="Stop a fee for a whole class" description="From the date you give, the fee is left out of the next billing. Nothing already invoiced changes." />
+      <CardHeader title="Stop a fee for a whole class" description="Stops future billing from this date." />
       <div className="p-5">
         <FormGrid>
           <Field label="Fee head" required>

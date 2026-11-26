@@ -103,7 +103,7 @@ export default function Gradebook() {
         ...(scaleID ? { grading_scale_id: scaleID } : {}),
       }),
     onSuccess: () => {
-      setSetupNote('Saved. Marks entered below are out of this figure and graded on this scale.')
+      setSetupNote('Saved.')
       setOutOf('')
       qc.invalidateQueries({ queryKey: ['exam-subjects'] })
       qc.invalidateQueries({ queryKey: ['gradebook', esID] })
@@ -133,7 +133,7 @@ export default function Gradebook() {
          entered", AB is absent, and a bad number is named, row by row. */
       const got = readMarksSheet(String(reader.result ?? ''), rows, parts, paper?.max_marks ?? 0)
       if (got.filled === 0 && got.missed.length === 0 && got.errors.length === 0) {
-        setImportErr('Nothing in that file looked like a marks sheet, or every mark in it was blank.')
+        setImportErr('No marks found in that file.')
         return
       }
       if (hasParts) setPartDraft((d) => ({ ...d, ...got.parts }))
@@ -365,7 +365,7 @@ export default function Gradebook() {
             {paper && rows.length > 0 && (
               <Button
                 variant="secondary"
-                title="Every child on this paper, with a column to type marks in. Fill it and import the same file."
+                title="Fill marks and import the same file."
                 onClick={() => downloadCSV(
                   marksTemplate(paper, rows, parts, savedParts),
                   `marks-${paper.class_name}-${paper.subject}-${paper.exam_name}`.replace(/\s+/g, '-'),
@@ -464,7 +464,7 @@ export default function Gradebook() {
             body={
               papers.data?.items.length
                 ? 'Pick a paper above to start entering marks.'
-                : 'No exam is scheduled for your subjects yet, so there are no marks to enter. A paper appears here once it has a date on the date sheet.'
+                : 'No exams for your subjects yet.'
             }
           />
         ) : book.isLoading ? (

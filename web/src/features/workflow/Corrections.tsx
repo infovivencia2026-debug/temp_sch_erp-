@@ -85,7 +85,7 @@ export default function Corrections() {
       reason: why[m.id]?.trim(),
     }),
     onSuccess: () => {
-      setDone('Correction requested. It waits on somebody who can amend the register.')
+      setDone('Correction requested.')
       qc.invalidateQueries({ queryKey: ['corrections'] })
     },
   })
@@ -121,7 +121,7 @@ export default function Corrections() {
       <PageHead
         eyebrow="Attendance"
         title="Attendance corrections"
-        description="Amendments raised by teachers after a register was submitted. Approving rewrites the mark and records who changed it."
+        description="Attendance corrections from teachers."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -133,7 +133,7 @@ export default function Corrections() {
         <Card>
           <CardHeader
             title="Correct a mark"
-            description="The register as it stands. Ask for a change against the row that is wrong."
+            description="Request a change on the wrong row."
             action={
               mayRaise && (
                 <Button variant={asking ? 'ghost' : 'primary'} size="sm"
@@ -181,7 +181,7 @@ export default function Corrections() {
               ) : (register.data?.items ?? []).length === 0 ? (
                 <EmptyState
                   title="Nothing marked that day"
-                  body="There is no register for this section on that date, so there is nothing to correct."
+                  body="No attendance for that date."
                 />
               ) : (
                 <Table wide head={['Student', 'Marked', 'Change to', 'Why', '']}>

@@ -242,7 +242,7 @@ function Checkups({
     <Card>
       <CardHeader
         title="Annual health checkup"
-        description="Height, weight, vision, dental. Saving the same child twice in a year adds to their card rather than starting another one, so the dental van and the eye camp end up on one sheet."
+        description="Height, weight, vision, dental. One card per child per year."
         action={
           <Button size="sm" onClick={() => setOpen((v) => !v)}>
             {open ? 'Close' : 'Record measurements'}
@@ -369,7 +369,7 @@ function Checkups({
       {rows.length === 0 ? (
         <EmptyState
           title="No cards yet"
-          body="A child gets one card a year. Every camp and every checkup writes onto the same one."
+          body="One card per child per year"
         />
       ) : (
         <Table
@@ -468,7 +468,7 @@ function Camps({ query }: { query: ReturnType<typeof useQuery<List<Camp>>> }) {
       <Card>
         <CardHeader
           title="School health programme camps"
-          description="A visiting team, and what became of the children it referred. The last column is the one that matters."
+          description="Camps and referral follow-up"
           action={
             <Button size="sm" onClick={() => setOpen((v) => !v)}>
               {open ? 'Close' : 'Record a camp'}
@@ -545,7 +545,7 @@ function Camps({ query }: { query: ReturnType<typeof useQuery<List<Camp>>> }) {
         {rows.length === 0 ? (
           <EmptyState
             title="No camps recorded"
-            body="State screening rounds, dental vans and eye camps go here, with who was seen at each."
+            body="No camps yet."
           />
         ) : (
           <Table head={['Camp', 'Programme', 'When', 'Seen', 'Referred', 'Not chased', '']}>
@@ -634,7 +634,7 @@ function CampAttendance({ campId }: { campId: string }) {
     <Card>
       <CardHeader
         title="Children seen at this camp"
-        description="Open referrals first. A screening that finds nine problems and chases none of them has recorded nine problems."
+        description="Open referrals first"
       />
       <div className="space-y-4 px-4 pb-4 pt-4">
         <FormGrid>

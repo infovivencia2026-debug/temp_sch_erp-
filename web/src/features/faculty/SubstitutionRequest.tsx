@@ -168,7 +168,7 @@ export default function SubstitutionRequest() {
       <PageHead
         eyebrow="Timetable"
         title="Substitution requests"
-        description="Ask for your periods to be covered while you are away, and suggest a colleague. The approver is shown who is actually free in each period."
+        description="Ask for cover while you are away."
         actions={
           <>
             <Input
@@ -200,7 +200,7 @@ export default function SubstitutionRequest() {
           <Card>
             <CardHeader
               title="Leave you have already applied for"
-              description="Attaching the request to it keeps the two records from disagreeing about which days you were out."
+              description="Link to your leave"
             />
             <Table head={['Dates', 'Reason', 'Status', '']}>
               {leave.map((l) => (
@@ -239,12 +239,12 @@ export default function SubstitutionRequest() {
         <Card>
           <CardHeader
             title="Which periods need covering"
-            description="Select nothing and every period in the range is included, which is what three days of leave usually means."
+            description="None selected = all periods."
           />
           {rows.length === 0 ? (
             <EmptyState
               title="No timetabled periods in that range"
-              body="Holidays are already excluded. Widen the dates, or check that the timetable has been published."
+              body="No periods. Widen dates or check the timetable."
             />
           ) : (
             <Table head={['', 'Date', 'Period', 'Class', 'Subject', 'State']}>
@@ -288,7 +288,7 @@ export default function SubstitutionRequest() {
               <Field
                 label="Why you will be away"
                 required
-                hint="The approver reads this before deciding, and it is copied onto the cover."
+                hint="Note for the approver"
                 wide
               >
                 <Textarea value={reason} onChange={setReason} rows={2} />

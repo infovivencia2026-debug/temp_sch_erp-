@@ -90,8 +90,8 @@ export default function StaffRemarks({ canWrite = true }: { canWrite?: boolean }
         title={canWrite ? 'Teacher remarks' : 'Remarks about me'}
         description={
           canWrite
-            ? 'What has been written about the school’s teachers, and a place to add one. The teacher is told, and always sees it.'
-            : 'What your head of department, the principal or a parent has written about your work.'
+            ? 'Remarks on teachers. The teacher always sees them.'
+            : 'Remarks about your work'
         }
         actions={
           mayWrite && (
@@ -120,8 +120,8 @@ export default function StaffRemarks({ canWrite = true }: { canWrite?: boolean }
               title={canWrite ? 'Nothing written yet' : 'Nothing has been written about you'}
               body={
                 canWrite
-                  ? 'A remark you write reaches the teacher the same day, and stays here.'
-                  : 'When your head of department, the principal or a parent writes something, it appears here and you are told.'
+                  ? 'No remarks yet.'
+                  : 'No remarks yet.'
               }
             />
           ) : (
@@ -172,7 +172,7 @@ function Compose({ teachers, onDone }: { teachers: Teacher[]; onDone: () => void
     <Card>
       <CardHeader
         title="Write a remark"
-        description="The teacher is told, and reads it. There is no private option, on purpose."
+        description="The teacher will see this."
       />
       <form
         className="px-5 pb-5"

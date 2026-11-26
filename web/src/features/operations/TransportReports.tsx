@@ -38,7 +38,7 @@ const REPORTS: Report[] = [
   {
     key: 'riders',
     name: 'Who rides what',
-    blurb: 'Every child with a live allocation, their route, stop and fare. The list a new term is planned from.',
+    blurb: 'Children, route, stop and fare.',
     url: '/api/v1/ops/transport/allocations',
     columns: [
       { key: 'admission_no', label: 'Admission no' },
@@ -53,7 +53,7 @@ const REPORTS: Report[] = [
   {
     key: 'fleet',
     name: 'The fleet and its papers',
-    blurb: 'Every bus with capacity and the dates its permit, insurance and fitness run out.',
+    blurb: 'Buses, capacity and paper expiry.',
     url: '/api/v1/ops/transport/vehicles',
     columns: [
       { key: 'registration_no', label: 'Bus' },
@@ -68,7 +68,7 @@ const REPORTS: Report[] = [
   {
     key: 'staff',
     name: 'Drivers and attendants',
-    blurb: 'Who drives, with licence and verification, and how long each has left to run.',
+    blurb: 'Drivers, licence and verification.',
     url: '/api/v1/ops/transport/staff',
     columns: [
       { key: 'name', label: 'Name' },
@@ -81,7 +81,7 @@ const REPORTS: Report[] = [
   {
     key: 'checks',
     name: 'Safety checks',
-    blurb: 'A fortnight of pre-trip checks, and what failed where it did.',
+    blurb: 'Last 2 weeks of pre-trip checks.',
     url: '/api/v1/ops/transport/checks',
     columns: [
       { key: 'on_date', label: 'Date' },
@@ -162,7 +162,7 @@ export default function TransportReports() {
       <PageHead
         eyebrow="Transport"
         title="Transport reports"
-        description="Built from the same endpoints the screens use, so a report never disagrees with the screen it came from."
+        description="Same data as the screens."
         actions={
           <div className="flex gap-2">
             <PrintButton label="Print" title={report.name} />

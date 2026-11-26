@@ -105,7 +105,7 @@ export default function DisciplineLog() {
       <PageHead
         eyebrow="Students"
         title="Disciplinary incident log"
-        description="Conduct records escalated by the office: severity, counselling, the parent meeting, and any suspension."
+        description="Escalated conduct cases."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -148,7 +148,7 @@ export default function DisciplineLog() {
           {rows.length === 0 ? (
             <EmptyState
               title="Nothing recorded in this window"
-              body="Teachers record conduct notes against a child; those that need the office appear here."
+              body="No cases yet."
             />
           ) : (
             <Table
@@ -263,7 +263,7 @@ function Handle({ incident, onDone }: { incident: Incident; onDone: () => void }
     <Card>
       <CardHeader
         title={`${incident.student_name} · ${formatDate(incident.occurred_on)}`}
-        description="Closing an incident needs an action recorded: a closed row with nothing written against it answers nothing later."
+        description="Record the action before closing."
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>
@@ -310,7 +310,7 @@ function Handle({ incident, onDone }: { incident: Incident; onDone: () => void }
           <Field
             label="Counselling note"
             wide
-            hint="Kept apart from the narrative so a conduct extract does not print it."
+            hint="Not printed on extracts."
           >
             <Textarea value={counselling} onChange={setCounselling} rows={2} />
           </Field>

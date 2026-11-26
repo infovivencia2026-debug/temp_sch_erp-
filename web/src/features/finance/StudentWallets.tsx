@@ -156,13 +156,13 @@ export default function StudentWallets() {
       <PageHead
         eyebrow="Fees"
         title="Student wallets"
-        description="Digital money: a prepaid balance the school holds for each child. Record a top-up the family has paid in, correct a balance with a reason, and read the ledger."
+        description="Prepaid balance per child: top-ups, corrections, history."
       />
       <PageBody>
         <Card>
           <CardHeader
             title="Find the student"
-            description="Type at least two letters of the name or the admission number."
+            description="Type a name or admission no."
           />
           <div className="flex flex-col gap-3 p-5">
             <Input value={search} onChange={setSearch}
@@ -198,7 +198,7 @@ export default function StudentWallets() {
         {!studentId && (
           <EmptyState
             title="Pick a student to see their wallet"
-            body="The balance, every top-up the family has paid in, and everything it has been spent on."
+            body="Balance, top-ups and spending"
           />
         )}
 
@@ -220,7 +220,7 @@ export default function StudentWallets() {
                 <Card>
                   <CardHeader
                     title="Record a top-up"
-                    description="Money the family has already paid in. Nothing is charged from here."
+                    description="Money already paid by the family."
                   />
                   <div className="flex flex-col gap-3 p-5">
                     <Input value={amount} onChange={setAmount} type="number"
@@ -241,7 +241,7 @@ export default function StudentWallets() {
                 <Card>
                   <CardHeader
                     title="Adjust the balance"
-                    description="A correction, up or down, with the reason written down. It cannot take the balance below zero."
+                    description="Adjust with a reason. Not below zero."
                   />
                   <div className="flex flex-col gap-3 p-5">
                     <Input value={delta} onChange={setDelta} type="number"
@@ -260,7 +260,7 @@ export default function StudentWallets() {
             )}
 
             <Card>
-              <CardHeader title="Ledger" description="Newest first. Every entry is permanent; corrections appear as new rows." />
+              <CardHeader title="Ledger" description="Newest first" />
               <Table
                 head={['When', 'Type', { label: 'Amount', align: 'right' }, 'Mode / reference', 'Note', 'Recorded by']}
                 empty={w.transactions.length === 0}

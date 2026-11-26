@@ -67,7 +67,7 @@ export default function Exams() {
     onSuccess: (r) => {
       setDone(
         `${r.papers_added} papers created, one for every subject each class studies. ` +
-          'Marks entry, question paper approval and report cards can run now.',
+          'Papers ready. Marks entry can start.',
       )
       qc.invalidateQueries({ queryKey: ['exams-list'] })
     },
@@ -102,7 +102,7 @@ export default function Exams() {
       <PageHead
         eyebrow="Examinations"
         title="Exams & papers"
-        description="Every exam the school has scheduled, its papers, and the date sheet: when each paper is written. Nothing downstream, marks, moderation, hall tickets, report cards, can run until an exam has papers."
+        description="Exams, papers and date sheet."
       />
       <PageBody>
         {/* Open when there are none, because then it is the only thing to do
@@ -136,7 +136,7 @@ export default function Exams() {
           <Card>
             <CardHeader
               title={`${empty.length} ${empty.length === 1 ? 'exam has' : 'exams have'} no papers`}
-              description="An exam with no papers cannot be marked, moderated, or turned into a report card. Creating them makes one paper for every subject each class studies."
+              description="No papers yet. Create one per subject."
             />
             <FormGrid>
               <Field label="Each paper is out of" hint="20 for a formative, 80 for a summative, 100 for a term exam.">
@@ -151,7 +151,7 @@ export default function Exams() {
           {rows.length === 0 ? (
             <EmptyState
               title="No exams scheduled yet."
-              body="Schedule one on School setup → Exams, then create its papers here."
+              body="No exams yet. Add one in School setup → Exams."
             />
           ) : (
             <Table head={['Exam', 'Kind', 'Starts', 'Papers', 'Published', '']}>
@@ -286,7 +286,7 @@ function ScheduleExam({
     <Card>
       <CardHeader
         title="Schedule an exam"
-        description="Choosing a CCE component sets what it is out of. A paper is created for every subject each selected class studies, without papers, marks entry, moderation, hall tickets and report cards all have nothing to work on."
+        description="Creates a paper per subject for the chosen classes."
       />
       <form
         className="px-5 pb-5"

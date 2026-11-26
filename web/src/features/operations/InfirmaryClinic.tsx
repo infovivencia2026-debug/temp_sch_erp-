@@ -126,7 +126,7 @@ export default function InfirmaryClinic() {
       <PageHead
         eyebrow="Infirmary"
         title="The sick room"
-        description="Who came in today, what was done, and what was given to them on whose authority."
+        description="Today’s visits and medicines."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -236,7 +236,7 @@ function VisitLog({
       <Card>
         <CardHeader
           title="Visit log"
-          description="One row per attendance. A child who comes down three times in a week is a pattern, not a single current complaint."
+          description="One row per visit"
           action={
             <Button size="sm" onClick={() => setOpen((v) => !v)}>
               {open ? 'Close' : 'Record a visit'}
@@ -331,7 +331,7 @@ function VisitLog({
               label="The parent has been told"
               hint={
                 leaving
-                  ? 'Required: a child cannot be signed off the premises until somebody has rung home.'
+                  ? 'Required before sending home.'
                   : 'Ticked here, timed by the server.'
               }
             />
@@ -471,7 +471,7 @@ function MedicationRegister({ date }: { date: string }) {
     <Card>
       <CardHeader
         title="Medication register"
-        description="Who was given what, when, by whom, and on whose authority. The last of those is why this is not a tick on the visit log."
+        description="Medicines given, by whom, on whose say."
         action={
           <span className="flex items-center gap-2">
             <Button
@@ -641,7 +641,7 @@ function MedicationRegister({ date }: { date: string }) {
           title={incidents ? 'No refusals or reactions' : 'Nothing given'}
           body={
             incidents
-              ? 'Doses a child refused, or reacted badly to, appear here whatever day they were given.'
+              ? 'Refused doses and reactions'
               : `No medication recorded on ${date}.`
           }
         />
