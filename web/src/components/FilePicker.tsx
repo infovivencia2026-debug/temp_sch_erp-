@@ -145,7 +145,7 @@ export default function FilePicker({
         ) : (
           <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
         )}
-        <span className="min-w-0 flex-1 truncate text-[13px]">{value.name}</span>
+        <span className="min-w-0 flex-[1_1_8em] break-words text-[13px]">{value.name}</span>
         <span className="text-[12.5px] tabular-nums text-muted-foreground">
           {human(value.size_bytes)}
         </span>
@@ -187,7 +187,7 @@ export default function FilePicker({
               </span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium">{pending.name}</p>
+              <p className="break-anywhere text-[13px] font-medium">{pending.name}</p>
               <p className="text-[12.5px] text-muted-foreground">
                 {human(pending.size)}
                 {pending.type ? ` · ${pending.type}` : ''}

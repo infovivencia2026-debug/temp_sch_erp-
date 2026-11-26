@@ -6092,16 +6092,13 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
   :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:first-child:not([colspan])::before { content: none; }
   :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:first-child:not([colspan]) { font-weight: 600; font-size: 15px; }
   :where(.table-frame:not([data-layout=scroll])) .responsive-table > tbody > tr > td:empty { display: none; }
-  /* Room for the table's corner controls beside the first title. */
-  :where(.table-frame:not([data-layout=scroll])) .responsive-table:not(:has(> thead button)) > tbody > tr:first-child > td:first-child { padding-right: 112px !important; }
-  :where(.table-frame:not([data-layout=scroll])) .responsive-table:has(> thead button) > thead > tr { padding-right: 112px; }
 }
-/* The corner controls stay small in the corner over a card table, never a
-   row of their own. */
+/* Over a card table the corner controls take a short row of their own at
+   the top right (owner, 2026-11-26: they sat over the first card's text). */
 @container (max-width: 34rem) {
   [data-table-expandable]:has(> .table-frame:not([data-layout=scroll])) > .table-corner.table-corner,
   [data-table-expandable]:has(> .table-frame:not([data-layout=scroll])) > .table-corner.table-corner-row {
-    position: absolute; top: 4px; right: 8px; padding: 0; gap: 8px;
+    position: static; display: flex; justify-content: flex-end; padding: 4px 8px 0; gap: 8px;
   }
 }
 .chip-scroll > button { min-height: 40px; }
@@ -6140,9 +6137,6 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
   .field, :where(.relative):has(> input.field) { max-width: calc(100vw - 64px); }
   /* a field's own button (calendar, clear) stays inside the field */
   :where(.relative):has(> input.field) > input.field { max-width: 100%; }
-}
-@container rtable (max-width: 34rem) {
-  :where(.table-frame:not([data-layout=scroll])) .responsive-table:not(:has(> thead button)) > tbody > tr:first-child > td[colspan] { padding-top: 48px !important; }
 }
 
 /* Tab strips on a phone (owner, 2026-11-25: pills hidden past the edge of a
