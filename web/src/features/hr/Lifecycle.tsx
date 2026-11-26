@@ -688,7 +688,7 @@ function LettersTab() {
   const [newGross, setNewGross] = useState('')
   const [startsOn, setStartsOn] = useState('')
   const session = useSession()
-  const school = { school: session.institution?.display_name ?? 'School', logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined, issuedBy: session.user?.full_name }
+  const school = { school: (session.institution?.display_name || session.institution?.name || 'School'), logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined, issuedBy: session.user?.full_name }
 
   const letters = useQuery({
     queryKey: ['hr', 'certificates'],

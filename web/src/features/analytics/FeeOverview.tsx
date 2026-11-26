@@ -83,7 +83,7 @@ export default function FeeOverview() {
   const session = useSession()
   /* The owner's print (fee-overview-print.ts), not a copy of the screen. */
   const printOverview = () => overview.data && printHtml(feeOverviewHtml({
-    school: session.institution?.display_name ?? 'School',
+    school: (session.institution?.display_name || session.institution?.name || 'School'),
     logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
     printedBy: session.user?.full_name ?? '',
     academic_year: overview.data.academic_year, totals: overview.data.totals, by_class: overview.data.by_class,

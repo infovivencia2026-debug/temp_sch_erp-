@@ -89,7 +89,7 @@ export default function HRReports() {
   const session = useSession()
   /* The owner's print (hr-report-print.ts): only what is needed, no +/-. */
   const printReport = () => printHtml(hrReportHtml({
-    school: session.institution?.display_name ?? 'School',
+    school: (session.institution?.display_name || session.institution?.name || 'School'),
     logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
     printedBy: session.user?.full_name ?? '', period: rangeLabel(range),
     headcount: hc, movement: movement.data?.items ?? [], attendance: attendance.data?.items ?? [], expiries: expiries.data?.items ?? [],

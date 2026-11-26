@@ -91,7 +91,7 @@ export default function Certificates() {
   const [preview, setPreview] = useState<{ html: string; title: string } | null>(null)
   const session = useSession()
   const school = {
-    school: session.institution?.display_name ?? 'School',
+    school: (session.institution?.display_name || session.institution?.name || 'School'),
     logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
   }
   /* A register row's Print prints; the preview stays up above for a second copy. */

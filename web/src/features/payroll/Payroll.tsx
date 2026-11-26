@@ -238,7 +238,7 @@ export default function Payroll() {
   const toast = useToast()
   const printRegister = () => rows.length ? printHtml(registerHtml({
     school: {
-      name: session.institution?.display_name ?? 'School',
+      name: (session.institution?.display_name || session.institution?.name || 'School'),
       logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
     },
     month: Number(month), year: Number(year), status, published, rows, printedBy: session.user?.full_name ?? '',
@@ -253,7 +253,7 @@ export default function Payroll() {
     try {
       const st = await api.get<{ items: LetterRow[]; bank: { name: string; branch: string; account: string; address: string } }>(
         `/api/v1/payroll/statement?month=${month}&year=${year}`)
-      printHtml(bankLetterHtml({ school: session.institution?.display_name ?? 'School', month: Number(month), year: Number(year), bank: st.bank, rows: st.items }))
+      printHtml(bankLetterHtml({ school: (session.institution?.display_name || session.institution?.name || 'School'), month: Number(month), year: Number(year), bank: st.bank, rows: st.items }))
     } catch {
       toast.error('Could not make the bank letter. Try again.')
     }

@@ -93,7 +93,7 @@ export default function SchoolGallery({ onClose, initialPost = null }: { onClose
     const m = new Date(p.published_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
     months.set(m, [...(months.get(m) ?? []), p])
   }
-  const groups = feed.data ? toGroups({ ...feed.data, rings: [], gallery: shown }, session.institution?.display_name ?? 'School', undefined, () => {}) : []
+  const groups = feed.data ? toGroups({ ...feed.data, rings: [], gallery: shown }, (session.institution?.display_name || session.institution?.name || 'School'), undefined, () => {}) : []
   const gIndex = groups.findIndex((g) => g.id === 'gallery')
 
   const openComposer = (next: { file: File | null; mode?: AddMode }) => {

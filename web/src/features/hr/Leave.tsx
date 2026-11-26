@@ -350,7 +350,7 @@ export default function Leave() {
 
   /* The owner's print: four count boxes, then the requests as listed. */
   const printLeave = () => printHtml(leaveHtml({
-    school: session.institution?.display_name ?? 'School',
+    school: (session.institution?.display_name || session.institution?.name || 'School'),
     logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
     title: mine ? 'My leave' : forWhom === 'staff' ? 'Staff leave approvals' : 'Staff & student leave approvals',
     all, rows: shown, printedBy: session.user?.full_name ?? '',

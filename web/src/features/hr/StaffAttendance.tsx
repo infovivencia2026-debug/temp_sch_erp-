@@ -107,7 +107,7 @@ export default function StaffAttendance() {
   /* Every employee, as marked on screen (owner's design, staff-register-print.ts). */
   const printRegister = () => printHtml(staffRegisterHtml({
     school: {
-      name: session.institution?.display_name ?? 'School',
+      name: (session.institution?.display_name || session.institution?.name || 'School'),
       logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
     },
     onDate, printedBy: session.user?.full_name ?? '',
@@ -171,7 +171,7 @@ export default function StaffAttendance() {
         }).join('')
         return `<tr>${td(st.employee_code)}${td(st.biometric_id ?? '')}${td(st.full_name, 'white-space:nowrap')}${td(st.department ?? '')}${cells}${td(n('present', 'permission', 'on_duty', 'wfh'), 'text-align:center')}${td(n('absent'), 'text-align:center;background:#fecaca;color:#991b1b;font-weight:bold')}${td(n('late'), 'text-align:center;background:#fde68a;color:#92400e;font-weight:bold')}${td(n('half_day'), 'text-align:center')}${td(n('leave'), 'text-align:center')}</tr>`
       }).join('')
-      const school = session.institution?.display_name ?? 'School'
+      const school = (session.institution?.display_name || session.institution?.name || 'School')
       const span = days.length + 9
       const html = `<html><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif">
 <table><tr><td colspan="${span}" style="font-size:16pt;font-weight:bold">${esc(school)}: Staff attendance register</td></tr>
@@ -193,7 +193,7 @@ ${body}</table></body></html>`
       const { staff, marks } = await loadRange(days)
       printHtml(staffRangeHtml({
         school: {
-          name: session.institution?.display_name ?? 'School',
+          name: (session.institution?.display_name || session.institution?.name || 'School'),
           logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
         },
         from: rangeFrom, to: rangeTo, days, marks, printedBy: session.user?.full_name ?? '', staff,

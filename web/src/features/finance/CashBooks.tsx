@@ -72,7 +72,7 @@ export default function CashBooks() {
     if (!c) return
     printHtml(booksHtml({
       school: {
-        name: session.institution?.display_name ?? 'School',
+        name: (session.institution?.display_name || session.institution?.name || 'School'),
         logoUrl: session.institution?.logo_key ? `${location.origin}/api/v1/files/${session.institution.logo_key}?inline=1` : undefined,
       },
       from, to, totals: c.totals, accounts: c.accounts, on, vouchers: d?.items ?? [],
