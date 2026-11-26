@@ -158,7 +158,7 @@ export default function AuditLog() {
                     <button
                       type="button"
                       onClick={() => setOpen(expanded ? null : r.id)}
-                      className="flex w-full items-start gap-3 px-5 py-3 text-left transition-colors duration-150 hover:bg-accent/60"
+                      className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 px-5 py-3 text-left transition-colors sm:flex-nowrap duration-150 hover:bg-accent/60"
                     >
                       {expanded ? (
                         <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -175,7 +175,7 @@ export default function AuditLog() {
                           {path}
                         </p>
                       </div>
-                      <span className="min-w-0 max-w-[45%] shrink-0 text-right text-[13px] text-muted-foreground">
+                      <span className="min-w-0 shrink-0 basis-full pl-6 text-[13px] text-muted-foreground sm:max-w-[45%] sm:basis-auto sm:pl-0 sm:text-right">
                         {when(r.at)}
                         {r.ip && <span className="break-anywhere block font-mono text-[12px] [overflow-wrap:anywhere]">{r.ip}</span>}
                       </span>
@@ -268,7 +268,7 @@ function SystemEvents({ since, until }: { since: string; until: string }) {
                 <button
                   type="button"
                   onClick={() => setOpen(expanded ? null : e.id)}
-                  className="flex w-full items-start gap-3 px-5 py-3 text-left transition-colors duration-150 hover:bg-accent/60"
+                  className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 px-5 py-3 text-left transition-colors sm:flex-nowrap duration-150 hover:bg-accent/60"
                 >
                   <Badge tone={LEVEL_TONE[e.level] ?? 'neutral'}>{e.level}</Badge>
                   <div className="min-w-0 flex-1">
