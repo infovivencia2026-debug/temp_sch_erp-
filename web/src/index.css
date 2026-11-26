@@ -6152,6 +6152,18 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
     flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none; mask-image: none; padding-right: 0;
   }
   [role=tablist].rounded-full:not(:has(> :nth-child(9))) { border-radius: 24px; }
+  /* A pill longer than the whole row ("Sessions & security" at 320 and
+     large text) wraps its own words rather than running past the edge. */
+  [role=tablist] > * { max-width: 100%; }
+  [role=tablist]:not(.overflow-x-auto) > *, [role=tablist]:is(.overflow-x-auto, .chip-scroll):not(:has(> :nth-child(9))) > * { white-space: normal !important; }
   :where(.flex:not(.flex-col)):has(> [role=tablist]) { flex-wrap: wrap; }
   :where(.flex:not(.flex-col)):has(> [role=tablist]) > [role=tablist]:not(:has(> :nth-child(9))) { flex: 1 1 100%; }
+}
+
+/* A headline figure does not set its card's minimum width (FitFigure in
+   ui.tsx draws it smaller when it is wider than the card); white-space
+   nowrap keeps "₹80,60,000" in one piece. */
+.stat-fit { white-space: nowrap; }
+@media (max-width: 639.98px) {
+  .cell-grid .cell .stat-fit { width: 0; min-width: 100%; }
 }

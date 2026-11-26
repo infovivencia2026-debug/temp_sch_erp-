@@ -357,3 +357,17 @@ html[data-reduce-motion] .note-row:hover { transform: none; }
 html[data-reduce-motion] .nav-tap, html[data-reduce-motion] .nav-pill, html[data-reduce-motion] .nav-pill__head { transition-duration: 1ms !important; animation: none !important; }
 html[data-reduce-motion] .nav-tap:active, html[data-reduce-motion] .nav-tap:hover, html[data-reduce-motion] .nav-pill:hover,
 html[data-reduce-motion] .nav-pill:has(> .nav-pill__head:active), html[data-reduce-motion] .nav-pill__head:active { transform: none !important; }
+
+/* SMOOTH, NOT SUDDEN (owner, 2026-11-26: "screens suddenly pop up and get
+   stuck"). A new screen, a tab's panel, a settings section and an opened
+   expander settle in over 180ms from 60% opacity: never from blank (that read
+   as a blink, see index.css screen-fade), never moving anything, opacity only
+   so it costs nothing on a low-end phone. Off under reduced motion. */
+@keyframes soft-in { from { opacity: 0.6; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  [data-page-enter],
+  [role=tabpanel],
+  details[open] > :not(summary) {
+    animation: soft-in 180ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+}

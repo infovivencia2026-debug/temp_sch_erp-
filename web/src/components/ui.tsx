@@ -485,6 +485,33 @@ export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: R
   )
 }
 
+/* A HEADLINE FIGURE ALWAYS FITS ITS CARD (owner, 2026-11-26: "₹80,60,000"
+   ran off a 320px phone at large text). A figure never breaks, so when it is
+   wider than its card it is drawn smaller until it fits. Measured once per
+   value and per card resize, in one animation frame; nothing changes where it
+   already fits. */
+function FitFigure({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    let raf = 0
+    const fit = () => {
+      raf = 0
+      /* zoom, not font-size: the phone's text zoom would multiply a
+         font-size set here a second time. */
+      el.style.zoom = ''
+      if (el.scrollWidth - el.clientWidth > 1 && el.clientWidth > 0) {
+        el.style.zoom = String(Math.max(0.4, Math.floor((el.clientWidth / el.scrollWidth) * 100) / 100))
+      }
+    }
+    const ro = new ResizeObserver(() => { if (!raf) raf = requestAnimationFrame(fit) })
+    ro.observe(el)
+    return () => { ro.disconnect(); if (raf) cancelAnimationFrame(raf) }
+  }, [children])
+  return <div ref={ref} className="stat stat-fit">{children}</div>
+}
+
 export function Stat({
   label,
   value,
@@ -570,7 +597,7 @@ export function Stat({
           {!control && Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
         </div>
         {/* A div, not a p: callers hand the value a Skeleton while loading, and a block inside a paragraph is invalid markup. */}
-        <div className="stat">{value}</div>
+        <FitFigure>{value}</FitFigure>
       </Head>
       {delta && (
         <p
@@ -3584,12 +3611,12 @@ export function tabClass(active: boolean, size: 'md' | 'lg' = 'md'): string {
    "In progress" broke onto two lines and drew over its neighbour. */
 /* On a phone the pills wrap onto a second row rather than scrolling out of
    sight at large text (owner, 2026-11-25); each pill still stays whole. */
-export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1 [&>*]:shrink-0 [&>*]:whitespace-nowrap max-sm:flex-wrap max-sm:overflow-visible'
+export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1 [&>*]:shrink-0 [&>*]:whitespace-nowrap max-sm:flex-wrap max-sm:overflow-visible max-sm:[&>*]:max-w-full max-sm:[&>*]:whitespace-normal'
 
 /* The same strip, filling its row on a phone with equal halves (or thirds),
    so the active pill fills its share instead of hugging its words at the
    left (owner, 2026-10-28, Master timetable). From sm up it is SEG_BAR. */
-export const SEG_BAR_FILL = 'flex w-full flex-wrap gap-1 rounded-md border bg-muted p-1 [&>*]:flex-[1_1_auto] [&>*]:whitespace-nowrap [&>*]:text-center sm:inline-flex sm:w-auto sm:flex-nowrap sm:[&>*]:flex-none'
+export const SEG_BAR_FILL = 'flex w-full flex-wrap gap-1 rounded-md border bg-muted p-1 [&>*]:flex-[1_1_auto] [&>*]:whitespace-nowrap [&>*]:text-center max-sm:[&>*]:max-w-full max-sm:[&>*]:whitespace-normal sm:inline-flex sm:w-auto sm:flex-nowrap sm:[&>*]:flex-none'
 
 export function segClass(active: boolean): string {
   return active
