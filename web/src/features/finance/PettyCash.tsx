@@ -66,7 +66,7 @@ export default function PettyCash() {
       <PageHead
         eyebrow="Accounts"
         title="Petty cash vouchers"
-        description="The small slips, the limit above which a second signature is needed, and what the ledger says is left in the tin."
+        description="Small expenses, approval limit and cash in hand."
         width="wide"
       />
       <PageBody width="wide">
@@ -92,7 +92,7 @@ export default function PettyCash() {
         {noReceipt.length > 0 && (
           <Card>
             <CardHeader title="Approved without a receipt"
-              description="Cash paid out against a slip with no paper behind it. This is the first thing an auditor samples." />
+              description="Paid without a bill" />
             <Table head={['Voucher', 'Payee', 'For', { label: 'Amount', align: 'right' }]}
               empty={false}>
               {noReceipt.map((v) => (
@@ -113,7 +113,7 @@ export default function PettyCash() {
 
         <Card>
           <CardHeader title="The voucher book"
-            description="Numbered gaplessly within the financial year. A cash book with a hole in its numbering is a cash book somebody has to explain." />
+            description="Numbered without gaps" />
           <Table head={['Voucher', 'Date', 'Payee', 'For', 'Head',
             { label: 'Amount', align: 'right' }, 'Status', '']}
             empty={rows.length === 0} emptyLabel="No petty cash vouchers raised yet.">
@@ -264,7 +264,7 @@ function ManageFloat({ data }: { data: PettyResponse }) {
         <CardHeader title="The float"
           description={data.custodian
             ? `Held by ${data.custodian}. Put money in, count the drawer, or change how much the tin should hold.`
-            : 'Put money in, count the drawer, or set how much the tin should hold.'} />
+            : 'Top up, count cash, or set the float.'} />
         <div className="grid gap-6 p-5 lg:grid-cols-3">
           <div className="space-y-3">
             <div className="text-[13px] font-semibold">Top up the tin</div>
@@ -307,7 +307,7 @@ function ManageFloat({ data }: { data: PettyResponse }) {
 
           <div className="space-y-3">
             <div className="text-[13px] font-semibold">How much the tin should hold</div>
-            <Field label="Float (₹)" hint="Replenish-to-float is this minus what the book says is in the tin.">
+            <Field label="Float (₹)" hint="Top-up = float minus cash in book.">
               <Input type="number" value={floatAmt} onChange={setFloatAmt} />
             </Field>
             <FormNotice error={setFloat.error} ok={setFloat.isSuccess ? 'Float saved.' : undefined} />
@@ -339,7 +339,7 @@ function ManageFloat({ data }: { data: PettyResponse }) {
             </Table>
           </Card>
           <Card>
-            <CardHeader title="Drawer counts" description="What was in the drawer against what the book said, on the day." />
+            <CardHeader title="Drawer counts" description="Counted vs book" />
             <Table head={['Date', { label: 'Book', align: 'right' }, { label: 'Counted', align: 'right' }, 'Variance', 'By']}
               empty={data.counts.length === 0} emptyLabel="The drawer has not been counted yet.">
               {data.counts.map((c) => (
@@ -390,7 +390,7 @@ function RaiseVoucher({ limit }: { limit: number }) {
   return (
     <Card>
       <CardHeader title="Raise a slip"
-        description="Nothing leaves the tin until somebody decides. The slip records what was spent and on whose word." />
+        description="Needs approval before paying out." />
       <div className="space-y-5 p-5">
         <FormGrid>
           <Field label="Paid to" required><Input value={payee} onChange={setPayee} placeholder="Ramesh (peon)" /></Field>

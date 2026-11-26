@@ -79,7 +79,7 @@ export default function FeeStructureVersions() {
         // then prices in a revision, where the amounts belong.
         items: [{ fee_head_id: firstHead.id, instalment_no: 1, amount_paise: 0 }],
       })
-      toast.ok('Structure created. Open a revision to set its heads and amounts.')
+      toast.ok('Created. Open a revision to add amounts.')
       setAdding(false)
       setNewName('')
       setNewClass('')
@@ -117,14 +117,14 @@ export default function FeeStructureVersions() {
       <PageHead
         eyebrow="Fees"
         title="Fee structures"
-        description="What each class pays, and how a fee is revised mid-year without changing what was already billed."
+        description="Class fees and mid-year revisions."
         actions={
           <>
             {mayEdit && (
               <ImportButton
                 entity="fee_structures"
                 title="Import fee structures"
-                hint="What each class pays, as a sheet. The dry run checks the classes and heads exist before anything is written."
+                hint="Class fees as a sheet. Checked before saving."
               />
             )}
             {mayEdit && (
@@ -140,7 +140,7 @@ export default function FeeStructureVersions() {
           <Card>
             <CardHeader
               title="New fee structure"
-              description="Name it and say which class it is for. A structure naming one class beats the all-classes one for that class, so a grade can cost more without touching anybody else."
+              description="Name and class. A class structure overrides the all-classes one."
             />
             {/* Card draws the border; the screen supplies the padding inside
                 it. Without this the fields run to the card's own edge and the
@@ -325,7 +325,7 @@ function VersionHistoryPanel({
     <Card>
       <CardHeader
         title={title}
-        description="Newest first. An activated version is frozen, revise it by opening a new one."
+        description="Newest first. Active versions are locked."
       />
       {loading ? (
         <Skeleton />
@@ -343,7 +343,7 @@ function VersionHistoryPanel({
                 <Field
                   label="Open a revision from"
                   required
-                  hint="The date the new amounts start to apply. Invoices raised before it are untouched."
+                  hint="New amounts apply from this date."
                 >
                   <Input type="date" value={effectiveFrom} onChange={setEffectiveFrom} />
                 </Field>
@@ -426,7 +426,7 @@ function VersionCard({
             <>
               <ConfirmButton
                 confirmLabel="Activate"
-                question="New invoices will use these amounts. Invoices already raised keep their current version."
+                question="Applies to new invoices only."
                 onConfirm={onActivate}
                 disabled={busy}
               >
@@ -548,7 +548,7 @@ function DraftLineEditor({
           due_on: dues[i.id] || undefined,
         })),
       }),
-    () => onNotify('Draft lines saved. Activate the version to start billing them.'),
+    () => onNotify('Draft saved. Activate to bill.'),
   )
 
   if (!items.length) {
@@ -556,7 +556,7 @@ function DraftLineEditor({
       <div className="px-4 py-4">
         <EmptyState
           title="This draft has no fee lines"
-          body="It was copied from a structure with no items. Add fee lines to the structure, then open a fresh revision."
+          body="No fee lines. Add some, then open a new revision."
         />
       </div>
     )

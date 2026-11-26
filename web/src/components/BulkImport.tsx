@@ -304,7 +304,7 @@ export default function BulkImport({
       // answer was lost, so this must not say that nothing was imported.
       setError(
         commit
-          ? 'The answer from the server was lost. Some rows may have been saved: check the import history below before uploading again.'
+          ? 'No reply from server. Check history below before retrying.'
           : 'Could not reach the server. Nothing has been imported.',
       )
     } finally {
@@ -403,7 +403,7 @@ export default function BulkImport({
       return
     }
     if (f.size > 8 * 1024 * 1024) {
-      setError('That file is over 8 MB. Split it, or ask us to run it as a migration.')
+      setError('Over 8 MB. Split the file.')
       return
     }
     const fr = new FileReader()
@@ -482,7 +482,7 @@ export default function BulkImport({
               // click on some browsers and saves an empty file.
               setTimeout(() => URL.revokeObjectURL(href), 1000)
             } catch {
-              setTemplateError('The template could not be fetched. Check your connection and try again.')
+              setTemplateError('Could not get the template. Try again.')
             } finally {
               setGettingTemplate(false)
             }
@@ -981,12 +981,12 @@ function History({
         `/api/v1/setup/import/history/${run.id}/content`,
       )
       if (body.omitted) {
-        setFailedRun('That file was too large to keep a copy of, so only the counts were recorded.')
+        setFailedRun('Too large to keep. Counts only.')
         return
       }
       const rows = body.content ? parseCsv(body.content) : []
       if (rows.length < 2) {
-        setFailedRun('No copy of this file was kept, it was uploaded before uploads began being stored.')
+        setFailedRun('No copy kept.')
         return
       }
       onOpen({ title: run.filename ?? 'This upload', rows })
@@ -1022,11 +1022,11 @@ function History({
         `/api/v1/setup/import/history/${run.id}/content`,
       )
       if (body.omitted) {
-        setFailedRun('That file was too large to keep a copy of, so only the counts were recorded.')
+        setFailedRun('Too large to keep. Counts only.')
         return
       }
       if (!body.content) {
-        setFailedRun('No copy of this file was kept, it was uploaded before uploads began being stored.')
+        setFailedRun('No copy kept.')
         return
       }
       /* The byte order mark is deliberate. Excel opens a plain UTF-8 CSV in
@@ -1204,7 +1204,7 @@ function History({
                     <span
                       className="text-muted-foreground"
                       title={r.rows_imported > 0
-                        ? 'This upload changed records that already existed rather than creating new ones, or predates the record of what an upload created.'
+                        ? 'Nothing new created by this upload.'
                         : 'This upload created nothing.'}
                     >
                       {r.rows_imported > 0 ? 'only updated existing' : 'nothing to remove'}

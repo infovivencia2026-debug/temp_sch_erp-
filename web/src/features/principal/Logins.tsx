@@ -342,7 +342,7 @@ export default function Logins() {
       <PageHead
         eyebrow="Staff"
         title="Logins & access"
-        description="Every account that can sign in to this school, what it can reach, and the devices it is signed in on right now."
+        description="All logins, their access and signed-in devices."
       />
       <PageBody>
         {/* The tabs and "Issue a login" share one row: the pills scroll on the
@@ -447,7 +447,7 @@ export default function Logins() {
             <div className="flex flex-wrap items-center justify-between gap-3 px-[var(--card-pad)] py-4">
               <div className="text-[14px]">
                 <b>{invited.length}</b> {invited.length === 1 ? 'has' : 'have'} never been given a password.
-                <span className="block text-[12.5px] text-muted-foreground">Disabled logins are not included: switch those back on one at a time from their row.</span>
+                <span className="block text-[12.5px] text-muted-foreground">Disabled logins are skipped.</span>
               </div>
               <Button disabled={!invited.length || issueAll.isPending}
                 onClick={() => { if (window.confirm(`Give all ${invited.length} a password now? Each one is shown here once.`)) { setBulk([]); issueAll.mutate(invited) } }}>
@@ -819,7 +819,7 @@ function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
     <Card>
       <CardHeader
         title={`${user.full_name}: sign-ins`}
-        description="Signing a device out takes effect immediately. The person keeps their account and can sign in again. Open a row to see which screens that sign-in used and what it changed."
+        description="Sign-out is instant. They can sign in again."
         action={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="ghost" onClick={() => setShowEnded((v) => !v)}>
@@ -1144,7 +1144,7 @@ function AccountForm({
       // Not echoed back, because the administrator typed it. Saying so beats a
       // screen that appears to have done nothing.
       setChosen('')
-      setResetNote('That password is in effect and every device of theirs is signed out.')
+      setResetNote('Password set. They are signed out everywhere.')
     },
   })
 
@@ -1153,7 +1153,7 @@ function AccountForm({
       <Card className="p-5">
         <p className="text-[14px] font-medium">Password issued</p>
         <p className="mt-1 text-[14px] text-muted-foreground">
-          {sent ?? 'Give them this one-time password. It is shown once and cannot be retrieved later.'}
+          {sent ?? 'One-time password. Shown once only.'}
         </p>
         <p className="mt-3 rounded-md bg-muted px-3 py-2 font-mono text-[15px] tracking-wider">
           {tempPassword}
@@ -1197,8 +1197,8 @@ function AccountForm({
         title={editing ? `${user!.full_name}’s access` : 'Issue a login'}
         description={
           editing
-            ? 'Adding a role grants a whole workspace; removing one takes it away the next time they sign in.'
-            : 'A person, not a job title. Give them everything they do, one login for all of it.'
+            ? 'Each role gives a workspace.'
+            : 'One login per person, with all their roles.'
         }
         action={
           <Button variant="ghost" size="sm" onClick={onClose} title="Close">
@@ -1295,7 +1295,7 @@ function AccountForm({
           <div className="border-t pt-5">
             <Field
               label="Set a password"
-              hint="At least 12 characters. Leave it empty to have one generated and shown once instead."
+              hint="12+ characters. Blank = auto-generate."
             >
               <Input
                 type="password"
@@ -1738,7 +1738,7 @@ function DayCodeCard() {
               </ConfirmButton>
               <ConfirmButton
                 confirmLabel="Switch off"
-                question="Teachers will need their own password on classroom screens from now."
+                question="Teachers will need their password on classroom screens."
                 onConfirm={() => set.mutate({ enabled: false })}
                 disabled={set.isPending}
                 tone="danger"

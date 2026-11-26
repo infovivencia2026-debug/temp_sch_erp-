@@ -320,7 +320,7 @@ export default function SalarySetup() {
         default_value: v.line.val.trim() === '' ? null : Number(v.line.val),
       }),
     onSuccess: (_, v) => {
-      setDone('Rule saved. It applies from the next payroll run, every month, until you change it.')
+      setDone('Saved. Applies from the next payroll.')
       setRuleEdits((x) => { const n = { ...x }; delete n[v.id]; return n })
       refresh()
     },
@@ -403,7 +403,7 @@ export default function SalarySetup() {
       <PageHead
         eyebrow="Payroll"
         title="Salary setup"
-        description="What each member of staff is paid, and the components a payslip is built from. Payroll can only pay somebody who has a salary set here."
+        description="Staff salaries and pay components."
       />
       <PageBody>
         {done && <FormNotice ok={done} />}
@@ -425,7 +425,7 @@ export default function SalarySetup() {
           <Card>
             <CardHeader
               title="Start with the usual components"
-              description="Basic, dearness allowance, HRA, conveyance, special allowance, provident fund, professional tax and TDS, the vocabulary an Indian school payslip is written in. Rename or add to them afterwards; nothing is created until you ask."
+              description="Basic, DA, HRA, conveyance, special, PF, PT, TDS. Editable later."
               action={
                 <Button onClick={() => addStarters.mutate()} disabled={addStarters.isPending}>
                   Set these up for me
@@ -454,7 +454,7 @@ export default function SalarySetup() {
                 saying how it is worked out, and the form for a new one. */}
             <CardHeader
               title="Pay components"
-              description={showComps ? 'How each line of the payslip is worked out. Change a rule here and every new salary form opens with it.' : 'The lines every payslip is built from. Open to see how each is worked out.'}
+              description={showComps ? 'How each payslip line is worked out.' : 'Payslip lines'}
               action={
                 <Button variant="ghost" onClick={() => setShowComps((v) => !v)} aria-expanded={showComps}>
                   {showComps ? 'Hide table' : 'Show table'}
@@ -633,7 +633,7 @@ export default function SalarySetup() {
           <Card>
             <CardHeader
               title={`Salary for ${rows.find((r) => r.employee_id === open)?.full_name ?? ''}`}
-              description="Type each part in rupees, or as a percent of the gross or of Basic. Payroll pays the amounts in the last column."
+              description="Rupees or % of gross/Basic."
             />
             <FormGrid>
               <Field label="Applies from" hint="Pay before this date is untouched.">
@@ -681,7 +681,7 @@ export default function SalarySetup() {
         <Card>
           <CardHeader
             title="Split salaries for many at once"
-            description="One split, for example Basic 50% of gross, HRA 40% of Basic, the rest as Special allowance, for the staff you pick or for everyone whose monthly gross falls in a range. Each person keeps their gross; only the split changes."
+            description="Apply one split to chosen staff or a gross range. Gross stays."
           />
           <FormGrid>
             <Field label="Apply to">
@@ -769,7 +769,7 @@ export default function SalarySetup() {
           <BulkImport
             entity="staff_payroll"
             title="Bank details and salary from a sheet"
-            hint="One row per person: staff code, name, bank account, IFSC and gross salary. Sets the account and IFSC on the staff record and records the gross as their standing salary. Matched by staff code, so import your staff first."
+            hint="One row per person: code, name, account, IFSC, gross. Import staff first."
             onDone={refresh}
           />
         </div>

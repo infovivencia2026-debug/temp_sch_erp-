@@ -134,9 +134,9 @@ export default function Payroll() {
     onSuccess: (r, to) => {
       setNote(
         to === 'locked'
-          ? 'Locked. Attendance can no longer change these figures, and finance can draw the bank file.'
+          ? 'Locked. Bank file ready.'
           : to === 'paid'
-            ? 'Marked as paid. Publish the payslips now and staff will be told.'
+            ? 'Paid. Publish payslips next.'
             : to === 'draft'
               ? 'Unlocked. It can be run again.'
               : `Published. ${r.notified} staff notified` +
@@ -247,7 +247,7 @@ export default function Payroll() {
   /* The salary transfer letter to the school's bank, for a locked month. */
   const printBankLetter = async () => {
     if (!locked) {
-      toast.error('The bank letter is for a locked month. Lock this month first, so the amounts cannot change after the letter is signed.')
+      toast.error('Lock the month first.')
       return
     }
     try {
@@ -255,7 +255,7 @@ export default function Payroll() {
         `/api/v1/payroll/statement?month=${month}&year=${year}`)
       printHtml(bankLetterHtml({ school: session.institution?.display_name ?? 'School', month: Number(month), year: Number(year), bank: st.bank, rows: st.items }))
     } catch {
-      toast.error('The bank letter could not be prepared. Check your connection and try again.')
+      toast.error('Could not make the bank letter. Try again.')
     }
   }
 
@@ -264,7 +264,7 @@ export default function Payroll() {
       <PageBody>
         <UnavailableState
           title="The payroll run is HR's to show"
-          body="Your role does not include viewing payroll. Ask the school admin to grant payroll view to your role, or use Release the money for the bank file."
+          body="No payroll view access. Ask the admin."
         />
       </PageBody>
     )
@@ -275,7 +275,7 @@ export default function Payroll() {
       <PageHead
         eyebrow="HR Workspace"
         title="Payroll"
-        description="Run monthly salaries. Loss of pay comes from staff attendance, not manual entry."
+        description="Monthly salaries. LOP from staff attendance."
         actions={
           <>
             <ExportButton report="payroll" query={{ month, year }} />
@@ -543,12 +543,12 @@ export default function Payroll() {
                 : !published && locked && approval === null
                   ? `${status === 'paid' ? 'The money has gone. ' : ''}Send the month to the principal for approval; payslips can be published only after that.`
                 : published
-                ? 'Every member of staff has been told, in the app and by email. There is nothing left to do for this month.'
+                ? 'All done for this month.'
                 : status === 'paid'
-                  ? 'The money has gone. Publishing tells each member of staff their payslip is ready, in the app and by email.'
+                  ? 'Publish to tell staff their payslip is ready.'
                   : status === 'locked'
-                    ? 'Download the bank file, upload it to the school’s net banking, then mark the month paid.'
-                    : 'Check the figures, then lock the month so attendance cannot change them.'}
+                    ? 'Download bank file, upload to net banking, mark paid.'
+                    : 'Check, then lock the month.'}
             </p>
           </Card>
         )}
@@ -571,7 +571,7 @@ export default function Payroll() {
                  nothing on either screen explained the gap. */
               left
                 ? `Breakup is frozen at run time, so an issued payslip keeps its numbers. ${rows.length} paid this month, including ${left} who ${left === 1 ? 'has' : 'have'} since left, the current staff count will be lower.`
-                : 'Breakup is frozen at run time so an issued payslip keeps its numbers'
+                : 'Fixed at run time'
             }
           />
           {slips.isLoading ? <SkeletonTable columns={8} /> : slips.error ? <ErrorState error={slips.error} /> : (

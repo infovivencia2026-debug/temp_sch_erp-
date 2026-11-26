@@ -339,7 +339,7 @@ export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'st
     const word = reset
       ? 'Give all ' + ids.length + ' of ' + place + ' a new password?\n\n' +
         'Every password they hold now stops working, including the ones already in use. ' +
-        'The new ones are shown on this page once and nowhere else, so export or print them before leaving.'
+        'New ones show once. Export or print them now.'
       : 'Issue a login to all ' + ids.length + ' of ' + place + '?\n\n' +
         'Anybody who already has a working login keeps it. The new passwords are shown ' +
         'on this page once, so export or print them before leaving.'
@@ -371,10 +371,10 @@ export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'st
         }
         description={
           kind === 'students'
-            ? 'Every child on the roll, whether or not they can sign in yet.'
+            ? 'All students'
             : kind === 'guardians'
-            ? 'Every guardian of the children on the roll, whether or not they can sign in yet.'
-            : 'Everybody on the staff register, whether or not they can sign in yet.'
+            ? 'All guardians'
+            : 'All staff'
         }
       />
 
@@ -400,7 +400,7 @@ export function RosterLogins({ kind, signedIn, initialStatus = '' }: { kind: 'st
               ? 'First password is the admission number.'
               : kind === 'guardians'
               ? 'First password is their own phone number.'
-              : 'First password is their phone number, or their email if they have no phone.'}
+              : 'First password: phone number (or email).'}
           </div>
         </div>
         {/* Two pairs, and the difference between them is the only thing the

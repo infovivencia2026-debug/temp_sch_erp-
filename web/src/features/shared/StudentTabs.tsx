@@ -49,7 +49,7 @@ export function SubjectMarks({ rows, loading }: {
         <div className="p-6">
           <EmptyState
             title="No marks entered yet"
-            body="Marks appear here as soon as a subject teacher enters them, whether or not they have been signed off."
+            body="No marks yet."
           />
         </div>
       </Card>
@@ -141,7 +141,7 @@ export function FeeLedger({ heads: allHeads, components = [], studentId, takeFee
     <Card>
       <CardHeader
         title="What the fees are for"
-        description="Paid is what each receipt put on the fee line. Bills paid before line-wise receipts are shared across their heads in proportion."
+        description="Paid per fee line"
         action={years.length > 1 && years[0] ? (
           <div className="w-40">
             <Select value={year} onChange={setPickedYear} options={years.map((y) => ({ value: y, label: y }))} />
@@ -303,7 +303,7 @@ export function StudentDocuments({ studentID, rows, mayEdit, onChanged }: {
     <Card>
       <CardHeader
         title="Documents on file"
-        description="What the family handed in, the scans the office holds for this child."
+        description="Documents from the family"
         action={mayEdit ? (
           <Button size="sm" variant={adding ? 'secondary' : 'primary'}
             onClick={() => setAdding(!adding)}>
@@ -511,7 +511,7 @@ export function Activities({ studentID, rows, catalogue, mayEdit, onChanged }: {
     <Card>
       <CardHeader
         title="Activities and electives"
-        description="Clubs and coaching this child is enrolled in. A paid activity raises a bill the family can pay on their own fees page."
+        description="Clubs and coaching joined"
         action={mayEdit ? (
           <Button size="sm" variant={adding ? 'secondary' : 'primary'}
             onClick={() => setAdding(!adding)}>
@@ -652,7 +652,7 @@ export function CoScholastic({ studentID, rows, mayEdit, onChanged }: {
         <div className="p-6">
           <EmptyState
             title="No areas set up"
-            body="Add the areas this school grades under Academics, work education, art, physical education, discipline."
+            body="No areas yet. Add them under Academics."
           />
         </div>
       </Card>
@@ -663,7 +663,7 @@ export function CoScholastic({ studentID, rows, mayEdit, onChanged }: {
     <Card>
       <CardHeader
         title="Art, games and discipline"
-        description="Graded, not marked. These do not count towards any percentage."
+        description="Grades only. Not in percentage."
       />
       <Table head={['Area', 'Grade', 'Remark', 'Graded by', '']} empty={false}>
         {rows.map((r) => (
@@ -756,7 +756,7 @@ export function RaiseFees({ studentId, classId, onDone }: { studentId: string; c
       <CardHeader title="No fees raised for this child yet" description={q?.has_structure ? `From the class fee structure: ${q.structure}` : undefined} />
       <div className="space-y-3 px-[var(--card-pad)] pb-[var(--card-pad)]">
         {preview.isLoading ? <SkeletonTable rows={3} /> : !q?.has_structure ? (
-          <p className="text-[13px] text-muted-foreground">This class has no fee structure for the year. Set one up under Fees → Class &amp; transport fee setup → Fee structure.</p>
+          <p className="text-[13px] text-muted-foreground">No fee structure for this class. Set it under Fees → Class &amp; transport fee setup.</p>
         ) : (
           <>
             <Table head={['Fee type', 'Term', 'Amount']} empty={false}>
