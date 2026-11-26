@@ -136,7 +136,7 @@ const check = () => {
   }
   // a cell or block with text is judged by where its text is, not by its padded box
   const textRect = (e) => {
-    if (!txt(e) || ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A'].includes(e.tagName)) return e.getBoundingClientRect()
+    if (!txt(e) || ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A'].includes(e.tagName) || getComputedStyle(e).textOverflow === 'ellipsis' || getComputedStyle(e).webkitLineClamp !== 'none') return e.getBoundingClientRect()
     const rg = document.createRange(); rg.selectNodeContents(e); return rg.getBoundingClientRect()
   }
   // a list that scrolls up and down inside a card: its rows pass under the next card by design

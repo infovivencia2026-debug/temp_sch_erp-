@@ -439,10 +439,10 @@ export default function WorkPatterns() {
                         setPicked(on ? picked.filter((x) => x !== e.id) : [...picked, e.id])}
                     />
                     <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                      <span className="font-medium">{e.full_name || e.employee_code}</span>
-                      <span className="flex min-w-0 flex-1 items-baseline gap-2 text-xs text-muted-foreground">
-                        {does && <span className="min-w-0 flex-1 truncate">{does}</span>}
-                        <span className="ml-auto shrink-0">
+                      <span className="min-w-0 max-w-full truncate font-medium" title={e.full_name || e.employee_code}>{e.full_name || e.employee_code}</span>
+                      <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
+                        {does && <span className="min-w-0 max-w-full flex-1 truncate" title={does}>{does}</span>}
+                        <span className="ml-auto max-w-full shrink-0">
                           {e.pattern || 'No hours'}{e.own_pattern ? '' : ' (inherited)'}
                         </span>
                       </span>

@@ -165,7 +165,7 @@ export default function InteractionLog() {
                   <Td className="font-medium">{r.to_name}</Td>
                   <Td className="text-muted-foreground">{r.student_name ?? '-'}</Td>
                   <Td>
-                    <span className="line-clamp-2 max-w-[40ch] whitespace-pre-wrap">{r.summary}</span>
+                    <span className="break-anywhere block max-w-[40ch] whitespace-pre-wrap sm:line-clamp-2">{r.summary}</span>
                     <span className="mt-0.5 flex items-center gap-2 text-[12px] text-muted-foreground">
                       {r.files > 0 && (
                         <span className="inline-flex items-center gap-1">
