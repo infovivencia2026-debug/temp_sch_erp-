@@ -415,7 +415,7 @@ function ProfilePanel({ onDone }: PanelProps) {
             than it is typed, which is why it is four letters and not a UUID. */}
         <Field
           label="School code"
-          hint="Four letters, A to Z. It ends every staff sign-in name, so it must not be one another school already uses."
+          hint="4 letters. Must be unique."
         >
           <Input
             value={v.school_code ?? ''}
@@ -507,7 +507,7 @@ function PaymentsPanel({ onDone }: PanelProps) {
             code that works. */}
         <Field
           label="Merchant category code"
-          hint="Only if the bank gave the school a merchant UPI account — it is the four digits on that paperwork, usually 8211 for schools. Leave blank for an ordinary UPI ID."
+          hint="Merchant UPI only (usually 8211). Else blank."
         >
           <Input
             value={v.upi_merchant_code ?? ''}
@@ -575,8 +575,8 @@ function CampusPanel({ onDone }: PanelProps) {
     >
       <p className="mb-4 text-[14px] text-muted-foreground">
         {target
-          ? 'A campus was created for you so the first academic year had somewhere to sit. Give it the real name and address, a transfer certificate prints it.'
-          : 'Most schools have one. Add a second only if it has its own building and its own students.'}
+          ? 'Set the real name and address. Printed on TCs.'
+          : 'Add another only for a separate building.'}
       </p>
       <FormGrid>
         <Field label="Campus name" required>
@@ -924,7 +924,7 @@ function ClassesPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="classes"
           title="Classes and sections from a sheet"
-          hint="Three columns: the class, its sections, and how many seats each holds. Only the class name is required, a school that has not decided its sections yet can add them later."
+          hint="Class, sections, seats. Only class is required."
           onDone={onDone}
         />
       </div>
@@ -1039,7 +1039,7 @@ function SubjectsPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="subjects"
           title="Or add every subject from a sheet"
-          hint="Name and code. The code is what a report card prints, and it is what a second upload matches on, so a corrected sheet edits rather than doubles."
+          hint="Name and code. Re-upload updates by code."
           onDone={onDone}
         />
       </div>
@@ -1233,7 +1233,7 @@ export function ClassSubjectsPanel({ onDone }: PanelProps) {
       </div>
       <p className="mt-2 text-[13px] text-muted-foreground">
         {classID
-          ? 'This is what the class studies now. Saving writes back exactly what is selected, untick one and it is removed.'
+          ? 'Unticked subjects are removed on save.'
           : 'Choose a class above and its current subjects appear ticked.'}
       </p>
       <div className="mt-4 flex flex-wrap items-end gap-2 border-t pt-4">
@@ -1270,7 +1270,7 @@ export function ClassSubjectsPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="class_subjects"
           title="Classes, subjects and teachers from a sheet"
-          hint="Class, subject, and the teacher who takes it. A subject the school has not added yet is created from this sheet, and naming a teacher assigns them to every section of that class, so one file does the whole job."
+          hint="Class, subject, teacher. New subjects are created."
           onDone={onDone}
         />
       </div>
@@ -1290,7 +1290,7 @@ export function ClassSubjectsPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="allocations"
           title="Allocation sheet, who teaches what, where"
-          hint="The head of department or the principal. Class, section, room, class teacher, subject and subject teacher. It finds teachers by email, so register the staff first, otherwise those rows are skipped and named. Every column but the class and section is optional."
+          hint="Class and section required. Add staff first (matched by email)."
           onDone={onDone}
         />
       </div>
@@ -1504,7 +1504,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
                 <FormGrid>
                   <Field
                     label="Call this day"
-                    hint="A name for these timings, so the rest of the school keeps its own."
+                    hint="Name for these timings"
                   >
                     <Input
                       value={scheduleName}
@@ -1594,7 +1594,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="periods"
           title="Or the day from a sheet"
-          hint="Sequence, name, start, end, and whether it is a break. Breaks are listed too: the timetable needs them to know a teacher is free."
+          hint="Order, name, start, end, break. Include breaks."
           onDone={onDone}
         />
       </div>
@@ -1685,7 +1685,7 @@ function StaffPanel({ onDone }: PanelProps) {
         <Field label="Last name">
           <Input value={f.last_name} onChange={(x) => setF({ ...f, last_name: x })} />
         </Field>
-        <Field label="Personal email" hint="For contact only. Staff sign in with their school email or phone.">
+        <Field label="Personal email" hint="Contact only">
           <Input type="email" value={f.email} onChange={(x) => setF({ ...f, email: x })} />
         </Field>
         <Field label="School email" hint="Their official address at the school, if they have one.">
@@ -1707,7 +1707,7 @@ function StaffPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="staff"
           title="Staff sheet, who works here"
-          hint="HR or the principal. Employee code and first name are required; give an email and a role and they get a login too. This sheet creates the people. Putting them in front of a class is the allocation sheet, under Class subjects."
+          hint="Code and first name required. Email + role gives a login."
           onDone={onDone}
         />
       </div>
@@ -1929,7 +1929,7 @@ function Assignments({ onDone }: PanelProps) {
           <div className="mt-4">
             <Field
               label="Class teacher"
-              hint="Marks the daily register and sees the whole section. Anyone already holding another section is marked so, choosing them moves them here."
+              hint="Marks daily attendance. Picking someone moves them here."
             >
               <Select
                 value={classTeacher}
@@ -2010,7 +2010,7 @@ function StudentsPanel({ onDone }: PanelProps) {
         endpoint="/api/v1/students/import"
         templateUrl="/api/v1/students/import/template"
         title="Import your student list"
-        hint="Checked row by row and shown to you before anything is written. Guardians and section placement come across in the same file."
+        hint="Checked before saving. Includes guardians and sections."
         onDone={onDone}
       />
 
@@ -2072,14 +2072,14 @@ function HistoryPanel({ onDone }: PanelProps) {
       <BulkImport
         entity="marks"
         title="Past exam results, one row per subject"
-        hint="One row per child, per exam, per subject. These go into the real exam tables, so a report card for that year prints exactly as it did before. Exams and years named here are created for you; children and subjects are not."
+        hint="One row per child, exam, subject. Children and subjects must exist."
         onDone={onDone}
       />
 
       <BulkImport
         entity="staff_history"
         title="Staff service before this system"
-        hint="One row per person per year: designation, attendance and leave. What the school reads when it writes an experience certificate or settles seniority."
+        hint="One row per person per year."
         onDone={onDone}
       />
 
@@ -2133,7 +2133,7 @@ function HistoryPanel({ onDone }: PanelProps) {
       <BulkImport
         entity="attendance"
         title="The student register before you started here"
-        hint="One row per child per day: present, absent, late, half_day, leave or holiday. Nobody is messaged about any of it, an absence from September is not news in December. Re-uploading a corrected file rewrites those days rather than refusing them."
+        hint="One row per child per day. No messages sent. Re-upload overwrites."
         onDone={onDone}
       />
     </div>
@@ -2202,7 +2202,7 @@ function MarksGridUpload({ onDone }: { onDone?: () => void }) {
             <Input value={exam} onChange={setExam} placeholder="Annual Examination" />
           </Field>
           <Field label="Which class" required
-            hint="The class as it is now named. Subjects are checked against it.">
+            hint="Current class name">
             <Select
               value={cls}
               onChange={setCls}
@@ -2220,7 +2220,7 @@ function MarksGridUpload({ onDone }: { onDone?: () => void }) {
           <BulkImport
             entity="marks_grid"
             title="Upload the mark sheet"
-            hint="Children down, subjects across, the sheet you already have. Name the subject each marks column holds; leave Total, Rank and Remarks empty, since those are worked out from the marks."
+            hint="Children in rows, subjects in columns. Skip Total, Rank, Remarks."
             params={{ year, exam, class: cls, max_marks: max }}
             subjectMapping
             onDone={onDone}
@@ -2459,7 +2459,7 @@ function ExistingScales() {
                 onClick={() => remove(sc)}
                 title={
                   sc.in_use
-                    ? 'An exam has been graded against this scale, so removing it would leave marked papers whose grades cannot be explained.'
+                    ? 'In use by an exam. Cannot remove.'
                     : 'Remove this scale'
                 }
                 className="ml-auto text-[13px] underline underline-offset-2 text-muted-foreground enabled:hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
@@ -2558,7 +2558,7 @@ function FeeHeadsPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="fee_heads"
           title="Or every fee head from a sheet"
-          hint="Name, code, and whether it recurs each term. The code is what a receipt prints and what a second upload matches on."
+          hint="Name, code, recurs each term."
           onDone={onDone}
         />
       </div>
@@ -2638,7 +2638,7 @@ function OptionalTakers({
         <span className="text-[12.5px] text-muted-foreground">
           {head.chosen_by
             ? `${head.chosen_by} ${head.chosen_by === 1 ? 'child takes' : 'children take'} this`
-            : 'Nobody has been put down for this yet, so nobody is billed for it.'}
+            : 'No one assigned yet.'}
         </span>
         <button
           type="button"
@@ -2962,7 +2962,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
             ))}
           </div>
         </Field>
-        <Field label="Instalments" hint="How many terms the year is billed in. Each head is split evenly unless you set its terms separately.">
+        <Field label="Instalments" hint="Terms per year. Split evenly unless set.">
           <Input value={instalments} onChange={setInstalments} />
         </Field>
       </FormGrid>
@@ -3180,7 +3180,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="fee_structures"
           title="Or price every class from a sheet"
-          hint="One row per class per fee head: structure, class, fee head, the annual amount and how many instalments to split it into. Leave the class blank for a fee the whole school pays. Re-uploading a corrected sheet overwrites the amounts rather than adding a second structure."
+          hint="One row per class per fee head. Blank class = whole school. Re-upload overwrites."
           onDone={onDone}
         />
       </div>
@@ -3485,7 +3485,7 @@ function ResetPanel({ onDone }: PanelProps) {
 
       <Field
         label={`Type ${name || "the school's name"} to confirm`}
-        hint="Typed rather than ticked, because a tick is a reflex and this is a decision."
+        hint="Type to confirm."
       >
         <Input value={typed} onChange={setTyped} placeholder={name} />
       </Field>
@@ -3860,7 +3860,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
                     ) : t.can_sign_in ? (
                       <span
                         className="text-muted-foreground"
-                        title="Not stored anywhere, only a hash of it is, so nobody can look it up, including us. Reset this one, or use Reset all &amp; export for the whole list."
+                        title="Not stored. Reset it, or use Reset all &amp; export."
                       >
                         already set
                       </span>

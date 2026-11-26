@@ -222,11 +222,11 @@ const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractio
 const DOORS: Record<string, { tab: (typeof TABS)[number][0]; title: string; blurb: string }> = {
   route_attendance: {
     tab: 'register', title: 'Route attendance',
-    blurb: 'Who boarded and who got off, route by route. A child nobody scanned is listed as not scanned rather than left out.',
+    blurb: 'Boarded and dropped, by route. Unscanned children shown.',
   },
   drivers_attendants: {
     tab: 'staff', title: 'Drivers & attendants',
-    blurb: 'Who drives what, with licence expiry and verification. One driver cannot hold two active buses.',
+    blurb: 'Drivers, licence expiry and verification.',
   },
   driver_attendant_profiles: {
     tab: 'staff', title: 'Drivers & attendants',
@@ -234,11 +234,11 @@ const DOORS: Record<string, { tab: (typeof TABS)[number][0]; title: string; blur
   },
   student_allocation: {
     tab: 'allocation', title: 'Student allocation',
-    blurb: 'Which child boards at which stop on which route, and the fee that implies.',
+    blurb: 'Child, stop, route and fee.',
   },
   driver_sobriety_safety_checklist: {
     tab: 'checks', title: 'Safety checks',
-    blurb: 'The check before each leg. A failure is recorded and raised with the office; it never holds the bus.',
+    blurb: 'Pre-trip check. Failures alert the office.',
   },
   vehicle_fuel_maintenance_log: {
     tab: 'logs', title: 'Fuel & servicing',
@@ -246,7 +246,7 @@ const DOORS: Record<string, { tab: (typeof TABS)[number][0]; title: string; blur
   },
   delays_exceptions: {
     tab: 'incidents', title: 'Delays & exceptions',
-    blurb: 'Routes running late, breakdowns, and anything that happened on board.',
+    blurb: 'Delays, breakdowns and incidents.',
   },
 }
 
@@ -277,7 +277,7 @@ export default function TransportOffice() {
         eyebrow="Transport"
         title={door?.title ?? 'The bus office'}
         description={door?.blurb
-          ?? 'Who is driving, who is on board, what it cost to run and what went wrong today.'}
+          ?? 'Today’s drivers, riders, costs and issues.'}
       />
       <PageBody>
         {/* Two tiles, not four. Open incidents and the month's count moved
@@ -388,7 +388,7 @@ function BusRegister() {
       <Card>
         <CardHeader
           title="Today's run"
-          description="Built from the allocation, so a child nobody scanned shows as not scanned rather than not appearing. A register that silently omits the missing child is the failure worth designing against."
+          description="Every allotted child is listed, scanned or not."
           action={
             <div className="flex gap-2">
               <Select
@@ -504,7 +504,7 @@ function BusRegister() {
         <Card>
           <CardHeader
             title="Not scanned"
-            description="Allocated to this run and unaccounted for. Worth a phone call before the bus leaves."
+            description="Not scanned. Call before the bus leaves."
           />
           <p className="px-4 pb-4 text-[13px] text-muted-foreground pt-4">
             {unscanned.map((u) => u.full_name).join(', ')}
@@ -558,7 +558,7 @@ function SafetyChecks() {
       <Card>
         <CardHeader
           title="Before the bus moves"
-          description="Cleared is worked out from the answers, never ticked. A screen that lets someone clear a bus over a failed brake check is not a safety record, and this is the one row here a court would read."
+          description="Cleared only if every check passes."
         />
         <div className="p-4">
           <FormGrid>
@@ -700,7 +700,7 @@ function Incidents({ rows }: { rows: Incident[] }) {
       <Card>
         <CardHeader
           title="Report a delay or breakdown"
-          description="Naming the replacement bus is what makes this a dispatch record rather than a note."
+          description="Name the replacement bus."
         />
         <div className="p-4">
           <FormGrid>
@@ -876,7 +876,7 @@ function Drivers({ rows }: { rows: Staff[] }) {
       <Card>
         <CardHeader
           title="Drivers and attendants"
-          description="Kept apart from the staff record because these facts belong to the job: a teacher has no licence expiry. Everything here is what a transport inspection asks for."
+          description="Licence and checks for transport inspection."
           action={
             <Button variant="secondary" onClick={() => setOpen(!open)}>
               {open ? 'Close' : 'Add or update'}
@@ -1402,7 +1402,7 @@ function Logs() {
       <Card>
         <CardHeader
           title="Record fuel, servicing or a repair"
-          description="One table for all three, because the number a school governs by is cost per kilometre per vehicle, and that needs them together."
+          description="Fuel, service and cost per km"
         />
         <div className="p-4">
           <FormGrid>
@@ -1462,7 +1462,7 @@ function Logs() {
       </Card>
 
       <Card>
-        <CardHeader title="This year" description="Mileage is worked out from consecutive odometer readings, not trusted from a form." />
+        <CardHeader title="This year" description="Mileage from odometer readings." />
         {rows.length === 0 ? (
           <EmptyState title="Nothing recorded" body="Fuel and servicing entries appear here." />
         ) : (
@@ -1515,7 +1515,7 @@ function Logs() {
 function busError(e: unknown) {
   if (e instanceof ApiError) {
     if (e.code === 'duplicate_registration')
-      return 'A bus with that registration is already on the fleet. It may be recorded as retired or under maintenance.'
+      return 'This registration already exists (maybe retired or in maintenance).'
     if (e.code === 'driver_assigned') return e.message
     return e.message
   }
@@ -1706,7 +1706,7 @@ function Routes() {
     <Card>
       <CardHeader
         title={editing ? 'Edit this route' : 'Add a route'}
-        description="A route is the run and the stops on it. The stops are what the arrival alerts, the attendance scan and the allocation screen are all reading, so a route saved without them is only half a route."
+        description="Add the route and its stops."
         action={
           <Button variant="secondary" onClick={() => (open ? close() : (save.reset(), setOpen(true)))}>
             {open ? 'Close' : 'Add a route'}
@@ -1722,7 +1722,7 @@ function Routes() {
             <Field label="Code" hint="Short label the office and the drivers use.">
               <Input value={form.code} onChange={set('code')} placeholder="R-01" />
             </Field>
-            <Field label="Bus" hint="A bus runs one route at a time. Putting it here takes it off any other route.">
+            <Field label="Bus" hint="Moves the bus off any other route.">
               <Select
                 value={form.vehicle_id}
                 onChange={set('vehicle_id')}
@@ -1796,7 +1796,7 @@ function Routes() {
                       label="Location"
                       hint={
                         s.location && !parseLocation(s.location)
-                          ? 'Paste the pair as it comes from Google Maps: 17.4933, 78.3915'
+                          ? 'Paste from Google Maps, e.g. 17.4933, 78.3915'
                           : undefined
                       }
                     >
@@ -1916,7 +1916,7 @@ function Routes() {
       ) : rows.length === 0 ? (
         <EmptyState
           title="No routes yet"
-          body="A bus with no route has nowhere to go, and a child cannot be allocated to one. Add the run and the stops along it."
+          body="No routes yet. Add a route and its stops."
         />
       ) : (
         <>
@@ -2089,7 +2089,7 @@ function Buses() {
       <Card>
         <CardHeader
           title={editing ? 'Edit this bus' : 'Add a bus'}
-          description="The driver is the field that does the work. The tracker app signs a driver in against the bus they are recorded on, so a bus with nobody named here cannot start a trip however well everything else is set up."
+          description="A driver is needed to start trips."
           action={
             <Button
               variant="secondary"
@@ -2198,7 +2198,7 @@ function Buses() {
         ) : list.error ? (
           <ErrorState error={list.error} />
         ) : rows.length === 0 ? (
-          <EmptyState title="No buses on the fleet" body="Add the buses that carry children, and name who drives each one." />
+          <EmptyState title="No buses on the fleet" body="Add buses and their drivers." />
         ) : (
           <>
             {driverless.length > 0 && (
