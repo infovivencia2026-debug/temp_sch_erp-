@@ -102,12 +102,12 @@ export default function FeeEnrolment() {
           <Card>
             <CardHeader
               title={rows.length === 1 ? '1 offer waiting' : `${rows.length} offers waiting`}
-              description="A place is offered and the child has not joined yet. Settle the fee here."
+              description="Offered, not joined. Settle the fee here."
             />
             <Table
               head={['Applicant', 'Class', 'Parent', 'Fee', 'Concession', '']}
               empty={!rows.length}
-              emptyLabel="No offer is waiting. Offer a place from Applications and it appears here."
+              emptyLabel="No offers waiting."
             >
               {rows.map((a) => (
                 <tr key={a.id}>
@@ -294,7 +294,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
         title={`${row.name} · ${row.application_no}`}
         description={fee > 0
           ? `${row.class_sought} costs ${formatPaise(fee)} for the year.`
-          : 'No priced fee structure covers this class, so nothing can be quoted or billed.'}
+          : 'No fee structure for this class.'}
       />
 
       {mayApprove && !row.enrolment_approved && (
@@ -400,7 +400,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
             </FormField>
           )}
           <FormField label="Reason" required
-            hint="What was agreed, and with whom. The principal reads this before deciding.">
+            hint="What was agreed and with whom.">
             <Textarea rows={2} value={reason} onChange={setReason} />
           </FormField>
           {after !== null && (
@@ -439,8 +439,8 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
           <>
             <p className="text-[13px]">
               {row.concession_status === 'approved'
-                ? 'The concession is approved. The bill below is raised with it already taken off.'
-                : 'No concession has been asked for, so nothing is holding this up.'}
+                ? 'Concession approved and applied.'
+                : 'No concession requested.'}
             </p>
             {/* ENROLLING HAPPENS HERE, not on another page.
 
@@ -485,7 +485,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
             ) : (
               <div className="mt-3 space-y-3 rounded-lg border p-3">
                 <FormField label="Which section" required
-                  hint="The one thing left to decide. The rest comes from the application.">
+                  hint="Last step">
                   <Select
                     value={sectionId}
                     onChange={setSectionId}

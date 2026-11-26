@@ -148,7 +148,7 @@ export default function MDMRegister() {
     mutationFn: (v: { id: string; reason: string }) =>
       api.post(`${REGISTER_BASE}/days/${v.id}/reopen`, { reason: v.reason }),
     onSuccess: () => {
-      setNote('Reopened. The reason is on the record, and so will be the correction.')
+      setNote('Reopened.')
       invalidate()
     },
   })
@@ -161,7 +161,7 @@ export default function MDMRegister() {
       <PageHead
         eyebrow="Mid-day meal"
         title="Mid-day meal register"
-        description="The daily record: children present, meals served, foodgrain and cooking cost, who cooked, and why the kitchen did not on the days it did not. This is what the monthly utilisation return is built from."
+        description="Daily meals, grain, cost and cooks. Feeds the monthly return."
       />
       <PageBody>
         <div className="flex flex-wrap items-end gap-3">
@@ -229,7 +229,7 @@ export default function MDMRegister() {
               <Card>
                 <CardHeader
                   title={`${flagged.length} day${flagged.length === 1 ? '' : 's'} the block office would question`}
-                  description="The same arithmetic the monthly return runs, applied the day it is entered rather than six weeks later in a letter."
+                  description="Same checks as the monthly return"
                 />
                 <Table head={['Date', 'What does not add up']}>
                   {flagged.map((x) => (
@@ -249,7 +249,7 @@ export default function MDMRegister() {
             <Card>
               <CardHeader
                 title="The register"
-                description="A closed day is the figure this school has filed. Correcting one means reopening it with a reason, and both versions stay on the record."
+                description="Closed days need a reason to reopen."
               />
               <Table
                 head={['Date', 'On roll', 'Present', 'Meals', 'Foodgrain', 'Cost', 'Cook', 'Status', '']}
@@ -490,8 +490,8 @@ function DayForm({ day, context, defaultCampus, onDone, onCancel }: {
       <CardHeader
         title={day ? `Correcting ${day.on_date}` : 'Record a day'}
         description={amending
-          ? 'This day has already been corrected once. Say why it is being changed again, the reason is kept with both versions.'
-          : 'Meals served, children present, what was cooked and who cooked it.'}
+          ? 'Corrected before. Give a reason.'
+          : 'Meals, attendance, menu, cooks.'}
       />
       <div className="p-5">
         <FormGrid>
@@ -559,7 +559,7 @@ function DayForm({ day, context, defaultCampus, onDone, onCancel }: {
             checked={byClass}
             onChange={setByClass}
             label="Break the day down by class"
-            hint="Optional. The block office asks a large school for the primary and upper-primary split; a small one counts once at the kitchen door."
+            hint="Optional"
           />
         </div>
       </div>

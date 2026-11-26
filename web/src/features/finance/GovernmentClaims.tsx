@@ -82,7 +82,7 @@ export default function GovernmentClaims() {
       <PageHead
         eyebrow="Concessions"
         title="Government reimbursement claims"
-        description="RTE and state fee reimbursement: what was claimed, what was sanctioned, and what the treasury has actually released."
+        description="RTE and state claims: claimed, sanctioned, received."
         width="wide"
       />
       <PageBody width="wide">
@@ -231,7 +231,7 @@ function AgeingPanel({
     <Card>
       <CardHeader
         title="How long the state has been sitting on it"
-        description="Counted from the day each claim was submitted, because that is the day the school stopped being able to do anything about it."
+        description="Days since submission"
       />
       {!anything ? (
         <EmptyState
@@ -444,7 +444,7 @@ function ClaimDetailPanel({
         <>
           <CardHeader
             title="Released by the treasury"
-            description="Typed, or read off a bank statement. There is no live treasury feed."
+            description="From the bank statement"
           />
           <Table
             head={['Received', { label: 'Amount', align: 'right' }, 'Mode', 'Reference', 'Into', 'By']}
@@ -548,7 +548,7 @@ function SubmitClaim({ claimId, onDone }: { claimId: string; onDone: () => void 
         </Field>
         <Field
           label="Acknowledgement reference"
-          hint="Often the only thing a school can produce when the department says it never arrived."
+          hint="Proof of submission"
         >
           <Input value={ref} onChange={setRef} placeholder="Dispatch or inward number" />
         </Field>
@@ -556,7 +556,7 @@ function SubmitClaim({ claimId, onDone }: { claimId: string; onDone: () => void 
       <ConfirmButton
         variant="primary"
         confirmLabel="Record it as sent"
-        question="The claim becomes read-only and starts ageing from this date."
+        question="Claim locks and ageing starts."
         onConfirm={() => run.mutate()}
         disabled={run.isPending}
       >
@@ -649,7 +649,7 @@ function RecordSanction({
       <ConfirmButton
         variant="primary"
         confirmLabel="Record the order"
-        question="This replaces any sanction previously recorded for this claim."
+        question="Replaces the earlier sanction."
         onConfirm={() => run.mutate()}
         disabled={run.isPending || !orderNo}
       >
@@ -766,7 +766,7 @@ function NewClaim({ onCreated }: { onCreated: (id: string) => void }) {
     <Card>
       <CardHeader
         title="Open a claim"
-        description="One per scheme per period. The period is what the department reimburses against, usually a quarter."
+        description="One per scheme per period (usually a quarter)."
       />
       <div className="space-y-5 px-5 py-5">
         {schemeOptions.length === 0 && (
@@ -799,7 +799,7 @@ function NewClaim({ onCreated }: { onCreated: (id: string) => void }) {
           </Field>
           <Field
             label="Claim number"
-            hint="Leave blank and one is made from the scheme code and the period."
+            hint="Blank = auto"
           >
             <Input value={claimNo} onChange={setClaimNo} />
           </Field>
@@ -862,12 +862,12 @@ function RatesPanel() {
     <Card>
       <CardHeader
         title="Notified rates"
-        description="The per-child annual rate a government order sets, by class band and year. Kept so a claim raised two years ago can still be explained against the order that set it."
+        description="Government rate per child, by class band and year."
       />
       <Table
         head={['Scheme', 'Year', 'Classes', { label: 'Annual rate', align: 'right' }, 'Order']}
         empty={(rates.data?.items ?? []).length === 0}
-        emptyLabel="No rate notified yet. Children in an un-rated class band drop out of every claim."
+        emptyLabel="No rates yet. Unrated classes are left out of claims."
       >
         {(rates.data?.items ?? []).map((rt) => (
           <tr key={rt.id}>

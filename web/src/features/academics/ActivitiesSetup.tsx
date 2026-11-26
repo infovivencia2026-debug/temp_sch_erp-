@@ -127,7 +127,7 @@ export default function ActivitiesSetup() {
       <PageHead
         eyebrow="Academics"
         title="Activities and electives"
-        description="Clubs, coaching and electives the school runs. Children are enrolled from their own record, and a paid activity raises a bill the family can pay in the app."
+        description="Clubs, coaching and electives. Paid ones bill the family."
         actions={mayWrite && (
           <Button variant={adding ? 'secondary' : 'primary'}
             onClick={() => { setAdding(!adding); setEditing(null) }}>
@@ -141,7 +141,7 @@ export default function ActivitiesSetup() {
             <CardHeader
               title={editing ? `Edit ${editing.name}` : 'A new activity'}
               description={editing
-                ? 'Changing the fee changes it for children who join from now. Everybody already enrolled keeps the figure they signed up at.'
+                ? 'New fee applies to new joiners only.'
                 : undefined}
             />
             <div className="p-4">
@@ -172,13 +172,13 @@ export default function ActivitiesSetup() {
               title={running.length
                 ? `${running.length} running`
                 : 'Nothing set up yet'}
-              description="Wound-up activities stay on the list so their enrolments and the fees raised against them keep reading."
+              description="Closed activities stay listed."
             />
             <Table
               onExport={exportEveryone}
               head={['Activity', 'Category', 'When', 'Fee', 'Enrolled', '']}
               empty={!rows.length}
-              emptyLabel="No activities yet. Add the clubs and coaching this school runs."
+              emptyLabel="No activities yet."
             >
               {rows.map((a) => (
                 <tr key={a.id} className={a.is_active ? undefined : 'opacity-60'}>
@@ -317,7 +317,7 @@ function HousesCard({ mayWrite }: { mayWrite: boolean }) {
 
   return (
     <Card>
-      <CardHeader title="Houses" description="The houses children are placed in for sports and inter-house events." />
+      <CardHeader title="Houses" description="Houses for sports and events" />
       {mayWrite && (
         <div className="flex flex-wrap items-end gap-3 px-5 pb-4">
           <FormField label="House name">

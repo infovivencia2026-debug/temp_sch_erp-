@@ -68,7 +68,7 @@ export default function MDMUtilisation() {
       },
     }),
     onSuccess: () => {
-      setNote('Finalised. The figures are frozen, this month will read the same in November as it does today.')
+      setNote('Finalised and locked.')
       qc.invalidateQueries({ queryKey: ['admin-ops', 'mdm'] })
     },
   })
@@ -94,7 +94,7 @@ export default function MDMUtilisation() {
       <PageHead
         eyebrow="Mid-day meal"
         title="MDM utilisation report"
-        description="The monthly return under PM POSHAN: meals served against enrolment, foodgrain consumed against what was lifted, cooking cost against what was allotted, and the balance carried forward."
+        description="PM POSHAN monthly return"
       />
       <PageBody>
         <div className="flex flex-wrap items-end gap-3">
@@ -153,7 +153,7 @@ export default function MDMUtilisation() {
             <Card>
               <CardHeader
                 title="Checks"
-                description="What the block office will ask. Answer these before filing, not after it comes back."
+                description="Fix these before filing."
               />
               <Table head={['', 'Check', 'What the figures say']}>
                 {d.checks.map((c) => (
@@ -174,7 +174,7 @@ export default function MDMUtilisation() {
               <Card>
                 <CardHeader
                   title={`Foodgrain · ${d.foodgrain.grain}`}
-                  description="Weight, in kilograms. Deliberately never mixed with the money columns."
+                  description="In kg"
                 />
                 <Table head={['', 'Quantity']}>
                   <tr><Td>Opening balance</Td><Td className="tabular-nums">{kg(d.foodgrain.opening_kg)}</Td></tr>
@@ -250,8 +250,8 @@ export default function MDMUtilisation() {
                 <CardHeader
                   title="File the return"
                   description={frozen
-                    ? 'This month is frozen. What was filed stays retrievable exactly as filed.'
-                    : 'Finalising freezes a copy of these figures. Later edits to the daily register will not change it.'}
+                    ? 'Month locked.'
+                    : 'Locks these figures.'}
                 />
                 <div className="space-y-3 px-5 py-4">
                   {!frozen && failures.length > 0 && (
@@ -287,7 +287,7 @@ export default function MDMUtilisation() {
                     an explanation. */}
                 <EmptyState
                   title="No return opened for this month"
-                  body="The figures above are computed from the register and are correct. Opening a return lets you record the opening balances and the sanctioned allotment, which nothing can derive."
+                  body="Open a return to enter opening balances and allotment."
             />
               </Card>
             )}
@@ -368,14 +368,14 @@ function BalancesForm({ month, saved, onSaved }: {
       released_cost_paise: toPaise(valueOf('releasedCost')),
       variance_explanation: explanation.trim(),
     }),
-    onSuccess: () => onSaved('Balances saved. The rest of the return is computed from the register.'),
+    onSuccess: () => onSaved('Balances saved.'),
   })
 
   return (
     <Card>
       <CardHeader
         title="Opening balances and sanction"
-        description="The only figures on this return that aggregation cannot know. Everything else is summed from the daily register."
+        description="Enter these by hand."
       />
       <div className="grid gap-4 p-5 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5 text-[13px]">

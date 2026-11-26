@@ -129,7 +129,7 @@ export default function ExamMonitoring() {
       <PageHead
         eyebrow="Academics"
         title="Exams and marks monitoring"
-        description="Entry progress paper by paper, the marks still waiting, and the sign-off that lets a result be published."
+        description="Marks entry and sign-off, by paper."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -159,7 +159,7 @@ export default function ExamMonitoring() {
           <Card>
             <CardHeader
               title="Not marked yet"
-              description="Exams already sat with no marks entered. A subject with no exam scheduled is not listed."
+              description="Exams done, marks not entered."
             />
             <ul className="divide-y divide-border">
               {rows
@@ -233,7 +233,7 @@ export default function ExamMonitoring() {
         <Card>
           <CardHeader
             title="Papers"
-            description="Entry counted against the class roll, not against the marks already in. A paper can only be signed off once it is complete."
+            description="Sign off once all marks are in."
             action={
               <div className="flex items-center gap-2">
                 <Select
@@ -262,7 +262,7 @@ export default function ExamMonitoring() {
           {rows.length === 0 ? (
             <EmptyState
               title="No papers scheduled"
-              body="Create an exam and add its subjects; entry progress appears here as marks arrive."
+              body="No exams yet."
             />
           ) : (
             <Table

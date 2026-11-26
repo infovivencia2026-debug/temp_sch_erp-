@@ -224,13 +224,13 @@ function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onO
   const byId = new Map(tops.map((u) => [u.id, u]))
   return (
     <div className="space-y-3">
-      <p className="text-[13px] text-muted-foreground">One by one: each video opens when the one before it has been watched to the end.</p>
+      <p className="text-[13px] text-muted-foreground">Videos unlock in order.</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[14px] text-muted-foreground">{tops.length ? `${tops.length} module${tops.length === 1 ? '' : 's'}, in the order the class takes them.` : 'No modules yet.'}</p>
         <Button onClick={() => setAdding(!adding)}>{adding ? <><X className="h-4 w-4" /> Close</> : <><Plus className="h-4 w-4" /> New module</>}</Button>
       </div>
       {adding && <Card><ModuleForm d={d} done={() => { setAdding(false); qc.invalidateQueries({ queryKey: qkey }) }} /></Card>}
-      {!tops.length && !adding && <EmptyState title="No modules yet" body="A module is a topic or a week. Add one, give it days, and put videos, PDFs, notes, links, quizzes and assignments on each day." />}
+      {!tops.length && !adding && <EmptyState title="No modules yet" body="No modules yet. Add one, then add days and content." />}
       <ol className="space-y-3">
         {ids.map((id, i) => {
           const u = byId.get(id)
@@ -414,7 +414,7 @@ function ModuleView({ d, u, qkey, back, onOpen, onTab, bare, noDays }: { d: Cour
       </div>
       <FormNotice error={addDay.error ?? orderDays.error} />
       {view === 'progress' ? <ModuleProgressView d={d} u={u} /> : !days.length ? (
-        <EmptyState title="No days yet" body="Press Add day. Each day has four parts: pre-requisites, resources, tools and an assessment." />
+        <EmptyState title="No days yet" body="No days yet. Press Add day." />
       ) : (
         <div className="space-y-4">
           {days.map((x) => (
@@ -639,7 +639,7 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
       <Field label="Whose channel is it?" hint="Shown under the player so the uploader is credited. The school stores only the video's id, never its title or thumbnail.">
         <Input value={channel} onChange={setChannel} placeholder="e.g. Khan Academy India" />
       </Field>
-      <Field label="Key points" hint="Your own words — what this class should take from the video. Not a summary of it.">
+      <Field label="Key points" hint="What students should learn from it.">
         <Textarea value={keyPoints} onChange={setKeyPoints} rows={4} placeholder="Three or four things to watch for…" />
       </Field>
     </>
@@ -657,7 +657,7 @@ function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, d
           </div>
           {vsrc === 'library' && <Field label="Video"><VideoPick value={video} onChange={setVideo} /></Field>}
           {vsrc === 'upload' && <VideoUpload onUploaded={(id, t) => { setVideo(id); if (!title.trim()) setTitle(t); setVsrc('library') }} />}
-          {vsrc === 'link' && <Field label="Video address" hint="YouTube and Vimeo play in the page; any other address opens in a new tab."><Input value={url} onChange={setUrl} placeholder="https://www.youtube.com/watch?v=…" /></Field>}
+          {vsrc === 'link' && <Field label="Video address" hint="YouTube/Vimeo play here; others open a new tab."><Input value={url} onChange={setUrl} placeholder="https://www.youtube.com/watch?v=…" /></Field>}
         </div>
       )}
       {kind === 'text' && <Field label="Notes"><NotesEditor value={body} onChange={setBody} /></Field>}

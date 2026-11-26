@@ -135,7 +135,7 @@ export default function Outcomes() {
       <PageHead
         eyebrow="Academics"
         title="Outcomes and attainment"
-        description="Programme and course outcomes, the papers that measure them, and the gap between the bar and the class."
+        description="Outcomes, linked papers and attainment."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -162,7 +162,7 @@ export default function Outcomes() {
         <Card>
           <CardHeader
             title="Attainment"
-            description="A child clears an outcome at the threshold; the outcome is attained when the target share of the class clears it."
+            description="Attained when the target share of the class reaches the threshold."
             action={
               <Select
                 value={csID}
@@ -178,7 +178,7 @@ export default function Outcomes() {
           {rows.length === 0 ? (
             <EmptyState
               title="No course outcomes yet"
-              body="Write the first one below, then map it to the papers that measure it."
+              body="No outcomes yet."
             />
           ) : (
             <Table
@@ -239,7 +239,7 @@ export default function Outcomes() {
           <Card>
             <CardHeader
               title="Programme outcomes"
-              description="The strength-weighted mean of the course outcomes mapped to each, the figure an accreditation form asks for."
+              description="Weighted from linked course outcomes."
             />
             <Table head={['Code', 'Statement', 'Course outcomes', 'Attainment']}>
               {(attain.data?.programme ?? []).map((p) => (
@@ -323,7 +323,7 @@ function Mapping({
     <Card>
       <CardHeader
         title="Mapping"
-        description="Strength is the 1–2–3 an accreditation form uses. Leave one blank to unmap it."
+        description="Strength 1–3. Blank = unlink."
       />
       <div className="px-5 pb-5 pt-4">
         <FormGrid>
@@ -343,7 +343,7 @@ function Mapping({
           </Field>
           <Field
             label="Papers that measure it"
-            hint="Exam-subject ids, comma separated. Leaving this blank unmaps every paper."
+            hint="Comma separated. Blank = unlink all."
           >
             <Input value={papers} onChange={setPapers} placeholder="uuid, uuid" />
           </Field>

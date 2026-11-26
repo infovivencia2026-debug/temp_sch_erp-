@@ -124,7 +124,7 @@ export default function TimetableOptimizer() {
       <PageHead
         eyebrow="AI & automation"
         title="Timetable optimizer"
-        description="Generates a candidate week that obeys every hard constraint, and tells you plainly which requirements it could not meet. Nothing reaches the live timetable until you publish it."
+        description="Generates a draft week. Nothing goes live until you publish."
         actions={
           mayWrite && (
             <>
@@ -171,7 +171,7 @@ export default function TimetableOptimizer() {
           <Card>
             <EmptyState
               title="No subject has a weekly requirement yet"
-              body="The generator satisfies requirements; without any it has nothing to place. Set periods per week against each class subject below, then generate."
+              body="Set periods per week below, then generate."
             />
           </Card>
         )}
@@ -182,7 +182,7 @@ export default function TimetableOptimizer() {
         <Card>
           <CardHeader
             title="Drafts"
-            description="Every run is kept with its seed, so a candidate somebody liked can be reproduced."
+            description="All runs are kept."
           />
           {drafts.isLoading ? (
             <Skeleton rows={3} />
@@ -285,7 +285,7 @@ function Requirements({ data, mayWrite }: { data?: InputsResponse; mayWrite: boo
     <Card>
       <CardHeader
         title="What each class needs"
-        description="Periods a week, per subject. A subject left at zero is not timetabled."
+        description="Periods per week. 0 = skip."
         action={
           <Select
             value={section}
@@ -429,7 +429,7 @@ function Teachers({ data, mayWrite }: { data?: InputsResponse; mayWrite: boolean
     <Card>
       <CardHeader
         title="Who may teach how much"
-        description="Demand is what the requirements ask; the cap is what the school allows. Demand above the cap cannot be timetabled, however good the generator is."
+        description="Demand above the cap cannot fit."
       />
       <FormNotice error={save.error ?? addOff.error ?? dropOff.error} />
       <Table
@@ -675,7 +675,7 @@ function DraftReview({
         {issues.length === 0 ? (
           <EmptyState
             title="Every requirement was met"
-            body="No subject is short a period and no soft preference had to bend."
+            body="All requirements met."
           />
         ) : (
           <ul className="divide-y">
@@ -703,7 +703,7 @@ function DraftReview({
       <Card>
         <CardHeader
           title="The candidate week"
-          description="Edit after publishing on the timetable screen; this is a proposal."
+          description="Draft. Edit on the timetable screen after publishing."
           action={
             <Select
               value={active}

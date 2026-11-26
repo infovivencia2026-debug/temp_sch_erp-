@@ -91,7 +91,7 @@ export default function EvaluationOversight() {
       setAdding(false)
       setForm({ name: '', purpose: '', opens_on: '', closes_on: '', min_responses: '3' })
       setRelations(['head', 'peer'])
-      setNote('Cycle created as a draft. Add the staff to be reviewed, then start it.')
+      setNote('Draft created. Add staff, then start.')
     },
   })
 
@@ -100,7 +100,7 @@ export default function EvaluationOversight() {
       api.post(`${adminOpsBase}/evaluation/cycles/${id}/status`, { status }),
     onSuccess: (_r, v) => {
       setNote(v.status === 'released'
-        ? 'Results released. Each person can now see their own aggregate, and nothing else.'
+        ? 'Released. Each person sees only their own.'
         : `Cycle ${v.status}.`)
       qc.invalidateQueries({ queryKey: ['admin-ops', 'evaluation'] })
     },
@@ -115,7 +115,7 @@ export default function EvaluationOversight() {
       <PageHead
         eyebrow="Staff"
         title="360 evaluation oversight"
-        description="Feedback on a member of staff from their head, their peers and, where appropriate, students and parents. Who has been asked, who has answered, and when results may be released."
+        description="360° staff feedback: invites, responses, release."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -132,7 +132,7 @@ export default function EvaluationOversight() {
         <Card>
           <CardHeader
             title="Cycles"
-            description="A cycle gathers feedback from several directions at once, and holds a minimum responder count below which nothing is shown."
+            description="No cycles yet."
             action={mayRun ? (
               <Button size="sm" variant={adding ? 'secondary' : 'primary'}
                 onClick={() => setAdding(!adding)}>
@@ -164,7 +164,7 @@ export default function EvaluationOversight() {
                 <Field
                   label="Anonymity floor"
                   required
-                  hint="Below this many responses a direction shows nothing at all. Two is the lowest the server accepts, with one, the average names the person who gave it."
+                  hint="Minimum 2, to keep answers anonymous."
                 >
                   <Select value={form.min_responses}
                     onChange={(v) => setForm({ ...form, min_responses: v })}
