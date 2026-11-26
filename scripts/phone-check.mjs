@@ -81,7 +81,9 @@ async function wire(ctx, scale, live = mode !== 'local') {
 
 const check = () => {
   const iw = innerWidth, o = { h: document.documentElement.scrollWidth > iw + 1, off: [], ov: [], clip: [], split: [], small: [], spill: [] }
-  const vis = (e) => e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && e.getBoundingClientRect().width > 0
+  // > 1px: a visually hidden (sr-only, 1x1) page title still has a full-size text range and was
+  // reported as overlapping the first header button on every staff screen.
+  const vis = (e) => e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && e.getBoundingClientRect().width > 1 && e.getBoundingClientRect().height > 1
   const layer = (e) => { let a = e; while (a && a !== document.body) { const p = getComputedStyle(a).position; if (p === 'fixed' || p === 'sticky') return a; a = a.parentElement } return null }
   const scroller = (e) => { let a = e.parentElement; while (a && a !== document.body) { const s = getComputedStyle(a); if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && a.scrollWidth > a.clientWidth + 1) return a; a = a.parentElement } return null }
   const txt = (e) => [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())
@@ -137,7 +139,9 @@ const check = () => {
     if (!txt(e) || ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A'].includes(e.tagName)) return e.getBoundingClientRect()
     const rg = document.createRange(); rg.selectNodeContents(e); return rg.getBoundingClientRect()
   }
-  const L = leaves.slice(0, 700).map((e) => ({ e, r: textRect(e), l: layer(e), s: scroller(e) }))
+  // a list that scrolls up and down inside a card: its rows pass under the next card by design
+  const yscroller = (e) => { let a = e.parentElement; while (a && a !== document.body) { const s = getComputedStyle(a); if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && a.scrollHeight > a.clientHeight + 1 && a.clientHeight < innerHeight * 0.9) return a; a = a.parentElement } return null }
+  const L = leaves.slice(0, 700).map((e) => ({ e, r: textRect(e), l: layer(e), s: scroller(e) || yscroller(e) }))
   outer: for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
     const a = L[i], c = L[j]
     if (a.l !== c.l || a.s !== c.s || a.e.contains(c.e) || c.e.contains(a.e)) continue
