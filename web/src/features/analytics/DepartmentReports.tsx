@@ -47,7 +47,7 @@ export default function DepartmentReports() {
       <PageHead
         eyebrow="Analysis"
         title="Department reports"
-        description="Attendance, workload, results and backlogs per department, for the period shown."
+        description="Per-department attendance, load and results."
         actions={
           <div className="flex gap-2">
             <CsvButton href={`${URL}?${rangeQuery(range)}`} />

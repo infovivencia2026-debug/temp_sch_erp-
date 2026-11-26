@@ -30,8 +30,8 @@ export function ParentLoginCard({ login, onClose }: { login: ParentLogin; onClos
         title={login.existing ? 'This parent already has a login' : "The parent's login"}
         description={
           login.existing
-            ? 'A second child on the same account. The password is unchanged, so it is not shown.'
-            : 'Give this to the parent now. The password cannot be read back once this card is closed.'
+            ? 'Added to existing login. Password unchanged.'
+            : 'Give this to the parent now. Shown once.'
         }
         action={<Button variant="secondary" onClick={onClose}>Done</Button>}
       />

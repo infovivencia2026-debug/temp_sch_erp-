@@ -55,7 +55,7 @@ function TranslateNoticeInner({ title, text, onUse }: {
           </div>
           {out.title && <p className="text-sm font-semibold">{out.title}</p>}
           <p className="whitespace-pre-wrap text-sm">{out.text}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">The original stays as written. Have a fluent reader check the translation before it goes out.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Have someone check the translation before sending.</p>
         </div>
       )}
     </div>

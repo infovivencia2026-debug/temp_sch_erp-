@@ -140,7 +140,7 @@ export default function FacultyAllocation() {
       <PageHead
         eyebrow="Academics"
         title="Faculty allocation"
-        description="Every subject each section takes, who is down to teach it, and the ones nobody is."
+        description="Subjects, teachers and gaps."
         actions={
           pending > 0 ? (
             <Button disabled={save.isPending} onClick={commit}>

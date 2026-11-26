@@ -150,7 +150,7 @@ function Teachers({ rows, subjectId, office, removed, staff, slots, sections }: 
       <Card>
         <CardHeader title="Teachers under this head" />
         <div className="space-y-3 p-[var(--card-pad)] text-[14px]">
-          <div className="text-muted-foreground">Everyone teaching the subject is under the head by default. Remove a teacher above, or add someone here.</div>
+          <div className="text-muted-foreground">All subject teachers are included by default.</div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="w-72"><Select value={add} onChange={setAdd} options={staff.filter((p) => !rows.some((r) => r.id === p.id)).map((p) => ({ value: p.id, label: p.name }))} placeholder="Add a teacher" /></div>
             <Button size="sm" disabled={!add || member.isPending} onClick={() => { member.mutate({ user_id: add, mode: 'add' }); setAdd('') }}>Add</Button>

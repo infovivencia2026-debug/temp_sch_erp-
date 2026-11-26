@@ -97,7 +97,7 @@ export default function Today() {
         <Card>
           <CardHeader
             title="Periods with no teacher"
-            description="Either nobody is timetabled, or the teacher is away and no cover was arranged."
+            description="No teacher or no cover."
           />
           {uncovered === 0 ? (
             <EmptyState title="Every period today is staffed." />

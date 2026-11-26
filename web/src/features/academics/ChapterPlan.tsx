@@ -70,7 +70,7 @@ export default function ChapterPlan({ sectionId, classSubjectId }: { sectionId: 
   if (q.isError) return <ErrorState error={q.error} />
   if (q.isPending) return <SkeletonTable />
   const items = q.data.items
-  if (!items.length) return <EmptyState title="No chapters yet" body="This subject has no chapters in its syllabus. Add them in Academics, Syllabus." />
+  if (!items.length) return <EmptyState title="No chapters yet" body="No chapters. Add them in Academics, Syllabus." />
   const done = items.filter((c) => c.status === 'completed').length
 
   return (

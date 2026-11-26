@@ -938,7 +938,7 @@ export function AssistantTab() {
         setTurns((t) => [...t, {
           role: 'bot',
           notice: true,
-          text: ai.operator ? (ai.reason ?? '') : 'The assistant is unavailable right now. Screens and search still work; try the assistant again later.',
+          text: ai.operator ? (ai.reason ?? '') : 'Assistant unavailable. Try again later.',
           links: ai.operator ? [{ label: 'Controls, AI', to: AI_KEY_HREF }] : undefined,
         }])
         return

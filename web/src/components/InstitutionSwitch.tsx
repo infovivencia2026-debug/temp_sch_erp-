@@ -67,7 +67,7 @@ export function InstitutionSwitch() {
     >
       <span
         className="flex h-8 min-w-0 shrink items-center gap-1.5 rounded-sm bg-surface-hover/60 px-2 text-[12.5px] text-muted-foreground"
-        title="The school you are working inside. Every number on the page is about this school."
+        title="Current school"
       >
         <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
         <span className="min-w-0 max-w-[6.5rem] truncate font-medium text-foreground sm:max-w-[11rem]">

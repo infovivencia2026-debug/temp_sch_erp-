@@ -54,8 +54,8 @@ export default function ReauthPrompt() {
       size="sm"
       title={done ? 'Confirmed' : 'Confirm your password'}
       description={done
-        ? 'Your password is confirmed for the next fifteen minutes. Press the button again to complete what you were doing.'
-        : 'This action moves money and your sign-in is older than fifteen minutes. Type your password to continue.'}
+        ? 'Confirmed for 15 minutes. Press the button again.'
+        : 'Enter your password to continue.'}
     >
       {done ? (
         <div className="flex justify-end">

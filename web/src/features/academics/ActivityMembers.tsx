@@ -117,7 +117,7 @@ export default function ActivityMembers({ activity, onClose, show = 'add' }: {
       <CardHeader
         title={show === 'members' ? `Who is enrolled in ${activity.name}` : `Add students to ${activity.name}`}
         description={show === 'members'
-          ? 'Every child in this activity, their class, the parent to ring and whether the fee is paid.'
+          ? 'Members, parent contact and fee status.'
           : undefined}
         action={<Button size="sm" variant="secondary" onClick={onClose}>Close</Button>} />
       <div className={show === 'members' ? 'flex flex-col-reverse gap-3 p-5' : 'space-y-3 p-5'}>

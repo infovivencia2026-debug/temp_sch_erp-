@@ -38,7 +38,7 @@ export default function ShareInbox() {
       <p className="text-[13px] text-muted-foreground">
         {canStatus
           ? 'Post the photo or video to your class as a status.'
-          : 'This account has no screen that takes shared files. Open the screen you want and attach the file there.'}
+          : 'Open the screen you need and attach the file there.'}
       </p>
       <ul className="mt-3 space-y-1 text-[13px]">
         {s.files.map((f, i) => <li key={i} className="truncate">{f.name}</li>)}

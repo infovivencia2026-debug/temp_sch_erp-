@@ -144,7 +144,7 @@ export default function EnrolPanel({
       <Card>
         <CardHeader
           title="Enrolled"
-          description="The student record, the enrolment, the guardian link and the first invoice are all in place."
+          description="Enrolled. Record, guardian and first bill created."
           action={<Button variant="ghost" onClick={onDone}>Close</Button>}
         />
         <div className="flex flex-wrap items-center gap-4 p-5">
@@ -234,7 +234,7 @@ export default function EnrolPanel({
     <Card>
       <CardHeader
         title="Enrol applicant"
-        description="Creates the student record, the enrolment, the guardian link and the first invoice in one step."
+        description="Creates record, guardian link and first bill."
         action={<Button variant="ghost" onClick={onDone}>Cancel</Button>}
       />
 

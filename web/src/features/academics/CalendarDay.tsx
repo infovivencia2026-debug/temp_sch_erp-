@@ -80,7 +80,7 @@ export default function CalendarDay() {
     <Card>
       <CardHeader
         title="The day"
-        description="Periods, who teaches them and the lesson plan for each, the timetable, the plan and the almanac read together."
+        description="Periods, teachers and lesson plans."
         action={
           <div className="flex items-center gap-2">
             <Input type="date" value={date} onChange={setDate} className="w-auto" />
@@ -126,7 +126,7 @@ export default function CalendarDay() {
               title="Nothing timetabled on this date"
               body={
                 d.open
-                  ? 'No periods are scheduled for this weekday. Set the timetable first and the day fills itself in.'
+                  ? 'No periods this day.'
                   : 'The school is shut, so no periods ring.'
               }
             />

@@ -14,7 +14,7 @@ export default function SchoolActivity() {
       <PageHead
         eyebrow={nav.section?.name ?? 'Activity'}
         title={nav.feature?.name ?? 'School activity'}
-        description="What students, parents and staff have done on the platform, newest first. Open any line to go to it."
+        description="Recent activity, newest first."
       />
       <PageBody>
         <Timeline

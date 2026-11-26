@@ -79,7 +79,7 @@ export default function PerformanceAnalytics() {
       <PageHead
         eyebrow="Analysis"
         title="Performance analytics"
-        description="Trends across exams, subject strengths and weaknesses, the spread of results, and who is falling behind."
+        description="Exam trends, subjects and who is behind."
         actions={<PrintButton />}
       />
       <PageBody>
@@ -193,7 +193,7 @@ export default function PerformanceAnalytics() {
         <Card>
           <CardHeader
             title="Falling behind"
-            description="Below the average threshold, or failing any subject. Attendance sits alongside because it is usually the explanation."
+            description="Below average or failing a subject."
             action={<CsvButton href={AT_RISK} />}
           />
           {atRisk.isLoading ? (

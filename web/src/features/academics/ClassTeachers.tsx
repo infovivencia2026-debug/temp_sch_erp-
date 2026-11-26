@@ -113,7 +113,7 @@ export default function ClassTeachers() {
     <Card className="mb-5">
       <CardHeader
         title="Class teachers"
-        description="One per section. A class teacher marks the daily register and sees every student in the section, whatever they teach, change it whenever somebody moves on."
+        description="One per section. Marks daily attendance."
         action={
           <Button
             size="sm"

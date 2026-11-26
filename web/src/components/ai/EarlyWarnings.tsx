@@ -147,7 +147,7 @@ export default function NeedsAttentionPage() {
   return (
     <>
       <PageHead eyebrow="Early warnings" title="Needs attention"
-        description={digest.data ? `This week: ${digest.data.text}` : 'Children, classes and staff the nightly checks flagged, with the numbers behind each.'}
+        description={digest.data ? `This week: ${digest.data.text}` : 'Flagged by nightly checks'}
         actions={can('students.read.all') ? <Button size="sm" variant="secondary" pending={rerun.isPending} onClick={() => rerun.mutate()}>Check again now</Button> : undefined} />
       <PageBody>
         {rerun.error ? <FormNotice error={rerun.error} /> : null}

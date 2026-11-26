@@ -3035,7 +3035,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
      (owner, 2026-10-28, Master timetable on a phone); now it says what to do. */
   const ended = (error instanceof ApiError && error.status === 401) || /^unauthorized.?$/i.test(raw)
   const msg = ended ? 'Your sign-in has ended. Sign in again to see this.'
-    : refused ? 'Your login is not allowed to see this. Ask the school admin if you need it.'
+    : refused ? 'No access. Ask the school admin.'
     : raw || 'Something went wrong. Try again, or reload the page.'
   return (
     <Card className="empty-state px-4 py-10 text-center sm:p-10">

@@ -155,7 +155,7 @@ export default function SubstitutionBoard() {
 
         {away.length === 0 ? (
           <Card>
-            <EmptyState title="Nobody is absent" body="Mark absent teachers in the Staff register, or approve their leave; they then appear here to cover." />
+            <EmptyState title="Nobody is absent" body="No absent teachers today." />
           </Card>
         ) : (
           <div className="grid items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">

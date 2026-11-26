@@ -49,7 +49,7 @@ export default function DepartmentAcademics() {
       <PageHead
         eyebrow="Department"
         title="Department academics"
-        description="Subjects, teachers, classes taught, syllabus coverage against plan, and result performance."
+        description="Subjects, teachers, coverage and results."
         actions={
           <div className="flex gap-2">
             <CsvButton href={URL} />

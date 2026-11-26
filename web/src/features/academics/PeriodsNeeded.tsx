@@ -156,7 +156,7 @@ export default function PeriodsNeeded({
       <Card>
         <CardHeader
           title="No subjects to give periods to"
-          description="Add subjects to your classes under Academics → Class Setup, or upload the class-subjects sheet. They appear here once a class teaches something."
+          description="No subjects. Add them in Academics → Class Setup."
         />
       </Card>
     )
@@ -351,7 +351,7 @@ export default function PeriodsNeeded({
                     ? 'Bring the total down to the length of the school week first.'
                     : total === 0
                       ? 'Give at least one subject its periods first.'
-                      : 'Only this section. Nothing changes for teachers until you put the draft in use.'}
+                      : 'This section only. Draft until put in use.'}
                 </span>
               </div>
             )}

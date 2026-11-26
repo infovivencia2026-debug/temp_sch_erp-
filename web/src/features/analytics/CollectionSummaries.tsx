@@ -88,7 +88,7 @@ export default function CollectionSummaries() {
       <PageHead
         eyebrow="Standard reports"
         title="Fee collection summaries"
-        description="Collections by day, mode, fee head and collector, with the control totals an auditor ties out."
+        description="Collections by day, mode, head and collector."
         actions={
           <div className="flex gap-2">
             <CsvButton href={`${BASE}?${q}&group=${group}`} label="Export day book" />
@@ -121,7 +121,7 @@ export default function CollectionSummaries() {
         </CellGrid>
 
         <Card>
-          <CardHeader title="Day book" description="Split by the columns a cash book carries. Write-offs are shown apart and excluded from the total." />
+          <CardHeader title="Day book" description="Write-offs shown separately." />
           {daily.isLoading ? (
             <SkeletonTable columns={9} />
           ) : daily.error ? (
@@ -190,7 +190,7 @@ export default function CollectionSummaries() {
           <Card>
             <CardHeader
               title="By collector"
-              description="Cash is split out because it is what gets counted into a bag at the end of the day."
+              description="Cash shown separately"
               action={<CsvButton href={`${BASE}/by-collector?${q}`} />}
             />
             {collectors.isLoading ? (

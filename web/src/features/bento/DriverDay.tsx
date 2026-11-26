@@ -135,7 +135,7 @@ function AppCell({ span }: { span: CellSpan }) {
       change="Sign in with your phone number and PIN"
       cueLabel="About the bus app"
     >
-      <Say>Install the school bus app on your phone. It is the tracker, the pre-trip check and the roll; nothing else is needed.</Say>
+      <Say>Install the school bus app on your phone.</Say>
     </PersonaCard>
   )
 }

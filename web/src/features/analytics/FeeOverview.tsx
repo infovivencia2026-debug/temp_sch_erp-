@@ -222,7 +222,7 @@ export default function FeeOverview() {
           <Card>
             <CardHeader
               title="Concession burden"
-              description="By reason. Percentage awards are counted, not summed, they cannot be added to absolute ones."
+              description="By reason. Percentage awards are counted."
               action={<CsvButton href={CONCESSIONS} />}
             />
             {concessions.isLoading ? (

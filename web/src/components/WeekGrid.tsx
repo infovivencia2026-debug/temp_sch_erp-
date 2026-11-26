@@ -121,7 +121,7 @@ export default function WeekGrid({
   for (const e of entries) at.set(`${e.weekday}:${e.period_id}`, e)
 
   if (!periods.some((p) => !p.is_break)) {
-    return <p className="py-6 text-center text-[13.5px] text-muted-foreground">The school day has no periods yet, so there is nothing to lay a timetable on.</p>
+    return <p className="py-6 text-center text-[13.5px] text-muted-foreground">No periods set yet.</p>
   }
   if (entries.length === 0 && !onCell) return <p className="py-6 text-center text-[13.5px] text-muted-foreground">{empty}</p>
 

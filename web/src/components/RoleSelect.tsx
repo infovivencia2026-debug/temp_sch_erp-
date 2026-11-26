@@ -97,7 +97,7 @@ export default function RoleSelect({
           </Button>
         </div>
         <p className={err ? 'text-[12px] text-destructive' : 'text-[12px] text-muted-foreground'}>
-          {err || 'It starts with the same access as the role you pick, and you can change it afterwards under Roles and permissions.'}
+          {err || 'Copies that role’s access. Editable later.'}
         </p>
       </div>
     )

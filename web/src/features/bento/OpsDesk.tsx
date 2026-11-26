@@ -76,7 +76,7 @@ function OpsDesk() {
     return <BentoLoading message="Reading stores, buses, loans and beds…" />
   }
   const failed = stock.error ?? vehicles.error ?? loans.error ?? rooms.error
-  if (failed) return <BentoError message="Stores, buses, loans or beds could not be loaded. Check your connection and try again." />
+  if (failed) return <BentoError message="Could not load. Try again." />
 
   return (
     <PersonaPage eyebrow="Home" title="Operations desk" dashboard="ops_desk">

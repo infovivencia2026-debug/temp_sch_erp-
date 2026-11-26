@@ -50,7 +50,7 @@ const NOTES: {
   {
     kind: 'offer',
     label: 'A place has been offered',
-    says: 'Tells the family a place is offered and asks them to confirm by paying the admission fee.',
+    says: 'Tells the family of the offer and the fee.',
     suggests: (a) => a.status === 'offered',
   },
   {
@@ -128,7 +128,7 @@ export default function ApplicantMessages() {
       <PageHead
         eyebrow="Admissions"
         title="Applicant communication"
-        description="Tell a family their offer is out, what paperwork is missing, or when the test is."
+        description="Offer, missing papers or test date."
       />
       <PageBody>
         <CellGrid cols={4}>
