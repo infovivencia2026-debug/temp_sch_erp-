@@ -115,7 +115,7 @@ export default function Wizard() {
         <PageHead
           eyebrow="Getting started"
           title="Which school are you setting up?"
-          description="Your account runs the platform rather than a single school, so pick the one you are working on. Everything on this page then applies to it."
+          description="Pick a school."
           actions={picker}
         />
         <PageBody>
@@ -180,7 +180,7 @@ export default function Wizard() {
         title={d.ready ? 'School details' : 'Set up your school'}
         description={
           d.ready
-            ? 'The classes, sections, subjects, staff, fee heads and the school day, all of it, editable. Pick a section on the left and change what needs changing.'
+            ? 'Edit classes, subjects, staff, fees and timings.'
             : `${d.blocking_remaining} required ${d.blocking_remaining === 1 ? 'step' : 'steps'} left. Each one takes a minute, and the form is on this page.`
         }
         actions={
@@ -410,8 +410,8 @@ function PackGate({ onOpen }: { onOpen: (step: string) => void }) {
           </p>
           <p className="mt-1 text-[13px] text-muted-foreground">
             {asked
-              ? 'Choose the folder they are in. Every sheet it recognises goes into the step it belongs to, and each one is still checked before anything is written.'
-              : 'If the school filled in the ten template sheets, hand the folder over here rather than finding each one again below.'}
+              ? 'Pick the folder. Each sheet is checked first.'
+              : 'Upload all template sheets at once.'}
           </p>
           {note && <p className="mt-2 text-[13px] text-destructive">{note}</p>}
         </div>

@@ -115,7 +115,7 @@ export default function CertificateTemplates() {
       <PageHead
         eyebrow="Students"
         title="Certificate and document templates"
-        description="The wording, the signatory and the serial for every certificate this school issues."
+        description="Certificate wording, signatory, numbering."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -137,12 +137,12 @@ export default function CertificateTemplates() {
         <Card>
           <CardHeader
             title="Templates"
-            description="Retired rather than deleted: certificates already issued still point at their type."
+            description="Retired types stay listed."
           />
           {rows.length === 0 ? (
             <EmptyState
               title="No templates yet"
-              body="Add a transfer certificate below; the counter can then issue one."
+              body="No certificates yet."
             />
           ) : (
             <Table
@@ -206,7 +206,7 @@ export default function CertificateTemplates() {
         <Card>
           <CardHeader
             title={editing.id ? `Editing ${editing.code}` : 'New template'}
-            description="Type the wording as it should print. The tokens below are replaced with the child’s own details."
+            description="Wording as printed. Tokens fill in the child’s details."
             action={
               editing.id ? (
                 <Button size="sm" variant="ghost" onClick={() => setEditing(BLANK)}>
@@ -314,7 +314,7 @@ export default function CertificateTemplates() {
                 checked={editing.is_active}
                 onChange={(v) => setEditing((e) => ({ ...e, is_active: v }))}
                 label="In use"
-                hint="Retire rather than delete; issued certificates still point here."
+                hint="Retire instead of delete."
               />
               <Checkbox
                 checked={editing.requires_approval}
@@ -360,13 +360,13 @@ function Preview({ templateID }: { templateID: string }) {
     <Card>
       <CardHeader
         title={`Preview · ${p.template}`}
-        description="Filled in with the first child on the roll. Shown as text: a template is arbitrary markup typed by a clerk."
+        description="Preview with the first child."
       />
       <div className="px-5 pb-5 pt-4">
         {p.empty ? (
           <EmptyState
             title="Nothing written yet"
-            body="This template would print a blank page. Type the wording below."
+            body="Empty. Type the wording below."
           />
         ) : (
           <pre className="overflow-x-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-4 text-[13px] leading-relaxed">

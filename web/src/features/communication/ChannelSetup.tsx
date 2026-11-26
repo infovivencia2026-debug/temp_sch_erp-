@@ -57,31 +57,31 @@ const TABS = [
     id: 'email',
     label: 'Email',
     icon: Mail,
-    blurb: 'The mail server a circular, a receipt and an admission decision leave through.',
+    blurb: 'Email server',
   },
   {
     id: 'sms',
     label: 'SMS',
     icon: MessageSquare,
-    blurb: 'The vendor account a fee reminder and an absence alert go out on. The school pays the vendor directly.',
+    blurb: 'SMS provider account',
   },
   {
     id: 'whatsapp',
     label: 'WhatsApp',
     icon: Phone,
-    blurb: 'Read more than either, and the strictest: outside a 24-hour window only approved templates send.',
+    blurb: 'WhatsApp. After 24 hours, templates only.',
   },
   {
     id: 'rules',
     label: 'Delivery rules',
     icon: ListOrdered,
-    blurb: 'Which channel each kind of message tries first (cheapest first), what waits for the daily digest, quiet hours and the daily cap.',
+    blurb: 'Channel order, digest, quiet hours, cap.',
   },
   {
     id: 'delivery',
     label: 'Delivery',
     icon: CheckCheck,
-    blurb: 'What each notice reached, as the providers reported it, and who it missed. Resend to them by another channel.',
+    blurb: 'Delivery status. Resend to those missed.',
   },
   {
     id: 'templates',
@@ -110,7 +110,7 @@ export default function ChannelSetup() {
       <PageHead
         eyebrow="Communication"
         title="Message channels"
-        description="How this school reaches families. Set a channel up here and every circular, reminder and receipt uses it, there is no second place these are configured."
+        description="How the school messages families."
       />
       <PageBody>
         <Card>

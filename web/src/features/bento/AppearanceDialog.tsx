@@ -275,25 +275,25 @@ export type SettingsTab = 'appearance' | 'colour' | 'dock' | 'dashboard' | LinkT
 const LINK_GROUPS: LinkGroup[] = [
   {
     id: 'school',
-    note: 'The school year, its setup, and the transport policy. Shared by everybody at the school.',
+    note: 'School year, setup, transport. For everyone.',
     label: 'School',
     icon: Building2,
-    blurb: 'The school itself: the year it is running, and everything that hangs off it.',
+    blurb: 'School and academic year',
     rows: [
       {
         at: ['getting_started', 'school_setup'],
-        note: 'The sixteen steps of setting the school up, in order, with what is done and what is left.',
+        note: 'Setup steps and progress',
       },
       // The school's invoices from the vendor; shown to whoever holds school setup.
       {
         at: ['getting_started', 'school_setup'],
         href: '/billing',
         name: 'Billing',
-        note: 'The subscription, its invoices and what is still due, and how to pay.',
+        note: 'Subscription and invoices',
       },
       {
         at: ['staff', 'privacy'],
-        note: 'Who hears about a child, how a new login travels, and the notice families are shown.',
+        note: 'Contacts, login delivery and family notice.',
       },
       /* The tracking policy is a genuine settings screen wearing a hardware
          name. The catalogue calls it GPS hardware integration and describes
@@ -306,34 +306,34 @@ const LINK_GROUPS: LinkGroup[] = [
       {
         at: ['transport', 'driver_phone_tracker'],
         explain: true,
-        note: 'Whether parents may watch the bus live, how often a driver phone reports, and how long the trail is kept.',
+        note: 'Live bus for parents, update rate, history.',
       },
       {
         at: ['payments_devices', 'gps_hardware_integration'],
         explain: true,
-        note: 'Whether parents may watch the bus live, how often a driver phone reports, and how long the trail is kept.',
+        note: 'Live bus for parents, update rate, history.',
       },
     ],
   },
   {
     id: 'messaging',
-    note: 'How messages leave the school, and who may receive one. Shared by everybody at the school.',
+    note: 'Message channels. For everyone.',
     label: 'Messaging',
     icon: MessageSquare,
-    blurb: 'How a message leaves this school, and who is allowed to receive one.',
+    blurb: 'Message channels and recipients',
     rows: [
       {
         at: ['channel_setup', 'message_channels'],
-        note: 'The email, SMS and WhatsApp accounts messages actually go out through. Testable from the screen.',
+        note: 'Email, SMS and WhatsApp accounts',
       },
     ],
   },
   {
     id: 'account',
-    note: 'Your profile, your language, and signing out. Yours alone, on whatever device you use.',
+    note: 'Profile, language, sign out.',
     label: 'Account',
     icon: UserCircle,
-    blurb: 'Your own record, which is separate from anything the school-wide settings do.',
+    blurb: 'Your own details',
     always: true,
     rows: [
       /* THE TWO ROWS THAT USED TO BE IN THE FOOTER.
@@ -358,15 +358,15 @@ const LINK_GROUPS: LinkGroup[] = [
       {
         href: '/account',
         name: 'My profile',
-        note: 'Your name, your password and how the school reaches you. Everybody has one, whatever their role.',
+        note: 'Name, password, contact.',
       },
       {
         at: ['my_profile', 'leave_self_service'],
-        note: 'Apply for your own leave and see where the application has got to.',
+        note: 'Apply and track leave.',
       },
       {
         at: ['my_profile', 'my_pay'],
-        note: 'Your payslips month by month, the days you were marked present, and the leave you have left.',
+        note: 'Payslips, attendance, leave balance.',
       },
       /* The parent app's own language switch. Filed here rather than in
          Appearance because it changes the words a person reads and not the
@@ -374,21 +374,21 @@ const LINK_GROUPS: LinkGroup[] = [
          dialog that is stored on the server rather than in this browser. */
       {
         at: ['profile', 'language'],
-        note: 'Read the app in English or Telugu. Yours alone; it changes nothing anybody else sees.',
+        note: 'English or Telugu. Only for you.',
       },
       {
         href: '/help',
         name: 'Help',
-        note: 'Search help, report a problem with the app, and follow the answers to what you sent.',
+        note: 'Help and report a problem.',
       },
     ],
   },
   {
     id: 'roles',
-    note: 'The workspaces this account holds. Changing one changes every menu, board and screen in the product.',
+    note: 'Switch workspace',
     label: 'Role switch',
     icon: UserCircle,
-    blurb: 'Which office you are working in. Everything else follows from it.',
+    blurb: 'Your current workspace',
     /* Never empty -- the rows are the roles on the account, which are not
        catalogue features and so cannot resolve to nothing. */
     always: true,
@@ -396,14 +396,14 @@ const LINK_GROUPS: LinkGroup[] = [
   },
   {
     id: 'security',
-    note: 'Who may sign in, what they may do, and what they did. Shared by everybody at the school.',
+    note: 'Logins, roles and activity. For everyone.',
     label: 'Security',
     icon: ShieldCheck,
-    blurb: 'Who can sign in, what they may do once they are in, and what they did.',
+    blurb: 'Logins, roles and activity',
     rows: [
       {
         at: ['access_security', 'user_directory'],
-        note: 'Create, search, suspend and reset the accounts of everybody at the school.',
+        note: 'Manage all accounts',
       },
       /* Two catalogue entries, one screen: the principal reaches roles under
          Staff and the platform admin under Access & security. Whichever of
@@ -411,19 +411,19 @@ const LINK_GROUPS: LinkGroup[] = [
          both the dedupe below leaves one row. */
       {
         at: ['staff', 'roles_permissions'],
-        note: 'What each role may see and do, and over how much of the school. Copy a built-in role to make your own.',
+        note: 'Role permissions. Copy one to customise.',
       },
       {
         at: ['access_security', 'roles_permissions'],
-        note: 'What each role may see and do, and over how much of the school.',
+        note: 'Role permissions',
       },
       {
         at: ['access_security', 'sso_mfa'],
-        note: 'Single sign-on and second-factor sign-in, for schools that are required to have them.',
+        note: 'SSO and two-factor sign-in',
       },
       {
         at: ['access_security', 'login_session_audit'],
-        note: 'Who signed in, from where, and which sessions are still open right now.',
+        note: 'Sign-ins and open sessions',
       },
     ],
   },
@@ -725,19 +725,19 @@ function useNarrow() {
 const DISPLAY_META = {
   appearance: {
     icon: Type,
-    note: 'Typeface, text size, density and the frame. Remembered on this device.',
+    note: 'Font, size, spacing. This device.',
   },
   colour: {
     icon: Palette,
-    note: 'The palette everything here is painted in. Remembered on this device.',
+    note: 'Colours. This device.',
   },
   dock: {
     icon: LayoutGrid,
-    note: 'How big the dock is and what it carries. Remembered on this device.',
+    note: 'Dock size and items. This device.',
   },
   dashboard: {
     icon: Sliders,
-    note: 'Which cards sit on this dashboard, and where. Remembered on this device.',
+    note: 'Dashboard cards. This device.',
   },
 } as const
 
@@ -1454,7 +1454,7 @@ export function AppearanceDialog({
       }
       description={current
         ? current.note
-        : 'Everything you can change from here, and where each change lands.'}
+        : 'All settings'}
     >
       {/* The pages, named: one scrolling line of tabs on a desk (SettingsNav
           hides itself below 768px, where the list replaces it). */}

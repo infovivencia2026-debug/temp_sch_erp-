@@ -152,7 +152,7 @@ export default function SmsGateway() {
             <div className="p-5">
               <EmptyState
                 title="No phone is paired yet"
-                body="Pair a spare Android handset with a working SIM to start sending SMS. Use “Pair a phone” above; the code lasts ten minutes."
+                body="No phones. Use Pair a phone (code lasts 10 min)."
               />
             </div>
           ) : (
@@ -273,7 +273,7 @@ export function PendingApprovals({ devices }: { devices: GatewayDevice[] }) {
             ? 'A phone is waiting to be approved'
             : `${devices.length} phones are waiting to be approved`
         }
-        description="Somebody signed in on a handset to enrol it. It sends nothing until it is approved here."
+        description="Waiting for approval."
       />
       <div className="divide-y divide-border">
         {devices.map((d) => (
@@ -490,7 +490,7 @@ function DevicePanel({ device }: { device: GatewayDevice }) {
             </Button>
             <ConfirmButton
               confirmLabel="Revoke it"
-              question="This phone stops sending at once and its credential is destroyed. Anything it was holding goes back to the queue."
+              question="Stops this phone now. Its messages go back to the queue."
               onConfirm={() => revoke.mutate({ reason: 'revoked from the admin screen' })}
               tone="danger"
             >
@@ -502,12 +502,12 @@ function DevicePanel({ device }: { device: GatewayDevice }) {
       <div className="space-y-5 p-5">
         <FormNotice error={update.error ?? revoke.error} ok={update.isSuccess ? 'Saved.' : undefined} />
         <FormGrid>
-          <Field label="Name" hint="What the office calls this handset, “front office drawer” beats “Redmi Note 12”.">
+          <Field label="Name" hint="e.g. front office drawer">
             <Input value={name} onChange={setName} />
           </Field>
           <Field
             label="Check for messages every"
-            hint="Seconds between polls, 5 to 300. Shorter is faster and flatter batteries."
+            hint="5 to 300 seconds"
           >
             <Input value={poll} onChange={setPoll} />
           </Field>
@@ -517,7 +517,7 @@ function DevicePanel({ device }: { device: GatewayDevice }) {
           >
             <Input value={cap} onChange={setCap} />
           </Field>
-          <Field label="Paused" hint="Keeps the pairing but hands this phone nothing, for a handset going home for the weekend.">
+          <Field label="Paused" hint="Pause without unpairing.">
             <Checkbox
               checked={paused}
               onChange={setPaused}
@@ -554,7 +554,7 @@ function GetTheAppPanel() {
     <Card>
       <CardHeader
         title="Get the app onto the phone"
-        description="Do this before generating a pairing code, the code expires in ten minutes."
+        description="Do this first. Code lasts 10 min."
       />
       <div className="space-y-3 p-5 text-[13px]">
         <p className="text-muted-foreground">

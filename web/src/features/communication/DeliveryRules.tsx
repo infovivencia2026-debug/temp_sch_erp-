@@ -58,7 +58,7 @@ export default function DeliveryRules() {
   return (
     <div className="space-y-5">
       <Card>
-        <CardHeader title="Channel status" description="A channel is Live only when its provider is set up and, where it is paid, has credit." />
+        <CardHeader title="Channel status" description="Live = set up and has credit." />
         <div className="space-y-4 p-5">
           <HealthWarnings warnings={q.data.warnings} />
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
@@ -82,30 +82,30 @@ export default function DeliveryRules() {
         <CardHeader
           title="Automatic WhatsApp"
           description={settings.auto_whatsapp
-            ? 'On. Absence alerts, fee reminders, notices and the other messages the school sends on its own go by WhatsApp where their rule puts it.'
-            : 'Off. Those messages skip WhatsApp and go by the next channel in their rule. A test message and a resend you choose still use WhatsApp.'}
+            ? 'On. Automatic messages use WhatsApp.'
+            : 'Off. Automatic messages skip WhatsApp.'}
           action={<Switch on={settings.auto_whatsapp} disabled={autoWa.isPending} onChange={(v) => autoWa.mutate(v)} label="Automatic WhatsApp" />}
         />
         {autoWa.error && <div className="px-5 pb-4"><FormNotice error={autoWa.error} /></div>}
       </Card>
 
       <Card>
-        <CardHeader title="No spam" description="Applies to everything that is not urgent. Absence alerts, emergencies, fees due today and the bus always go at once." />
+        <CardHeader title="No spam" description="Non-urgent only. Urgent always goes at once." />
         <div className="p-5">
           <FormGrid>
             <Field label="Daily digest at" hint="Notices, homework and marks set to 'Digest' go as one message at this time (IST).">
               <TimePicker value={settings.digest_time} onChange={(v) => setSettings({ ...settings, digest_time: v })} />
             </Field>
-            <Field label="Quiet hours from" hint="Non-urgent messages wait until quiet hours end. Leave both empty for none.">
+            <Field label="Quiet hours from" hint="Non-urgent waits. Both blank = none.">
               <TimePicker value={settings.quiet_from ?? ''} onChange={(v) => setSettings({ ...settings, quiet_from: v || null })} />
             </Field>
             <Field label="Quiet hours until">
               <TimePicker value={settings.quiet_to ?? ''} onChange={(v) => setSettings({ ...settings, quiet_to: v || null })} />
             </Field>
-            <Field label="Most messages per family per day" hint="Anything over this waits for the next digest. 0 means no cap.">
+            <Field label="Most messages per family per day" hint="0 = no cap">
               <Input type="number" value={String(settings.daily_cap)} onChange={(v) => setSettings({ ...settings, daily_cap: Number(v) || 0 })} />
             </Field>
-            <Field label="Same alert again only after (minutes)" hint="The same message to the same person inside this window is dropped.">
+            <Field label="Same alert again only after (minutes)" hint="Duplicates in this window are dropped.">
               <Input type="number" value={String(settings.dedup_minutes)} onChange={(v) => setSettings({ ...settings, dedup_minutes: Number(v) || 0 })} />
             </Field>
           </FormGrid>
@@ -113,7 +113,7 @@ export default function DeliveryRules() {
       </Card>
 
       <Card>
-        <CardHeader title="Channel ladder per message" description="Tried in order, cheapest first. The next channel is used only when the one before cannot reach the person or fails." />
+        <CardHeader title="Channel ladder per message" description="Tried in order. Next used if one fails." />
         <div className="divide-y">
           {types.map((t) => (
             <div key={t.key} className="flex flex-wrap items-start gap-4 px-5 py-4">

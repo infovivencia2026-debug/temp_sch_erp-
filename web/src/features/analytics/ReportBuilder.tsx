@@ -170,7 +170,7 @@ export default function ReportBuilder() {
       <PageHead
         eyebrow="Analysis"
         title="Custom report builder"
-        description="Choose a subject, pick the columns, filter and group it. Saved reports run against whatever you are allowed to see, share one and the reader gets their own rows, not yours."
+        description="Pick data, columns, filters and grouping."
         width="wide"
       />
       <PageBody width="wide">
@@ -380,7 +380,7 @@ function ShareCard({
     <Card>
       <CardHeader
         title={`Share “${report.name}”`}
-        description="A role you share with can run this report. They see their own rows, sharing hands over the question, never your answer to it."
+        description="Shared roles see only their own data."
         action={
           <Button size="sm" variant="ghost" onClick={onClose}>
             <X className="h-3.5 w-3.5" />
@@ -515,7 +515,7 @@ function RunPanel({ report, onClose }: { report: Definition; onClose: () => void
       <Card>
         <CardHeader
           title="Recent runs"
-          description="Who ran this, how much it returned, and whether it left the building."
+          description="Run history"
         />
         {runs.error ? (
           <div className="p-5">
@@ -568,7 +568,7 @@ function ReportTable({ result }: { result: RunResult }) {
           align: c.kind === 'money' || c.kind === 'number' ? ('right' as const) : undefined,
         }))}
         empty={result.rows.length === 0}
-        emptyLabel="Nothing matched. The filters may be narrower than you meant, or your reach may not cover these rows."
+        emptyLabel="No results. Try fewer filters."
       >
         {result.rows.map((row, i) => (
           /* A plain <tr> per row, produced by this map rather than by a
@@ -704,7 +704,7 @@ function ReportEditor({
                 options={schema.subjects.map((s) => ({ value: s.key, label: s.name }))}
               />
             </Field>
-            <Field label="Description" wide hint="What question does this answer? The next person will thank you.">
+            <Field label="Description" wide hint="What is this report for?">
               <Input
                 value={description}
                 onChange={setDescription}
@@ -721,7 +721,7 @@ function ReportEditor({
           description={
             grouped
               ? 'Grouped: show the columns you grouped by, plus any totals.'
-              : 'One row per record. Add a grouping below to count and total instead.'
+              : 'One row per record. Group to get totals.'
           }
         />
         <div className="space-y-5 p-5">
@@ -877,7 +877,7 @@ function FilterCard({
         {filters.length === 0 ? (
           <EmptyState
             title="No filters"
-            body="The report covers everything you are allowed to see. Add a filter to narrow it."
+            body="No filters. Shows everything you can see."
           />
         ) : (
           filters.map((f, i) => {

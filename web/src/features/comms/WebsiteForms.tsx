@@ -69,12 +69,12 @@ export default function WebsiteForms() {
       ) : (
         <>
           <PageHead eyebrow="Communication" title="Website forms"
-            description="Forms for the school website. Every response lands here with its date and time."
+            description="Website forms and responses."
             /* Once only (owner, 2026-11-05): with no forms the empty card has the button. */
             actions={q.data?.items.length ? <Button onClick={() => setCreating(true)}><Plus className="size-4" />New form</Button> : undefined} />
           <PageBody>
             {q.isPending ? <SkeletonTable /> : !q.data.items.length ? (
-              <EmptyState title="No forms yet" body="Create a form such as Careers or Contact us, add its questions, then put it on the school website."
+              <EmptyState title="No forms yet" body="No forms yet. Create one (e.g. Careers)."
                 action={<Button onClick={() => setCreating(true)}><Plus className="size-4" />New form</Button>} />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -411,7 +411,7 @@ function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) 
 
   if (q.isError) return <ErrorState error={q.error} />
   if (q.isPending) return <SkeletonTable />
-  if (!items.length) return <EmptyState title="No responses yet" body="When someone fills this form on the website, it shows here with the date and time." />
+  if (!items.length) return <EmptyState title="No responses yet" body="No responses yet." />
 
   /* OLD AND NEW NAMES, ONE QUESTION (owner, 2026-11-08: "map them old and new").
      The school's own careers page posts its own names (Name, Phone, post ...);
@@ -830,10 +830,10 @@ function Share({ form, school }: { form: Form; school: string }) {
         <CopyBox text={`<div data-xulo-form="${post}"></div>
 <script src="${origin}/api/v1/public/forms/embed.js" async></script>`} />
       </Step>
-      <Step n={2} title="Or embed in our style" body="Give this to your website person. They paste it where the form should appear, for example on the Careers page. It grows to fit.">
+      <Step n={2} title="Or embed in our style" body="Give this code to your website person.">
         <CopyBox text={embed} />
       </Step>
-      <Step n={3} title="Or share a link" body="Put it behind a button such as Apply now, or send it on WhatsApp.">
+      <Step n={3} title="Or share a link" body="Use on a button or share on WhatsApp.">
         <CopyBox text={page} />
         <a href={page} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[14px] font-medium text-primary"><Link2 className="size-4" />Open the form</a>
       </Step>
