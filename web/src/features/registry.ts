@@ -168,7 +168,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // Every course in the school, for the optional LMS Admin role.
   'lms_admin.lms.courses': screen(() => import('./faculty/TeacherLMS')),
   'student.homework.homework_assignments': screen(() => import('./portal/StudentHomework')),
-  'parent.academics.homework_academics': screen(() => import('./workflow/Homework')),
+  'parent.academics.homework_academics': screen(() => import('./portal/ParentAcademics')),
 
   'super_admin.platform_configuration.audit_log': screen(() => import('./super_admin/AuditLog')),
 
