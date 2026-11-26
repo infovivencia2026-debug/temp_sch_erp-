@@ -44,7 +44,7 @@ export default function IHavePaid({ studentId }: { studentId: string }) {
       <CardHeader title="Paid outside the app?" action={!open ? <Button variant="secondary" onClick={() => setOpen(true)}>I have paid</Button> : undefined} />
       {open && (
         <div className="space-y-3 p-[var(--card-pad)]">
-          <p className="text-[14px]">Tell the school office about a payment you made by bank transfer, UPI or cheque. They check it and issue the receipt.</p>
+          <p className="text-[14px]">Paid by bank, UPI or cheque? Tell the office here.</p>
           <FormGrid>
             <Field label="Amount (₹)" required><Input value={amount} onChange={setAmount} type="number" /></Field>
             <Field label="How you paid"><Select value={mode} onChange={setMode} options={MODES} /></Field>
