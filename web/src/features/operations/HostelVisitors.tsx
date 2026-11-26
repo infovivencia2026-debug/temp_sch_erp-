@@ -113,7 +113,7 @@ export default function HostelVisitors() {
       <PageHead
         eyebrow="Hostel"
         title="Hostel visitor log"
-        description="Who came to see a boarder, who let them in, and whether the child left with them."
+        description="Visitors and outings"
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -136,7 +136,7 @@ export default function HostelVisitors() {
           <Card>
             <CardHeader
               title="Overdue"
-              description="A boarder released to a relative and past the hour they were due back. The number is here so it does not have to be looked up."
+              description="Overdue to return"
             />
             <ul className="divide-y">
               {overdue.map((v) => (
@@ -265,7 +265,7 @@ export default function HostelVisitors() {
                 checked={form.boarder_released}
                 onChange={(v) => setForm({ ...form, boarder_released: v })}
                 label="The boarder is going out with them"
-                hint="Leaving this unticked means the visit happens on the premises."
+                hint="Unticked = visit on campus."
               />
               <div className="flex items-center gap-2">
                 <Button

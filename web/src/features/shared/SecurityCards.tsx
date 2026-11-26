@@ -26,7 +26,7 @@ export function TwoFactorCard({ enabled, dayCode }: { enabled: boolean; dayCode:
     mutationFn: () => api.post('/api/v1/profile/mfa/enable', { code }),
     onSuccess: () => {
       setSetup(null)
-      setMsg('Two-factor is on. From now on, sign-in asks for the six-digit code after your password.')
+      setMsg('Two-factor on. Sign-in will ask for a code.')
       qc.invalidateQueries({ queryKey: ['session'] })
       qc.invalidateQueries({ queryKey: ['profile'] })
     },
@@ -57,7 +57,7 @@ export function TwoFactorCard({ enabled, dayCode }: { enabled: boolean; dayCode:
     <Card>
       <CardHeader
         title="Two-factor sign-in"
-        description="A six-digit code from an authenticator app on your phone, asked for after your password. Somebody who learns your password still cannot get in."
+        description="A code from an authenticator app after your password."
         action={enabled ? <Badge tone="success">On</Badge> : <Badge tone="neutral">Off</Badge>}
       />
       <div className="space-y-3 p-4">
@@ -165,7 +165,7 @@ export function MyDevicesCard() {
     <Card>
       <CardHeader
         title="Where you are signed in"
-        description="Every device holding a live sign-in for your account. If one is not yours, sign the others out and change your password."
+        description="Signed-in devices. Not yours? Sign out and change password."
         action={
           rows.length > 1 ? (
             <span data-help-anchor="sign-out-others"><ConfirmButton

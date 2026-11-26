@@ -103,7 +103,7 @@ function PlanTimeline() {
     <Card>
       <CardHeader
         title="Year plan"
-        description="Chapters poured into the teaching days the calendar leaves. Change a chapter’s periods or its order and the rest of the year re-flows, no month is stored."
+        description="Chapters spread over teaching days. Edits re-flow the year."
         action={
           <div className="flex items-center gap-2">
             <Select
@@ -124,7 +124,7 @@ function PlanTimeline() {
       {!subject && (
         <EmptyState
           title="Pick a class and subject"
-          body="A year plan is a plan for one subject in one class, the chapters it teaches and the days it has to teach them in."
+          body="One subject, one class."
         />
       )}
       {subject && plan.isLoading && <SkeletonTable columns={5} label="Pouring the year…" />}
@@ -183,7 +183,7 @@ function PlanTimeline() {
           {d.units.length === 0 ? (
             <EmptyState
               title="No chapters for this subject yet"
-              body="Add the chapter list on the syllabus screen, or import the year plan workbook, and the timeline draws itself."
+              body="No chapters. Add them in Syllabus or import the workbook."
             />
           ) : (
             <Table head={['#', 'Chapter', 'Periods', 'Runs', 'Status']}>
@@ -281,7 +281,7 @@ function ImportPlan() {
     <Card>
       <CardHeader
         title="Import a year plan"
-        description="Four columns: the subject, which class (the sheet name), the chapter, and how many periods it takes. One row per chapter."
+        description="Subject, class (sheet name), chapter, periods. One row per chapter."
         action={
           <span className="flex items-center gap-2">
             {/* The shape this wants was described only by the error it gave

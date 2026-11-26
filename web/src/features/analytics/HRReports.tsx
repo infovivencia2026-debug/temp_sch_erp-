@@ -100,7 +100,7 @@ export default function HRReports() {
       <PageHead
         eyebrow="Reports"
         title="Staff analytics & reports"
-        description="Monthly summaries of staff numbers, who joined and left, attendance and leave, how teaching load is spread, and the papers coming up for renewal."
+        description="Monthly staff numbers, attendance, load and renewals."
         actions={<Button variant="secondary" onClick={printReport} disabled={!headcount.data}><Printer className="h-4 w-4" /> Print</Button>}
       />
       <PageBody>
@@ -198,7 +198,7 @@ export default function HRReports() {
           <Card>
             <CardHeader
               title="Teaching load distribution"
-              description="Whether the load is evenly spread, who carries it is on Staff allocation."
+              description="Load spread. Details in Staff allocation."
               action={<CsvButton href={WORKLOAD} />}
             />
             {workload.isLoading ? (
@@ -225,7 +225,7 @@ export default function HRReports() {
         <Card>
           <CardHeader
             title="Attendance and leave"
-            description="Week-offs and holidays are excluded from the denominator, so the percentage means what it says."
+            description="Excludes holidays and week-offs."
             action={<CsvButton href={`${ATTENDANCE}?${q}`} />}
           />
           {attendance.isLoading ? (
@@ -267,7 +267,7 @@ export default function HRReports() {
         <Card>
           <CardHeader
             title="Renewals falling due"
-            description="Deputation ends, notice served, and the validity of medical, verification and qualification records. Lapsed items first."
+            description="Upcoming expiries. Lapsed first."
             action={<CsvButton href={EXPIRIES} />}
           />
           {expiries.isLoading ? (

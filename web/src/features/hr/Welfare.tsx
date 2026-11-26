@@ -105,7 +105,7 @@ export default function Welfare() {
       <PageHead
         eyebrow="People"
         title="Staff welfare"
-        description="Whose day it is, what the staff room is unhappy about, and who the school has thanked."
+        description="Birthdays, concerns and awards."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -216,7 +216,7 @@ function WallTab() {
     <>
       <Card>
         <CardHeader title="Name somebody"
-          description="There is one teacher of the month, and the database says so, naming a second for the same month is refused rather than quietly shown beside the first." />
+          description="One per month." />
         <div className="space-y-5 p-5">
           <FormGrid>
             <Field label="Employee" required>
@@ -238,7 +238,7 @@ function WallTab() {
             </Field>
             <Field label="Title" required wide><Input value={title} onChange={setTitle} /></Field>
             <Field label="Citation" wide
-              hint="What they actually did. An award with no sentence under it is a name on a board.">
+              hint="What they did">
               <Textarea value={citation} onChange={setCitation} rows={2} />
             </Field>
           </FormGrid>

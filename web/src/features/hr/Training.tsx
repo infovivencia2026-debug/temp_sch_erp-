@@ -96,7 +96,7 @@ export default function Training() {
       <PageHead
         eyebrow="Hiring & growth"
         title="Staff training & workshop logs"
-        description="What each member of staff attended, run by whom, for how many hours, and the certificate. The report an affiliation inspection asks for is the first tab."
+        description="Staff training, hours and certificates."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -144,7 +144,7 @@ function ComplianceTab({ rows }: { rows: Compliance[] }) {
       <Card>
         <CardHeader
           title="What is expected"
-          description="The training hours your board requires each year · CBSE asks fifty of teaching staff. Set the figure your board uses; a school that holds itself to more can say so."
+          description="Required hours per year (CBSE: 50)."
         />
         {/* "No requirement set" is a statement about what the school holds
             itself to; a failed request is not entitled to make it. */}

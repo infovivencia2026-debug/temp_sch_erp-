@@ -70,7 +70,7 @@ export default function CreditBank() {
       <PageHead
         eyebrow="Exams and results"
         title="APAAR and credit bank"
-        description="Your permanent academic identifier, and the credits banked against it."
+        description="Your APAAR ID and credits."
       />
       <PageBody>
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
@@ -106,7 +106,7 @@ export default function CreditBank() {
                     an explanation. */}
                 <EmptyState
                   title="No APAAR yet"
-                  body="Credits can still be earned and recorded here. They are deposited to the national bank once the office registers an APAAR against your name."
+                  body="No APAAR ID yet. Credits are kept until the office adds it."
             />
               </Card>
             )}
@@ -114,7 +114,7 @@ export default function CreditBank() {
             <Card>
               <CardHeader
                 title="Credit statement"
-                description="Most recently deposited first. The identifier on each line is the one that was on your record the day it was banked."
+                description="Newest first"
               />
               <Table
                 head={[

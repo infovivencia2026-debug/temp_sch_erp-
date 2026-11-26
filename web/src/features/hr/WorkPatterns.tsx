@@ -212,8 +212,8 @@ export default function WorkPatterns() {
             <CardHeader
               title={editing ? `Editing ${editing}` : 'New hours'}
               description={editing
-                ? 'Saving replaces these hours everywhere they are used, including in months already gone.'
-                : 'Name them for the group that keeps them, then choose who is on them.'} />
+                ? 'Changes these hours everywhere, past months too.'
+                : 'Name it, then pick staff.'} />
             <div className="p-5">
               <FormGrid>
                 <Field label="Name" required hint="Teaching, Office, Transport">
@@ -353,7 +353,7 @@ export default function WorkPatterns() {
           ) : q.data!.items.length === 0 ? (
             <EmptyState
               title="No hours set"
-              body="Until a set of hours exists, the readers record punches that are compared to nothing."
+              body="No work hours yet."
             />
           ) : (
             <Table head={['Name', 'Hours', 'Days', 'When a day is lost', 'On these hours', '']}>

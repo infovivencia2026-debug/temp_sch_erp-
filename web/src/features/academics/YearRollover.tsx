@@ -39,8 +39,8 @@ interface Result {
 const ITEMS: { key: string; label: string; hint: string }[] = [
   { key: 'sections', label: 'Sections', hint: 'Same names, capacity and room per class. Class teachers are not carried.' },
   { key: 'fee_structure', label: 'Fee structure', hint: 'Each active structure becomes a draft for the new year. Nothing is activated.' },
-  { key: 'transport', label: 'Bus allocations', hint: 'Each child keeps their route and stop. Only children already enrolled in the new year, so promote first.' },
-  { key: 'timetable', label: 'Timetable grid', hint: 'Which subject sits in which period, per section. Teachers are left for Teacher Assignment.' },
+  { key: 'transport', label: 'Bus allocations', hint: 'Keeps route and stop. Promote students first.' },
+  { key: 'timetable', label: 'Timetable grid', hint: 'Subjects per period. Teachers not copied.' },
   { key: 'hostel', label: 'Hostel', hint: 'Rooms and beds are shared across years.' },
   { key: 'subjects', label: 'Subjects per class', hint: 'Shared across years.' },
 ]

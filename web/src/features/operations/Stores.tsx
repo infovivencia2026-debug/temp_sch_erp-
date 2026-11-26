@@ -140,7 +140,7 @@ export default function Stores() {
       <PageHead
         eyebrow="Operations"
         title="Stores & inventory"
-        description="Uniforms, stationery, lab and housekeeping stock, and the movements behind each balance."
+        description="Stock and movements"
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -194,7 +194,7 @@ export default function Stores() {
               title={editing ? `Edit · ${editing.name}` : 'Add an item to the register'}
               description={editing
                 ? 'The balance is not edited here; it comes from the movements.'
-                : 'What the school keeps, not how much of it. The balance comes from the first receipt.'}
+                : 'Items. Stock comes from receipts.'}
               action={<Button variant="ghost" onClick={closeForm}>Cancel</Button>}
             />
             <div className="grid gap-4 p-5 sm:grid-cols-3">
@@ -227,7 +227,7 @@ export default function Stores() {
               <div className="flex items-center justify-between gap-3 text-[13px] sm:col-span-3">
                 <div className="min-w-0">
                   <p className="font-medium">Show in parent store</p>
-                  <p className="text-muted-foreground">Parents see the price and whether it is in stock, not the count.</p>
+                  <p className="text-muted-foreground">Parents see price and availability.</p>
                 </div>
                 <Switch on={inStore} onChange={setInStore} label="Show in parent store" />
               </div>

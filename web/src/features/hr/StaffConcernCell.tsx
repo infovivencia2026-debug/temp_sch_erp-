@@ -237,7 +237,7 @@ function CellCase({ id, isHR, peopleOptions, onClose, onChanged }: {
             </div>
             <FormNotice error={act.error} />
             {isHR && (
-              <Field label="Owner" hint="Who handles it. They are notified and can then see this case.">
+              <Field label="Owner" hint="Handler (gets notified)">
                 <div className="flex max-w-xl gap-2">
                   <div className="min-w-0 flex-1"><Select value={assignee} onChange={setAssignee} placeholder="Choose a member of staff" options={peopleOptions} /></div>
                   <Button size="sm" disabled={!assignee || assignee === d.assigned_to_id || assign.isPending} onClick={() => assign.mutate()}>Assign</Button>
@@ -274,7 +274,7 @@ function CellCase({ id, isHR, peopleOptions, onClose, onChanged }: {
               </div>
             </div>
             <div className="space-y-2 border-t pt-4">
-              <Field label="Resolution" hint="Sent to the raiser, who can rate it or reopen it within 14 days.">
+              <Field label="Resolution" hint="Sent to the raiser. They can reopen within 14 days.">
                 <Textarea value={resolution} onChange={setResolution} rows={3} />
               </Field>
               <div className="flex flex-wrap gap-2">
@@ -323,7 +323,7 @@ function RaiseOnBehalf({ onDone }: { onDone: () => void }) {
         action={<Button size="sm" variant="secondary" onClick={() => setOpenForm(!openForm)}>{openForm ? 'Hide' : 'Record one'}</Button>} />
       {openForm && (
         <div className="space-y-5 p-[var(--card-pad)]">
-          <p className="text-[13px] text-muted-foreground">Staff raise their own from My concerns on their profile page. Use this for one made to you directly.</p>
+          <p className="text-[13px] text-muted-foreground">For concerns told to you directly.</p>
           <Checkbox checked={anonymous} onChange={setAnonymous} label="Record it anonymously" hint="Nothing identifying the reporter is written down" />
           <FormGrid>
             {!anonymous && (

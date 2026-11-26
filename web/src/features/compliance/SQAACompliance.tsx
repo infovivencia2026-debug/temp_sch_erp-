@@ -225,7 +225,7 @@ export default function SQAACompliance() {
       <PageHead
         eyebrow="Boards & accreditation"
         title="SQAA compliance tracking"
-        description="Rate the school against the published framework, attach the evidence, and carry every gap into an action plan with a name and a date against it."
+        description="Self-assess, attach evidence, plan fixes."
         width="wide"
       />
       <PageBody width="wide">
@@ -244,7 +244,7 @@ export default function SQAACompliance() {
               <Card>
                 <EmptyState
                   title="No framework has been published yet"
-                  body="SQAA frameworks are configured at platform level under Statutory & Boards. Until one is published there is nothing for a school to assess itself against."
+                  body="No framework published yet."
                 />
               </Card>
             )}
@@ -253,7 +253,7 @@ export default function SQAACompliance() {
               <Card>
                 <CardHeader
                   title="Start an assessment"
-                  description="Every standard in the framework is laid out unrated, so progress is visible from the first day."
+                  description="All standards, rated or not."
                 />
                 <div className="space-y-3 px-5 pb-5 pt-4">
                   <FormGrid>
@@ -502,7 +502,7 @@ export default function SQAACompliance() {
                 <Card>
                   <CardHeader
                     title="Action plan"
-                    description="A gap without an owner and a date is a gap that is still there next year."
+                    description="Add an owner and a date."
                   />
                   <div className="space-y-3 px-5 pb-5 pt-1">
                     <FormGrid>

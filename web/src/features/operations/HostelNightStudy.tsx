@@ -131,7 +131,7 @@ export default function HostelNightStudy() {
       <PageHead
         eyebrow="Hostel"
         title="Night study attendance"
-        description="Who sat in prep, who did not, and who the gate had already let out."
+        description="Night study attendance"
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -157,7 +157,7 @@ export default function HostelNightStudy() {
         <Card>
           <CardHeader
             title="Prep register"
-            description="Every current boarder, marked or not. A sheet that shows only the ticks cannot tell you who is missing."
+            description="All boarders, marked or not."
             action={
               <span className="flex flex-wrap items-center gap-2">
                 <Input type="date" value={date} onChange={setDate} />
@@ -176,7 +176,7 @@ export default function HostelNightStudy() {
           {rows.length === 0 ? (
             <EmptyState
               title="No boarders allocated"
-              body="Children appear here once they have been given a bed in the hostel."
+              body="No boarders yet."
             />
           ) : (
             <>

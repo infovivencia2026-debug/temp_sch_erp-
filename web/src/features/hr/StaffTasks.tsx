@@ -405,7 +405,7 @@ function NewTask({ onClose, onMade }: { onClose: () => void; onMade: () => void 
     onSuccess: () => { buzz('tap'); onMade() },
   })
   return (
-    <Dialog title="New task" description="Whoever you give it to sees it under My tasks and is told by the bell. When they finish it, it comes back to you to accept."
+    <Dialog title="New task" description="They get notified. You accept it when done."
       onClose={onClose}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -658,7 +658,7 @@ function Report() {
         <Stat label="Average days to finish" value={avg === null ? '-' : avg.toFixed(1)} />
       </div>
       <Card>
-        <CardHeader title="Who has what" description="Most overdue first. The bar: done on time, done late, open, overdue." />
+        <CardHeader title="Who has what" description="Most overdue first" />
         <Table head={['Person', 'Department', 'Load', { label: 'Open', align: 'right' }, { label: 'For review', align: 'right' }, { label: 'Overdue', align: 'right' }, { label: 'Done', align: 'right' }, { label: 'On time', align: 'right' }, { label: 'Avg days', align: 'right' }, 'Next due']} empty={!rows.length} emptyLabel="No tasks have been handed out yet.">
           {rows.map((r) => {
             const late = n(r.done) - n(r.on_time), openOk = Math.max(0, n(r.open) + n(r.review) - n(r.overdue))
@@ -708,7 +708,7 @@ function ReportingManagers() {
   const options = [{ value: '', label: 'Nobody' }, ...all.map((e) => ({ value: e.id, label: `${e.full_name} (${e.employee_code})` }))]
   return (
     <Card>
-      <CardHeader title="Who answers to whom" description="A leave request goes to the reporting manager first, then to HR." action={<Input className="w-56" value={find} onChange={setFind} placeholder="Find a person or department" />} />
+      <CardHeader title="Who answers to whom" description="Manager first, then HR." action={<Input className="w-56" value={find} onChange={setFind} placeholder="Find a person or department" />} />
       <Table head={['Person', 'Department', 'Reports to', { label: 'Team', align: 'right' }]} empty={!rows.length} emptyLabel="Nobody on the roll.">
         {rows.map((r) => (
           <tr key={r.id}>

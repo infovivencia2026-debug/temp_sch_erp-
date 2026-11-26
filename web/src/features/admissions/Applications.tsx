@@ -93,7 +93,7 @@ const TITLES: Record<string, [string, string]> = {
   application_forms: ['Application forms',
     'Every form submitted, and where it has got to on the ladder.'],
   document_verification: ['Document verification',
-    'What each applicant still owes the office. Attach what they bring, verify it, or send it back with a reason.'],
+    'Pending documents. Attach, verify or return.'],
 }
 
 export default function Applications() {
@@ -211,7 +211,7 @@ export default function Applications() {
     onSuccess: (_r, v) => {
       setNote(
         v.decision === 'offered'
-          ? 'Offer issued. The parent can be told to pay the admission fee.'
+          ? 'Offer issued. Parent can pay the fee.'
           : v.decision === 'waitlisted'
             ? 'Waitlisted, no seat yet, and ranked against the queue.'
             : v.decision === 'on_hold'
@@ -373,7 +373,7 @@ export default function Applications() {
           <Card>
             <CardHeader
               title="Which steps this school uses"
-              description="Switch off what you do not run, the menu entry and the stage go with it."
+              description="Turn off stages you do not use."
             />
             <div className="flex flex-wrap gap-6 p-5">
               <Checkbox
@@ -787,7 +787,7 @@ export default function Applications() {
                       <Button variant="secondary" disabled={decide.isPending}
                         onClick={() => {
                           const why = window.prompt(
-                            'What is being waited on? Whoever picks this up will not have been in the room.')
+                            'What are we waiting for?')
                           if (why && why.trim()) {
                             decide.mutate({ decision: 'on_hold', remarks: why.trim() })
                           }

@@ -164,7 +164,7 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
                 className="flex flex-col items-center gap-2 rounded-[10px] border border-dashed p-6 text-center hover:bg-muted/40 disabled:opacity-50">
                 <Camera className="h-6 w-6 text-primary" />
                 <span className="font-medium">Photo of a paper register</span>
-                <span className="text-[12.5px] text-muted-foreground">Attendance register, marks sheet or class list. You check every cell before anything is imported.</span>
+                <span className="text-[12.5px] text-muted-foreground">Attendance, marks or class list. You check before import.</span>
               </button>
               <input ref={fileRef} type="file" hidden accept=".csv,.tsv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={(e) => { pick(e.target.files?.[0]); e.target.value = '' }} />
@@ -232,11 +232,11 @@ export default function SmartImport({ kind: initialKind, onClose, onDone }: { ki
                       <Input type="number" value={facts.max_marks} onChange={setFact('max_marks')} />
                     </Field>
                   </FormGrid>
-                  <p className="mt-2 text-[12.5px] text-muted-foreground">Point each marks column at its subject; skip Total, Rank and Remarks.</p>
+                  <p className="mt-2 text-[12.5px] text-muted-foreground">Match each marks column to a subject.</p>
                 </div>
               )}
               {missing.length > 0 && <p className="mt-2 text-[13px] text-destructive">Still needed: {missing.map((x) => x.replace(/_/g, ' ')).join(', ')}.</p>}
-              <p className="mt-2 text-[12.5px] text-muted-foreground">Dates, class names (VI-A becomes your Grade 6, section A), phone numbers and P/A marks are tidied before the preview.</p>
+              <p className="mt-2 text-[12.5px] text-muted-foreground">Dates, classes, phones and P/A are cleaned up.</p>
             </>
           )}
 

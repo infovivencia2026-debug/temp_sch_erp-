@@ -115,7 +115,7 @@ function SendDialog({ draft, doc, slots, onClose, onSent }: { draft: Draft; doc:
   return (
     <Dialog
       title="Send for approval"
-      description="The examination branch reads it and approves it or sends it back. What they read is this paper as it is now; changing it later does not change what was sent."
+      description="Sends this version for approval."
       onClose={onClose}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -124,7 +124,7 @@ function SendDialog({ draft, doc, slots, onClose, onSent }: { draft: Draft; doc:
     >
       <div className="space-y-4">
         {open.length === 0 ? (
-          <EmptyState title="No exam paper to send this for." body="The office has not scheduled an exam for your classes, or every one already has an approved paper." />
+          <EmptyState title="No exam paper to send this for." body="No exams need a paper." />
         ) : (
           <Field label="For which exam paper" required>
             <Select value={slot} onChange={setSlot} placeholder="Choose"
@@ -446,7 +446,7 @@ export default function PaperEditor({ id, slots, onBack }: { id: string; slots: 
                 <span>{L('maxMarks')}: {total}</span>
               </div>
               {doc.body.children?.length === 0 && (
-                <p className="qm-empty">Press + to add a question, or use Fill from the bank in the paper settings.</p>
+                <p className="qm-empty">Press + to add a question.</p>
               )}
               <div className={doc.pageCols === 2 ? 'cols2' : ''}>
                 <BoxCanvas ops={ops} />

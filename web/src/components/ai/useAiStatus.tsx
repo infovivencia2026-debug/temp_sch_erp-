@@ -26,10 +26,10 @@ export interface AiStatusView {
 export function offReason(state: AiState | null, operator: boolean): string | null {
   if (state === null || state === 'ok') return null
   if (operator) {
-    if (state === 'refused') return 'The AI key was refused by Google. Replace it under Controls, AI.'
+    if (state === 'refused') return 'AI key refused. Replace it in Controls, AI.'
     if (state === 'missing') return 'No AI key is set. Add one under Controls, AI.'
-    if (state === 'quota') return 'The AI key has used its Google quota. Wait, or replace it under Controls, AI.'
-    return 'Google could not be reached at the last check. Test the key under Controls, AI.'
+    if (state === 'quota') return 'AI quota used up. Wait or replace the key.'
+    return 'Could not reach Google. Test the key in Controls, AI.'
   }
   if (state === 'quota') return 'AI is busy right now. Try again in a few minutes.'
   return 'AI is unavailable right now. You can still write it yourself.'
