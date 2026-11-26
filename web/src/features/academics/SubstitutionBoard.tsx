@@ -139,7 +139,7 @@ export default function SubstitutionBoard() {
         title={nav.feature?.name ?? 'Substitutions'}
         description="Pick an absent teacher, then a free teacher for each of their periods."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Input type="date" value={onDate} onChange={(v) => { setOnDate(v); setWho('') }} aria-label="Date" className="w-44" />
             <span className="text-[13px] text-muted-foreground">{spellDate(onDate)}</span>
           </div>

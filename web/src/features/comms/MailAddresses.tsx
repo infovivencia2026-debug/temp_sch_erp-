@@ -98,8 +98,8 @@ export default function MailAddresses() {
                     {s.status === 'active' && <Badge tone="success">Active</Badge>}
                     {s.status === 'disabled' && <Badge tone="warning">Switched off</Badge>}
                   </Td>
-                  <Td className="whitespace-nowrap text-right">
-                    <span className="inline-flex gap-1">
+                  <Td className="text-right">
+                    <span className="inline-flex flex-wrap justify-end gap-1">
                       <Button size="sm" variant="ghost" disabled={!current} onClick={() => setEditing(s)}>{s.address ? 'Change' : 'Give address'}</Button>
                       {s.status && (
                         <Button size="sm" variant="ghost" pending={setStatus.isPending && setStatus.variables?.user_id === s.user_id}

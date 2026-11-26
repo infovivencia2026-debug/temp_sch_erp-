@@ -128,4 +128,9 @@
 .hx-seg{flex-wrap:wrap;max-width:100%}
 .hx-kpi .top{flex-wrap:wrap;gap:8px}
 .hx-kpi .lbl,.hx h2,.hx h3{min-width:0;overflow-wrap:break-word}
+/* Tiles: as many across as their own words, figure and icon fit at the
+   phone's text size (min-content), last row stretches. */
+.hx-kpis,.hx-today{display:flex;flex-wrap:wrap}
+.hx-kpis>*,.hx-today>*{flex:1 1 0;min-width:min-content;max-width:100%}
+.hx-kpi .num,.hx-chip .v{overflow-wrap:normal;word-break:keep-all}
 }

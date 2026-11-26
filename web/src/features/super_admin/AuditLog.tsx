@@ -166,7 +166,7 @@ export default function AuditLog() {
                         <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="text-[14px]">
+                        <p className="break-anywhere text-[14px]">
                           <span className="font-medium">{r.actor ?? 'Someone'}</span>{' '}
                           <span className="text-muted-foreground">{verb.label}</span>{' '}
                           <Badge tone={verb.tone}>{r.entity_type}</Badge>
@@ -175,9 +175,9 @@ export default function AuditLog() {
                           {path}
                         </p>
                       </div>
-                      <span className="shrink-0 text-right text-[13px] text-muted-foreground">
+                      <span className="min-w-0 max-w-[45%] shrink-0 text-right text-[13px] text-muted-foreground">
                         {when(r.at)}
-                        {r.ip && <span className="block font-mono text-[12px]">{r.ip}</span>}
+                        {r.ip && <span className="break-anywhere block font-mono text-[12px] [overflow-wrap:anywhere]">{r.ip}</span>}
                       </span>
                     </button>
                     {expanded && (
