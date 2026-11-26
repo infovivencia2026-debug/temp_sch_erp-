@@ -189,7 +189,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
            phone). Teachers keep the full head. */
         /* Parents get a section label too, only so the heading draws at the same
            size as every other screen; phones hide the label (see PageHead). */
-        eyebrow={canPublish ? 'Homework & diary' : 'Academics'}
+        eyebrow={canPublish ? 'Homework & diary' : undefined}
         title={canPublish ? 'Work you have set' : 'Homework & diary'}
         description={canPublish
           ? 'Goes to the class and parents. Pick a day to see work and submissions.'
