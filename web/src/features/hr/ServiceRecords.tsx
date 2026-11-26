@@ -126,7 +126,7 @@ export default function ServiceRecords() {
       <PageHead
         eyebrow="Employees"
         title="Staff service & verification records"
-        description="Career histories, the degrees a board counts, medical fitness certificates and police background verifications, with the two that expire flagged before they lapse."
+        description="Service book, qualifications, medical and police checks."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -203,7 +203,7 @@ function ServiceBookTab() {
     <>
       <Card>
         <CardHeader title="Add a page"
-          description="A page per event, in the order they happened. Once attested it can never be altered; a correction is a further page citing the order that made it."
+          description="One page per event. Attested pages are locked."
           action={
             <Select value={employeeId} onChange={setEmployeeId} placeholder="Everybody"
               options={(employees.data?.items ?? []).map((e) => ({ value: e.id, label: nameOf(e) }))} />
@@ -252,7 +252,7 @@ function ServiceBookTab() {
           <SkeletonTable columns={7} />
         ) : rows.length === 0 ? (
           <EmptyState title="No pages yet"
-            body="The appointment page is written for you when an onboarding file is completed." />
+            body="No pages yet." />
         ) : (
           <Table wide head={['Date', 'Employee', 'Entry', 'Particulars', 'Order', 'Attested', '']}>
             {rows.map((e) => (
@@ -369,7 +369,7 @@ function QualificationsTab() {
           <div className="flex flex-wrap gap-5">
             <Checkbox checked={teaching} onChange={setTeaching}
               label="Counts as a teaching qualification"
-              hint="B.Ed, D.El.Ed, TET and CTET. Flagged rather than guessed from the name." />
+              hint="B.Ed, D.El.Ed, TET, CTET" />
             <Checkbox checked={verified} onChange={setVerified}
               label="Original seen and verified today" />
           </div>
@@ -435,7 +435,7 @@ function MedicalTab({ rows }: { rows: Medical[] }) {
     <>
       <Card>
         <CardHeader title="Record a fitness certificate"
-          description="The expiry is required. A registry row with no expiry reads as compliant for ever and nobody is ever told to book the next examination." />
+          description="Expiry required." />
         <div className="space-y-5 p-5">
           <FormGrid>
             <Field label="Employee" required>
@@ -473,7 +473,7 @@ function MedicalTab({ rows }: { rows: Medical[] }) {
 
       <Card>
         <CardHeader title="The registry"
-          description="Expired certificates are shown rather than filtered out. A registry that lists only the valid ones answers who is covered and hides who is not." />
+          description="Includes expired certificates." />
         <Table head={['Employee', 'For', 'Issued', 'Valid until', 'Days left', 'Fit', 'Restrictions']}
           empty={rows.length === 0} emptyLabel="Nothing recorded yet.">
           {rows.map((m) => (
@@ -527,7 +527,7 @@ function BackgroundTab({ rows }: { rows: Background[] }) {
     <>
       <Card>
         <CardHeader title="Raise a verification"
-          description="Only one check of a kind may be in flight per person; two open police verifications means two agencies were paid for the same answer." />
+          description="One open check per kind per person." />
         <div className="space-y-5 p-5">
           <FormGrid>
             <Field label="Employee" required>
@@ -554,7 +554,7 @@ function BackgroundTab({ rows }: { rows: Background[] }) {
 
       <Card>
         <CardHeader title="Verifications"
-          description="A clear result must carry the date it has to be repeated by. Police verification with no re-check date still reads as compliant nine years after the constable who signed it retired." />
+          description="Clear result needs a re-check date." />
         <Table head={['Employee', 'Check', 'Agency', 'Requested', 'Status', 'Re-check by', '']}
           empty={rows.length === 0} emptyLabel="Nothing raised yet.">
           {rows.map((b) => (

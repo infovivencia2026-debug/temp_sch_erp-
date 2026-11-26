@@ -516,7 +516,7 @@ function Indents() {
       <Card>
         <CardHeader
           title="Raise a line"
-          description="Consumable sets bought per child per year, ordered in February, delivered in May, handed out in June. Kept apart from the accession register, which is not for four hundred identical mathematics books."
+          description="Yearly textbook sets per child"
         />
         <div className="p-4">
           <FormGrid>

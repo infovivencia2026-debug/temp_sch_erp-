@@ -240,7 +240,7 @@ function Catalogue({
           description={
             manage
               ? 'Everything you may catalogue, withdrawn titles included.'
-              : 'What you can open. A title you cannot see here is one the librarian has not shared with your class or role.'
+              : 'Titles shared with you'
           }
           action={
             librarian && (
@@ -287,7 +287,7 @@ function Catalogue({
           emptyLabel={
             manage
               ? 'Nothing catalogued yet. Add a title and it appears here.'
-              : 'Nothing here for you yet. The librarian shares titles with a class or a role.'
+              : 'Nothing shared with you yet.'
           }
         >
           {items.map((h) => (
@@ -504,7 +504,7 @@ function HoldingForm({ editing, onClose }: { editing: Holding | null; onClose: (
     <Card>
       <CardHeader
         title={editing ? `Edit “${editing.title}”` : 'Add a digital title'}
-        description="A link out, or a file the school holds. Object storage is unconfigured on this deployment, so a link is the one that works today."
+        description="Use a link (file upload not set up)."
         action={
           <Button size="sm" variant="ghost" onClick={onClose}>
             <X className="h-3.5 w-3.5" />
@@ -545,7 +545,7 @@ function HoldingForm({ editing, onClose }: { editing: Holding | null; onClose: (
             required
             hint={
               accessModel === 'single_copy_loan'
-                ? 'Borrowed like a physical book, through the library’s own hold queue.'
+                ? 'Borrowed like a book'
                 : undefined
             }
           >
@@ -575,7 +575,7 @@ function HoldingForm({ editing, onClose }: { editing: Holding | null; onClose: (
           </Field>
           <Field
             label="Uploaded file id"
-            hint="Only if the school holds the file itself. Uploads answer 503 on this deployment, so a link is usually the answer."
+            hint="Uploads not set up. Use a link."
             wide
           >
             <Input value={fileID} onChange={setFileID} srLabel="Uploaded file id" />
@@ -601,7 +601,7 @@ function HoldingForm({ editing, onClose }: { editing: Holding | null; onClose: (
 
         <Checkbox
           label="In the catalogue"
-          hint="Withdraw a title instead of deleting it when readers still have it in a reading list."
+          hint="Withdraw instead of deleting if in use."
           checked={active}
           onChange={setActive}
         />
@@ -658,7 +658,7 @@ function VisibilityForm({ holding, onClose }: { holding: Holding; onClose: () =>
     <Card>
       <CardHeader
         title={`Who sees “${holding.title}”`}
-        description="Tick nothing and everyone sees it. Tick a class or a role and only they do, which is how a research database reaches the staff room and not Class 2."
+        description="None ticked = everyone."
         action={
           <Button size="sm" variant="ghost" onClick={onClose}>
             <X className="h-3.5 w-3.5" />
@@ -754,7 +754,7 @@ function Providers({ librarian }: { librarian: boolean }) {
       <Card>
         <CardHeader
           title="Subscriptions the school holds"
-          description="A record, not a connection. No password is stored here, there is nothing yet that could use one."
+          description="Record only. No password stored."
           action={
             librarian && (
               <Button size="sm" onClick={() => setAdding(true)}>
@@ -876,7 +876,7 @@ function ProviderForm({ onClose }: { onClose: () => void }) {
         </FormGrid>
         <Checkbox
           label="The librarian holds the login"
-          hint="Recorded as a fact only. The password is not stored here, nothing yet could use it, and holding a secret to do nothing with is worse than not holding it."
+          hint="Record only. No password stored."
           checked={hasCredentials}
           onChange={setHasCredentials}
         />

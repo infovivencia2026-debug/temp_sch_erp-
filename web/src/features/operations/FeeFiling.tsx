@@ -108,7 +108,7 @@ export default function FeeFiling() {
         <Card>
           <CardHeader
             title="Filings"
-            description="One live filing per academic year. Refiling after a rejection is the normal path."
+            description="One filing per year. Refile after rejection."
             action={mayWrite ? (
               <Button size="sm" onClick={() => setOpen(open === 'new' ? null : 'new')}>
                 {open === 'new' ? 'Cancel' : 'Compile a filing'}
@@ -230,7 +230,7 @@ function CompileForm({ onSaved }: { onSaved: (m: string) => void }) {
     <Card>
       <CardHeader
         title="Compile a filing"
-        description="From a fee structure version, so what was filed stays retrievable after the live fee book moves on."
+        description="Taken from a fee structure version."
       />
       <div className="grid gap-4 p-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-[13px]">
@@ -323,7 +323,7 @@ function FilingDetail({ id, mayWrite, onDone }: {
   const submit = useMutation({
     mutationFn: () => api.post(`${adminOpsBase}/fee-filings/${id}/submit`,
       { acknowledgement_no: ackNo.trim() }),
-    onSuccess: () => onDone('Filed. An immutable copy of exactly what was submitted is now stored.'),
+    onSuccess: () => onDone('Filed. A copy is saved.'),
   })
 
   const decide = useMutation({
@@ -334,7 +334,7 @@ function FilingDetail({ id, mayWrite, onDone }: {
         .filter(([, v]) => v.trim() !== '')
         .map(([line_id, v]) => ({ line_id, approved_paise: toPaise(v) })),
     }),
-    onSuccess: () => onDone("Decision recorded. The variance check now has something to compare against."),
+    onSuccess: () => onDone("Decision recorded."),
   })
 
   if (detail.isLoading) return <Card><SkeletonTable columns={6} /></Card>
@@ -394,7 +394,7 @@ function FilingDetail({ id, mayWrite, onDone }: {
           <Card>
             <CardHeader
               title="Supporting accounts"
-              description="Uploaded through the ordinary file path, then named here. Every committee asks for these and a filing without them stops at the counter."
+              description="Required documents"
             />
             <Table head={['Document', 'File', 'Attached', 'By']} empty={!docs.length}
               emptyLabel="Nothing attached yet.">
@@ -463,7 +463,7 @@ function FilingDetail({ id, mayWrite, onDone }: {
             <Card>
               <CardHeader
                 title="Record the decision"
-                description="Fill in the approved column above only where the committee changed something. Anything left blank is taken as approved as filed."
+                description="Fill only changed amounts. Blank = as filed."
               />
               <div className="space-y-3 p-5">
                 <FormNotice error={decide.error} />
@@ -553,7 +553,7 @@ function VariancePanel({ id }: { id: string }) {
         {!d.rows.length ? (
           <EmptyState
             title="Nothing billed for this year yet"
-            body="Once invoices are raised, this compares every fee head against what the committee allowed."
+            body="Shown once invoices are raised."
           />
         ) : (
           <Table
@@ -595,7 +595,7 @@ function VariancePanel({ id }: { id: string }) {
         <Card>
           <CardHeader
             title="What to do about it"
-            description="Each of these is a refund the school could be ordered to make, per student, for the year."
+            description="Possible refunds per student"
           />
           <div className="space-y-2 px-5 py-4 text-[13px]">
             {d.over_approved > 0 && (

@@ -2060,7 +2060,7 @@ function HistoryPanel({ onDone }: PanelProps) {
       <BulkImport
         entity="student_history"
         title="Each child's past years"
-        hint="One row per child per year: the class, attendance as a total, and what was billed, paid and waived. Held apart from this year's registers and collection, so a closed year is never counted as today's."
+        hint="One row per child per year: class, attendance, billed, paid, waived. Kept apart from this year."
         onDone={onDone}
       />
 
@@ -2112,21 +2112,21 @@ function HistoryPanel({ onDone }: PanelProps) {
       <BulkImport
         entity="fee_payments"
         title="Fees already collected this year"
-        hint="One row per receipt: the child, your own receipt number, the date it was taken, the amount and how they paid. It settles the oldest unpaid invoice first, exactly as the counter does, and anything left over stays as an advance. Your receipt number is kept and searchable; the system still issues its own, because its numbering is audited for gaps."
+        hint="One row per receipt: child, your receipt no., date, amount, mode. Pays oldest dues first; extra is kept as advance."
         onDone={onDone}
       />
 
       <BulkImport
         entity="staff_attendance"
         title="The staff register before you started here"
-        hint="One row per person per day: present, absent, late, half_day, leave, holiday or week_off, with arrival and leaving times only if you have them. This is what pay and loss-of-pay are worked out from, so load it for any month you are going to run payroll for. If you have biometric exports instead, use the punches upload under Attendance devices."
+        hint="One row per person per day. Used for pay and LOP. Biometric files go under Attendance devices."
         onDone={onDone}
       />
 
       <BulkImport
         entity="payslips"
         title="Salary already paid this year"
-        hint="One row per person per month, one month per file: what was actually paid. Loaded as given and never recalculated, the payslips your staff are holding are the fact, and recomputing them from structures this system did not have would only produce a difference to explain. A month you have already run here is refused rather than overwritten."
+        hint="One row per person, one month per file, as paid. Not recalculated. Months already run here are refused."
         onDone={onDone}
       />
 
@@ -3621,8 +3621,7 @@ function downloadRows(body: string[][]) {
 function explain(e: unknown): string {
   const raw = e instanceof Error ? e.message : ''
   if (raw.includes('hr.employees.write')) {
-    return 'Only HR or the principal can issue or reset a staff password. ' +
-      'Check which account this tab is signed in as.'
+    return 'Only HR or the principal can reset staff passwords. Check which account you are signed in as.'
   }
   return raw || 'Could not do that.'
 }
@@ -3694,9 +3693,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
   const resetAllAndExport = async () => {
     if (!confirm(
       'Give every member of staff a new password?\n\n' +
-      'The passwords they are using now will stop working, and the new ones ' +
-      'download as a file. This is the only way to get a complete list, the ' +
-      'ones already set cannot be looked up.'
+      'Current passwords stop working. New ones download as a file.'
     )) return
     setBusy('all')
     setFailed('')

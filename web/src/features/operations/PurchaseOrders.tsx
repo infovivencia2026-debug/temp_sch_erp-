@@ -88,7 +88,7 @@ export default function PurchaseOrders() {
       <PageHead
         eyebrow="Stores"
         title="Purchase order workflow"
-        description="A department asks, somebody with authority agrees, the vendor is ordered from, the goods are counted in, and the bill is checked against what actually arrived."
+        description="Request, approve, order, receive, match bill."
       />
       <PageBody>
         <div className="flex flex-wrap gap-2">
@@ -348,7 +348,7 @@ function RequisitionForm({ onCancel, onSaved }: {
     <Card>
       <CardHeader
         title="Raise a requisition"
-        description="What you need and why. The value decides who has to agree to it."
+        description="What and why. Value decides approver."
         action={<Button variant="ghost" onClick={onCancel}>Cancel</Button>}
       />
       <div className="space-y-4 p-5">
@@ -422,13 +422,13 @@ function OrdersPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m: stri
       <Card>
         <CardHeader
           title="Purchase orders"
-          description="Partly received orders lead, those are the ones somebody has to chase."
+          description="Partly received first"
         />
         {list.isLoading ? <SkeletonTable columns={8} /> : list.error ? <ErrorState error={list.error} /> : (
           <Table
             head={['No.', 'Vendor', 'Ordered', 'Expected', 'Value', 'Received', 'Status', '']}
             empty={!items.length}
-            emptyLabel="No purchase orders yet. Approve a requisition and turn it into one."
+            emptyLabel="No purchase orders yet."
           >
             {[...items]
               .sort((a, b) => Number(b.status === 'partly_received') - Number(a.status === 'partly_received'))
@@ -526,7 +526,7 @@ function OrderDetail({ id, mayWrite, onDone }: {
           title={`${o.po_no} · ${o.vendor}`}
           description={o.requisition_no
             ? `Against requisition ${o.requisition_no}.`
-            : 'Raised without a requisition, an exception worth being able to explain.'}
+            : 'No requisition'}
           action={mayWrite && o.status === 'draft' ? (
             <Button size="sm" disabled={issue.isPending} onClick={() => issue.mutate()}>
               Issue to vendor
@@ -575,7 +575,7 @@ function OrderDetail({ id, mayWrite, onDone }: {
         <Card>
           <CardHeader
             title="Record what arrived"
-            description="Leave a line blank if it was not in this delivery. Partial deliveries are normal and each one is its own note."
+            description="Blank = not in this delivery."
           />
           <div className="p-5">
             <label className="mb-4 flex max-w-sm flex-col gap-1.5 text-[13px]">
@@ -678,7 +678,7 @@ function MatchingPanel({ mayPay, onDone }: { mayPay: boolean; onDone: (m: string
       <Card>
         <CardHeader
           title="Three-way matching"
-          description="Order, receipt, invoice. The exposure is measured against what arrived, not what was ordered, an invoice for goods still on a lorry is the case this stops."
+          description="Order, receipt, invoice compared."
         />
         <div className="border-b p-5">
           <label className="flex max-w-md flex-col gap-1.5 text-[13px]">
@@ -802,7 +802,7 @@ function MatchForm({ poID, mayPay, onDone }: {
         <div className={cn('rounded-md border p-4 text-[13px]',
           variance > 0 ? 'border-destructive/40 bg-destructive/5' : 'border-border')}>
           {variance === 0
-            ? 'The bill matches what was received exactly. Safe to pass for payment.'
+            ? 'Bill matches. OK to pay.'
             : variance > 0
               ? `The bill is ${inr(variance)} more than the goods received. That is the exposure, accept it with a reason, or block it.`
               : `The bill is ${inr(-variance)} less than the goods received. Worth checking a second bill is not coming.`}
@@ -865,8 +865,8 @@ function LadderPanel({ mayConfigure, onDone }: {
       <CardHeader
         title="Who may approve what"
         description={d.using_default
-          ? 'No ladder configured, so the built-in default applies. Save your own to change it.'
-          : 'Each band names a permission, not a person, so nothing stops while somebody is on leave.'}
+          ? 'Using default approval levels.'
+          : 'Each level uses a permission, not a person.'}
       />
       {!bands.length ? (
         <EmptyState title="No bands" body="Nothing configured and no default available." />
@@ -889,8 +889,8 @@ function LadderPanel({ mayConfigure, onDone }: {
       )}
       <div className="border-t px-5 py-4 text-[13px] text-muted-foreground">
         {mayConfigure
-          ? 'Editing the ladder is a settings change and replaces the whole set, a ladder with a gap is a requisition nobody may approve.'
-          : 'Changing this needs institution settings rights, deliberately: a store keeper must not be able to raise their own ceiling.'}
+          ? 'Saving replaces all levels. Leave no gaps.'
+          : 'Needs settings rights.'}
         <p className="mt-2">
           Whoever raised a requisition can never approve it, whatever the ladder says.
         </p>

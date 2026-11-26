@@ -439,7 +439,7 @@ function RecordsTab({
       <Card>
         <CardHeader
           title="Appraisals"
-          description="Only the ones you are entitled to see: the whole institution for HR, your own department if you head one, the ones you review, and your own."
+          description="Appraisals you can see"
         />
         <Table
           head={['Employee', 'Role', 'Reviewer', 'Status', { label: 'Score', align: 'right' }, '']}
@@ -679,8 +679,8 @@ function ReviewForm({
         title={`Review · ${appraisal.full_name}`}
         description={
           closed
-            ? 'This appraisal is published. The ratings are shown as they were signed off and can no longer be changed here.'
-            : 'Your rating against each KPI, beside what the person said about themselves. The weighted total is worked out by the school from the ratings stored, not by this page.'
+            ? 'Published. Ratings are final.'
+            : 'Rate each KPI. Self-rating shown alongside.'
         }
         action={
           <Badge tone={statusTone(appraisal.status)}>
@@ -750,7 +750,7 @@ function ReviewForm({
           <>
             <Field
               label="Your comments"
-              hint="Read by moderation, by the employee once this is published, and by anybody hearing an appeal."
+              hint="Seen by the employee once published."
               wide
             >
               <Textarea
@@ -771,7 +771,7 @@ function ReviewForm({
               <span className="text-[13px] text-muted-foreground">
                 {badScore
                   ? `Every score must be a number between 0 and ${max}.`
-                  : 'Only the reviewer named on this appraisal, or the HR office, may record it. A box left empty is sent as no score, not as a zero.'}
+                  : 'Reviewer or HR only. Blank = no score.'}
               </span>
             </div>
           </>
@@ -804,7 +804,7 @@ function DiscussionCard({ appraisal, onDone }: { appraisal: Appraisal; onDone: (
     <Card>
       <CardHeader
         title={`Appraisal discussion · ${appraisal.full_name}`}
-        description="What was actually said, and when. This is the part an appeal reads."
+        description="What was said, and when."
         action={<Button variant="ghost" size="sm" onClick={onDone}>Close</Button>}
       />
       <div className="space-y-5 p-5">

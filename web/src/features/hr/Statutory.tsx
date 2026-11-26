@@ -173,7 +173,7 @@ export default function Statutory() {
       <PageHead
         eyebrow="Payroll"
         title="Statutory returns"
-        description="Provident fund, state insurance and professional tax, computed from each wage rather than typed into a component."
+        description="PF, ESI and professional tax"
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -253,7 +253,7 @@ function Register({
     <Card>
       <CardHeader
         title="The month's register"
-        description="Read from the payslips actually issued, so the return and the payslip can never disagree. PF is on basic plus dearness allowance and capped at the ceiling; ESI stops entirely above its threshold."
+        description="From issued payslips. PF on basic + DA, capped; no ESI above threshold."
         action={
           <div className="flex flex-wrap gap-2">
             <Select
@@ -280,7 +280,7 @@ function Register({
       {rows.length === 0 ? (
         <EmptyState
           title="No payroll for this month"
-          body="Run payroll for the period first; the register is built from the payslips it issues."
+          body="Run payroll for this period first."
         />
       ) : (
         <Table
@@ -384,7 +384,7 @@ function IncomeTax() {
       <Card>
         <CardHeader
           title="Working out the withholding"
-          description="Every intermediate number is shown, because a payroll office is asked why this much was deducted every February and a total cannot be defended."
+          description="Full working shown"
           action={
             <Select
               value={employeeId}
@@ -464,7 +464,7 @@ function IncomeTax() {
         <Card>
           <CardHeader
             title="Investment declarations"
-            description="A declaration in April is a promise; the proof arrives in January. TDS runs on the promise and is corrected on the proof, which is what Form 12BB exists to record."
+            description="TDS uses declarations, then proofs (Form 12BB)."
           />
           <div className="border-b p-4">
             <FormGrid>
@@ -611,7 +611,7 @@ function Advances() {
       <Card>
         <CardHeader
           title="Give an advance"
-          description="Instalments come out of the next payroll run automatically, and the last one is trimmed to whatever is still owed."
+          description="Deducted in each payroll run."
         />
         <div className="p-4">
           <FormGrid>
@@ -651,7 +651,7 @@ function Advances() {
       <Card>
         <CardHeader
           title="Recovery"
-          description="The balance is summed from instalments actually taken. A stored balance that disagrees with the payslips is how these end up in a labour court."
+          description="Balance from deductions taken."
         />
         {rows.length === 0 ? (
           <EmptyState title="No advances" body="Salary advances appear here with what is left to recover." />
@@ -850,7 +850,7 @@ function Contractors() {
       <Card>
         <CardHeader
           title="Bills"
-          description="The approved amount follows the verified days, so a bill can only be short-paid by disagreeing about attendance, and that disagreement has to be written down."
+          description="Approved amount follows verified days."
         />
         {rows.length === 0 ? (
           <EmptyState title="No bills" body="Contractor invoices appear here for verification." />
@@ -984,7 +984,7 @@ function Rates() {
           <Field label="PF employer %">
             <Input value={String(v.pf_employer_percent)} onChange={set('pf_employer_percent')} type="number" />
           </Field>
-          <Field label="PF wage ceiling (₹)" hint="The wage contributions are computed on, not a cut-off for coverage.">
+          <Field label="PF wage ceiling (₹)" hint="Wage used for contributions">
             <Input
               value={String(v.pf_wage_ceiling_paise / 100)}
               onChange={(x) => setDraft({ ...v, pf_wage_ceiling_paise: rupeesToPaise(x) })}
@@ -1083,7 +1083,7 @@ function Rates() {
               </Field>
             </>
           )}
-          <Field label="Free leave days a month" hint="Days of leave or absence forgiven each month before any loss of pay.">
+          <Field label="Free leave days a month" hint="Free days per month before LOP">
             <Input value={String(v.free_leave_days ?? 0)} onChange={(x) => setDraft({ ...v, free_leave_days: Math.max(0, Number(x) || 0) })} type="number" />
           </Field>
           <Field label="Coming late">

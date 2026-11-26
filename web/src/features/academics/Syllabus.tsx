@@ -159,10 +159,10 @@ export default function Syllabus() {
         }
         description={
           view === 'coverage'
-            ? 'How much of each subject has actually been taught, against how much was planned. The question asked in the month before an exam.'
+            ? 'Taught vs planned, by subject.'
             : view === 'roadmap'
-              ? 'The chapters each subject will cover, in order, with the hours and the term they are meant to land in. Set once a year and taught from all of it.'
-              : 'Plans teachers have written, and the ones waiting on a signature.'
+              ? 'Chapters per subject, with hours and term.'
+              : 'Lesson plans and approvals'
         }
       />
       <PageBody>
@@ -186,7 +186,7 @@ export default function Syllabus() {
           <Card>
             <CardHeader
               title="Waiting on you"
-              description="Oldest first. A plan returned without remarks tells the teacher nothing, so remarks are required."
+              description="Oldest first. Remarks required to return."
             />
             <ul className="divide-y">
               {(queue.data?.items ?? []).map((p) => (
@@ -206,7 +206,7 @@ export default function Syllabus() {
           {rows.length === 0 ? (
             <EmptyState
               title="No syllabus entered yet"
-              body="Add chapters to a subject below and coverage follows from the lesson plans."
+              body="Add chapters below."
             />
           ) : (
             <Table
@@ -341,7 +341,7 @@ function MyPlans({ plans, canReview }: { plans: Plan[]; canReview: boolean }) {
     <Card>
       <CardHeader
         title={canReview ? 'All lesson plans' : 'My lesson plans'}
-        description="Marking a plan taught is what advances coverage, approval alone does not, because a school can close for rain."
+        description="Mark as taught to update coverage."
       />
       {plans.length === 0 ? (
         <EmptyState title="No plans yet" body="Write one for the coming week below." />
@@ -424,7 +424,7 @@ function ChapterPlanner() {
     <Card>
       <CardHeader
         title="Chapters"
-        description="One per line. Chapters already taught are kept, removing one would quietly reduce coverage a class has earned."
+        description="One per line. Taught chapters stay."
         action={
           <Select
             value={csID}
@@ -559,7 +559,7 @@ function NewLessonPlan() {
     <Card>
       <CardHeader
         title="Write a lesson plan"
-        description="Attach the plan you already wrote, or fill in the boxes, or both."
+        description="Attach a file, fill the boxes, or both."
       />
       <form
         className="px-5 pb-5"
@@ -614,10 +614,10 @@ function NewLessonPlan() {
               ]}
             />
           </Field>
-          <Field label="Attach the plan" wide hint="Word, PDF, slides, a scan of the proforma, anything up to 64 MB.">
+          <Field label="Attach the plan" wide hint="Any file up to 64 MB">
             <FilePicker value={file} onChange={setFile} purpose="lesson_plan" />
           </Field>
-          <Field label="Objectives" wide hint="What the class should be able to do afterwards. Shown to your head of department.">
+          <Field label="Objectives" wide hint="What students should be able to do after.">
             <Textarea
               value={f.objectives}
               onChange={(v) => setF({ ...f, objectives: v })}

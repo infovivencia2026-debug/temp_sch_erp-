@@ -185,7 +185,7 @@ export function MyGrowthPanels({
     return (
       <EmptyState
         title="You have no staff record in this school"
-        body="Appraisals, training hours and duty rosters are kept against a staff record. Ask the office if you believe you should have one."
+        body="No staff record linked. Ask the office."
       />
     )
   }
@@ -244,7 +244,7 @@ function MyAppraisalsPanel({
       <Card>
         <CardHeader
           title="My appraisals"
-          description="Yours alone. The score shown is the final one once published, never a draft somebody is still calibrating."
+          description="Your final scores"
         />
         {query.isLoading ? (
           <SkeletonTable columns={5} label="Reading your appraisals…" />
@@ -389,8 +389,8 @@ function MyAppraisalForm({
           title={`${appraisal.cycle}, my appraisal`}
           description={
             editable
-              ? 'Rate yourself against each KPI and say why. Your reviewer reads this before they rate you, and the weighted total is worked out by the school rather than by this page.'
-              : 'The ratings as they stand. Self-assessment closes once the cycle moves past it.'
+              ? 'Rate yourself on each KPI and say why.'
+              : 'Current ratings'
           }
           action={<Button variant="ghost" size="sm" onClick={onClose}>Close</Button>}
         />
@@ -482,7 +482,7 @@ function MyAppraisalForm({
                 <span className="text-[13px] text-muted-foreground">
                   {badScore
                     ? `Every score must be a number between 0 and ${max}.`
-                    : 'You may send it again while the cycle is still open. A box left empty is sent as no score, not as a zero.'}
+                    : 'Can resend while open. Blank = no score.'}
                 </span>
               </div>
             </>
@@ -505,7 +505,7 @@ function MyAppraisalForm({
         <Card>
           <CardHeader
             title="The outcome"
-            description="The final score, the band it falls in, and your right of reply."
+            description="Final score and your reply"
           />
           <div className="space-y-5 p-5">
             <CellGrid cols={3}>
@@ -558,7 +558,7 @@ function MyAppraisalForm({
               <>
                 <Field
                   label="Your reply, if you have one"
-                  hint="Filed with your acknowledgement and read alongside the score. Write it before you sign, there is no way to add it afterwards."
+                  hint="Write before signing. Cannot add later."
                   wide
                 >
                   <Textarea
@@ -577,7 +577,7 @@ function MyAppraisalForm({
                   variant="primary"
                   size="md"
                   confirmLabel="Acknowledge"
-                  question="Signs off this score and files your reply. This cannot be undone."
+                  question="Sign off? Cannot be undone."
                   disabled={acknowledge.isPending}
                   onConfirm={() => acknowledge.mutate()}
                 >
@@ -709,7 +709,7 @@ function MyDutiesPanel() {
     <Card>
       <CardHeader
         title="My duties"
-        description="Non-teaching duty only, the gate, the ground, dispersal, escorts and invigilation. Your lessons are on your timetable."
+        description="Non-teaching duties only"
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Input
