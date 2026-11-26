@@ -111,7 +111,8 @@ export default function AuditLog() {
           <Stat label="Areas touched" value={buckets.length} icon={ScrollText} />
           <Stat
             label="Busiest area"
-            value={buckets[0]?.entity_type ?? '-'}
+            /* An area key like portal.preferences: may break anywhere. */
+            value={<span className="break-anywhere">{buckets[0]?.entity_type ?? '-'}</span>}
             hint={buckets[0] ? `${buckets[0].count} changes` : undefined}
           />
         </CellGrid>

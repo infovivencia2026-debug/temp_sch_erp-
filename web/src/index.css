@@ -5992,10 +5992,13 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
      not size containers; the figure keeps its own size. */
   .cell-grid { display: flex !important; flex-wrap: wrap; }
   .cell-grid > * { flex: 1 1 0 !important; min-width: min-content !important; max-width: 100%; grid-column: auto !important; }
-  .cell-grid .cell :is(p:first-child, .stat):not(.break-anywhere) { overflow-wrap: normal !important; word-break: normal; hyphens: none; }
+  /* break-word, not anywhere: a word only breaks when it is longer than the
+     whole row, and it does not shrink the card's minimum width. */
+  .cell-grid .cell :is(p:first-child, .stat):not(.break-anywhere) { overflow-wrap: break-word !important; word-break: normal; hyphens: none; }
   /* A card wrapped in its own box (CellGrid's stretching last card) sizes
      from the card inside it. */
-  .cell-grid .cell { min-width: min-content !important; max-width: 100%; }
+  .cell-grid > div:not(.cell):has(> .cell:only-child) { display: contents; }
+  .cell-grid .cell { flex: 1 1 0; min-width: min-content !important; max-width: 100%; }
   .cell-grid .cell .stat { word-break: keep-all; }
   .cell-grid .cell, .cell-grid > .cell { container-type: normal; }
   .cell-grid .cell .stat, .cell-grid > .cell .stat { font-size: 28px; white-space: normal; }
@@ -6108,11 +6111,12 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
    text size; the photo and the buttons keep the first line. */
 .phone-head-wrap { container-type: inline-size; min-width: 0; flex: 1 1 0%; }
 @container (max-width: 20rem) {
-  .phone-head { display: grid !important; grid-template-columns: auto minmax(0, 1fr); row-gap: 4px; }
-  /* The buttons wrap onto a second row of their own rather than sliding
-     left over the photo when three of them do not fit beside it. */
-  .phone-head > :last-child { justify-self: end; grid-column: 2; grid-row: 1; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
-  .phone-head > .phone-head-name { grid-column: 1 / -1; grid-row: 2; }
+  /* Photo left, the icons together on the right. When the icons cannot fit
+     beside the photo they move as one row under it (never staggered); the
+     name takes its own line after them. */
+  .phone-head { display: flex !important; flex-wrap: wrap; row-gap: 4px; }
+  .phone-head > :last-child { margin-left: auto; flex-wrap: nowrap; order: 1; }
+  .phone-head > .phone-head-name { order: 2; flex: 1 1 100%; }
 }
 
 /* The day's timeline at large phone text: the times go on a line of their
