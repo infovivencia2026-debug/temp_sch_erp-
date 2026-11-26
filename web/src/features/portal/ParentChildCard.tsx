@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, CalendarRange, ChevronDown, Users } from 'lucide-react'
 import { Card } from '@/components/ui'
 import { PickerMenu } from '@/components/PickerMenu'
 import { formatDate, cn } from '@/lib/utils'
@@ -33,40 +33,51 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
   const cls = profile?.class_name ? `${profile.class_name}${profile.section_name ? ` - ${profile.section_name}` : ''}` : null
   const years = profile?.years ?? []
   const yearValue = year && years.some((y) => y.academic_year_id === year) ? year : (profile?.academic_year_id ?? '')
+  const yearName = years.find((y) => y.academic_year_id === yearValue)?.academic_year ?? profile?.academic_year ?? ''
+  const pill = 'inline-flex min-h-[48px] max-w-full items-center gap-1.5 rounded-full border bg-card px-4 text-[14px] font-semibold text-foreground shadow-sm hover:border-primary/40'
   return (
-    <Card className="p-4 sm:p-5">
-      <div className="flex flex-wrap items-center gap-4">
-        <ChildAvatar name={name || '?'} photo={profile?.photo_file_id} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[20px] font-bold leading-tight sm:text-[24px]">{name || (loading ? '…' : '')}</p>
-          <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[15px] text-muted-foreground">
-            {cls && <span>{cls}</span>}
+    /* THE CHILD (owner's approved mockup, 2026-11-26): a big photo on a band
+       of the school's colour, the name large under it, class, joined and
+       year, then two small pills for the year and the child. On a phone the
+       photo sits beside the details. */
+    <Card className="relative h-full overflow-hidden border-primary/25 bg-gradient-to-b from-primary/15 via-primary/5 to-card">
+      <span aria-hidden className="absolute inset-x-0 top-0 hidden h-[120px] bg-gradient-to-br from-primary to-primary/70 lg:block" />
+      <div className="relative flex flex-wrap items-center gap-4 p-4 lg:flex-col lg:flex-nowrap lg:gap-3 lg:p-6 lg:pt-7 lg:text-center">
+        <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
+        <div className="min-w-0 flex-1 lg:flex-none">
+          <p className="break-words text-[22px] font-extrabold leading-tight tracking-[-0.02em] lg:text-[28px]">{name || (loading ? '…' : '')}</p>
+          <div className="mt-1 flex flex-col gap-0.5 text-[15px] text-muted-foreground">
+            {cls && <span className="font-semibold text-primary">{cls}</span>}
             {profile?.admission_date && <span>Joined {formatDate(profile.admission_date)}</span>}
-            {profile?.academic_year && <span>Academic year {profile.academic_year}</span>}
-          </p>
+            {yearName && <span>Academic year {yearName}</span>}
+          </div>
         </div>
-        <div className="flex w-full flex-wrap gap-3 sm:w-auto">
-          {kids.length > 1 && (
-            <div className="min-w-0 flex-1 sm:flex-none">
-              <p className="mb-1 text-[13px] text-muted-foreground">Child</p>
-              <PickerMenu value={activeId ?? ''} ariaLabel="Child" align="start" onChange={onChild}
-                className="min-h-[48px] w-full"
-                options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))} />
-            </div>
-          )}
+        <div className="flex w-full flex-wrap gap-2 lg:justify-center">
           {years.length > 0 && (
-            <div className="min-w-0 flex-1 sm:flex-none">
-              <p className="mb-1 text-[13px] text-muted-foreground">Academic year</p>
-              <PickerMenu value={yearValue} ariaLabel="Academic year" align="end"
-                className="min-h-[48px] w-full"
-                onChange={(id) => onYear(years.find((y) => y.academic_year_id === id)?.is_current ? '' : id)}
-                options={years.map((y) => ({ value: y.academic_year_id, label: y.academic_year }))} />
-            </div>
+            <PickerMenu value={yearValue} ariaLabel="Academic year" align="start"
+              onChange={(id) => onYear(years.find((y) => y.academic_year_id === id)?.is_current ? '' : id)}
+              options={years.map((y) => ({ value: y.academic_year_id, label: y.academic_year }))}>
+              <span className={pill}><CalendarRange className="h-4 w-4 text-primary" aria-hidden />{yearName}<ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden /></span>
+            </PickerMenu>
+          )}
+          {kids.length > 1 && (
+            <PickerMenu value={activeId ?? ''} ariaLabel="Switch child" align="end" onChange={onChild}
+              options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}>
+              <span className={pill}><Users className="h-4 w-4 text-primary" aria-hidden />Switch child<ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden /></span>
+            </PickerMenu>
           )}
         </div>
       </div>
     </Card>
   )
+}
+
+/* The child's photo, or their initials when the school has none. */
+function ChildPhoto({ name, photo }: { name: string; photo?: string }) {
+  const box = 'aspect-[5/6] w-24 shrink-0 rounded-2xl border-4 border-card shadow-[0_10px_24px_-6px_hsl(var(--primary)/0.45)] lg:w-[60%] lg:rounded-3xl'
+  return photo
+    ? <img src={fileSrc(photo)} alt="" className={cn(box, 'bg-muted object-cover')} />
+    : <span aria-hidden className={cn(box, 'grid place-items-center bg-primary/10 text-[32px] font-extrabold text-primary lg:text-[64px]')}>{initials(name)}</span>
 }
 
 /* The child's subjects as cards, each opening its Subject page. */

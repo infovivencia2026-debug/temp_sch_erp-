@@ -6,7 +6,7 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { CalendarCheck, Wallet, Bell, FileText, CalendarDays, Users, Info, Check } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, SkeletonTiles, ErrorState,
+  PageHead, PageBody, Card, CellGrid, Stat, SkeletonTiles, ErrorState,
   EmptyState, Button,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
@@ -489,19 +489,11 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
   })
   return (
     <Card className="flex flex-col lg:h-full">
-      <CardHeader
-        title="Messages from school"
-        action={
-          tab === 'news' && rows.length > 0 ? (
-            <Button size="sm" variant="secondary" onClick={onOpen}>Open</Button>
-          ) : tab === 'homework' ? (
-            <Button size="sm" variant="secondary" onClick={onHomework}>Open</Button>
-          ) : undefined
-        }
-      />
-      <div className="px-3 pb-2">
+      {/* The toggle is the card's heading (owner, 2026-11-26): no title, and
+          nothing about the child in this card. */}
+      <div className="flex justify-center px-3 pb-2 pt-[var(--card-pad)]">
         <SegToggle value={tab} onChange={setTab} ariaLabel="Messages from school"
-          className="sm:max-w-[360px]"
+          className="max-w-[360px]"
           options={[{ value: 'news', label: 'Announcements' }, { value: 'homework', label: 'Homework' }]} />
       </div>
       {tab === 'homework' ? (
@@ -761,8 +753,15 @@ export default function Portal() {
   const subjects = profile.data?.subjects ?? []
   return (
     <PageBody>
-      <ParentChildCard profile={profile.data} kids={kids} activeId={activeId}
-        onChild={chooseChild} year={year} onYear={setYear} loading={profile.isLoading} />
+      {/* Two columns on a wide screen, as the month calendar sat beside the
+          messages: Fee + Today over the messages on the left, the child card
+          the full height on the right. On a phone the child comes first. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="min-w-0 lg:order-2">
+        <ParentChildCard profile={profile.data} kids={kids} activeId={activeId}
+          onChild={chooseChild} year={year} onYear={setYear} loading={profile.isLoading} />
+      </div>
+      <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:order-1">
       {summary.error && !summary.data ? <ErrorState error={summary.error} /> : (
         <CellGrid cols={2}>
           <Stat
@@ -780,7 +779,6 @@ export default function Portal() {
           />
         </CellGrid>
       )}
-      {activeId && <WeeklyNoteCard studentId={activeId} />}
       <SchoolMessages
         query={circulars}
         notes={schoolNotes.data?.items ?? []}
@@ -789,6 +787,9 @@ export default function Portal() {
         homework={{ items: todayHomework, loading: homework.isLoading }}
         onHomework={() => navigate(academicsHref(''))}
       />
+      </div>
+      </div>
+      {activeId && <WeeklyNoteCard studentId={activeId} />}
       {subjects.length > 0 && (
         <section aria-label="Academics" className="space-y-3">
           <h2 className="text-[18px] font-bold">Academics</h2>

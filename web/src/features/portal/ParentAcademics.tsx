@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, NotebookPen } from 'lucide-react'
 import { api, type List } from '@/lib/api'
-import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, EmptyState, ErrorState, SkeletonTiles } from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, EmptyState, ErrorState, Input, SkeletonTiles } from '@/components/ui'
 import { formatDate, cn } from '@/lib/utils'
 import Homework from '@/features/workflow/Homework'
 import { useChildren } from './use-children'
@@ -110,41 +111,42 @@ function Academics({ view }: { view: string }) {
     const mine = hw.filter((h) => h.subject === s.subject).sort((a, b) => b.assigned_on.localeCompare(a.assigned_on))
     const marks = (results.data?.subjects ?? []).filter((m) => m.subject === s.subject)
     return (
-      <>
-        <PageHead title={s.subject} />
-        <PageBody>
+      <PageBody>
+        {/* Back and the subject's name close together (owner, 2026-11-26). */}
+        <div className="-mt-2">
           <Back to={keep({ view: 'subjects' })} label="All subjects" />
-          <CellGrid cols={2}>
-            <Stat label="Periods per week" value={s.periods_per_week || '-'} />
-            <Stat label="Homework set" value={mine.length} />
-          </CellGrid>
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <ChildAvatar name={s.teacher ?? '?'} photo={s.teacher_photo} size="md" />
-              <div className="min-w-0">
-                <p className="truncate text-[16px] font-semibold">{s.teacher ?? 'Teacher not assigned yet'}</p>
-                <p className="text-[14px] text-muted-foreground">Subject teacher</p>
-              </div>
+          <h1 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em]">{s.subject}</h1>
+        </div>
+        <Card className="p-4">
+          <div className="flex items-center gap-4">
+            <ChildAvatar name={s.teacher ?? '?'} photo={s.teacher_photo} size="md" />
+            <div className="min-w-0">
+              <p className="text-[17px] font-semibold leading-snug">{s.teacher ?? 'Teacher not assigned yet'}</p>
+              <p className="text-[14px] text-muted-foreground">Subject teacher</p>
             </div>
-          </Card>
-          <HomeworkLists items={mine} today={today} loading={homework.isLoading} error={homework.error} />
-          <Card>
-            <CardHeader title="Marks" />
-            {results.isLoading ? <SkeletonTiles count={2} /> : marks.length === 0 ? (
-              <p className="px-[var(--card-pad)] pb-4 text-[15px] text-muted-foreground">No marks published yet.</p>
-            ) : (
-              <ul className="divide-y px-[var(--card-pad)] pb-2">
-                {marks.map((m, i) => (
-                  <li key={i} className="flex min-h-[48px] items-center justify-between gap-3 py-2 text-[15px]">
-                    <span className="min-w-0 truncate">{m.exam}</span>
-                    <span className="shrink-0 font-semibold tabular-nums">{m.is_absent ? 'Absent' : `${m.marks_obtained ?? '-'} / ${m.max_marks ?? '-'}${m.grade ? ` · ${m.grade}` : ''}`}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </PageBody>
-      </>
+          </div>
+        </Card>
+        <CellGrid cols={2}>
+          <Stat label="Periods per week" value={s.periods_per_week || '-'} />
+          <Stat label="Homework set" value={mine.length} />
+        </CellGrid>
+        <SubjectHomework items={mine} today={today} loading={homework.isLoading} error={homework.error} />
+        <Card>
+          <CardHeader title="Marks" />
+          {results.isLoading ? <SkeletonTiles count={2} /> : marks.length === 0 ? (
+            <p className="px-[var(--card-pad)] pb-4 text-[15px] text-muted-foreground">No marks published yet.</p>
+          ) : (
+            <ul className="divide-y px-[var(--card-pad)] pb-2">
+              {marks.map((m, i) => (
+                <li key={i} className="flex min-h-[48px] items-center justify-between gap-3 py-2 text-[15px]">
+                  <span className="min-w-0 truncate">{m.exam}</span>
+                  <span className="shrink-0 font-semibold tabular-nums">{m.is_absent ? 'Absent' : `${m.marks_obtained ?? '-'} / ${m.max_marks ?? '-'}${m.grade ? ` · ${m.grade}` : ''}`}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </PageBody>
     )
   }
 
@@ -190,6 +192,26 @@ function Back({ to, label }: { to: string; label: string }) {
     <Link to={to} className="inline-flex min-h-[48px] items-center gap-1 text-[15px] font-medium text-primary">
       <ChevronLeft className="h-4 w-4" aria-hidden /> {label}
     </Link>
+  )
+}
+
+/* A SUBJECT'S HOMEWORK BY DAY (owner, 2026-11-26): a date picker, today by
+   default, and the work set on that day; earlier days one pick away. */
+function SubjectHomework({ items, today, loading, error }: { items: Hw[]; today: string; loading: boolean; error: unknown }) {
+  const [day, setDay] = useState(today)
+  if (loading) return <SkeletonTiles count={2} />
+  if (error && !items.length) return <ErrorState error={error} />
+  const onDay = items.filter((h) => h.assigned_on.slice(0, 10) === day)
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-[var(--card-pad)] pb-2 pt-[var(--card-pad)]">
+        <h2 className="text-[16px] font-semibold">Homework</h2>
+        <div className="w-[11.5rem] max-w-full"><Input type="date" value={day} onChange={(v) => setDay(v || today)} max={today} /></div>
+      </div>
+      {onDay.length === 0
+        ? <p className="px-[var(--card-pad)] pb-4 text-[15px] text-muted-foreground">{day === today ? 'No homework set today.' : 'No homework set on this day.'}</p>
+        : <HwList items={onDay} />}
+    </Card>
   )
 }
 
