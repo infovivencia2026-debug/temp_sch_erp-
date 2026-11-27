@@ -92,7 +92,7 @@ const FAMILY: Record<Family, { label: string; rail: string; chip: string; dot: s
   fee: {
     label: 'Fees',
     rail: 'bg-amber-600',
-    chip: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+    chip: 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300',
     dot: 'bg-amber-600',
     text: 'text-amber-700 dark:text-amber-400',
   },

@@ -48,8 +48,8 @@ const KINDS: Record<string, { label: string; tone: string; rank: number }> = {
   leave: { label: 'Leave', tone: 'bg-muted text-muted-foreground border-border', rank: 6 },
   event: { label: 'Event', tone: 'bg-primary/10 text-primary border-primary/30 dark:text-[hsl(var(--primary-hover))]', rank: 7 },
   club: { label: 'Club', tone: 'bg-primary/10 text-primary border-primary/30 dark:text-[hsl(var(--primary-hover))]', rank: 7 },
-  holiday: { label: 'Holiday', tone: 'bg-success/10 text-success border-success/25', rank: 8 },
-  vacation: { label: 'Vacation', tone: 'bg-success/10 text-success border-success/25', rank: 8 },
+  holiday: { label: 'Holiday', tone: 'bg-success/10 text-[hsl(142_71%_21%)] border-success/25 dark:text-success', rank: 8 },
+  vacation: { label: 'Vacation', tone: 'bg-success/10 text-[hsl(142_71%_21%)] border-success/25 dark:text-success', rank: 8 },
   term: { label: 'Term', tone: 'bg-muted text-muted-foreground border-border', rank: 9 },
   working_day: { label: 'Working day', tone: 'bg-muted text-foreground border-border', rank: 9 },
 }
