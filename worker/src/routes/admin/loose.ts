@@ -1,5 +1,6 @@
 import type { Ctx, Router } from '../../router'
 import type { AttentionResponse } from '@shared/api'
+import { getApprovals } from '../daily'
 import { liveAnnouncements } from '../seller/announcements'
 import { can } from '../../identity'
 import { HttpError, badRequest, conflict, created, isUUID, noContent, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
@@ -397,6 +398,26 @@ export async function attentionBody(c: Ctx, role = c.url.searchParams.get('role'
     items.push(item)
   })
   items.sort((a, b) => SEVERITY_RANK[a.severity as keyof typeof SEVERITY_RANK] - SEVERITY_RANK[b.severity as keyof typeof SEVERITY_RANK])
+  /* STAFF SEE ONLY WHAT WAITS FOR THEIR APPROVAL (Yajur, 2026-11-27: "need
+     your attention only approvals, show all approvals, no need of all
+     other"). Parents and students keep their own list. For staff the panel is
+     the Approvals inbox, one line per kind: leave, attendance, punch fixes,
+     concessions, joinings, staff exits, payroll. */
+  if (!wanted.some((p) => p.key.startsWith('self.')) && c.url.searchParams.get('all') !== '1') {
+    const inbox = await (await getApprovals(c)).json() as { by_kind?: Record<string, number> }
+    const NAMES: Record<string, [string, string]> = {
+      leave: ['leave request', 'leave requests'], attendance_correction: ['attendance correction', 'attendance corrections'],
+      attendance_fix: ['punch fix', 'punch fixes'], fee_concession: ['fee concession', 'fee concessions'],
+      admission: ['joining', 'joinings'], staff_exit: ['staff exit', 'staff exits'], payroll: ['payroll', 'payrolls'],
+    }
+    const approvals = Object.entries(inbox.by_kind ?? {}).filter(([, n]) => n > 0).map(([kind, n]) => {
+      const [one, many] = NAMES[kind] ?? [kind.replace(/_/g, ' '), kind.replace(/_/g, ' ')]
+      return { key: `approvals.${kind}`, severity: kind === 'staff_exit' || kind === 'payroll' ? 'critical' : 'warning', count: n,
+        headline: `${n} ${n === 1 ? one : many} waiting for your approval`, action: 'Approve', href: 'approvals' }
+    })
+    items.length = 0
+    items.push(...approvals)
+  }
   return { role, items: items as unknown as AttentionResponse['items'], summary: summary as unknown as AttentionResponse['summary'], greeting: greeting() }
 }
 

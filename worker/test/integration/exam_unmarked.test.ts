@@ -9,7 +9,7 @@ beforeAll(seed)
 const T = () => E.TENANT_TEST
 const campus = async () => (await T().prepare('SELECT id FROM campuses ORDER BY created_at LIMIT 1').first<{ id: string }>())!.id
 const pending = async () => {
-  const r = await api('admin', 'GET', '/attention')
+  const r = await api('admin', 'GET', '/attention?all=1')
   expect(r.status).toBe(200)
   return Number((r.body.items as any[]).find((i) => i.key === 'marks.pending')?.count ?? 0)
 }
@@ -34,7 +34,7 @@ describe('papers without marks', () => {
     ])
     // Only the scheduled, past, unmarked subject is added.
     expect(await pending()).toBe(before + 1)
-    const item = ((await api('admin', 'GET', '/attention')).body.items as any[]).find((i) => i.key === 'marks.pending')
+    const item = ((await api('admin', 'GET', '/attention?all=1')).body.items as any[]).find((i) => i.key === 'marks.pending')
     expect(item.detail).toContain('Owner unmarked')
 
     const mon = (await api('admin', 'GET', '/academics/admin/exam-monitor')).body
