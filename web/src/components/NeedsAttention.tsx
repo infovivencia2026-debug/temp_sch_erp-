@@ -410,7 +410,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
             summary.length === 1
               ? 'grid-cols-1 sm:max-w-[22rem]'
               : cn('sm:grid-cols-2',
-                  ({ 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-5'))}>
+                  ({ 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-3 xl:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-3 xl:grid-cols-5'))}>
             {summary.map((s) => {
               const { icon: Mark, tint } = markFor(s.label)
               return (
