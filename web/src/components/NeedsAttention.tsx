@@ -410,7 +410,7 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
             summary.length === 1
               ? 'grid-cols-1 sm:max-w-[22rem]'
               : cn('sm:grid-cols-2',
-                  ({ 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-5'))}>
+                  ({ 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-3 xl:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-3 xl:grid-cols-5'))}>
             {summary.map((s) => {
               const { icon: Mark, tint } = markFor(s.label)
               return (
@@ -476,11 +476,11 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
           ['Mark attendance', 'student_absentees attendance'],
         ]).map(([label, target]) => ({ label, href: hrefFor(target) })).filter((q) => q.href)
         return (
-          <div className="home-act grid items-start gap-5 lg:grid-cols-[1.4fr_1fr]">
+          <div className="home-act grid items-start gap-5 xl:grid-cols-[1.4fr_1fr]">
             <div className="min-w-0">{items.length > 0 ? attentionBlock : (
               <section className="rounded-2xl border bg-card p-5 text-[14px] text-muted-foreground shadow-[var(--elev-1)]">Nothing needs your attention right now.</section>)}</div>
             {quick.length > 0 && (
-              <section className="rounded-2xl border bg-card p-5 shadow-[var(--elev-1)] lg:mt-3">
+              <section className="rounded-2xl border bg-card p-5 shadow-[var(--elev-1)] xl:mt-3">
                 <h2 className="text-[16px] font-bold tracking-[-0.01em]">Quick actions</h2>
                 <div className="mt-4 grid grid-cols-2 gap-2.5">
                   {quick.map((q) => (

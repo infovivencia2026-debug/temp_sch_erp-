@@ -281,7 +281,7 @@ export default function Circulars() {
                 alike: both narrow who this reaches. */}
             <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-16">Send to</span>
+                <span className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-20">Send to</span>
                 <Select
                   value={audience}
                   onChange={setAudience}
@@ -296,7 +296,7 @@ export default function Circulars() {
               </div>
 
               <div className="flex flex-wrap items-start gap-2">
-                <span className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-16 sm:pt-1.5">Sections</span>
+                <span className="w-full shrink-0 text-[13px] text-muted-foreground sm:w-20 sm:pt-1.5">Sections</span>
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                     {/* The state of the filter, said as a sentence rather than

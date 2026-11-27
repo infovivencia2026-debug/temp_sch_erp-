@@ -100,6 +100,8 @@
 .hx-legend{display:flex;gap:16px;font-size:12.5px;color:var(--hx-sub);margin-top:6px}
 .hx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 @media (max-width:1000px){.hx-kpis,.hx-today{grid-template-columns:repeat(2,1fr)}.hx-grid2,.hx-stats{grid-template-columns:1fr}}
+/* 1024-1180px laptops/tablets: the side nav leaves ~740px, too narrow for two columns of alert cards. */
+@media (max-width:1180px){.hx-grid2{grid-template-columns:1fr}}
 @media (max-width:560px){.hx-hero{padding:22px 18px}.hx-item{grid-template-columns:auto 1fr}.hx-item .go{grid-column:1/-1;justify-content:center}}
 
 .hx-done{margin-top:10px;font-size:13px;color:var(--hx-green)}
