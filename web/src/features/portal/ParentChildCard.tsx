@@ -48,7 +48,8 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
        height with things a parent reads. On a phone the photo sits beside the
        name and the rows follow underneath. */
     <Card className="relative flex h-full flex-col overflow-hidden">
-      <span aria-hidden className="absolute inset-x-0 top-0 h-[72px] bg-gradient-to-br from-primary/25 via-primary/10 to-transparent lg:h-[104px]" />
+      <span aria-hidden className="absolute inset-x-0 top-0 h-[72px] bg-gradient-to-br from-primary/25 via-primary/10 to-transparent lg:h-1/2 lg:bg-gradient-to-b" />
+      <div className="relative flex flex-col lg:my-auto">
       <div className="relative flex items-center gap-4 p-4 pb-3 lg:flex-col lg:gap-3 lg:px-6 lg:pt-10 lg:text-center">
         <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
         <div className="min-w-0 flex-1 lg:flex-none">
@@ -64,7 +65,7 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
           </div>
         ))}
       </dl>}
-      <div className="relative mt-auto flex flex-wrap gap-2 p-4 lg:justify-center lg:px-6 lg:pb-6">
+      <div className="relative flex flex-wrap gap-2 p-4 lg:justify-center lg:px-6 lg:pb-6">
         {years.length > 0 && (
           <PickerMenu value={yearValue} ariaLabel="Academic year" align="start"
             onChange={(id) => onYear(years.find((y) => y.academic_year_id === id)?.is_current ? '' : id)}
@@ -78,6 +79,7 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
             <span className={pill}><Users className="h-4 w-4 text-primary" aria-hidden />Switch child<ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden /></span>
           </PickerMenu>
         )}
+      </div>
       </div>
     </Card>
   )
