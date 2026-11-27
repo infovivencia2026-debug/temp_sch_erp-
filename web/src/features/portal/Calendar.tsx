@@ -353,7 +353,7 @@ export default function Calendar() {
                   onClick={() => setPicked(day)}
                   className={cn(
                     'flex min-h-[52px] min-w-0 overflow-hidden flex-col items-center gap-1 border-b border-r p-1 text-left md:min-h-[104px] md:items-stretch md:p-2 transition-colors last:border-r-0',
-                    outside ? 'bg-surface-sunken/40 opacity-45' : weekend ? 'bg-surface-sunken/30' : 'bg-card',
+                    outside ? 'bg-surface-sunken/40 opacity-85' : weekend ? 'bg-surface-sunken/30' : 'bg-card',
                     picked === day && 'ring-2 ring-inset ring-primary',
                     'hover:bg-accent/40',
                   )}
@@ -361,7 +361,7 @@ export default function Calendar() {
                   <span
                     className={cn(
                       'grid h-[22px] w-[22px] place-items-center rounded-full text-[12.5px] font-semibold',
-                      day === today ? 'bg-primary/15 text-primary font-semibold' : 'text-foreground',
+                      day === today ? 'bg-primary/15 text-primary font-semibold dark:text-[hsl(var(--primary-hover))]' : 'text-foreground',
                     )}
                   >
                     {d.getDate()}

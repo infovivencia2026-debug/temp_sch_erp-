@@ -46,8 +46,8 @@ const KINDS: Record<string, { label: string; tone: string; rank: number }> = {
   ptm_booking: { label: 'Meeting', tone: 'bg-success/14 text-success border-success/35', rank: 4 },
   duty: { label: 'Duty', tone: 'bg-info/12 text-info border-info/30', rank: 5 },
   leave: { label: 'Leave', tone: 'bg-muted text-muted-foreground border-border', rank: 6 },
-  event: { label: 'Event', tone: 'bg-primary/10 text-primary border-primary/30', rank: 7 },
-  club: { label: 'Club', tone: 'bg-primary/10 text-primary border-primary/30', rank: 7 },
+  event: { label: 'Event', tone: 'bg-primary/10 text-primary border-primary/30 dark:text-[hsl(var(--primary-hover))]', rank: 7 },
+  club: { label: 'Club', tone: 'bg-primary/10 text-primary border-primary/30 dark:text-[hsl(var(--primary-hover))]', rank: 7 },
   holiday: { label: 'Holiday', tone: 'bg-success/10 text-success border-success/25', rank: 8 },
   vacation: { label: 'Vacation', tone: 'bg-success/10 text-success border-success/25', rank: 8 },
   term: { label: 'Term', tone: 'bg-muted text-muted-foreground border-border', rank: 9 },
@@ -225,7 +225,7 @@ export function MonthGrid({
                   className={cn(
                     'flex min-h-[84px] flex-col items-start gap-1 bg-card p-1.5 text-left',
                     'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary',
-                    outside && 'opacity-75',
+                    outside && 'opacity-85',
                     closed && 'bg-muted/50',
                     picked === key ? 'ring-2 ring-inset ring-primary' : 'hover:bg-muted/60',
                   )}

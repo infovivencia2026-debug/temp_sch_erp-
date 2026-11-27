@@ -29,7 +29,7 @@ export function initialsOf(name: string): string {
 export function avatarColour(name: string): string {
   let h = 0
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360
-  return `hsl(${h} 45% 34%)`
+  return `hsl(${h} 45% 32%)`
 }
 
 /* THE FACE, WHERE THE SCHOOL HOLDS ONE.
