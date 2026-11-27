@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, SkeletonTable, ErrorState, FormNotice, ExportButton,
+  Button, Input, Select, Dialog, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { ImportButton } from '@/components/DataPortActions'
 import { StaffMonth } from './StaffMonth'
@@ -120,6 +120,8 @@ export default function StaffAttendance() {
   const [rangeTo, setRangeTo] = useState(onDate)
   const [rangeBusy, setRangeBusy] = useState(false)
   const [rangeErr, setRangeErr] = useState('')
+  /* The Export button at the top asks for the dates and the group first (Yajur, 2026-11-27). */
+  const [askExport, setAskExport] = useState(false)
   /* Print: one month at most, so the day columns fit an A4 sheet. Export:
      any range (owner, 2026-10-05). The register is kept per day, so a range
      is read day by day, ten at a time. */
@@ -146,9 +148,9 @@ export default function StaffAttendance() {
      biometric ID beside each name, Absent in red and Late in amber. Saved as
      an Excel sheet (HTML table), which keeps the colours; a day with no mark
      but a punch shows the in-time. */
-  const exportRange = async () => {
-    const days = rangeDays(); if (!days) return
-    if (days.length > 366) { setRangeErr('Export at most one year at a time.'); return }
+  const exportRange = async (): Promise<boolean> => {
+    const days = rangeDays(); if (!days) return false
+    if (days.length > 366) { setRangeErr('Export at most one year at a time.'); return false }
     setRangeBusy(true)
     try {
       const { staff, marks, ins } = await loadRange(days)
@@ -183,7 +185,8 @@ ${body}</table></body></html>`
       const a = document.createElement('a'); a.href = url
       a.download = `staff-register-${(group ? groupLabel : 'all-staff').replace(/[^\w-]+/g, '-').toLowerCase()}-${rangeFrom}-to-${rangeTo}.xls`
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000)
-    } catch (e) { setRangeErr((e as Error).message) } finally { setRangeBusy(false) }
+      return true
+    } catch (e) { setRangeErr((e as Error).message); return false } finally { setRangeBusy(false) }
   }
   const printRange = async () => {
     const days = rangeDays(); if (!days) return
@@ -236,7 +239,9 @@ ${body}</table></body></html>`
               hint="One row per staff per day. Checked before saving."
             />
           )}
-          <ExportButton report="staff-attendance" />
+          <Button variant="secondary" onClick={() => { setRangeErr(''); setAskExport(true) }}>
+            <Download className="h-4 w-4" /> Export
+          </Button>
           <Button variant="secondary" onClick={() => lateListJpeg(rows, onDate)} disabled={!rows.length}>
             <ImageIcon className="h-4 w-4" /> Late list (JPEG)
           </Button>
@@ -253,6 +258,22 @@ ${body}</table></body></html>`
         }
       />
       <PageBody>
+        {askExport && (
+          <Dialog onClose={() => setAskExport(false)} title="Export staff register" description="Excel sheet: one column per date, biometric ID for each person, Absent in red and Late in yellow."
+            footer={<>
+              <Button variant="secondary" onClick={() => setAskExport(false)}>Cancel</Button>
+              <Button onClick={async () => { if (await exportRange()) setAskExport(false) }} disabled={rangeBusy}>
+                <Download className="h-4 w-4" /> {rangeBusy ? 'Preparing…' : 'Download Excel'}
+              </Button>
+            </>}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2"><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">Staff group</label><Select value={group} onChange={setGroup} options={groupOptions} /></div>
+              <div><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">From</label><Input type="date" value={rangeFrom} onChange={setRangeFrom} /></div>
+              <div><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">To</label><Input type="date" value={rangeTo} onChange={setRangeTo} /></div>
+              {rangeErr && <p className="text-[13px] text-destructive sm:col-span-2">{rangeErr}</p>}
+            </div>
+          </Dialog>
+        )}
         <Card>
           <div className="flex flex-wrap items-end gap-2.5 p-4">
             <div className="min-w-[170px]"><label className="mb-1 block text-[12.5px] font-medium text-muted-foreground">Staff group</label><Select value={group} onChange={setGroup} options={groupOptions} /></div>

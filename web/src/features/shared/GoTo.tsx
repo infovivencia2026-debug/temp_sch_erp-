@@ -69,7 +69,9 @@ export default function GoTo() {
       for (const role of catalog.roles) {
         for (const section of role.sections) {
           const f = section.features.find(
-            (x) => usable(x) && (x.slug.includes(want) || want.includes(x.slug)),
+            /* Words of four letters or more only: a short or empty slug sits inside
+               almost any name and sent an exit approval to a subject page (Yajur, 2026-11-27). */
+            (x) => usable(x) && want.length >= 4 && x.slug.length >= 4 && (x.slug.includes(want) || want.includes(x.slug)),
           )
           if (f) {
             navigate(`/${role.key}/${section.slug}/${f.slug}${search}`, { replace: true })
