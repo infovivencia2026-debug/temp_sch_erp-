@@ -151,29 +151,30 @@ function FormDetail({ form, school, tab, setTab, onBack }: { form: Form; school:
   const [slot, setSlot] = useState<HTMLDivElement | null>(null)
   return (
     <>
-      <PageHead eyebrow="Website forms" onEyebrow={onBack} title={form.title}
-        actions={
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Export sits where "All forms" was (owner, 2026-11-21); the
-                Responses tab fills this slot with what it is showing. */}
-            <div ref={setSlot} className="contents" />
-            {/* A dropdown, not an on/off switch (owner, 2026-11-05). */}
-            <div className="w-56">
-              <Select value={form.is_open ? 'open' : 'closed'} onChange={(v) => toggle.mutate(v === 'open')}
-                options={[{ value: 'open', label: 'Taking responses' }, { value: 'closed', label: 'Closed' }]} />
-            </div>
-            <ConfirmButton tone="danger" size="md" confirmLabel="Delete form" label="Delete form"
-              question={`Delete ${form.title} and all its responses? The form on the website stops working.`}
-              onConfirm={() => del.mutate()} disabled={del.isPending}><Trash2 className="size-4" /></ConfirmButton>
-          </div>
-        } />
+      <PageHead eyebrow="Website forms" onEyebrow={onBack} title={form.title} />
       <PageBody>
-        <div className={TAB_BAR} role="tablist">
+        {/* Tabs and the form's actions on one line (owner, 2026-11-27); they wrap on a phone. */}
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+        <div className={cn(TAB_BAR, 'min-w-0')} role="tablist">
           {tabs.map((t) => (
             <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tabClass(tab === t.key)} onClick={() => setTab(t.key)}>
               {t.label}{t.key === 'responses' && (form.unread ?? 0) > 0 && <Badge tone="primary">{form.unread} new</Badge>}
             </button>
           ))}
+        </div>
+          <div className="flex flex-wrap items-center gap-3">
+          {/* Export sits where "All forms" was (owner, 2026-11-21); the
+              Responses tab fills this slot with what it is showing. */}
+          <div ref={setSlot} className="contents" />
+          {/* A dropdown, not an on/off switch (owner, 2026-11-05). */}
+          <div className="w-56">
+            <Select value={form.is_open ? 'open' : 'closed'} onChange={(v) => toggle.mutate(v === 'open')}
+              options={[{ value: 'open', label: 'Taking responses' }, { value: 'closed', label: 'Closed' }]} />
+          </div>
+          <ConfirmButton tone="danger" size="md" confirmLabel="Delete form" label="Delete form"
+            question={`Delete ${form.title} and all its responses? The form on the website stops working.`}
+            onConfirm={() => del.mutate()} disabled={del.isPending}><Trash2 className="size-4" /></ConfirmButton>
+          </div>
         </div>
         <FormNotice error={toggle.error ?? del.error} />
         {tab === 'questions' ? <Builder key={form.id} form={form} /> : tab === 'responses' ? <Responses form={form} slot={slot} /> : <Share form={form} school={school} />}
