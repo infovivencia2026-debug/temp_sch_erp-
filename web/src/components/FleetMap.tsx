@@ -790,7 +790,7 @@ export function FleetMap({
           className="absolute left-3 z-10 flex h-10 items-center gap-1.5 rounded-full border
                      bg-background/90 pl-2.5 pr-3.5 text-[14px] font-medium text-foreground
                      shadow-md backdrop-blur transition-colors hover:bg-background active:scale-95"
-          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+          style={{ top: 'calc(var(--safe-top) + 12px)' }}
         >
           <ChevronLeft className="size-4" />
           Back

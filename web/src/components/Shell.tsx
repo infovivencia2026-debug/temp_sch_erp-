@@ -808,7 +808,7 @@ export function Shell({
         style={
           drawerOpen
             ? {
-                paddingTop: 'env(safe-area-inset-top, 0px)',
+                paddingTop: 'var(--safe-top)',
                 paddingBottom: 'env(safe-area-inset-bottom, 0px)',
               }
             : undefined

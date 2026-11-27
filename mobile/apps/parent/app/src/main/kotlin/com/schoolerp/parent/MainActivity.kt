@@ -356,16 +356,25 @@ class MainActivity : Activity() {
             ime = if (sb > navGuess * 2) sb else 0
         }
         barTop = t
-        if (pageInsets == false) {
-            // An old WebView: pad the whole frame as before edge to edge.
-            root.setPadding(l, t, r, maxOf(b, ime))
-        } else {
-            // The page pads itself under the bars; the keyboard still lifts it.
-            root.setPadding(0, 0, 0, if (ime > b) ime else 0)
-        }
-        val inset = if (pageInsets == false) 0 else t
+        /* FULL SCREEN LIKE WHATSAPP (owner, 2026-11-27: "top is still cut").
+           Never pad the top natively: that was the empty band above the page on
+           every phone whose WebView reports env(safe-area-inset-top) as 0, which
+           is most of them. The status-bar height goes to the page as --app-sat
+           and the page's own top bar runs up under the clock. The sides, the
+           navigation bar and the keyboard are still padded here. */
+        root.setPadding(l, 0, r, maxOf(b, ime))
+        pushSafeTop()
+        val inset = t
         (banner.layoutParams as? FrameLayout.LayoutParams)?.let { it.topMargin = inset; banner.layoutParams = it }
         (progress.layoutParams as? FrameLayout.LayoutParams)?.let { it.topMargin = inset; progress.layoutParams = it }
+    }
+
+    /* The status-bar height, in CSS pixels, handed to the page on every inset
+       change and after every page load. */
+    private fun pushSafeTop() {
+        if (!::web.isInitialized) return
+        val px = barTop / resources.displayMetrics.density
+        web.evaluateJavascript("document.documentElement.style.setProperty('--app-sat','" + px + "px')", null)
     }
 
     /* Asked of every page after it paints: does this WebView fill in env(safe-area-inset-top)? */
@@ -828,6 +837,7 @@ class MainActivity : Activity() {
                than at onPageFinished is what keeps the splash from handing
                over to an empty frame. */
             override fun onPageCommitVisible(view: WebView, url: String?) {
+                pushSafeTop()
                 painted = true
                 hideSplash()
                 SystemBars.watch(view) // SHELL-FEEL
@@ -844,6 +854,7 @@ class MainActivity : Activity() {
                 // not whenever the WebView gets round to it.
                 CookieManager.getInstance().flush()
                 view.evaluateJavascript(SAFE_PROBE, null)
+                pushSafeTop()
                 pendingShare?.let { s -> pendingShare = null; view.postDelayed({ Native.emit(view, s) }, 1500) }
                 hideSplash()
                 SystemBars.watch(view) // SHELL-FEEL

@@ -312,7 +312,10 @@
     --h1-fluid: clamp(1.3rem, 1rem + 2.2vw, 1.75rem);
     --h2-fluid: clamp(1.1rem, 0.95rem + 1.2vw, 1.35rem);
     --container: min(100%, 1440px);
-    --safe-top: env(safe-area-inset-top, 0px);
+    /* The app hands in the status-bar height as --app-sat: most Android
+       WebViews report var(--safe-top) as 0 under a real status bar
+       (owner 2026-11-27: "top is cut like a box"). */
+    --safe-top: max(env(safe-area-inset-top, 0px), var(--app-sat, 0px));
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --radius-card: min(calc(11px * var(--radius-k)), 20px);
     --radius-dialog: min(calc(14px * var(--radius-k)), 26px);
@@ -655,7 +658,7 @@
        it. Zero everywhere else: a browser and the Android shell report no
        inset, so this line costs nothing there. The dock does the same for the
        bottom in bento-theme.css. */
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--safe-top);
     font-size: calc(14px * var(--font-scale));
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -5539,7 +5542,7 @@ button.glass-btn:active:not(:disabled) {
    motion. Desktop is unchanged. */
 @media (max-width: 639px) {
   .scrim.search-sheet {
-    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 0;
+    padding: calc(8px + var(--safe-top)) 12px 0;
     background: hsl(var(--background) / 0.35);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
@@ -5549,13 +5552,13 @@ button.glass-btn:active:not(:disabled) {
     border-radius: 20px;
     overflow: hidden;
     box-shadow: 0 12px 32px -8px rgb(0 0 0 / .22), 0 2px 8px rgb(0 0 0 / .08);
-    max-height: calc(var(--vvh, 100dvh) - 20px - env(safe-area-inset-top, 0px));
-    transform-origin: calc(var(--search-ox, 50vw) - 12px) calc(var(--search-oy, 0px) - var(--vv-top, 0px) - 8px - env(safe-area-inset-top, 0px));
+    max-height: calc(var(--vvh, 100dvh) - 20px - var(--safe-top));
+    transform-origin: calc(var(--search-ox, 50vw) - 12px) calc(var(--search-oy, 0px) - var(--vv-top, 0px) - 8px - var(--safe-top));
     animation: search-card-in 260ms cubic-bezier(.2, .8, .2, 1) both;
   }
   /* The results take what the card has left (field 48px, footer ~34px). */
   .scrim.search-sheet .search-results {
-    max-height: calc(var(--vvh, 100dvh) - 20px - env(safe-area-inset-top, 0px) - 84px);
+    max-height: calc(var(--vvh, 100dvh) - 20px - var(--safe-top) - 84px);
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
     overscroll-behavior: contain;
@@ -6176,8 +6179,8 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
    MainActivity applyInsets). Zero in a browser, so nothing moves there. Outside @layer so it wins
    over the bar's own py-2.5 / h-[56px] utilities. */
 html[data-topbar] body { padding-top: 0; }
-html[data-topbar] header[data-paint="topbar"] { padding-top: calc(10px + env(safe-area-inset-top, 0px)); }
+html[data-topbar] header[data-paint="topbar"] { padding-top: calc(10px + var(--safe-top)); }
 html[data-topbar] header[data-paint="topbar"].h-\[56px\] {
-  height: calc(56px + env(safe-area-inset-top, 0px));
-  padding-top: env(safe-area-inset-top, 0px);
+  height: calc(56px + var(--safe-top));
+  padding-top: var(--safe-top);
 }

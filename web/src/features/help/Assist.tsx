@@ -68,7 +68,7 @@ export function AssistBanner() {
   if (!s) return null
   return (
     <div role="status" className="fixed inset-x-0 top-0 z-[125] flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b-2 border-warning bg-card px-4 py-2 text-[14px] font-medium text-foreground shadow-lg"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }}>
+      style={{ paddingTop: 'calc(var(--safe-top) + 8px)' }}>
       <span>{s.operator} from XULO support can see the school until {new Date(s.expires_at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}. Nothing can be changed.</span>
       <Button size="sm" variant="secondary" pending={end.isPending} onClick={() => end.mutate(s.id)}>End now</Button>
     </div>

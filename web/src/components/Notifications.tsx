@@ -580,7 +580,7 @@ export default function Notifications() {
                no longer starts under the top bar. */
             className="flex h-[100dvh] max-md:h-full w-full flex-col border-l bg-background shadow-[var(--lift-float)] sm:h-full sm:w-[400px]"
             style={{
-              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingTop: 'var(--safe-top)',
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
           >

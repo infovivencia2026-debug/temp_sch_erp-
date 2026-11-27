@@ -1243,7 +1243,7 @@ export function AssistantTab() {
              rather than a position, and the page it sits beside stays
              readable up to its edge. */
           style={{
-            paddingTop: 'env(safe-area-inset-top, 0px)',
+            paddingTop: 'var(--safe-top)',
           }}
           className={cn(
             /* vv-screen-phone: on a phone the panel is the visible screen,
@@ -1268,7 +1268,7 @@ export function AssistantTab() {
              desk it stays the small cluster in the corner. */}
           <div
             className="assistant-corner z-10 flex h-12 shrink-0 items-center gap-0.5 border-b px-2
-                       md:absolute md:right-2 md:h-auto md:border-0 md:px-0 md:top-[calc(env(safe-area-inset-top,0px)+0.5rem)]"
+                       md:absolute md:right-2 md:h-auto md:border-0 md:px-0 md:top-[calc(var(--safe-top)+0.5rem)]"
           >
             <span className="flex-1 truncate pl-2 text-[16px] font-semibold md:hidden">Assistant</span>
             <button

@@ -3803,7 +3803,7 @@ export function Dialog({
         full
           ? 'items-stretch p-0'
           : placement === 'top'
-            ? 'items-start px-4 pt-[calc(12vh+env(safe-area-inset-top,0px))] sm:p-6 sm:pt-[12vh]'
+            ? 'items-start px-4 pt-[calc(12vh+var(--safe-top))] sm:p-6 sm:pt-[12vh]'
             : 'items-end sm:items-center sm:p-6',
         scrimClassName,
       )}
