@@ -488,7 +488,7 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['circulars'] }),
   })
   return (
-    <Card className="flex flex-col lg:h-full lg:min-h-[460px]">
+    <Card className="flex min-h-[360px] flex-col lg:h-full lg:min-h-[460px]">
       {/* The toggle is the card's heading (owner, 2026-11-26): no title, and
           nothing about the child in this card. Taller on wide screens so more
           messages show; the child card beside it stretches to match. */}

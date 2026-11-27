@@ -99,18 +99,18 @@ export function SubjectCards({ subjects, hrefFor, note }: {
 }) {
   if (!subjects.length) return <p className="text-[15px] text-muted-foreground">No subjects set for this class yet.</p>
   return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+    <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
       {subjects.map((s, i) => {
         /* Each subject its own tint so the row reads at a glance (owner, 2026-11-27: "subjects look pale"). */
         const tint = SUBJECT_TINTS[i % SUBJECT_TINTS.length]
         return (
           <li key={s.class_subject_id} className="min-w-0">
             <Link to={hrefFor(s)}
-              className={cn('relative flex h-full min-h-[112px] flex-col gap-2 overflow-hidden rounded-2xl border bg-card p-4 pt-5 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_12px_28px_-10px_hsl(var(--foreground)/0.3)] motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
-              <span aria-hidden className={cn('absolute inset-x-0 top-0 h-1.5', tint.bar)} />
-              <span className={cn('grid size-10 place-items-center rounded-xl', tint.chip)}><BookOpen className="h-5 w-5" strokeWidth={1.9} aria-hidden /></span>
-              <span className="line-clamp-2 text-[16px] font-bold leading-snug">{s.subject}</span>
-              <span className="truncate text-[13px] text-muted-foreground">{note?.(s) ?? s.teacher ?? ''}</span>
+              className={cn('relative flex h-full min-h-[92px] flex-col gap-1.5 overflow-hidden rounded-xl border bg-card p-2.5 pt-3.5 sm:p-3 sm:pt-4 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_12px_28px_-10px_hsl(var(--foreground)/0.3)] motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
+              <span aria-hidden className={cn('absolute inset-x-0 top-0 h-1', tint.bar)} />
+              <span className={cn('grid size-8 place-items-center rounded-lg', tint.chip)}><BookOpen className="h-4 w-4" strokeWidth={1.9} aria-hidden /></span>
+              <span className="line-clamp-2 break-words text-[14px] font-bold leading-snug sm:text-[15px]">{s.subject}</span>
+              <span className="truncate text-[12px] text-muted-foreground">{note?.(s) ?? s.teacher ?? ''}</span>
             </Link>
           </li>
         )
