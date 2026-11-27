@@ -1,3 +1,4 @@
+import { lastTap } from '@/lib/launch-morph'
 import { useAiFeature } from '@/components/ai/useAiStatus'
 import { AssistantHeaderButton } from './assistant/AssistantHeaderButton'
 import { Anchored } from './AnchoredPanel'
@@ -290,10 +291,9 @@ export function Shell({
   /* Where the last press landed, for the iOS-style launch: Settings grows out
      of the button that opened it (owner, 2026-10-08). See bento-theme.css. */
   useEffect(() => {
-    const root = document.documentElement
     const at = (e: PointerEvent) => {
-      root.style.setProperty('--tap-x', e.clientX + 'px')
-      root.style.setProperty('--tap-y', e.clientY + 'px')
+      lastTap.x = e.clientX + 'px'
+      lastTap.y = e.clientY + 'px'
     }
     document.addEventListener('pointerdown', at, true)
     return () => document.removeEventListener('pointerdown', at, true)

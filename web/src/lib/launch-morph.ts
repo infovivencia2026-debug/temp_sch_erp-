@@ -25,6 +25,11 @@
    out there always is -- and against what the panel is about to be when
    there is not: 920px or 92vw across, and the min(88vh, 760px) its own class
    sets. */
+/** Where the last press landed (Shell writes it). Kept in JS, not as a CSS
+    variable on <html>: setting one restyled the whole page on every tap
+    (owner, 2026-11-27: opening Settings felt stuck). */
+export const lastTap = { x: '50vw', y: '50vh' }
+
 function setVectors(panel?: { width: number; height: number } | null, on?: HTMLElement): void {
   const root = document.documentElement
   /* Where the result is written. Before the panel exists it can only be
@@ -39,8 +44,8 @@ function setVectors(panel?: { width: number; height: number } | null, on?: HTMLE
      gear's rect) forced that restyle at once, on the frame the window first
      drew. The press point is read from the inline style Shell writes it to,
      so no getComputedStyle either. */
-  const tapX = root.style.getPropertyValue('--tap-x').trim() || '50vw'
-  const tapY = root.style.getPropertyValue('--tap-y').trim() || '50vh'
+  const tapX = lastTap.x
+  const tapY = lastTap.y
   /* offsetWidth/offsetHeight, never getBoundingClientRect: the rect is the
      element's VISUAL box and includes the transform, so measuring the panel
      a frame into its own launch returned the 35px it was scaled down to and
