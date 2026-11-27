@@ -15,7 +15,7 @@ export function SegToggle<T extends string>({ value, onChange, options, ariaLabe
   const i = Math.max(0, options.findIndex((o) => o.value === value))
   return (
     <div role="tablist" aria-label={ariaLabel}
-      className={cn('relative flex w-full rounded-full border bg-muted p-1', className)}>
+      className={cn('relative flex w-full !rounded-full border bg-muted p-1', className)}>
       <span aria-hidden
         className="pointer-events-none absolute bottom-1 left-1 top-1 rounded-full bg-primary shadow-[0_2px_6px_hsl(var(--foreground)/0.22)] transition-transform duration-[400ms] ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] motion-reduce:transition-none"
         style={{ width: `calc((100% - 8px) / ${n})`, transform: `translateX(${i * 100}%)` }} />

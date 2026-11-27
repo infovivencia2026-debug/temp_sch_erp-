@@ -34,39 +34,50 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
   const years = profile?.years ?? []
   const yearValue = year && years.some((y) => y.academic_year_id === year) ? year : (profile?.academic_year_id ?? '')
   const yearName = years.find((y) => y.academic_year_id === yearValue)?.academic_year ?? profile?.academic_year ?? ''
+  const facts: [string, string][] = ([
+    ['Admission no.', profile?.admission_no ?? ''],
+    ['Roll no.', profile?.roll_no != null ? String(profile.roll_no) : ''],
+    ['Joined', profile?.admission_date ? formatDate(profile.admission_date) : ''],
+    ['Academic year', yearName],
+  ] as [string, string][]).filter(([, v]) => v)
   const pill = 'inline-flex min-h-[48px] max-w-full items-center gap-1.5 rounded-full border bg-card px-4 text-[14px] font-semibold text-foreground shadow-sm hover:border-primary/40'
   return (
-    /* THE CHILD (owner's approved mockup, 2026-11-26): a big photo on a band
-       of the school's colour, the name large under it, class, joined and
-       year, then two small pills for the year and the child. On a phone the
-       photo sits beside the details. */
-    <Card className="relative h-full overflow-hidden border-primary/25 bg-gradient-to-b from-primary/15 via-primary/5 to-card">
-      <span aria-hidden className="absolute inset-x-0 top-0 hidden h-[120px] bg-gradient-to-br from-primary to-primary/70 lg:block" />
-      <div className="relative flex flex-wrap items-center gap-4 p-4 lg:flex-col lg:flex-nowrap lg:gap-3 lg:p-6 lg:pt-7 lg:text-center">
+    /* THE CHILD (owner, 2026-11-27: "can be better"). A soft band of the
+       school's colour, the round photo centred over its edge, the name, the
+       class as a chip, then the facts as labelled rows so the card fills its
+       height with things a parent reads. On a phone the photo sits beside the
+       name and the rows follow underneath. */
+    <Card className="relative flex h-full flex-col overflow-hidden">
+      <span aria-hidden className="absolute inset-x-0 top-0 h-[72px] bg-gradient-to-br from-primary/25 via-primary/10 to-transparent lg:h-[104px]" />
+      <div className="relative flex items-center gap-4 p-4 pb-3 lg:flex-col lg:gap-3 lg:px-6 lg:pt-10 lg:text-center">
         <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
         <div className="min-w-0 flex-1 lg:flex-none">
-          <p className="break-words text-[22px] font-extrabold leading-tight tracking-[-0.02em] lg:text-[28px]">{name || (loading ? '…' : '')}</p>
-          <div className="mt-1 flex flex-col gap-0.5 text-[15px] text-muted-foreground">
-            {cls && <span className="font-semibold text-primary">{cls}</span>}
-            {profile?.admission_date && <span>Joined {formatDate(profile.admission_date)}</span>}
-            {yearName && <span>Academic year {yearName}</span>}
+          <p className="break-words text-[22px] font-extrabold leading-tight tracking-[-0.02em] lg:text-[26px]">{name || (loading ? '…' : '')}</p>
+          {cls && <span className="mt-1.5 inline-flex max-w-full rounded-full bg-primary/10 px-3 py-1 text-[14px] font-semibold text-primary"><span className="truncate">Class {cls}</span></span>}
+        </div>
+      </div>
+      {facts.length > 0 && <dl className="relative mx-4 divide-y rounded-xl border bg-muted/40 text-[15px] lg:mx-6">
+        {facts.map(([k, v]) => (
+          <div key={k} className="flex min-h-[44px] items-center justify-between gap-3 px-3.5 py-2">
+            <dt className="shrink-0 text-muted-foreground">{k}</dt>
+            <dd className="min-w-0 truncate text-right font-semibold">{v}</dd>
           </div>
-        </div>
-        <div className="flex w-full flex-wrap gap-2 lg:justify-center">
-          {years.length > 0 && (
-            <PickerMenu value={yearValue} ariaLabel="Academic year" align="start"
-              onChange={(id) => onYear(years.find((y) => y.academic_year_id === id)?.is_current ? '' : id)}
-              options={years.map((y) => ({ value: y.academic_year_id, label: y.academic_year }))}>
-              <span className={pill}><CalendarRange className="h-4 w-4 text-primary" aria-hidden />{yearName}<ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden /></span>
-            </PickerMenu>
-          )}
-          {kids.length > 1 && (
-            <PickerMenu value={activeId ?? ''} ariaLabel="Switch child" align="end" onChange={onChild}
-              options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}>
-              <span className={pill}><Users className="h-4 w-4 text-primary" aria-hidden />Switch child<ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden /></span>
-            </PickerMenu>
-          )}
-        </div>
+        ))}
+      </dl>}
+      <div className="relative mt-auto flex flex-wrap gap-2 p-4 lg:justify-center lg:px-6 lg:pb-6">
+        {years.length > 0 && (
+          <PickerMenu value={yearValue} ariaLabel="Academic year" align="start"
+            onChange={(id) => onYear(years.find((y) => y.academic_year_id === id)?.is_current ? '' : id)}
+            options={years.map((y) => ({ value: y.academic_year_id, label: y.academic_year }))}>
+            <span className={pill}><CalendarRange className="h-4 w-4 text-primary" aria-hidden />{yearName}<ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden /></span>
+          </PickerMenu>
+        )}
+        {kids.length > 1 && (
+          <PickerMenu value={activeId ?? ''} ariaLabel="Switch child" align="end" onChange={onChild}
+            options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}>
+            <span className={pill}><Users className="h-4 w-4 text-primary" aria-hidden />Switch child<ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden /></span>
+          </PickerMenu>
+        )}
       </div>
     </Card>
   )
@@ -74,10 +85,10 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
 
 /* The child's photo, or their initials when the school has none. */
 function ChildPhoto({ name, photo }: { name: string; photo?: string }) {
-  const box = 'aspect-[5/6] w-24 shrink-0 rounded-2xl border-4 border-card shadow-[0_10px_24px_-6px_hsl(var(--primary)/0.45)] lg:w-[60%] lg:rounded-3xl'
+  const box = 'size-20 shrink-0 rounded-full border-4 border-card shadow-[0_8px_20px_-6px_hsl(var(--primary)/0.45)] lg:size-32'
   return photo
     ? <img src={fileSrc(photo)} alt="" className={cn(box, 'bg-muted object-cover')} />
-    : <span aria-hidden className={cn(box, 'grid place-items-center bg-primary/10 text-[32px] font-extrabold text-primary lg:text-[64px]')}>{initials(name)}</span>
+    : <span aria-hidden className={cn(box, 'grid place-items-center bg-gradient-to-br from-primary to-primary/70 text-[28px] font-extrabold text-primary-foreground lg:text-[44px]')}>{initials(name)}</span>
 }
 
 /* The child's subjects as cards, each opening its Subject page. */
@@ -95,7 +106,7 @@ export function SubjectCards({ subjects, hrefFor, note }: {
         return (
           <li key={s.class_subject_id} className="min-w-0">
             <Link to={hrefFor(s)}
-              className={cn('relative flex h-full min-h-[112px] flex-col gap-2 overflow-hidden rounded-2xl border bg-card p-4 pt-5 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
+              className={cn('relative flex h-full min-h-[112px] flex-col gap-2 overflow-hidden rounded-2xl border bg-card p-4 pt-5 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_12px_28px_-10px_hsl(var(--foreground)/0.3)] motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
               <span aria-hidden className={cn('absolute inset-x-0 top-0 h-1.5', tint.bar)} />
               <span className={cn('grid size-10 place-items-center rounded-xl', tint.chip)}><BookOpen className="h-5 w-5" strokeWidth={1.9} aria-hidden /></span>
               <span className="line-clamp-2 text-[16px] font-bold leading-snug">{s.subject}</span>
