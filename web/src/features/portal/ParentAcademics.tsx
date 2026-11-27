@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, ClipboardCheck, TrendingUp } from 'lucide-react'
+import { CalendarDays, Inbox, ClipboardCheck, TrendingUp } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, EmptyState, ErrorState, Input, SkeletonTiles } from '@/components/ui'
 import { formatDate, cn, WEEKDAYS } from '@/lib/utils'
@@ -141,7 +141,6 @@ function Academics({ view }: { view: string }) {
           {/* The subject's name is the breadcrumb above (owner, 2026-11-27: no
               second heading), so the card is its teacher. */}
           <Card className="relative overflow-hidden p-4 sm:p-5">
-            <span aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-primary" />
             <div className="flex min-w-0 items-center gap-4">
               <ChildAvatar name={s.teacher ?? '?'} photo={s.teacher_photo} size="md" />
               <div className="min-w-0">
@@ -150,21 +149,21 @@ function Academics({ view }: { view: string }) {
               </div>
             </div>
           </Card>
-          <CellGrid cols={3}>
+          {/* Empty sections are left out (owner, 2026-11-27: "empty boxes look
+              ugly"); Homework always shows, as it carries the date picker. */}
+          <CellGrid cols={latest ? 3 : 2}>
             <Stat label="Periods per week" value={s.periods_per_week || '-'} icon={CalendarDays} />
             <Stat label="Homework set" value={homework.isLoading ? '…' : mine.length} icon={ClipboardCheck} />
-            <Stat label="Latest marks" value={results.isLoading ? '…' : latest ? `${latest.marks_obtained} / ${latest.max_marks}` : '-'} icon={TrendingUp}
-              hint={latest?.exam} />
+            {latest && <Stat label="Latest marks" value={`${latest.marks_obtained} / ${latest.max_marks}`} icon={TrendingUp} hint={latest.exam} />}
           </CellGrid>
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6', week.length > 0 && 'lg:grid-cols-[minmax(0,1fr)_340px]')}>
             <div className="flex min-w-0 flex-col gap-4 md:gap-6">
               {scored.length > 1 && <MarksTrend items={scored} />}
               <SubjectHomework items={mine} today={today} loading={homework.isLoading} error={homework.error} />
+              {marks.length === 0 ? <Quiet>No marks published yet</Quiet> : (
               <Card>
                 <CardHeader title="Academic performance" />
-                {results.isLoading ? <SkeletonTiles count={2} /> : marks.length === 0 ? (
-                  <p className="px-[var(--card-pad)] pb-4 text-[15px] text-muted-foreground">No marks published yet.</p>
-                ) : (
+                {
                   <ul className="divide-y px-[var(--card-pad)] pb-2">
                     {marks.map((m, i) => (
                       <li key={i} className="flex min-h-[48px] items-center justify-between gap-3 py-2 text-[15px]">
@@ -173,14 +172,14 @@ function Academics({ view }: { view: string }) {
                       </li>
                     ))}
                   </ul>
-                )}
+                }
               </Card>
+              )}
             </div>
+            {week.length > 0 && (
             <Card className="h-fit min-w-0">
               <CardHeader title="This week" />
-              {entries.isLoading || periods.isLoading ? <SkeletonTiles count={2} /> : week.length === 0 ? (
-                <p className="px-[var(--card-pad)] pb-4 text-[15px] text-muted-foreground">No periods on the timetable yet.</p>
-              ) : (
+              {
                 <ul className="divide-y px-[var(--card-pad)] pb-2">
                   {week.map((w, i) => (
                     <li key={i} className={cn('flex min-h-[48px] items-center gap-3 py-2 text-[15px]', w.day === todayDay && 'font-semibold')}>
@@ -190,8 +189,9 @@ function Academics({ view }: { view: string }) {
                     </li>
                   ))}
                 </ul>
-              )}
+              }
             </Card>
+            )}
           </div>
         </PageBody>
       </>
@@ -239,7 +239,7 @@ function SubjectHomework({ items, today, loading, error }: { items: Hw[]; today:
         <div className="w-[11.5rem] max-w-full"><Input type="date" value={day} onChange={(v) => setDay(v || today)} max={today} /></div>
       </div>
       {onDay.length === 0
-        ? <p className="px-[var(--card-pad)] pb-4 text-[15px] text-muted-foreground">{day === today ? 'No homework set today.' : 'No homework set on this day.'}</p>
+        ? <p className="flex items-center gap-2 px-[var(--card-pad)] pb-4 text-[14px] text-muted-foreground"><Inbox className="h-4 w-4 shrink-0" aria-hidden />{day === today ? 'No homework set today' : 'No homework set on this day'}</p>
         : <HwList items={onDay} />}
     </Card>
   )
@@ -262,5 +262,14 @@ function HwList({ items }: { items: Hw[] }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+/* A section with nothing in it: one soft line, no box. */
+function Quiet({ children }: { children: string }) {
+  return (
+    <p className="flex items-center gap-2 px-1 text-[14px] text-muted-foreground">
+      <Inbox className="h-4 w-4 shrink-0" aria-hidden />{children}
+    </p>
   )
 }

@@ -636,3 +636,10 @@
     backdrop-filter: none;
   }
 }
+
+/* HOME FIGURES, SMALLER (owner, 2026-11-27): Fee outstanding and Today are
+   glanceable facts, not the page's headline; less padding, smaller text. */
+.parent-mini .cell-grid > .cell { padding: 12px 14px !important; min-height: 0 !important; }
+.parent-mini .cell-grid > .cell .stat { font-size: 22px !important; margin-top: 4px !important; }
+.parent-mini .cell-grid > .cell p:not(.stat) { font-size: 12px !important; }
+.parent-mini .cell-grid > .cell svg { width: 14px !important; height: 14px !important; padding: 0 !important; background: none !important; }

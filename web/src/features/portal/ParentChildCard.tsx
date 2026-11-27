@@ -108,8 +108,7 @@ export function SubjectCards({ subjects, hrefFor, note }: {
         return (
           <li key={s.class_subject_id} className="min-w-0">
             <Link to={hrefFor(s)}
-              className={cn('relative flex h-full min-h-[92px] flex-col gap-1.5 overflow-hidden rounded-xl border bg-card p-2.5 pt-3.5 sm:p-3 sm:pt-4 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_12px_28px_-10px_hsl(var(--foreground)/0.3)] motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
-              <span aria-hidden className={cn('absolute inset-x-0 top-0 h-1', tint.bar)} />
+              className={cn('relative flex h-full min-h-[92px] flex-col gap-1.5 overflow-hidden rounded-xl border bg-card p-2.5 sm:p-3 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_12px_28px_-10px_hsl(var(--foreground)/0.3)] motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
               <span className={cn('grid size-8 place-items-center rounded-lg', tint.chip)}><BookOpen className="h-4 w-4" strokeWidth={1.9} aria-hidden /></span>
               <span className="line-clamp-2 break-words text-[14px] font-bold leading-snug sm:text-[15px]">{s.subject}</span>
               <span className="truncate text-[12px] text-muted-foreground">{note?.(s) ?? s.teacher ?? ''}</span>
@@ -122,9 +121,9 @@ export function SubjectCards({ subjects, hrefFor, note }: {
 }
 
 const SUBJECT_TINTS = [
-  { bar: 'bg-primary', chip: 'bg-primary/10 text-primary', border: 'hover:border-primary/50' },
-  { bar: 'bg-success', chip: 'bg-success/15 text-success', border: 'hover:border-success/50' },
-  { bar: 'bg-warning', chip: 'bg-warning/15 text-warning', border: 'hover:border-warning/50' },
-  { bar: 'bg-info', chip: 'bg-info/15 text-info', border: 'hover:border-info/50' },
-  { bar: 'bg-destructive', chip: 'bg-destructive/10 text-destructive', border: 'hover:border-destructive/50' },
+  { chip: 'bg-primary/10 text-primary', border: 'hover:border-primary/50' },
+  { chip: 'bg-success/15 text-success', border: 'hover:border-success/50' },
+  { chip: 'bg-warning/15 text-warning', border: 'hover:border-warning/50' },
+  { chip: 'bg-info/15 text-info', border: 'hover:border-info/50' },
+  { chip: 'bg-destructive/10 text-destructive', border: 'hover:border-destructive/50' },
 ] as const

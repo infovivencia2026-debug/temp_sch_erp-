@@ -764,7 +764,7 @@ export default function Portal() {
       </div>
       <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:order-1">
       {summary.error && !summary.data ? <ErrorState error={summary.error} /> : (
-        <CellGrid cols={2}>
+        <div className="parent-mini"><CellGrid cols={2}>
           <Stat
             label="Fee outstanding"
             value={s ? formatPaise(s.outstanding_paise) : '…'}
@@ -778,7 +778,7 @@ export default function Portal() {
             icon={CalendarCheck}
             onClick={go('attendance/attendance')}
           />
-        </CellGrid>
+        </CellGrid></div>
       )}
       <SchoolMessages
         query={circulars}
