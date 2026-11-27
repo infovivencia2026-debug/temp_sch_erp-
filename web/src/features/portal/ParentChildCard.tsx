@@ -89,16 +89,29 @@ export function SubjectCards({ subjects, hrefFor, note }: {
   if (!subjects.length) return <p className="text-[15px] text-muted-foreground">No subjects set for this class yet.</p>
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-      {subjects.map((s) => (
-        <li key={s.class_subject_id} className="min-w-0">
-          <Link to={hrefFor(s)}
-            className="flex h-full min-h-[96px] flex-col gap-1.5 rounded-xl border bg-card p-4 shadow-sm transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md">
-            <BookOpen className="h-5 w-5 text-primary" strokeWidth={1.8} aria-hidden />
-            <span className="line-clamp-2 text-[16px] font-semibold leading-snug">{s.subject}</span>
-            <span className="truncate text-[13px] text-muted-foreground">{note?.(s) ?? s.teacher ?? ''}</span>
-          </Link>
-        </li>
-      ))}
+      {subjects.map((s, i) => {
+        /* Each subject its own tint so the row reads at a glance (owner, 2026-11-27: "subjects look pale"). */
+        const tint = SUBJECT_TINTS[i % SUBJECT_TINTS.length]
+        return (
+          <li key={s.class_subject_id} className="min-w-0">
+            <Link to={hrefFor(s)}
+              className={cn('relative flex h-full min-h-[112px] flex-col gap-2 overflow-hidden rounded-2xl border bg-card p-4 pt-5 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
+              <span aria-hidden className={cn('absolute inset-x-0 top-0 h-1.5', tint.bar)} />
+              <span className={cn('grid size-10 place-items-center rounded-xl', tint.chip)}><BookOpen className="h-5 w-5" strokeWidth={1.9} aria-hidden /></span>
+              <span className="line-clamp-2 text-[16px] font-bold leading-snug">{s.subject}</span>
+              <span className="truncate text-[13px] text-muted-foreground">{note?.(s) ?? s.teacher ?? ''}</span>
+            </Link>
+          </li>
+        )
+      })}
     </ul>
   )
 }
+
+const SUBJECT_TINTS = [
+  { bar: 'bg-primary', chip: 'bg-primary/10 text-primary', border: 'hover:border-primary/50' },
+  { bar: 'bg-success', chip: 'bg-success/15 text-success', border: 'hover:border-success/50' },
+  { bar: 'bg-warning', chip: 'bg-warning/15 text-warning', border: 'hover:border-warning/50' },
+  { bar: 'bg-info', chip: 'bg-info/15 text-info', border: 'hover:border-info/50' },
+  { bar: 'bg-destructive', chip: 'bg-destructive/10 text-destructive', border: 'hover:border-destructive/50' },
+] as const

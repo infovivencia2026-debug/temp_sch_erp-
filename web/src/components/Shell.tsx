@@ -1028,7 +1028,8 @@ export function Shell({
                   </span>
                 )}
                 <span className="block min-w-0 flex-1">
-                  <span className="block truncate text-[calc(16px*var(--font-scale,1))] font-extrabold leading-tight" title={brandName}>
+                  {/* One line, whole name (owner, 2026-11-26): a size that fits "Yajur Public School" beside the collapse button. */}
+                  <span className="block truncate text-[calc(14.5px*var(--font-scale,1))] font-extrabold leading-tight tracking-tight" title={brandName}>
                     {brandName}
                   </span>
                   <span className="mt-0.5 flex items-center gap-1 text-[calc(13.5px*var(--font-scale,1))] font-semibold text-muted-foreground">

@@ -488,10 +488,11 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['circulars'] }),
   })
   return (
-    <Card className="flex flex-col lg:h-full">
+    <Card className="flex flex-col lg:h-full lg:min-h-[460px]">
       {/* The toggle is the card's heading (owner, 2026-11-26): no title, and
-          nothing about the child in this card. */}
-      <div className="flex justify-center px-3 pb-2 pt-[var(--card-pad)]">
+          nothing about the child in this card. Taller on wide screens so more
+          messages show; the child card beside it stretches to match. */}
+      <div className="flex justify-center border-b px-4 pb-4 pt-5">
         <SegToggle value={tab} onChange={setTab} ariaLabel="Messages from school"
           className="max-w-[360px]"
           options={[{ value: 'news', label: 'Announcements' }, { value: 'homework', label: 'Homework' }]} />
@@ -757,7 +758,7 @@ export default function Portal() {
           messages: Fee + Today over the messages on the left, the child card
           the full height on the right. On a phone the child comes first. */}
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-      <div className="min-w-0 lg:order-2">
+      <div className="min-w-0 lg:order-2 lg:[&>*]:h-full">
         <ParentChildCard profile={profile.data} kids={kids} activeId={activeId}
           onChild={chooseChild} year={year} onYear={setYear} loading={profile.isLoading} />
       </div>
