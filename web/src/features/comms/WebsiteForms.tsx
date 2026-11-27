@@ -482,15 +482,7 @@ function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) 
 
   return (
     <>
-      {scored && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-primary to-primary/75 px-5 py-4 text-primary-foreground">
-          <div className="min-w-0">
-            <div className="text-[20px] font-bold leading-tight">{form.title}</div>
-            <div className="text-[14px] opacity-90">{form.description || 'Online test'}</div>
-          </div>
-          <span className="rounded-full bg-primary-foreground/20 px-3 py-1 text-[13px] font-semibold">{form.is_open ? 'Live' : 'Not live'}</span>
-        </div>
-      )}
+      {/* The long blue title bar is gone (owner, 2026-11-27): the page head already names the form. */}
       {slot && createPortal(
         <div className="w-44"><Select value="" placeholder={`Export ${scored ? board.length : shown.length}`} onChange={(v) => { const rows = scored ? boardRows() : allRows(); if (v === 'xlsx') saveExcel(form.title + ' responses', rows); else if (v === 'csv') saveCsv(form.title + ' responses', rows) }}
           options={[{ value: 'xlsx', label: 'Excel' }, { value: 'csv', label: 'CSV' }]} /></div>, slot)}
@@ -522,7 +514,7 @@ function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) 
           className={cn('flex min-h-12 shrink-0 items-center gap-2.5 rounded-xl border-2 px-3.5 py-2 text-left transition-colors',
             !view && !quick ? 'border-primary bg-primary text-primary-foreground' : 'border-primary/30 bg-primary/5 text-foreground hover:border-primary/60')}>
           <Inbox className={cn('size-5 shrink-0', !view && !quick ? '' : 'text-primary')} aria-hidden />
-          <span className="whitespace-nowrap text-[14px] font-semibold">All</span>
+          <span className="whitespace-nowrap text-[14px] font-semibold">Yet to review</span>
           <span className={cn('rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums', !view && !quick ? 'bg-primary-foreground/20' : 'bg-primary/10 text-primary')}>{items.filter((x) => !sorted.has(x.id)).length}</span>
         </button>
         {shortcuts.map((s) => {
@@ -553,11 +545,11 @@ function Responses({ form, slot }: { form: Form; slot: HTMLDivElement | null }) 
       {picked.size > 0 && (
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <span className="text-[14px] font-medium">{picked.size} selected</span>
-          {shortcuts.filter((x) => x.id !== view).length > 0 && (
-            <div className="w-44"><Select value="" placeholder="Move to" onChange={(v) => v && moveTo(v, [...picked])}
-              options={shortcuts.filter((x) => x.id !== view).map((x) => ({ value: x.id, label: x.name }))} /></div>
+          {/* Move to any other shortcut, or back to Yet to review (owner, 2026-11-27). */}
+          {(view || shortcuts.length > 0) && (
+            <div className="w-48"><Select value="" placeholder="Move to" onChange={(v) => { if (v === UNSORTED) removeFromView(); else if (v) moveTo(v, [...picked]) }}
+              options={[...(view ? [{ value: UNSORTED, label: 'Yet to review' }] : []), ...shortcuts.filter((x) => x.id !== view).map((x) => ({ value: x.id, label: x.name }))]} /></div>
           )}
-          {view && <Button variant="secondary" pending={saveShortcuts.isPending} onClick={removeFromView}>Remove from shortcut</Button>}
           <ConfirmButton tone="danger" confirmLabel="Delete" question={`Delete ${picked.size} response${picked.size > 1 ? 's' : ''} and their files?`}
             onConfirm={async () => { for (const id of picked) await del.mutateAsync(id); setPicked(new Set()) }}>
             <Trash2 className="size-4" aria-hidden />Delete
@@ -872,6 +864,7 @@ function ShowIf({ field, others, onChange }: { field: FormField; others: FormFie
   )
 }
 
+const UNSORTED = '__yet_to_review'
 /* Export (owner, 2026-11-08: "for each one let them export the details"). CSV opens in Excel. */
 const csvCell = (v: string) => '"' + String(v ?? '').replace(/"/g, '""') + '"'
 function saveCsv(name: string, rows: string[][]) {
