@@ -103,10 +103,11 @@ internal object SystemBars {
         web?.setBackgroundColor(colour)
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            // Edge to edge on every version: the page shows through both bars.
             @Suppress("DEPRECATION")
-            window.statusBarColor = colour
+            window.statusBarColor = Color.TRANSPARENT
             @Suppress("DEPRECATION")
-            window.navigationBarColor = colour
+            window.navigationBarColor = Color.TRANSPARENT
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             /* Without these Android draws its own translucent scrim over the

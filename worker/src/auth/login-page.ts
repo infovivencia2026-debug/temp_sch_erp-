@@ -561,6 +561,16 @@ const NO_ZOOM_JS = `
 })()
 </script>`
 
+/* The app's opening screen (web WorkspaceLoading) shows the school's mark from
+   what the last session stored. A phone signing in for the first time has none,
+   so its first opening had no crest (owner 2026-11-27). The sign-in page knows
+   the school: it leaves the name and logo address for that first opening; the
+   session replaces them with its own copy (web lib/brand.ts rememberSchoolMark). */
+function markScript(name: string, logoUrl: string): string {
+  const data = JSON.stringify({ name, logo: logoUrl, key: '' }).replace(/</g, '\u003c')
+  return `<script>try{var m=JSON.parse(localStorage.getItem('erp.schoolMark')||'null');if(!m||!m.logo)localStorage.setItem('erp.schoolMark',${JSON.stringify(data).replace(/</g, '\u003c')})}catch(e){}</script>`
+}
+
 export function loginHTML(o: {
   csrf: string; next: string; identifier?: string; error?: string; brand?: Brand; lang?: LoginLang; switchHref?: string
   /** 'vendor' is the XULO maintenance sign-in: no tabs, its own heading. */
@@ -598,6 +608,7 @@ export function loginHTML(o: {
   for (const k of Object.keys(w)) page = page.split(`@@T_${k}@@`).join(w[k])
   const style = (b ? brandStyle(b) : '') + PHONE_FIT_CSS + (vendor ? '' : TAB_CSS) + (slides.length ? SLIDES_CSS : '') + FIT_CSS
   const scripts = (vendor ? '' : tabsScript(lang)) + (slides.length > 1 ? SLIDES_JS : '') + (slides.length ? PHONE_JS : '') + NO_ZOOM_JS
+    + (b?.logoUrl ? markScript(b.name, b.logoUrl) : '')
   return page
     /* Owner, 2026-11-04: "Sign in to YAJUR OS" (was "SIGN IN TO yajur.os"), big and bold. The word is the
        school name's first word, so it fits any school. */

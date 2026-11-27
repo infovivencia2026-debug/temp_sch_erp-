@@ -377,7 +377,8 @@ export async function login(env: Env, req: Request, school?: Institution | null,
   /* login_index matches the identifier without regard to case, so the throttle must too: keyed
      on the raw string, "Admin", "ADMIN" and "admin" were three separate budgets for one account. */
   const idKey = 'id:' + identifier.toLowerCase()
-  const wait = Math.max(await throttled(env, idKey), await throttled(env, 'ip:' + ip))
+  // Both reads at once: every sequential D1 trip is time a parent on 3G watches the button spin.
+  const wait = Math.max(...await Promise.all([throttled(env, idKey), throttled(env, 'ip:' + ip)]))
   if (wait > 0) {
     await record(env, req, identifier, 'locked', null, null)
     return page(env, { error: `Too many tries. Wait ${Math.ceil(wait / 60000)} min.`, next, identifier, status: 429 })
@@ -402,15 +403,22 @@ export async function login(env: Env, req: Request, school?: Institution | null,
     return page(env, { error: msg, next, identifier, status: 401 })
   }
 
-  await env.CONTROL.prepare('DELETE FROM login_throttle WHERE key = ?').bind(idKey).run()
+  /* The throttle reset, the student-login check and the two-factor lookup below
+     are independent reads and writes: run together (2026-11-27, sign-in speed). */
+  const inst = r.c.institution_id ? await institutionById(env, r.c.institution_id) : null
+  const idb = inst ? tenantDb(env, inst) : null
+  const [, sidEarly, mfaRow] = await Promise.all([
+    env.CONTROL.prepare('DELETE FROM login_throttle WHERE key = ?').bind(idKey).run(),
+    idb ? studentOnlyAccount(idb, r.c.user_id) : Promise.resolve(null),
+    idb ? idb.prepare('SELECT mfa_secret FROM users WHERE id = ?').bind(r.c.user_id).first<{ mfa_secret: string | null }>() : Promise.resolve(null),
+  ])
 
   /* A child's own login works only while the school allows student logins
      (services/student_logins.ts). The password was right, so say why. */
   if (r.c.institution_id) {
-    const inst = await institutionById(env, r.c.institution_id)
     if (inst) {
-      const db = tenantDb(env, inst)
-      const sid = await studentOnlyAccount(db, r.c.user_id)
+      const db = idb!
+      const sid = sidEarly
       const why = sid ? await studentLoginRefusal(db, sid) : null
       if (why) {
         await record(env, req, identifier, 'student_logins_off', r.c.institution_id, r.c.user_id)
@@ -421,14 +429,11 @@ export async function login(env: Env, req: Request, school?: Institution | null,
 
   /* Two-factor: a school user with an authenticator set up gets the code
      step (pages/mfa.ts) instead of a session, as internal/auth does. */
-  if (r.c.institution_id) {
-    const inst = await institutionById(env, r.c.institution_id)
-    const u = inst ? await tenantDb(env, inst).prepare('SELECT mfa_secret FROM users WHERE id = ?')
-      .bind(r.c.user_id).first<{ mfa_secret: string | null }>() : null
-    if (u?.mfa_secret) return askForCode(env, req, r.c.user_id, r.c.institution_id, 'password', next)
-  }
-  const cookie = await issueSession(env, req, r.c.user_id, r.c.institution_id)
-  await record(env, req, identifier, 'ok', r.c.institution_id, r.c.user_id)
+  if (r.c.institution_id && mfaRow?.mfa_secret) return askForCode(env, req, r.c.user_id, r.c.institution_id, 'password', next)
+  const [cookie] = await Promise.all([
+    issueSession(env, req, r.c.user_id, r.c.institution_id),
+    record(env, req, identifier, 'ok', r.c.institution_id, r.c.user_id),
+  ])
   return new Response(null, { status: 303, headers: { location: next, 'set-cookie': cookie } })
 }
 

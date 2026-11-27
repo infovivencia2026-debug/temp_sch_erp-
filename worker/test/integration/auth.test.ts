@@ -21,6 +21,21 @@ describe('sign-in', () => {
     expect(ev?.outcome).toBe('ok')
   })
 
+  it('keeps a session signed in until sign-out: days unused is fine, and use slides the expiry', async () => {
+    const { res, cookie } = await signIn(USERS.teacher)
+    expect(cookie).toBeTruthy()
+    expect(res.headers.get('set-cookie')).toMatch(/Max-Age=34560000/)
+    const row = await E.CONTROL.prepare(`SELECT id FROM sessions WHERE user_id = ? AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1`).bind(IDS.teacher).first<{ id: string }>()
+    const soon = new Date(Date.now() + 3600_000).toISOString()
+    await E.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE id = ?`)
+      .bind(new Date(Date.now() - 5 * 86400_000).toISOString(), soon, row!.id).run()
+    const r = await call('/api/v1/session', { headers: { cookie: cookie! } })
+    expect((await r.json() as { authenticated: boolean }).authenticated).toBe(true)
+    const after = await E.CONTROL.prepare(`SELECT expires_at, revoked_at FROM sessions WHERE id = ?`).bind(row!.id).first<{ expires_at: string; revoked_at: string | null }>()
+    expect(after?.revoked_at ?? null).toBeNull()
+    expect(Date.parse(after!.expires_at) - Date.now()).toBeGreaterThan(100 * 86400_000)
+  })
+
   it('refuses a wrong password with 401 and no cookie', async () => {
     const { res, cookie } = await signIn(USERS.teacher, 'not the password')
     expect(res.status).toBe(401)

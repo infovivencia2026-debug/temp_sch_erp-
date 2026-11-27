@@ -15,8 +15,8 @@
          painted; see holdSplash in MainActivity for why that matters and for
          the timeout that stops it becoming a hang. -->
     <style name="Theme.Parent" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@color/page_bg</item>
-        <item name="android:navigationBarColor">@color/page_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowBackground">@color/page_bg</item>
         <!-- WHAT THE WEBVIEW READS TO ANSWER prefers-color-scheme.
 

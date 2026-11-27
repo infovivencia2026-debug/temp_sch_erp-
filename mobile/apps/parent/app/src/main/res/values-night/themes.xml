@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Parent" parent="android:Theme.Material.NoActionBar" tools:targetApi="o_mr1">
-        <item name="android:statusBarColor">@color/page_bg</item>
-        <item name="android:navigationBarColor">@color/page_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowBackground">@color/page_bg</item>
         <!-- The dark half of the pair. See the note in values/themes.xml:
              this is what tells the portal's prefers-color-scheme rules to

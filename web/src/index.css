@@ -676,6 +676,7 @@
     font-variant-numeric: tabular-nums;
   }
 
+
   /* THE LINE ABOVE STOPPED AT THE EDGE OF EVERY INPUT IN THE PRODUCT.
 
      `font-variant-numeric` inherits, so setting it on body was supposed to be
@@ -6162,4 +6163,19 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 .stat-fit { white-space: nowrap !important; overflow-wrap: normal !important; }
 @media (max-width: 639.98px) {
   .cell-grid .cell .stat-fit { width: 0; min-width: 100%; }
+}
+
+/* EDGE TO EDGE IN THE APPS (owner 2026-11-27: "the top is a cut-off box").
+   Inside the signed-in shell the top bar itself runs up behind the clock,
+   the way WhatsApp's does, instead of the body leaving an empty band above
+   it: the body drops its notch padding and the bar takes it (Shell.tsx
+   TopbarFlag; not on Settings, whose phone bar floats over the page title). The Android
+   shell now draws under the status bar too (mobile/apps/parent
+   MainActivity applyInsets). Zero in a browser, so nothing moves there. Outside @layer so it wins
+   over the bar's own py-2.5 / h-[56px] utilities. */
+html[data-topbar] body { padding-top: 0; }
+html[data-topbar] header[data-paint="topbar"] { padding-top: calc(10px + env(safe-area-inset-top, 0px)); }
+html[data-topbar] header[data-paint="topbar"].h-\[56px\] {
+  height: calc(56px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
 }

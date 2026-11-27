@@ -23,6 +23,11 @@ async function sha256hex(s: string): Promise<string> {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
+/* The browser keeps the cookie for the longest time browsers allow (400 days);
+   the server row decides when the session really ends (expires_at slides on use,
+   revoked_at on sign-out), so the cookie never ends a session the server still honours. */
+const COOKIE_MAX_AGE = 400 * 86400
+
 function cookieHeader(env: Env, value: string, maxAge: number): string {
   const secure = env.COOKIE_SECURE !== 'false' ? '; Secure' : ''
   return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`
@@ -43,7 +48,7 @@ export async function issueSession(env: Env, req: Request, userId: string, insti
     .run()
   // Session activity (off unless the school switched it on): records nothing otherwise.
   if (institutionId) await recordSignIn(env, req, id, userId, institutionId, via, t)
-  return cookieHeader(env, token, ttl)
+  return cookieHeader(env, token, COOKIE_MAX_AGE)
 }
 
 export function clearCookie(env: Env): string {
@@ -69,10 +74,13 @@ export const schoolDay = (iso: string, timezone: string): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
 
 /** Applies the idle limit to a session row just read; touches last_seen_at at most once a minute,
-    after the response when an ExecutionContext is at hand (it is not on the request's critical path). */
+    after the response when an ExecutionContext is at hand (it is not on the request's critical path).
+    Every touch also slides expires_at to SESSION_TTL_SECONDS from now, so a session in use never runs out.
+    Every login stays signed in until it signs out (owner 2026-11-27): SESSION_IDLE_SECONDS equals the TTL,
+    so only a session unused for that long ends by itself. */
 export async function liveSession(env: Env, s: Session | null, ctx?: ExecutionContext, timezone = 'Asia/Kolkata'): Promise<Session | null> {
   if (!s) return null
-  const idle = Number(env.SESSION_IDLE_SECONDS) || 86400
+  const idle = Number(env.SESSION_IDLE_SECONDS) || 15552000
   if (Date.now() - Date.parse(s.last_seen_at) > idle * 1000) {
     await env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = 'idle' WHERE id = ?`).bind(now(), s.id).run()
     await recordSignOut(env, s.id, 'idle', s.institution_id)
@@ -84,10 +92,11 @@ export async function liveSession(env: Env, s: Session | null, ctx?: ExecutionCo
        staff header's "First" for a session signed in on an earlier day. Once
        per session per day, and awaited so this same request already sees it. */
     const t = now()
+    const exp = new Date(Date.now() + (Number(env.SESSION_TTL_SECONDS) || 2592000) * 1000).toISOString()
     const newDay = schoolDay(s.last_seen_at, timezone) !== schoolDay(t, timezone)
     const touch = newDay
-      ? env.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ?, day_first_seen_at = ? WHERE id = ?`).bind(t, t, s.id).run()
-      : env.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ? WHERE id = ?`).bind(t, s.id).run()
+      ? env.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ?, day_first_seen_at = ?, expires_at = ? WHERE id = ? AND revoked_at IS NULL`).bind(t, t, exp, s.id).run()
+      : env.CONTROL.prepare(`UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE id = ? AND revoked_at IS NULL`).bind(t, exp, s.id).run()
     if (ctx && !newDay) ctx.waitUntil(touch.catch(() => undefined)); else await touch
   }
   return s

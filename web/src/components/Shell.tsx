@@ -71,6 +71,7 @@ import { BentoSettings } from '@/features/bento/BentoSettings'
 import { HelpButton, HelpEverywhere } from '@/features/help/HelpEntry'
 import { hueFor, uniqueMarks } from '@/features/bento/BentoLauncher'
 import { useViewport } from '@/lib/viewport'
+import { useRootFlag } from '@/lib/root-flag'
 import ScrollBox from '@/components/ScrollBox'
 
 /* The "pulse" shell: a narrow inverted icon rail, a timeline column whose
@@ -1315,6 +1316,7 @@ export function Shell({
                the line of the page's own title and back button instead of taking
                a row of its own (Yajur, 2026-10-30). */
             location.pathname.startsWith('/settings') && 'max-md:absolute max-md:right-0 max-md:top-0 max-md:!bg-transparent max-md:px-3 max-md:py-[16px] max-md:![backdrop-filter:none]')}>
+            {!location.pathname.startsWith('/settings') && <TopbarFlag />}
             {/* On Settings the menu button stands alone; elsewhere it travels
                 with the header's other icons (StaffHeaderContent), so at large
                 text the whole group moves together (owner, 2026-11-26). */}
@@ -1342,6 +1344,7 @@ export function Shell({
         )}
         {!chromeless && !staffLayout && !staffNav && (
         <header data-paint="topbar" className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
+          <TopbarFlag />
           {/* Gone only at lg, because from lg up the full sidebar is on the
               screen. On a tablet the 58px rail is visible but the panel behind
               it (features, role switcher) is not, so the hamburger is the way
@@ -1598,4 +1601,12 @@ function useScopeLine() {
   if (scope.sections) bits.push(count(scope.sections, 'section', 'sections'))
   if (scope.students) bits.push(count(scope.students, 'student', 'students'))
   return bits.join(' · ')
+}
+
+/* Marks <html> while a top bar is on screen, so index.css can hand the notch
+   padding from the body to the bar (edge to edge in the apps). A flag, not
+   body:has(): lib/root-flag.ts says why. */
+function TopbarFlag() {
+  useRootFlag('data-topbar')
+  return null
 }

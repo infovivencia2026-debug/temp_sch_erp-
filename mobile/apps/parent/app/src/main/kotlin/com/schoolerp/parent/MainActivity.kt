@@ -12,7 +12,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.graphics.PorterDuff
 import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.BiometricPrompt
 import android.net.ConnectivityManager
@@ -211,7 +210,16 @@ class MainActivity : Activity() {
                whole site rather than for the one component that opted in.
                The two must not both be applied: with the root padded, env()
                correctly reads zero, so nothing is inset twice. */
-            fitsSystemWindows = true
+            /* EDGE TO EDGE, LIKE WHATSAPP (owner 2026-11-27: "the top is a
+               cut-off box"). Superseded the padded root described above: the
+               page now runs under the status and gesture bars and pads its own
+               header and dock from env(safe-area-inset-*), which a current
+               WebView reports once it is laid out under the bars. A WebView too
+               old to report it says so (SAFE_PROBE below) and gets the old
+               native padding back, so no screen ever sits under the clock.
+               The keyboard is always padded here: edge to edge, nothing else
+               shrinks the page for it. See applyInsets. */
+            setOnApplyWindowInsetsListener { _, insets -> applyInsets(insets); insets }
             setBackgroundColor(pageColor())
         }
         offline = buildOfflineView()
@@ -273,6 +281,7 @@ class MainActivity : Activity() {
             FrameLayout.LayoutParams(-1, (4 * resources.displayMetrics.density).toInt(), Gravity.TOP),
         )
         allowCutout()
+        goEdgeToEdge()
         setContentView(root)
         /* SHELL-FEEL: the frame takes the colour the page last reported, and
            follows every later report. See SystemBars for the whole story. */
@@ -312,6 +321,74 @@ class MainActivity : Activity() {
        files (light, dark, and the v31 pair) and this would have to be repeated
        in every one of them or silently not apply on the versions that matter
        most. One line here applies to all four. */
+    /* null until the page has answered SAFE_PROBE; true when its env()
+       safe-area insets are live, false when this WebView reports zero. */
+    private var pageInsets: Boolean? = null
+
+    private fun goEdgeToEdge() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        }
+    }
+
+    private var barTop = 0
+
+    private fun applyInsets(insets: android.view.WindowInsets) {
+        val l: Int; val t: Int; val r: Int; val b: Int; val ime: Int
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
+            l = bars.left; t = bars.top; r = bars.right; b = bars.bottom
+            ime = insets.getInsets(android.view.WindowInsets.Type.ime()).bottom
+        } else {
+            @Suppress("DEPRECATION") val sl = insets.systemWindowInsetLeft
+            @Suppress("DEPRECATION") val st = insets.systemWindowInsetTop
+            @Suppress("DEPRECATION") val sr = insets.systemWindowInsetRight
+            @Suppress("DEPRECATION") val sb = insets.systemWindowInsetBottom
+            l = sl; t = st; r = sr
+            // Before 30 the bottom inset is the keyboard when it is up.
+            val navGuess = (48 * resources.displayMetrics.density).toInt()
+            b = if (sb > navGuess * 2) 0 else sb
+            ime = if (sb > navGuess * 2) sb else 0
+        }
+        barTop = t
+        if (pageInsets == false) {
+            // An old WebView: pad the whole frame as before edge to edge.
+            root.setPadding(l, t, r, maxOf(b, ime))
+        } else {
+            // The page pads itself under the bars; the keyboard still lifts it.
+            root.setPadding(0, 0, 0, if (ime > b) ime else 0)
+        }
+        val inset = if (pageInsets == false) 0 else t
+        (banner.layoutParams as? FrameLayout.LayoutParams)?.let { it.topMargin = inset; banner.layoutParams = it }
+        (progress.layoutParams as? FrameLayout.LayoutParams)?.let { it.topMargin = inset; progress.layoutParams = it }
+    }
+
+    /* Asked of every page after it paints: does this WebView fill in env(safe-area-inset-top)? */
+    private val SAFE_PROBE = """
+(function () {
+  var s = window.ErpShell; if (!s || typeof s.setSafeTop !== 'function') return;
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px)';
+  document.documentElement.appendChild(d);
+  var v = parseFloat(getComputedStyle(d).paddingTop) || 0;
+  d.remove();
+  try { s.setSafeTop(v); } catch (e) {}
+})();
+"""
+
+    fun pageSafeTop(px: Float) {
+        // Only a WebView that reports zero under a real status bar needs the native padding.
+        val handles = px > 0f || barTop == 0
+        if (pageInsets == handles) return
+        pageInsets = handles
+        root.requestApplyInsets()
+    }
+
     private fun allowCutout() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
         window.attributes = window.attributes.apply {
@@ -471,6 +548,10 @@ class MainActivity : Activity() {
             onPageColor?.invoke(css)
         }
 
+        // The answer to SAFE_PROBE (edge to edge, see applyInsets).
+        @android.webkit.JavascriptInterface
+        fun setSafeTop(px: Float) { host?.let { a -> a.runOnUiThread { a.pageSafeTop(px) } } }
+
         /* VERSION 2 OF THE CONTRACT (docs/native-shell.md, Native.kt). The
            activity is handed in while it lives; every call is a no-op without
            it. Still nothing the page can use to read the phone: a key for its
@@ -601,6 +682,8 @@ class MainActivity : Activity() {
            out (scrollbar, overscroll, long-press selection, unbounded text
            scale). Everything below is unchanged by the subclass. */
         val view = ShellWebView(this)
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(view, true)
         with(view.settings) {
             // The site is a React app. Without this it is a blank rectangle.
             javaScriptEnabled = true
@@ -757,6 +840,10 @@ class MainActivity : Activity() {
 
             override fun onPageFinished(view: WebView, url: String?) {
                 painted = true
+                // A sign-in has just set the session cookie: write it to disk now,
+                // not whenever the WebView gets round to it.
+                CookieManager.getInstance().flush()
+                view.evaluateJavascript(SAFE_PROBE, null)
                 pendingShare?.let { s -> pendingShare = null; view.postDelayed({ Native.emit(view, s) }, 1500) }
                 hideSplash()
                 SystemBars.watch(view) // SHELL-FEEL
@@ -1825,7 +1912,9 @@ class MainActivity : Activity() {
                own dark ground. Dropped unchanged onto the light page colour
                it is invisible, so it is tinted to the ink of whichever theme
                is up. */
-            setColorFilter(SystemBars.ink(pageColor()), PorterDuff.Mode.SRC_IN) // SHELL-FEEL
+            /* The school's crest is a full-colour mark (owner 2026-11-27:
+               "loading screen has no logo"): tinting it to one ink turned it
+               into a flat silhouette. Shown as drawn. */
         }
         val markSize = (128 * density).toInt()
         val column = LinearLayout(this).apply {
@@ -1985,6 +2074,7 @@ class MainActivity : Activity() {
 
     override fun onStop() {
         super.onStop()
+        CookieManager.getInstance().flush()
         foreground = false
         leftAt = SystemClock.elapsedRealtime()
         /* Only when there is something worth keeping.

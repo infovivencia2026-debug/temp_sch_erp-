@@ -7,8 +7,8 @@
          white page, or a black flash before every load, is the wrapper
          showing through. -->
     <style name="Theme.Parent" parent="android:Theme.Material.Light.NoActionBar" tools:targetApi="o_mr1">
-        <item name="android:statusBarColor">@color/page_bg</item>
-        <item name="android:navigationBarColor">@color/page_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowBackground">@color/page_bg</item>
         <!-- WHAT THE WEBVIEW READS TO ANSWER prefers-color-scheme.
 
