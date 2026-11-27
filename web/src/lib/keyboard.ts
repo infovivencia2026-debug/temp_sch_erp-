@@ -184,8 +184,13 @@ export function trackKeyboardInset() {
     }
     if (e.cancelable) e.preventDefault()
   }, { passive: false })
-  document.addEventListener('focusin', settle)
-  document.addEventListener('focusout', settle)
+  /* Only a field that raises the keyboard starts the per-frame settle: a tap
+     on a button or link also moves focus, and measuring every frame for 1.2s
+     then forced a layout in each frame while the next screen was being
+     built (owner, 2026-11-27: opening Settings felt stuck). */
+  const editable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+  document.addEventListener('focusin', (e) => { if (editable(e.target)) settle() })
+  document.addEventListener('focusout', (e) => { if (editable(e.target)) settle() })
   window.addEventListener('resize', settle)
   /* `scroll` because iOS reports the keyboard by scrolling the visual viewport
      rather than resizing it when the focused field is already near the top. */
