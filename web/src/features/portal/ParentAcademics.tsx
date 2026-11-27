@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, CalendarDays, ClipboardCheck, TrendingUp } from 'lucide-react'
+import { CalendarDays, ClipboardCheck, TrendingUp } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, EmptyState, ErrorState, Input, SkeletonTiles } from '@/components/ui'
 import { formatDate, cn, WEEKDAYS } from '@/lib/utils'
@@ -138,22 +138,15 @@ function Academics({ view }: { view: string }) {
               mockup): the subject and its teacher, three facts, then only the
               sections the school has data for. Attendance by subject, topic
               mastery and resources are left out: nothing records them. */}
-          <Card className="relative overflow-hidden p-4 sm:p-6">
+          {/* The subject's name is the breadcrumb above (owner, 2026-11-27: no
+              second heading), so the card is its teacher. */}
+          <Card className="relative overflow-hidden p-4 sm:p-5">
             <span aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-primary" />
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex min-w-0 items-center gap-4">
-                <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary"><BookOpen className="h-7 w-7" strokeWidth={1.8} aria-hidden /></span>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Subject</p>
-                  <h2 className="break-words text-[24px] font-extrabold leading-tight tracking-[-0.02em] sm:text-[28px]">{s.subject}</h2>
-                </div>
-              </div>
-              <div className="flex min-w-0 items-center gap-3 rounded-2xl border bg-muted/40 p-3 md:min-w-[260px]">
-                <ChildAvatar name={s.teacher ?? '?'} photo={s.teacher_photo} size="md" />
-                <div className="min-w-0">
-                  <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Subject teacher</p>
-                  <p className="truncate text-[16px] font-semibold leading-snug">{s.teacher ?? 'Not assigned yet'}</p>
-                </div>
+            <div className="flex min-w-0 items-center gap-4">
+              <ChildAvatar name={s.teacher ?? '?'} photo={s.teacher_photo} size="md" />
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Subject teacher</p>
+                <p className="truncate text-[17px] font-semibold leading-snug">{s.teacher ?? 'Not assigned yet'}</p>
               </div>
             </div>
           </Card>
