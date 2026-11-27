@@ -145,12 +145,16 @@ export function leaveSettings(go: () => void): void {
     document.documentElement.style.setProperty('--launch-y', `${g.top + g.height / 2}px`)
   }
   const r = screen.getBoundingClientRect()
-  const ghost = screen.cloneNode(true) as HTMLElement
-  ghost.classList.remove('settings-launch')
+  /* Cheap on a slow phone (owner, 2026-11-27: "stuck"): a plain card with a
+     copy of the header only, not a deep copy of the whole Settings screen,
+     and transform/opacity only. */
+  const ghost = document.createElement('div')
+  const head = screen.querySelector('header')
+  if (head) ghost.appendChild(head.cloneNode(true))
   ghost.setAttribute('aria-hidden', 'true')
   Object.assign(ghost.style, {
     position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px',
-    margin: '0', zIndex: '45', pointerEvents: 'none', overflow: 'hidden',
+    margin: '0', zIndex: '45', pointerEvents: 'none', overflow: 'hidden', borderRadius: '24px', willChange: 'transform, opacity',
     background: getComputedStyle(screen).backgroundColor || 'var(--bento-card)',
   })
   document.body.appendChild(ghost)
@@ -162,10 +166,10 @@ export function leaveSettings(go: () => void): void {
   const ty = g ? g.top + g.height / 2 - (r.top + r.height / 2) : r.height / 2
   const sc = g ? Math.max(0.04, g.width / r.width) : 0.06
   const anim = ghost.animate?.([
-    { transform: 'translate3d(0,0,0) scale(1)', opacity: 1, borderRadius: '0px' },
+    { transform: 'translate3d(0,0,0) scale(1)', opacity: 1 },
     { opacity: 1, offset: 0.7 },
-    { transform: `translate3d(${tx}px,${ty}px,0) scale(${sc})`, opacity: 0, borderRadius: '48px' },
-  ], { duration: 380, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' })
+    { transform: `translate3d(${tx}px,${ty}px,0) scale(${sc})`, opacity: 0 },
+  ], { duration: 260, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' })
   const done = () => ghost.remove()
   if (anim) anim.onfinish = done
   window.setTimeout(done, 600)
