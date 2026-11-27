@@ -13,7 +13,7 @@ const C = () => E.CONTROL, T = () => E.TENANT_TEST
 const sub = (sql: string, ...args: unknown[]) => C().prepare(`UPDATE subscriptions SET ${sql} WHERE institution_id = ?`).bind(...args, IDS.school).run()
 
 async function items(who: Who): Promise<any[]> {
-  const r = await api(who, 'GET', '/attention')
+  const r = await api(who, 'GET', '/attention?all=1')
   expect(r.status).toBe(200)
   return r.body.items
 }

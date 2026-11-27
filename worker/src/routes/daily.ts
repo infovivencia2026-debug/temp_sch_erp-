@@ -1536,7 +1536,7 @@ const leaveSpan = (from: string, to: string, days: unknown) => {
 
 export const APPROVALS_PER_KIND = 200
 
-async function getApprovals(c: Ctx): Promise<Response> {
+export async function getApprovals(c: Ctx): Promise<Response> {
   /* Each kind is its own query; they run together, and each list is capped so
      one backlog cannot slow the whole inbox. */
   type Item = Record<string, unknown>
