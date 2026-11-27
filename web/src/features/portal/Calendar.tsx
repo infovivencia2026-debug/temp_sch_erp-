@@ -382,7 +382,8 @@ export default function Calendar() {
                         /* md:line-clamp-3, not line-clamp-3: its display:-webkit-box beat
                            `hidden`, so phones drew chips that spilled over the
                            next days (owner re-check, 2026-11-19). */
-                        'hidden max-w-full overflow-hidden md:line-clamp-3 break-words rounded px-1.5 py-[3px] text-[11px] font-semibold leading-snug',
+                        /* A tablet or small laptop gives a day about 90px: a little less padding and type there, so names like "Celebrations" fit whole. */
+                        'hidden max-w-full overflow-hidden md:line-clamp-3 break-words rounded px-1 py-[3px] text-[10.5px] font-semibold leading-snug xl:px-1.5 xl:text-[11px]',
                         FAMILY[familyOf(e.kind)].chip,
                       )}
                     >

@@ -501,8 +501,13 @@ function FitFigure({ children }: { children: ReactNode }) {
       /* zoom, not font-size: the phone's text zoom would multiply a
          font-size set here a second time. */
       el.style.zoom = ''
-      if (el.scrollWidth - el.clientWidth > 1 && el.clientWidth > 0) {
-        const k = Math.floor((el.clientWidth / el.scrollWidth) * 100) / 100
+      /* The room is the card's own inner width, not the figure's box: a card
+         in a content-sized column would otherwise grow with the figure. */
+      const box = el.closest<HTMLElement>('.cell')
+      const cs = box ? getComputedStyle(box) : null
+      const room = box && cs ? Math.min(el.clientWidth || Infinity, box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) : el.clientWidth
+      if (el.scrollWidth - room > 1 && room > 0) {
+        const k = Math.floor((room / el.scrollWidth) * 100) / 100
         /* Below 70% the figure is too small to read at a glance: the card
            takes the whole row instead (the observer measures again). */
         const card = el.closest<HTMLElement>('.cell-grid .cell')
@@ -510,9 +515,15 @@ function FitFigure({ children }: { children: ReactNode }) {
         el.style.zoom = String(Math.max(0.4, k))
       }
     }
-    const ro = new ResizeObserver(() => { if (!raf) raf = requestAnimationFrame(fit) })
+    const again = () => { if (!raf) raf = requestAnimationFrame(fit) }
+    const ro = new ResizeObserver(again)
     ro.observe(el)
-    return () => { ro.disconnect(); if (raf) cancelAnimationFrame(raf) }
+    const card = el.closest('.cell'); if (card) ro.observe(card)
+    /* The figure widens when the web font arrives, which no observer sees. */
+    let live = true
+    document.fonts?.ready.then(() => { if (live) again() })
+    const late = window.setTimeout(again, 800)
+    return () => { live = false; ro.disconnect(); window.clearTimeout(late); if (raf) cancelAnimationFrame(raf) }
   }, [children])
   return <div ref={ref} className="stat stat-fit">{children}</div>
 }

@@ -6160,7 +6160,9 @@ html, html[data-typeface='system'], html[data-typeface='grotesk'], html[data-typ
 /* A headline figure does not set its card's minimum width (FitFigure in
    ui.tsx draws it smaller when it is wider than the card); white-space
    nowrap keeps "₹80,60,000" in one piece. */
-.stat-fit { white-space: nowrap !important; overflow-wrap: normal !important; }
+.stat-fit { white-space: nowrap !important; overflow-wrap: normal !important; width: 0; min-width: 100%; }
+/* The card never grows past its column for a figure (FitFigure shrinks it). */
+.cell:has(> * > .stat-fit), .cell:has(> .stat-fit) { min-width: 0; }
 @media (max-width: 639.98px) {
   .cell-grid .cell .stat-fit { width: 0; min-width: 100%; }
 }
