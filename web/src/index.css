@@ -6246,25 +6246,35 @@ html[data-topbar] header[data-paint="topbar"].h-\[56px\] {
   nav .nav-pill__sub a { font-size: 16px; }
 }
 
-/* THE CHILD CARD (owner, 2026-11-28): the school colour as a subtle fluid,
-   three soft glows drifting slowly; still under reduced motion. Tiles are
-   equal, 14px corners, in the app's normal type (no spaced figures). */
-.child-card { background: hsl(var(--primary)); }
-.child-card__flow {
-  position: absolute; inset: -40%; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(40% 45% at 20% 30%, hsl(var(--primary) / .55), transparent 70%),
-    radial-gradient(45% 40% at 80% 70%, hsl(var(--foreground) / .22), transparent 70%),
-    radial-gradient(35% 35% at 60% 20%, hsl(0 0% 100% / .14), transparent 70%);
-  animation: child-flow 16s ease-in-out infinite alternate;
+/* THE CHILD CARD (owner, 2026-11-28, from their own design): one smooth
+   blend from light into the school colour, no bands or lines. Phone: the light
+   sits round the passport photo top-left; PC (tall card): light at the top
+   behind the photo, fading down. White text stays on the darker part. */
+.child-card {
+  box-shadow: 0 18px 40px -14px hsl(var(--primary) / .5);
+  background: radial-gradient(130% 120% at 8% 0%,
+    color-mix(in srgb, hsl(var(--primary)) 10%, #fff) 0%,
+    color-mix(in srgb, hsl(var(--primary)) 25%, #fff) 14%,
+    color-mix(in srgb, hsl(var(--primary)) 45%, #fff) 26%,
+    color-mix(in srgb, hsl(var(--primary)) 65%, #fff) 38%,
+    color-mix(in srgb, hsl(var(--primary)) 82%, #fff) 50%,
+    hsl(var(--primary)) 66%,
+    color-mix(in srgb, hsl(var(--primary)) 88%, #000) 100%);
 }
-@keyframes child-flow {
-  0% { transform: translate(0, 0) rotate(0); }
-  50% { transform: translate(6%, -4%) rotate(8deg); }
-  100% { transform: translate(-5%, 5%) rotate(-6deg); }
+@media (min-width: 1024px) {
+  .child-card {
+    background: linear-gradient(180deg,
+      color-mix(in srgb, hsl(var(--primary)) 10%, #fff) 0%,
+      color-mix(in srgb, hsl(var(--primary)) 28%, #fff) 9%,
+      color-mix(in srgb, hsl(var(--primary)) 52%, #fff) 18%,
+      color-mix(in srgb, hsl(var(--primary)) 76%, #fff) 26%,
+      hsl(var(--primary)) 34%,
+      color-mix(in srgb, hsl(var(--primary)) 94%, #000) 70%,
+      color-mix(in srgb, hsl(var(--primary)) 86%, #000) 100%);
+  }
 }
-@media (prefers-reduced-motion: reduce) { .child-card__flow { animation: none; } }
-html[data-reduce-motion] .child-card__flow { animation: none; }
+.child-card .child-photo { box-shadow: 0 10px 24px -8px rgb(15 23 42 / .45), 0 0 0 3px rgb(255 255 255 / .85); }
+.child-card .child-tile { border: 1px solid rgb(255 255 255 / .2); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .child-card .child-tile { border-radius: 14px !important; letter-spacing: 0; font-variant-numeric: normal; font-feature-settings: normal; }
 .child-card .child-tile * { letter-spacing: 0; font-feature-settings: normal; }
 

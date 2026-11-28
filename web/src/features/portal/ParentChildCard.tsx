@@ -56,7 +56,6 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
        or more); the academic year is its own tile with a drop-down, current
        year by default. Admission no., roll no. and joined date as tiles. */
     <div className="child-card relative isolate flex h-full flex-col overflow-hidden rounded-2xl p-4 text-primary-foreground shadow-md sm:p-5 lg:justify-center lg:p-7">
-      <span aria-hidden className="child-card__flow" />
       <div className="relative flex min-w-0 items-center gap-4 lg:flex-col lg:gap-3 lg:text-center">
         <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
         <div className="min-w-0 flex-1">
@@ -107,10 +106,11 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
 
 /* The child's photo, or their initials when the school has none. */
 function ChildPhoto({ name, photo }: { name: string; photo?: string }) {
-  const box = 'size-16 shrink-0 rounded-full border-[3px] border-white/50 lg:size-28 lg:border-[5px]'
+  /* Passport size (owner, 2026-11-28): taller than wide, a thin white edge. */
+  const box = 'child-photo h-[108px] w-[84px] shrink-0 overflow-hidden rounded-xl lg:h-[170px] lg:w-[132px]'
   return photo
-    ? <img src={fileSrc(photo)} alt="" style={{ clipPath: 'circle(50%)' }} className={cn(box, 'aspect-square bg-muted object-cover')} />
-    : <span aria-hidden className={cn(box, 'grid place-items-center bg-white text-[22px] font-extrabold text-primary lg:text-[38px]')}>{initials(name)}</span>
+    ? <img src={fileSrc(photo)} alt="" className={cn(box, 'bg-muted object-cover object-[50%_20%]')} />
+    : <span aria-hidden className={cn(box, 'grid place-items-center bg-gradient-to-br from-white to-primary/15 text-[30px] font-extrabold text-primary lg:text-[44px]')}>{initials(name)}</span>
 }
 
 /* The child's subjects as cards, each opening its Subject page. */
