@@ -461,7 +461,7 @@ function noteType(n: FamilyNote): 'Fees' | 'Attendance' | null {
 
 interface TodayHomework { id: string; title: string; subject?: string; instructions?: string; due_on?: string; assigned_on: string; student_id?: string }
 
-function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
+function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework, compact }: {
   query: UseQueryResult<List<SchoolMessage>>
   notes: FamilyNote[]
   onOpen: () => void
@@ -469,6 +469,8 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
   /** Today's homework for the child on screen (the Homework side of the toggle). */
   homework: { items: TodayHomework[]; loading: boolean }
   onHomework: () => void
+  /** Nothing to read today (owner, 2026-11-28): the toggle and one short line, no tall box. */
+  compact?: boolean
 }) {
   const qc = useQueryClient()
   /* Announcements first; Homework is today's work, each with its subject
@@ -488,18 +490,19 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['circulars'] }),
   })
   return (
-    <Card className="flex min-h-[440px] flex-col lg:h-full lg:min-h-[480px]">
+    <Card className={cn('flex flex-col', !compact && 'min-h-[440px] lg:h-full lg:min-h-[480px]')}>
       {/* The toggle is the card's heading (owner, 2026-11-26): no title, and
           nothing about the child in this card. Taller on wide screens so more
           messages show; the child card beside it stretches to match. */}
-      <div className="flex justify-center border-b px-4 pb-4 pt-5">
+      <div className={cn('flex justify-center px-4 pt-4', compact ? 'pb-2' : 'border-b pb-4 pt-5')}>
         <SegToggle value={tab} onChange={setTab} ariaLabel="Announcements"
           className="max-w-[360px]"
           options={[{ value: 'news', label: 'Announcements' }, { value: 'homework', label: 'Homework' }]} />
       </div>
       {tab === 'homework' ? (
         homework.loading ? <HomeworkRowsSkeleton /> : homework.items.length === 0 ? (
-          <EmptyState title="No homework today" body="Nothing was set today." />
+          compact ? <p className="px-4 pb-4 pt-1 text-center text-[14px] text-muted-foreground">No homework today.</p>
+            : <EmptyState title="No homework today" body="Nothing was set today." />
         ) : (
           <ul className="space-y-2.5 px-3 pb-3 pt-1">
             {homework.items.map((h) => (
@@ -521,7 +524,8 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
       ) : query.error && !query.data ? (
         <ErrorState error={query.error} />
       ) : rows.length === 0 ? (
-        <EmptyState title="Nothing yet" body="No notices yet." />
+        compact ? <p className="px-4 pb-4 pt-1 text-center text-[14px] text-muted-foreground">No announcements yet.</p>
+          : <EmptyState title="Nothing yet" body="No notices yet." />
       ) : (
         <ul className="scroll-x max-h-[32rem] min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 pb-3 pt-1 lg:max-h-none">
           {rows.map((item) => {
@@ -765,8 +769,9 @@ export default function Portal() {
      the Announcements / Homework toggle, and the child's subjects. The month
      calendar lives on the Attendance screen. */
   const subjects = profile.data?.subjects ?? []
-  /* Nothing to read today (owner, 2026-11-28): no empty box, and Subjects
-     takes its place (beside the child card on a wide screen). */
+  /* Nothing to read today (owner, 2026-11-28): the messages box shrinks to the
+     toggle and one line, and Subjects come up under it (beside the child card
+     on a wide screen). */
   const showMessages = circulars.isLoading || schoolNotes.isLoading || homework.isLoading || !!circulars.error
     || (circulars.data?.items.length ?? 0) > 0 || (schoolNotes.data?.items ?? []).some((n) => noteType(n)) || todayHomework.length > 0
   const subjectsBlock = subjects.length > 0 ? (
@@ -822,8 +827,8 @@ export default function Portal() {
           />
         </CellGrid></div>
       )}
-      {showMessages ? (
       <SchoolMessages
+        compact={!showMessages}
         query={circulars}
         notes={schoolNotes.data?.items ?? []}
         onGo={(link) => navigate(link + (activeId && !link.includes('?') ? `?student_id=${activeId}` : ''))}
@@ -831,7 +836,7 @@ export default function Portal() {
         homework={{ items: todayHomework, loading: homework.isLoading }}
         onHomework={() => navigate(academicsHref(''))}
       />
-      ) : subjectsBlock}
+      {!showMessages && subjectsBlock}
       </div>
       </div>
       {activeId && <WeeklyNoteCard studentId={activeId} />}
