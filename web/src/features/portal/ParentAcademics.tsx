@@ -5,6 +5,8 @@ import { CalendarDays, Inbox, ClipboardCheck, TrendingUp } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, EmptyState, ErrorState, Input, SkeletonTiles } from '@/components/ui'
 import { formatDate, cn, WEEKDAYS } from '@/lib/utils'
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 import Homework from '@/features/workflow/Homework'
 import { useChildren } from './use-children'
 import { useChildProfile, useParentYear } from './parent-child'
@@ -133,7 +135,7 @@ function Academics({ view }: { view: string }) {
     return (
       <>
         {head}
-        <PageBody>
+        <PageBody top width="full">
           {/* THE SUBJECT (owner, 2026-11-27, after the subject-workspace
               mockup): the subject and its teacher, three facts, then only the
               sections the school has data for. Attendance by subject, topic
@@ -182,10 +184,12 @@ function Academics({ view }: { view: string }) {
               {
                 <ul className="divide-y px-[var(--card-pad)] pb-2">
                   {week.map((w, i) => (
-                    <li key={i} className={cn('flex min-h-[48px] items-center gap-3 py-2 text-[15px]', w.day === todayDay && 'font-semibold')}>
-                      <span className={cn('w-12 shrink-0 rounded-full py-0.5 text-center text-[13px] font-semibold', w.day === todayDay ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{WEEKDAYS[w.day - 1] ?? w.day}</span>
-                      <span className="min-w-0 flex-1 truncate">{w.p?.name ?? 'Period'}{w.room ? ` · ${w.room}` : ''}</span>
-                      {w.p?.starts_at && <span className="shrink-0 tabular-nums text-muted-foreground">{w.p.starts_at.slice(0, 5)}{w.p.ends_at ? `–${w.p.ends_at.slice(0, 5)}` : ''}</span>}
+                    <li key={i} className="flex min-h-[48px] items-center justify-between gap-3 py-2 text-[15px]">
+                      <span className={cn('flex shrink-0 items-center gap-2', w.day === todayDay && 'font-semibold')}>
+                        {DAY_NAMES[w.day - 1] ?? WEEKDAYS[w.day - 1]}
+                        {w.day === todayDay && <span className="rounded-full bg-primary px-2 py-0.5 text-[12px] font-semibold text-primary-foreground">Today</span>}
+                      </span>
+                      <span className="min-w-0 break-words text-right text-muted-foreground">{w.p?.name ?? 'Class'}{w.room ? `, room ${w.room}` : ''}</span>
                     </li>
                   ))}
                 </ul>

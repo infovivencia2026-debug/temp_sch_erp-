@@ -143,7 +143,7 @@ try {
       'box-shadow:0 2px 12px rgba(0,0,0,.25)'
     bar.innerHTML =
       '<span>A new version is ready.</span>' +
-      '<button type="button" style="border:0;border-radius:999px;padding:6px 14px;background:#00a884;color:#fff;font:inherit;cursor:pointer">Update now</button>' +
+      '<button type="button" style="border:0;border-radius:999px;padding:6px 14px;background:#008069;color:#fff;font:inherit;cursor:pointer">Update now</button>' +
       '<button type="button" aria-label="Later" style="border:0;background:transparent;color:#cfd8dc;font:inherit;cursor:pointer;padding:6px">Later</button>'
     const [update, later] = Array.from(bar.querySelectorAll('button'))
     update.addEventListener('click', () => { location.href = '/?fresh' })
