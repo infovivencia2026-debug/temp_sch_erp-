@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, Inbox, ClipboardCheck, TrendingUp } from 'lucide-react'
+import { Inbox, ClipboardCheck, TrendingUp, BookOpenCheck, FolderKanban, NotebookText } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, EmptyState, ErrorState, Input, SkeletonTiles } from '@/components/ui'
-import { formatDate, cn, WEEKDAYS } from '@/lib/utils'
+import { formatDate, cn } from '@/lib/utils'
 
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 import Homework from '@/features/workflow/Homework'
+import FileView, { type ViewableFile } from '@/components/FileView'
+import { Paperclip } from 'lucide-react'
 import { useChildren } from './use-children'
 import { useChildProfile, useParentYear } from './parent-child'
 import { ChildAvatar, SubjectCards } from './ParentChildCard'
@@ -25,6 +26,7 @@ import { ChildAvatar, SubjectCards } from './ParentChildCard'
 
 interface Hw {
   id: string; title: string; kind: string; subject?: string; assigned_on: string; due_on?: string
+  files?: { file_id: string; name: string }[]
   instructions?: string; submitted: boolean; overdue: boolean; teacher?: string; student_id?: string
 }
 interface ResultView { subjects: { exam: string; subject: string; marks_obtained?: number; max_marks?: number; grade?: string; is_absent: boolean }[] }
@@ -63,6 +65,12 @@ function Academics({ view }: { view: string }) {
     queryKey: ['timetable', 'section', sectionId],
     queryFn: () => api.call('GET /timetable/entries', { query: { section_id: sectionId } }),
     enabled: view === 'subject' && !!sectionId,
+  })
+  /* Notes are the teacher's study material for the subject (Classwork › Materials). */
+  const materials = useQuery({
+    queryKey: ['portal-resources', sid],
+    queryFn: () => api.get<List<Note>>(`/api/v1/portal/learning/resources?student_id=${sid}`),
+    enabled: view === 'subject' && !!sid,
   })
   const results = useQuery({
     queryKey: ['portal-results', sid, year],
@@ -132,6 +140,14 @@ function Academics({ view }: { view: string }) {
       .map((e) => ({ day: e.weekday, p: periodOf.get(e.period_id), room: e.room }))
       .sort((a, b) => a.day - b.day || (a.p?.starts_at ?? '').localeCompare(b.p?.starts_at ?? ''))
     const todayDay = ((new Date().getDay() + 6) % 7) + 1
+    const nowHM = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
+    const todays = week.filter((w) => w.day === todayDay)
+    /* What staff set on the Homework screen, by its type, and their notes. */
+    const ofKind = (...k: string[]) => mine.filter((h) => k.includes(h.kind || 'homework')).length
+    const homeworkN = ofKind('homework', 'classwork')
+    const assignments = ofKind('assignment')
+    const projects = ofKind('project')
+    const notes = (materials.data?.items ?? []).filter((m) => m.subject === s.subject).length
     return (
       <>
         {head}
@@ -153,14 +169,42 @@ function Academics({ view }: { view: string }) {
           </Card>
           {/* Empty sections are left out (owner, 2026-11-27: "empty boxes look
               ugly"); Homework always shows, as it carries the date picker. */}
-          <CellGrid cols={latest ? 3 : 2}>
-            <Stat label="Periods per week" value={s.periods_per_week || '-'} icon={CalendarDays} />
-            <Stat label="Homework set" value={homework.isLoading ? '…' : mine.length} icon={ClipboardCheck} />
-            {latest && <Stat label="Latest marks" value={`${latest.marks_obtained} / ${latest.max_marks}`} icon={TrendingUp} hint={latest.exam} />}
+          {/* Today's classes only (owner, 2026-11-28: no full week), each with
+              its time and whether it is done, on now or later. */}
+          <Card>
+            <CardHeader title="Today's classes" />
+            {todays.length === 0 ? <p className="px-[var(--card-pad)] pb-4 text-[15px] text-muted-foreground">No {s.subject} class today.</p> : (
+              <ul className="divide-y divide-dashed px-[var(--card-pad)] pb-2">
+                {todays.map((w, i) => {
+                  const st = w.p?.ends_at && w.p.ends_at <= nowHM ? 'Done' : w.p?.starts_at && w.p.starts_at <= nowHM ? 'Now' : 'Later'
+                  return (
+                    <li key={i} className={cn('flex items-stretch gap-3 py-2.5', st === 'Done' && 'opacity-70')}>
+                      <span className="w-[60px] shrink-0 text-center"><span className="block text-[16px] font-bold tabular-nums">{w.p?.starts_at ?? '-'}</span><span className="text-[12px] text-muted-foreground">to {w.p?.ends_at ?? '-'}</span></span>
+                      <span className={cn('min-w-0 flex-1 rounded-xl border-l-4 bg-muted/50 px-3 py-2', st === 'Now' ? 'border-primary bg-primary/10' : 'border-border')}>
+                        <span className="flex items-center justify-between gap-2"><span className="truncate text-[15px] font-semibold">{w.p?.name ?? 'Class'}</span>
+                          <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold', st === 'Now' ? 'bg-primary text-primary-foreground' : st === 'Done' ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>{st}</span></span>
+                        <span className="block truncate text-[13px] text-muted-foreground">{w.room ? `Room ${w.room}` : (s.teacher ?? '')}</span>
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+          <CellGrid cols={2}>
+            <Stat label="Assignments" value={homework.isLoading ? '…' : assignments} icon={ClipboardCheck} hint={assignments ? 'Set so far' : 'None yet'} />
+            <Stat label="Homework" value={homework.isLoading ? '…' : homeworkN} icon={BookOpenCheck} hint={homeworkN ? 'Set so far' : 'None yet'} />
+            <Stat label="Projects" value={homework.isLoading ? '…' : projects} icon={FolderKanban} hint={projects ? 'Set so far' : 'None yet'} />
+            <Stat label="Notes" value={materials.isLoading ? '…' : notes} icon={NotebookText} hint={notes ? 'From the teacher' : 'None yet'} />
           </CellGrid>
-          <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6', week.length > 0 && 'lg:grid-cols-[minmax(0,1fr)_340px]')}>
+          {latest && <CellGrid cols={2}>
+            <Stat label="Latest marks" value={`${latest.marks_obtained} / ${latest.max_marks}`} icon={TrendingUp} hint={latest.exam} />
+            <Stat label="Average" value={`${Math.round(scored.reduce((a, m) => a + (m.marks_obtained ?? 0) / (m.max_marks || 1), 0) / scored.length * 100)}%`} icon={TrendingUp} hint={`${scored.length} exam${scored.length === 1 ? '' : 's'}`} />
+          </CellGrid>}
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6">
             <div className="flex min-w-0 flex-col gap-4 md:gap-6">
               {scored.length > 1 && <MarksTrend items={scored} />}
+              <NotesList items={(materials.data?.items ?? []).filter((m) => m.subject === s.subject)} />
               <SubjectHomework items={mine} today={today} loading={homework.isLoading} error={homework.error} />
               {marks.length === 0 ? <Quiet>No marks published yet</Quiet> : (
               <Card>
@@ -178,24 +222,6 @@ function Academics({ view }: { view: string }) {
               </Card>
               )}
             </div>
-            {week.length > 0 && (
-            <Card className="h-fit min-w-0">
-              <CardHeader title="This week" />
-              {
-                <ul className="divide-y px-[var(--card-pad)] pb-2">
-                  {week.map((w, i) => (
-                    <li key={i} className="flex min-h-[48px] items-center justify-between gap-3 py-2 text-[15px]">
-                      <span className={cn('flex shrink-0 items-center gap-2', w.day === todayDay && 'font-semibold')}>
-                        {DAY_NAMES[w.day - 1] ?? WEEKDAYS[w.day - 1]}
-                        {w.day === todayDay && <span className="rounded-full bg-primary px-2 py-0.5 text-[12px] font-semibold text-primary-foreground">Today</span>}
-                      </span>
-                      <span className="min-w-0 break-words text-right text-muted-foreground">{w.p?.name ?? 'Class'}{w.room ? `, room ${w.room}` : ''}</span>
-                    </li>
-                  ))}
-                </ul>
-              }
-            </Card>
-            )}
           </div>
         </PageBody>
       </>
@@ -249,8 +275,49 @@ function SubjectHomework({ items, today, loading, error }: { items: Hw[]; today:
   )
 }
 
-function HwList({ items }: { items: Hw[] }) {
+interface Note { id: string; title: string; subject?: string; kind?: string; file_id?: string; file_name?: string; external_url?: string; posted_on?: string; uploaded_by?: string }
+
+/* The teacher's notes and study material for this subject, each opening its file or link. */
+function NotesList({ items }: { items: Note[] }) {
+  const [view, setView] = useState<ViewableFile | null>(null)
+  if (!items.length) return null
   return (
+    <Card>
+      {view && <FileView file={view} onClose={() => setView(null)} />}
+      <CardHeader title="Notes" />
+      <ul className="divide-y px-[var(--card-pad)] pb-2">
+        {items.map((n) => (
+          <li key={n.id} className="py-3">
+            <p className="text-[16px] font-medium leading-snug">{n.title}</p>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{[n.uploaded_by, n.posted_on ? formatDate(n.posted_on) : ''].filter(Boolean).join(' · ')}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {n.file_id && <FileChip name={n.file_name || 'Open file'} onOpen={() => setView({ file_id: n.file_id!, name: n.file_name || n.title })} />}
+              {n.external_url && <a href={n.external_url} target="_blank" rel="noreferrer" className="inline-flex min-h-[44px] items-center rounded-xl border bg-card px-3 text-[14px] font-medium text-primary">Open link</a>}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
+const KIND: Record<string, string> = { homework: 'Homework', classwork: 'Classwork', assignment: 'Assignment', project: 'Project' }
+
+/* A file the teacher attached, opened in the in-app viewer. */
+function FileChip({ name, onOpen }: { name: string; onOpen: () => void }) {
+  return (
+    <button type="button" onClick={onOpen}
+      className="inline-flex min-h-[44px] max-w-full items-center gap-2 rounded-xl border bg-card px-3 text-left text-[14px] font-medium text-primary">
+      <Paperclip className="size-4 shrink-0" aria-hidden /><span className="min-w-0 break-words">{name}</span>
+    </button>
+  )
+}
+
+function HwList({ items }: { items: Hw[] }) {
+  const [view, setView] = useState<ViewableFile | null>(null)
+  return (
+    <>
+    {view && <FileView file={view} onClose={() => setView(null)} />}
     <ul className="divide-y px-[var(--card-pad)] pb-2">
       {items.map((h) => (
         <li key={`${h.id}:${h.student_id ?? ''}`} className="py-3">
@@ -262,10 +329,12 @@ function HwList({ items }: { items: Hw[] }) {
             </span>
           </div>
           {h.instructions && <p className="mt-1 line-clamp-3 text-[15px] text-muted-foreground">{h.instructions}</p>}
-          <p className="mt-1 text-[13px] text-muted-foreground">Set {formatDate(h.assigned_on)}{h.teacher ? ` · ${h.teacher}` : ''}</p>
+          {!!h.files?.length && <div className="mt-2 flex flex-wrap gap-2">{h.files.map((f) => <FileChip key={f.file_id} name={f.name} onOpen={() => setView({ file_id: f.file_id, name: f.name })} />)}</div>}
+          <p className="mt-1 text-[13px] text-muted-foreground">{KIND[h.kind] ?? 'Homework'} · Set {formatDate(h.assigned_on)}{h.teacher ? ` · ${h.teacher}` : ''}</p>
         </li>
       ))}
     </ul>
+    </>
   )
 }
 
