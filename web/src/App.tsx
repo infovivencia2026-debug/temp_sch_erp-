@@ -44,7 +44,10 @@ import ChunkBoundary, { clearChunkReloadGuard } from '@/components/ChunkBoundary
 import { useLiveUpdates } from '@/lib/live'
 import GoTo from '@/features/shared/GoTo'
 import { PageHead, PageBody, EmptyState, UnavailableState, Button } from '@/components/ui'
-import { SkeletonPage } from '@/components/Skeleton'
+import { SkeletonPage, SkeletonBoard } from '@/components/Skeleton'
+import { ScreenSkeleton } from '@/features/portal/screen-state'
+import { ParentHomeSkeleton } from '@/features/portal/skeletons'
+
 import { componentFor } from '@/features/registry'
 import { useActivityTracker, useScreenBeacon } from '@/lib/activity'
 import { ToastHost } from './components/Toast'
@@ -56,6 +59,16 @@ import { bootedOffline, rememberBootQueries } from '@/lib/offline-boot'
 import { onSent } from '@/lib/outbox'
 import { shell } from '@/lib/shell'
 import { NavSettled, useNavPending } from '@/lib/nav-pending'
+
+/* The stand-in while a screen's code loads, in the shape of that kind of
+   screen: the parent's home or a parent screen (no breadcrumb, 22px title),
+   a staff home board, or a staff page with its breadcrumb header. */
+function routeSkeleton(key: string, home: boolean) {
+  if (key === 'parent.home.dashboard') return <ParentHomeSkeleton delay={0} />
+  if (key.startsWith('parent.') || key.startsWith('student.')) return <ScreenSkeleton delay={0} />
+  if (home) return <SkeletonBoard delay={0} />
+  return <SkeletonPage />
+}
 
 /* A hairline at the top of the window while anything is being fetched in the
    background, so kept-on-screen data never looks final while it is changing.
@@ -402,7 +415,7 @@ function FeatureRoute() {
        * 220ms first, which means a chunk already in the browser cache (the
        * second visit to any screen, and every visit for anyone who has been
        * in the product for a minute) shows no loading state whatsoever. */}
-      <Suspense fallback={<SkeletonPage />}>
+      <Suspense fallback={routeSkeleton(feature.key, homeLanding)}>
         {/* The administrator's home, exactly as the owner drew it (2026-11-09). */}
         {homeLanding && feature.key === 'institution_admin.home.dashboard' && (
           <PageBody><HomeExact /></PageBody>

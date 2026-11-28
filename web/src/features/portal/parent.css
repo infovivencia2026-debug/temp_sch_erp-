@@ -393,8 +393,8 @@
 .parent-skeleton__bar {
   height: 10px;
   border-radius: 5px;
-  background: color-mix(in srgb, currentColor 9%, transparent);
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  /* colour and shimmer come from the shared .skeleton rule, so parent and
+     staff placeholders move the same way and stop under reduced motion */
 }
 .parent-skeleton__title {
   width: 42%;

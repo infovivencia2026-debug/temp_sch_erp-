@@ -6,11 +6,11 @@ import { PickerMenu } from '@/components/PickerMenu'
 import { CalendarCheck, Wallet, Bell, FileText, CalendarDays, Users, Info, Check } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CellGrid, Stat, SkeletonTiles, ErrorState,
+  PageHead, PageBody, Card, CellGrid, Stat, ErrorState,
   EmptyState, Button,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
-import { ScreenSkeleton } from './screen-state'
+import { ParentHomeSkeleton, AttendanceReportSkeleton, SubjectCardsSkeleton, MessageRowsSkeleton, HomeworkRowsSkeleton } from './skeletons'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import type { UseQueryResult } from '@tanstack/react-query'
@@ -498,7 +498,7 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
           options={[{ value: 'news', label: 'Announcements' }, { value: 'homework', label: 'Homework' }]} />
       </div>
       {tab === 'homework' ? (
-        homework.loading ? <SkeletonTiles count={2} /> : homework.items.length === 0 ? (
+        homework.loading ? <HomeworkRowsSkeleton /> : homework.items.length === 0 ? (
           <EmptyState title="No homework today" body="Nothing was set today." />
         ) : (
           <ul className="space-y-2.5 px-3 pb-3 pt-1">
@@ -517,7 +517,7 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
           </ul>
         )
       ) : query.isLoading && !query.data ? (
-        <SkeletonTiles count={3} />
+        <MessageRowsSkeleton />
       ) : query.error && !query.data ? (
         <ErrorState error={query.error} />
       ) : rows.length === 0 ? (
@@ -691,7 +691,7 @@ export default function Portal() {
     enabled: !isAttendance && !!activeId,
   })
 
-  if (children.isLoading && !children.data) return <ScreenSkeleton />
+  if (children.isLoading && !children.data) return isAttendance ? <PageBody><AttendanceReportSkeleton /></PageBody> : <ParentHomeSkeleton />
   if (children.error && !children.data) return <ScreenError error={children.error} />
 
   const kids = children.data?.items ?? []
@@ -750,7 +750,7 @@ export default function Portal() {
       <>
         {head}
         <PageBody>
-          {summary.isLoading && !summary.data ? <SkeletonTiles count={5} />
+          {summary.isLoading && !summary.data ? <AttendanceReportSkeleton />
             : summary.error && !summary.data ? <ErrorState error={summary.error} />
               : !s ? <EmptyState title={t('portal.portal.empty_title')} body={t('portal.portal.empty_body')} />
                 : <AttendanceReport days={days} childLabel={[s.full_name, childLine(kids.find((c) => c.student_id === activeId))].filter(Boolean).join(' · ')} />}
@@ -781,6 +781,11 @@ export default function Portal() {
                 marks: last ? `${last.marks_obtained}/${last.max_marks}` : '–',
               }
             }} />
+        </section>
+  ) : profile.isLoading && !profile.data ? (
+        <section aria-hidden className="space-y-3">
+          <h2 className="text-[18px] font-bold">Subjects</h2>
+          <SubjectCardsSkeleton />
         </section>
   ) : null
   return (

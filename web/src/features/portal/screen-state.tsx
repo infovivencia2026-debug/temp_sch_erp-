@@ -136,13 +136,13 @@ export function ScreenSkeleton({ rows = 5, delay, label }: { rows?: number; dela
       </p>
       <div className="parent-skeleton" aria-hidden>
         <div className="parent-skeleton__head">
-          <div className="parent-skeleton__bar parent-skeleton__title" />
+          <div className="skeleton parent-skeleton__bar parent-skeleton__title" />
         </div>
         <div className="parent-skeleton__card">
           {Array.from({ length: rows }, (_, i) => (
             <div key={i} className="parent-skeleton__row" style={{ animationDelay: `${i * 60}ms` }}>
-              <div className="parent-skeleton__bar" style={{ width: `${62 - (i % 3) * 12}%` }} />
-              <div className="parent-skeleton__bar parent-skeleton__sub" style={{ width: `${38 - (i % 2) * 8}%` }} />
+              <div className="skeleton parent-skeleton__bar" style={{ width: `${62 - (i % 3) * 12}%` }} />
+              <div className="skeleton parent-skeleton__bar parent-skeleton__sub" style={{ width: `${38 - (i % 2) * 8}%` }} />
             </div>
           ))}
         </div>

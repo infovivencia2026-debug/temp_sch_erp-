@@ -3,6 +3,8 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Inbox } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { Skeleton } from '@/components/Skeleton'
+import { SubjectCardsSkeleton, HomeworkRowsSkeleton } from './skeletons'
 import { PageHead, PageBody, Card, CardHeader, EmptyState, ErrorState, Input, SkeletonTiles } from '@/components/ui'
 import { formatDate, cn } from '@/lib/utils'
 
@@ -90,7 +92,7 @@ function Academics({ view }: { view: string }) {
   const hw = (homework.data?.items ?? []).filter((h) => !h.student_id || h.student_id === sid)
   const today = todayISO()
 
-  if (profile.isLoading && !p) return <><PageHead title="Homework" /><PageBody><SkeletonTiles count={4} /></PageBody></>
+  if (profile.isLoading && !p) return <><PageHead title={view === 'subjects' ? 'All subjects' : 'Homework'} /><PageBody>{view === 'subjects' ? <SubjectCardsSkeleton /> : <SkeletonTiles count={4} />}</PageBody></>
   if (profile.error && !p) return <><PageHead title="Homework" /><PageBody><ErrorState error={profile.error} /></PageBody></>
 
   if (view === 'subjects') {
@@ -228,7 +230,15 @@ function Academics({ view }: { view: string }) {
    default, and the work set on that day; earlier days one pick away. */
 function SubjectHomework({ items, today, loading, error }: { items: Hw[]; today: string; loading: boolean; error: unknown }) {
   const [day, setDay] = useState(today)
-  if (loading) return <SkeletonTiles count={2} />
+  if (loading) return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-[var(--card-pad)] pb-2 pt-[var(--card-pad)]">
+        <h2 className="text-[16px] font-semibold">Homework</h2>
+        <Skeleton className="h-10 w-[11.5rem] max-w-full" />
+      </div>
+      <HomeworkRowsSkeleton />
+    </Card>
+  )
   if (error && !items.length) return <ErrorState error={error} />
   const onDay = items.filter((h) => h.assigned_on.slice(0, 10) === day)
   return (
