@@ -151,7 +151,7 @@ function Academics({ view }: { view: string }) {
     return (
       <>
         {head}
-        <PageBody top width="full">
+        <PageBody width="full">
           {/* THE SUBJECT (owner, 2026-11-27, after the subject-workspace
               mockup): the subject and its teacher, three facts, then only the
               sections the school has data for. Attendance by subject, topic
