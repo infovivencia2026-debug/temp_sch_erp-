@@ -583,12 +583,16 @@ export function installMotionGuard() {
 
   // Every finite animation that is running, and when it began.
   const playing = new Map<Element, Played>()
-  // Read in one batch after the frame, not inside each animationstart: there
-  // getAnimations() forced a fresh style pass per starting animation, ~45ms
-  // on a slow phone when a screen like Settings starts a dozen at once.
-  const started: [HTMLElement, string][] = []
-  const readStarted = () => {
-    for (const [el, name] of started.splice(0)) {
+  // Not read when it starts: getAnimations() costs a style pass per element,
+  // and a table whose rows each rise in called it hundreds of times (372ms on
+  // a slowed phone opening Fee counter > Collections). An animation start is
+  // only noted, and its Animation is looked up the one time something is
+  // interrupted (retarget, cutShort below), for the elements involved.
+  const started = new Map<HTMLElement, string>()
+  const readStarted = (only?: (el: HTMLElement) => boolean) => {
+    for (const [el, name] of started) {
+      if (only && !only(el)) continue
+      started.delete(el)
       if (!el.isConnected) continue
       const a = el.getAnimations().find((x) => (x as CSSAnimation).animationName === name)
       const t = a?.effect?.getComputedTiming()
@@ -599,12 +603,14 @@ export function installMotionGuard() {
   document.addEventListener('animationstart', (e) => {
     const el = e.target as Element
     if (!(el instanceof HTMLElement) || el.closest('[data-ghost]')) return
-    if (!started.length) setTimeout(readStarted, 0)
-    started.push([el, e.animationName])
+    if (started.size > 400) for (const k of started.keys()) if (!k.isConnected) started.delete(k)
+    started.set(el, e.animationName)
   }, true)
   const forget = (e: Event) => {
-    const p = playing.get(e.target as Element)
-    if (p && (p.a as CSSAnimation).animationName === (e as AnimationEvent).animationName) playing.delete(e.target as Element)
+    const el = e.target as HTMLElement
+    if (started.get(el) === (e as AnimationEvent).animationName) started.delete(el)
+    const p = playing.get(el)
+    if (p && (p.a as CSSAnimation).animationName === (e as AnimationEvent).animationName) playing.delete(el)
   }
   document.addEventListener('animationend', forget, true)
   document.addEventListener('animationcancel', forget, true)
@@ -639,7 +645,7 @@ export function installMotionGuard() {
     }
   }
   const cutShort = (el: Element, now: number): { p: Played; at: number } | null => {
-    if (started.length) readStarted()
+    if (started.has(el as HTMLElement)) readStarted((x) => x === el)
     const p = playing.get(el)
     if (!p) return null
     const t = p.a.effect?.getComputedTiming()
@@ -650,7 +656,7 @@ export function installMotionGuard() {
 
   // -- 1. [data-closing] flipped on a surface that was still moving
   const retarget = (host: HTMLElement, now: number) => {
-    if (started.length) readStarted()
+    if (started.size) readStarted((x) => host.contains(x))
     const hit: { el: HTMLElement; p: Played; at: number }[] = []
     for (const el of playing.keys()) {
       if (!(el instanceof HTMLElement) || !host.contains(el)) continue

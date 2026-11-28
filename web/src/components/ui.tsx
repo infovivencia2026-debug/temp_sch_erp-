@@ -493,6 +493,11 @@ export function CellGrid({ cols = 4, children }: { cols?: 2 | 3 | 4; children: R
    already fits. */
 function FitFigure({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement | null>(null)
+  const refit = useRef<() => void>(() => {})
+  /* Set up once. It used to be torn down and rebuilt on every render of the
+     card (its children are a new element each time), observers and timers
+     included; a changed figure now just asks for one more fit. */
+  useEffect(() => { refit.current() })
   useEffect(() => {
     const el = ref.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -501,7 +506,10 @@ function FitFigure({ children }: { children: ReactNode }) {
       raf = 0
       /* zoom, not font-size: the phone's text zoom would multiply a
          font-size set here a second time. */
-      el.style.zoom = ''
+      /* Only cleared when it was set: a write before the read forced a fresh
+         layout for every figure on the screen, one after another (73ms on a
+         slowed phone opening a dashboard of stats). */
+      if (el.style.zoom) el.style.zoom = ''
       /* The room is the card's own inner width, not the figure's box: a card
          in a content-sized column would otherwise grow with the figure. */
       const box = el.closest<HTMLElement>('.cell')
@@ -517,6 +525,7 @@ function FitFigure({ children }: { children: ReactNode }) {
       }
     }
     const again = () => { if (!raf) raf = requestAnimationFrame(fit) }
+    refit.current = again
     const ro = new ResizeObserver(again)
     ro.observe(el)
     const card = el.closest('.cell'); if (card) ro.observe(card)
@@ -524,8 +533,8 @@ function FitFigure({ children }: { children: ReactNode }) {
     let live = true
     document.fonts?.ready.then(() => { if (live) again() })
     const late = window.setTimeout(again, 800)
-    return () => { live = false; ro.disconnect(); window.clearTimeout(late); if (raf) cancelAnimationFrame(raf) }
-  }, [children])
+    return () => { live = false; refit.current = () => {}; ro.disconnect(); window.clearTimeout(late); if (raf) cancelAnimationFrame(raf) }
+  }, [])
   return <div ref={ref} className="stat stat-fit">{children}</div>
 }
 

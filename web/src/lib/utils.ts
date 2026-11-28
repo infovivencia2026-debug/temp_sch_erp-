@@ -13,9 +13,25 @@ export function cn(...inputs: ClassValue[]) {
    Rs 1 on the ledger while the counter asked for 1.38 -- two figures for
    one fact. A whole-rupee amount still reads as a whole rupee; anything
    else carries its two decimals. */
+/* One formatter per locale and shape, made once. Building an Intl formatter
+   is far dearer than using one, and a ledger or dashboard formats hundreds of
+   amounts and dates in a render (115ms on a slowed phone opening the finance
+   dashboard, 2026-11-28). */
+const fmtCache = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>()
+function numFmt(key: string, locale: string, o: Intl.NumberFormatOptions): Intl.NumberFormat {
+  let f = fmtCache.get(key + locale) as Intl.NumberFormat | undefined
+  if (!f) { f = new Intl.NumberFormat(locale, o); fmtCache.set(key + locale, f) }
+  return f
+}
+function dateFmt(key: string, locale: string, o: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  let f = fmtCache.get(key + locale) as Intl.DateTimeFormat | undefined
+  if (!f) { f = new Intl.DateTimeFormat(locale, o); fmtCache.set(key + locale, f) }
+  return f
+}
+
 export function formatPaise(paise: number, locale = 'en-IN') {
   const whole = Math.round(paise) % 100 === 0
-  return new Intl.NumberFormat(locale, {
+  return numFmt(whole ? 'inr0|' : 'inr2|', locale, {
     style: 'currency', currency: 'INR',
     minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2,
   }).format(paise / 100)
@@ -23,7 +39,7 @@ export function formatPaise(paise: number, locale = 'en-IN') {
 
 export function formatDate(iso?: string | null, locale = 'en-IN') {
   if (!iso) return '-'
-  return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric' })
+  return dateFmt('d|', locale, { day: '2-digit', month: 'short', year: 'numeric' })
     .format(new Date(iso))
 }
 
@@ -40,7 +56,7 @@ export function formatDate(iso?: string | null, locale = 'en-IN') {
  */
 export function formatDateTime(iso?: string | null, locale = 'en-IN') {
   if (!iso) return '-'
-  return new Intl.DateTimeFormat(locale, {
+  return dateFmt('dt|', locale, {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   }).format(new Date(iso))
