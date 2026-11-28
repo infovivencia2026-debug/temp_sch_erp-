@@ -296,7 +296,7 @@ export default function Notifications() {
   const [warm, setWarm] = useState(false)
   useEffect(() => {
     const w = window as Window & { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }
-    const t = window.setTimeout(() => (w.requestIdleCallback ? w.requestIdleCallback(() => setWarm(true), { timeout: 4000 }) : setWarm(true)), 1500)
+    const t = window.setTimeout(() => (w.requestIdleCallback ? w.requestIdleCallback(() => setWarm(true), { timeout: 1500 }) : setWarm(true)), 600)
     return () => window.clearTimeout(t)
   }, [])
   const [filter, setFilter] = useState('all')
