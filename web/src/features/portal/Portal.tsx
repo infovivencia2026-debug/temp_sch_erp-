@@ -493,7 +493,7 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
           nothing about the child in this card. Taller on wide screens so more
           messages show; the child card beside it stretches to match. */}
       <div className="flex justify-center border-b px-4 pb-4 pt-5">
-        <SegToggle value={tab} onChange={setTab} ariaLabel="Messages from school"
+        <SegToggle value={tab} onChange={setTab} ariaLabel="Announcements"
           className="max-w-[360px]"
           options={[{ value: 'news', label: 'Announcements' }, { value: 'homework', label: 'Homework' }]} />
       </div>
@@ -753,7 +753,7 @@ export default function Portal() {
      calendar lives on the Attendance screen. */
   const subjects = profile.data?.subjects ?? []
   return (
-    <PageBody>
+    <PageBody top width="full">
       {/* Two columns on a wide screen, as the month calendar sat beside the
           messages: Fee + Today over the messages on the left, the child card
           the full height on the right. On a phone the child comes first. */}

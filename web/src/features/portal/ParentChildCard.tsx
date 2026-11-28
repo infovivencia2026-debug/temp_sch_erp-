@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { BookOpen, CalendarRange, ChevronDown, Users } from 'lucide-react'
+import { Atom, BookOpen, BookText, Calculator, CalendarRange, ChevronDown, ChevronRight, Dna, Dumbbell, Feather, FlaskConical, Globe, Languages, Leaf, Monitor, Music, Palette, PenLine, ScrollText, Shapes, TestTube, Users, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui'
 import { PickerMenu } from '@/components/PickerMenu'
 import { formatDate, cn } from '@/lib/utils'
@@ -13,7 +13,7 @@ import { fileSrc, initials, type ChildProfile, type ChildSubject } from './paren
 export function ChildAvatar({ name, photo, size = 'lg' }: { name: string; photo?: string; size?: 'lg' | 'md' | 'sm' }) {
   const box = size === 'lg' ? 'h-16 w-16 text-[22px] sm:h-20 sm:w-20 sm:text-[26px]' : size === 'md' ? 'h-12 w-12 text-[17px]' : 'h-10 w-10 text-[14px]'
   return photo ? (
-    <img src={fileSrc(photo)} alt="" className={cn('shrink-0 rounded-full border bg-muted object-cover', box)} />
+    <img src={fileSrc(photo)} alt="" style={{ clipPath: 'circle(50%)' }} className={cn('aspect-square shrink-0 rounded-full bg-muted object-cover', box)} />
   ) : (
     <span aria-hidden className={cn('grid shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary', box)}>{initials(name)}</span>
   )
@@ -89,7 +89,7 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
 function ChildPhoto({ name, photo }: { name: string; photo?: string }) {
   const box = 'size-20 shrink-0 rounded-full border-4 border-card shadow-[0_8px_20px_-6px_hsl(var(--primary)/0.45)] lg:size-32'
   return photo
-    ? <img src={fileSrc(photo)} alt="" className={cn(box, 'bg-muted object-cover')} />
+    ? <img src={fileSrc(photo)} alt="" style={{ clipPath: 'circle(50%)' }} className={cn(box, 'aspect-square bg-muted object-cover')} />
     : <span aria-hidden className={cn(box, 'grid place-items-center bg-gradient-to-br from-primary to-primary/70 text-[28px] font-extrabold text-primary-foreground lg:text-[44px]')}>{initials(name)}</span>
 }
 
@@ -100,8 +100,29 @@ export function SubjectCards({ subjects, hrefFor, note }: {
   note?: (s: ChildSubject) => string | undefined
 }) {
   if (!subjects.length) return <p className="text-[15px] text-muted-foreground">No subjects set for this class yet.</p>
+  const icons = subjectIcons(subjects.map((s) => s.subject))
   return (
-    <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
+    <>
+    {/* PHONE (owner, 2026-11-27, option B): one box, a row per subject. */}
+    <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm sm:hidden">
+      {subjects.map((s, i) => {
+        const tint = SUBJECT_TINTS[i % SUBJECT_TINTS.length]
+        const sub = note?.(s) ?? s.teacher ?? ''
+        return (
+          <li key={s.class_subject_id}>
+            <Link to={hrefFor(s)} className="flex min-h-[56px] items-center gap-3 px-3 py-2 active:bg-muted/60">
+              <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', tint.chip)}>{(() => { const I = icons[i]; return <I className="h-4 w-4" strokeWidth={1.9} aria-hidden /> })()}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-bold leading-snug">{s.subject}</span>
+                {sub && <span className="block truncate text-[13px] text-muted-foreground">{sub}</span>}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
+    <ul className="hidden gap-3 sm:grid sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {subjects.map((s, i) => {
         /* Each subject its own tint so the row reads at a glance (owner, 2026-11-27: "subjects look pale"). */
         const tint = SUBJECT_TINTS[i % SUBJECT_TINTS.length]
@@ -109,7 +130,7 @@ export function SubjectCards({ subjects, hrefFor, note }: {
           <li key={s.class_subject_id} className="min-w-0">
             <Link to={hrefFor(s)}
               className={cn('relative flex h-full min-h-[92px] flex-col gap-1.5 overflow-hidden rounded-xl border bg-card p-2.5 sm:p-3 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_12px_28px_-10px_hsl(var(--foreground)/0.3)] motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
-              <span className={cn('grid size-8 place-items-center rounded-lg', tint.chip)}><BookOpen className="h-4 w-4" strokeWidth={1.9} aria-hidden /></span>
+              <span className={cn('grid size-8 place-items-center rounded-lg', tint.chip)}>{(() => { const I = icons[i]; return <I className="h-4 w-4" strokeWidth={1.9} aria-hidden /> })()}</span>
               <span className="line-clamp-2 break-words text-[14px] font-bold leading-snug sm:text-[15px]">{s.subject}</span>
               <span className="truncate text-[12px] text-muted-foreground">{note?.(s) ?? s.teacher ?? ''}</span>
             </Link>
@@ -117,6 +138,7 @@ export function SubjectCards({ subjects, hrefFor, note }: {
         )
       })}
     </ul>
+    </>
   )
 }
 
@@ -127,3 +149,18 @@ const SUBJECT_TINTS = [
   { chip: 'bg-info/15 text-info', border: 'hover:border-info/50' },
   { chip: 'bg-destructive/10 text-destructive', border: 'hover:border-destructive/50' },
 ] as const
+
+/* A different icon for every subject (owner, 2026-11-27). Known names get a
+   fitting icon; the rest take the next unused one, so no two repeat. */
+const NAMED: [RegExp, LucideIcon][] = [
+  [/math/i, Calculator], [/english/i, BookText], [/hindi/i, Languages], [/telugu|tamil|kannada|marathi|urdu/i, ScrollText],
+  [/sanskrit|french/i, Feather], [/physics/i, Atom], [/chem/i, TestTube], [/bio/i, Dna], [/science/i, FlaskConical],
+  [/social|history|geog|civics/i, Globe], [/evs|environment/i, Leaf], [/computer|ict|coding/i, Monitor],
+  [/music/i, Music], [/art|draw|craft/i, Palette], [/physical|sport|games|yoga|^pe$/i, Dumbbell],
+]
+const SPARE: LucideIcon[] = [Shapes, PenLine, BookOpen, Feather, ScrollText, Globe, Leaf, Palette, Music, Atom]
+function subjectIcons(names: string[]): LucideIcon[] {
+  const used = new Set<LucideIcon>()
+  const out = names.map((n) => { const hit = NAMED.find(([re, ic]) => re.test(n) && !used.has(ic))?.[1]; if (hit) used.add(hit); return hit })
+  return out.map((ic) => { if (ic) return ic; const s = SPARE.find((x) => !used.has(x)) ?? BookOpen; used.add(s); return s })
+}

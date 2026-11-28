@@ -60,7 +60,7 @@ export function setAllRoles(on: boolean) {
    "replace Inbox with Mail"). The slug stays, so links and grants are untouched. */
 /* "Apply Student Leave" was cut to "Apply Student Lea…" in the parent menu
    (owner test, 2026-11-19); the screen holds absence and leave, so "Apply leave". */
-const SHOWN_AS: Record<string, string> = { inbox: 'Mail', apply_student_leave: 'Apply leave' }
+const SHOWN_AS: Record<string, string> = { inbox: 'Mail', apply_student_leave: 'Apply leave', circulars_from_school: 'Announcements' }
 function renamed(c: CatalogResponse): CatalogResponse {
   for (const r of c.roles) for (const s of r.sections ?? []) for (const f of s.features) if (SHOWN_AS[f.slug]) f.name = SHOWN_AS[f.slug]
   /* One "Take attendance" in the menu (owner, 2026-11-12): the whole-school
