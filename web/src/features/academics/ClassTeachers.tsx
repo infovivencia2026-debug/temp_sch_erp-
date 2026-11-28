@@ -183,8 +183,8 @@ function CoTeachers({ sectionId, options }: { sectionId: string; options: { valu
   return (
     <div className="space-y-1.5">
       {(list.data?.items ?? []).map((t) => (
-        <span key={t.user_id} className="mr-1 inline-flex items-center gap-1">
-          <Badge>{t.full_name}</Badge>
+        <span key={t.user_id} className="mr-1 inline-flex max-w-full items-center gap-1">
+          <Badge className="min-w-0 !whitespace-normal break-words">{t.full_name}</Badge>
           <Button size="sm" variant="ghost" aria-label={`Remove ${t.full_name}`} title="Remove" disabled={save.isPending}
             onClick={() => save.mutate(ids.filter((x) => x !== t.user_id))}>
             <X className="h-3.5 w-3.5" />
