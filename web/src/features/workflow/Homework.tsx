@@ -250,7 +250,7 @@ function Diary({ canPublish }: { canPublish: boolean }) {
                 each -- enough for "MON" over "28", which is all they carry. */}
             {/* Large phone text: a day never shrinks below its own label; the week
                 wraps onto a second row instead of the labels running together. */}
-            <div className="grid min-w-0 flex-1 grid-cols-7 gap-0.5">
+            <div className="grid min-w-0 flex-1 grid-cols-[repeat(auto-fit,minmax(2.2em,1fr))] gap-0.5">
               {week.map((d) => {
                 const active = d === day
                 const dt = new Date(d + 'T00:00:00')

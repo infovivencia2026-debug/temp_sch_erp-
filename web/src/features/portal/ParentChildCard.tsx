@@ -50,9 +50,9 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
     <Card className="relative flex h-full flex-col overflow-hidden">
       <span aria-hidden className="absolute inset-x-0 top-0 h-[72px] bg-gradient-to-br from-primary/25 via-primary/10 to-transparent lg:h-1/2 lg:bg-gradient-to-b" />
       <div className="relative flex flex-col lg:my-auto">
-      <div className="relative flex items-center gap-4 p-4 pb-3 lg:flex-col lg:gap-3 lg:px-6 lg:pt-10 lg:text-center">
+      <div className="relative flex flex-wrap items-center gap-4 p-4 pb-3 lg:flex-col lg:flex-nowrap lg:gap-3 lg:px-6 lg:pt-10 lg:text-center">
         <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
-        <div className="min-w-0 flex-1 lg:flex-none">
+        <div className="min-w-[min(100%,6.5em)] flex-1 text-[22px] lg:flex-none lg:text-[26px]">
           <p className="break-words text-[22px] font-extrabold leading-tight tracking-[-0.02em] lg:text-[26px]">{name || (loading ? '…' : '')}</p>
           {cls && <span className="mt-1.5 inline-flex max-w-full rounded-full bg-primary/10 px-3 py-1 text-[14px] font-semibold text-primary"><span className="truncate">Class {cls}</span></span>}
         </div>
