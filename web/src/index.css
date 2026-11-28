@@ -3117,6 +3117,13 @@ body[data-scroll-lock] {
      a dialog, so it went invisible and restarted (owner, 2026-11-28). */
   @media (max-width: 767.98px) {
     #shell-nav { animation: none !important; }
+    /* The notifications drawer takes the side menu's glide: the shared curve
+       covered two thirds of the way in its first frames, so after a slow first
+       frame it read as a jump (owner, 2026-11-28: the bell "feels stuck"). */
+    [role='dialog'][data-side='right']:not([data-closing]) {
+      animation-duration: 360ms;
+      animation-timing-function: cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
   }
 
   /* A screen arriving. Small travel, no fade to black, no bounce: the point

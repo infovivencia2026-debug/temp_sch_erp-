@@ -288,6 +288,17 @@ export default function Notifications() {
      rather than as leaving. `closing` holds it on screen long enough to slide
      back out the way it came. */
   const [closing, setClosing] = useState(false)
+  /* Built once while the app is idle and then kept, hidden, between opens
+     (owner, 2026-11-28: the bell "feels very stuck"). Opening used to build
+     the whole drawer -- every row, the toggles, the status strip -- on the
+     tap, about 50ms on a slowed phone before the slide could start. Now the
+     tap only un-hides it and the slide starts on the next frame. */
+  const [warm, setWarm] = useState(false)
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }
+    const t = window.setTimeout(() => (w.requestIdleCallback ? w.requestIdleCallback(() => setWarm(true), { timeout: 4000 }) : setWarm(true)), 1500)
+    return () => window.clearTimeout(t)
+  }, [])
   const [filter, setFilter] = useState('all')
   const [gallery, setGallery] = useState(false)
   /* A status picked in the drawer is written outside it: the drawer closes,
@@ -547,10 +558,11 @@ export default function Notifications() {
         )}
       </button>
 
-      {(open || closing) && createPortal(
+      {(open || closing || warm) && createPortal(
         <div
           className={cn(
             'vv-screen-phone fixed inset-0 z-[100] flex justify-end',
+            !open && !closing && 'hidden',
             // The ground dims with the drawer rather than appearing under it.
             'transition-colors',
             open ? 'scrim-bg-in bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
@@ -686,6 +698,21 @@ export default function Notifications() {
                         ))}
                     </div>
                   )
+              ) : shown.isLoading && items.length === 0 ? (
+                /* Still loading: rows the shape of the real ones, so the
+                   drawer is full from its first frame instead of saying
+                   "Nothing yet" and then filling. */
+                <div className="space-y-2" aria-busy="true" aria-label="Loading notifications">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center gap-3 rounded-[17px] border bg-card px-3.5 py-3 shadow-sm">
+                      <span className="size-[38px] shrink-0 animate-pulse rounded-[11px] bg-muted" />
+                      <span className="min-w-0 flex-1 space-y-2">
+                        <span className="block h-3.5 w-3/5 animate-pulse rounded bg-muted" />
+                        <span className="block h-3 w-2/5 animate-pulse rounded bg-muted" />
+                      </span>
+                    </div>
+                  ))}
+                </div>
               ) : items.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-6 py-16 text-center">
                   <p className="text-[14px] font-medium">Nothing yet</p>
