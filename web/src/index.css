@@ -6240,24 +6240,24 @@ html[data-topbar] header[data-paint="topbar"].h-\[56px\] {
   nav .nav-pill__sub a { font-size: 16px; }
 }
 
-/* THE CHILD CARD (owner, 2026-11-28): the school colour as a subtle fluid,
-   three soft glows drifting slowly; still under reduced motion. Tiles are
-   equal, 14px corners, in the app's normal type (no spaced figures). */
-.child-card { background: hsl(var(--primary)); }
-.child-card__flow {
-  position: absolute; inset: -40%; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(40% 45% at 20% 30%, hsl(var(--primary) / .55), transparent 70%),
-    radial-gradient(45% 40% at 80% 70%, hsl(var(--foreground) / .22), transparent 70%),
-    radial-gradient(35% 35% at 60% 20%, hsl(0 0% 100% / .14), transparent 70%);
-  animation: child-flow 16s ease-in-out infinite alternate;
-}
-@keyframes child-flow {
-  0% { transform: translate(0, 0) rotate(0); }
-  50% { transform: translate(6%, -4%) rotate(8deg); }
-  100% { transform: translate(-5%, 5%) rotate(-6deg); }
-}
-@media (prefers-reduced-motion: reduce) { .child-card__flow { animation: none; } }
-html[data-reduce-motion] .child-card__flow { animation: none; }
+/* THE CHILD CARD (owner, 2026-11-28, "Ocean"): soft patches of the school
+   colour, a cool teal and white light drift slowly and melt into each other,
+   so the card is not one flat blue. A light shade top-left keeps the white
+   name readable wherever the light is. Still under reduced motion. */
+.child-card { background: color-mix(in srgb, hsl(var(--primary)) 82%, #000); box-shadow: 0 14px 30px -12px hsl(var(--primary) / .45); }
+.child-card__flow { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.child-card__flow::after { content: ''; position: absolute; inset: 0; background: radial-gradient(70% 55% at 15% 20%, rgb(0 0 0 / .22), transparent 70%); }
+.child-card__flow i { position: absolute; border-radius: 50%; filter: blur(38px); mix-blend-mode: screen; opacity: .85; }
+.child-card__flow i:nth-child(1) { width: 80%; aspect-ratio: 1; left: -20%; top: -25%; background: color-mix(in srgb, hsl(var(--primary)) 70%, #fff); animation: child-d1 18s ease-in-out infinite alternate; }
+.child-card__flow i:nth-child(2) { width: 75%; aspect-ratio: 1; right: -22%; top: 15%; background: #0891b2; animation: child-d2 22s ease-in-out infinite alternate; }
+.child-card__flow i:nth-child(3) { width: 75%; aspect-ratio: 1; left: 15%; bottom: -30%; background: hsl(var(--primary)); animation: child-d3 20s ease-in-out infinite alternate; }
+.child-card__flow i:nth-child(4) { width: 50%; aspect-ratio: 1; left: 0; top: 0; background: #fff; opacity: .4; filter: blur(30px); animation: child-d4 14s ease-in-out infinite alternate; }
+@keyframes child-d1 { to { transform: translate(45%, 35%) scale(1.15); } }
+@keyframes child-d2 { to { transform: translate(-50%, 45%) scale(.9); } }
+@keyframes child-d3 { to { transform: translate(30%, -60%) scale(1.2); } }
+@keyframes child-d4 { 0% { transform: translate(-20%, -30%); } 50% { transform: translate(120%, 40%); } 100% { transform: translate(40%, 150%); } }
+@media (prefers-reduced-motion: reduce) { .child-card__flow i { animation: none; } }
+html[data-reduce-motion] .child-card__flow i { animation: none; }
+.child-card .child-tile { border: 1px solid rgb(255 255 255 / .18); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .child-card .child-tile { border-radius: 14px !important; letter-spacing: 0; font-variant-numeric: normal; font-feature-settings: normal; }
 .child-card .child-tile * { letter-spacing: 0; font-feature-settings: normal; }
