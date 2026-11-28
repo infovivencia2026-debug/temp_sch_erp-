@@ -647,12 +647,15 @@ export default function Portal() {
     enabled: !!activeId,
   })
 
+  /* The child card and Academics (owner, 2026-11-26), for the year picked in
+     the card; the attendance calendar follows it too (2026-11-28). */
+  const [year, setYear] = useParentYear()
   const attendance = useQuery({
-    queryKey: ['portal-attendance', activeId],
+    queryKey: ['portal-attendance', activeId, year],
     // The child must be named explicitly: the endpoint defaults to the first
     // linked student, so omitting it made the switcher change nothing.
     queryFn: () =>
-      api.get<List<AttendanceDay>>(`/api/v1/portal/attendance?student_id=${activeId}`),
+      api.get<List<AttendanceDay>>(`/api/v1/portal/attendance?student_id=${activeId}${year ? `&academic_year_id=${year}` : ''}`),
     enabled: !!activeId,
   })
 
@@ -669,8 +672,6 @@ export default function Portal() {
     queryFn: () => api.get<{ items: FamilyNote[] }>(`/api/v1/portal/notifications${selected ? `?student_id=${selected}` : ''}`),
   })
 
-  /* The child card and Academics (owner, 2026-11-26), for the year picked in the card. */
-  const [year, setYear] = useParentYear()
   const profile = useChildProfile(activeId, year)
   const homework = useQuery({
     queryKey: ['homework', 'diary', false],

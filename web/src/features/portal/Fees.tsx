@@ -7,6 +7,7 @@ import {
   Select, EmptyState, FormNotice,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { useParentYear } from './parent-child'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -85,6 +86,8 @@ export default function PortalFees() {
   const kids = children.data?.items ?? []
   const [picked, setPicked] = useState('')
   const child = picked || kids[0]?.student_id || ''
+  /* The year picked in the home child card (owner, 2026-11-28). */
+  const [year] = useParentYear()
 
   /* Paying, with nothing moving. See internal/api/portal_pay.go: it writes the
      receipt and the ledger entry the counter would, stamped SIMULATED, so the
@@ -105,8 +108,8 @@ export default function PortalFees() {
   })
 
   const fees = useQuery({
-    queryKey: ['portal-fees', child],
-    queryFn: () => api.get<FeeView>(`/api/v1/portal/fees?student_id=${child}`),
+    queryKey: ['portal-fees', child, year],
+    queryFn: () => api.get<FeeView>(`/api/v1/portal/fees?student_id=${child}${year ? `&academic_year_id=${year}` : ''}`),
     enabled: !!child,
   })
   const { data, isLoading, error } = fees

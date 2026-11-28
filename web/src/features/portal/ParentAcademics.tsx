@@ -65,8 +65,8 @@ function Academics({ view }: { view: string }) {
     enabled: view === 'subject' && !!sectionId,
   })
   const results = useQuery({
-    queryKey: ['portal-results', sid],
-    queryFn: () => api.get<ResultView>(`/api/v1/portal/results?student_id=${sid}`),
+    queryKey: ['portal-results', sid, year],
+    queryFn: () => api.get<ResultView>(`/api/v1/portal/results?student_id=${sid}${year ? `&academic_year_id=${year}` : ''}`),
     enabled: view === 'subject' && !!sid,
   })
 
