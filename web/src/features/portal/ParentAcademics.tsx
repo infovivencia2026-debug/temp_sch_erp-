@@ -7,6 +7,8 @@ import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, EmptyState, Error
 import { formatDate, cn } from '@/lib/utils'
 
 import Homework from '@/features/workflow/Homework'
+import FileView, { type ViewableFile } from '@/components/FileView'
+import { Paperclip } from 'lucide-react'
 import { useChildren } from './use-children'
 import { useChildProfile, useParentYear } from './parent-child'
 import { ChildAvatar, SubjectCards } from './ParentChildCard'
@@ -24,6 +26,7 @@ import { ChildAvatar, SubjectCards } from './ParentChildCard'
 
 interface Hw {
   id: string; title: string; kind: string; subject?: string; assigned_on: string; due_on?: string
+  files?: { file_id: string; name: string }[]
   instructions?: string; submitted: boolean; overdue: boolean; teacher?: string; student_id?: string
 }
 interface ResultView { subjects: { exam: string; subject: string; marks_obtained?: number; max_marks?: number; grade?: string; is_absent: boolean }[] }
@@ -66,7 +69,7 @@ function Academics({ view }: { view: string }) {
   /* Notes are the teacher's study material for the subject (Classwork › Materials). */
   const materials = useQuery({
     queryKey: ['portal-resources', sid],
-    queryFn: () => api.get<List<{ id: string; subject?: string; kind?: string }>>(`/api/v1/portal/learning/resources?student_id=${sid}`),
+    queryFn: () => api.get<List<Note>>(`/api/v1/portal/learning/resources?student_id=${sid}`),
     enabled: view === 'subject' && !!sid,
   })
   const results = useQuery({
@@ -201,6 +204,7 @@ function Academics({ view }: { view: string }) {
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6">
             <div className="flex min-w-0 flex-col gap-4 md:gap-6">
               {scored.length > 1 && <MarksTrend items={scored} />}
+              <NotesList items={(materials.data?.items ?? []).filter((m) => m.subject === s.subject)} />
               <SubjectHomework items={mine} today={today} loading={homework.isLoading} error={homework.error} />
               {marks.length === 0 ? <Quiet>No marks published yet</Quiet> : (
               <Card>
@@ -271,8 +275,49 @@ function SubjectHomework({ items, today, loading, error }: { items: Hw[]; today:
   )
 }
 
-function HwList({ items }: { items: Hw[] }) {
+interface Note { id: string; title: string; subject?: string; kind?: string; file_id?: string; file_name?: string; external_url?: string; posted_on?: string; uploaded_by?: string }
+
+/* The teacher's notes and study material for this subject, each opening its file or link. */
+function NotesList({ items }: { items: Note[] }) {
+  const [view, setView] = useState<ViewableFile | null>(null)
+  if (!items.length) return null
   return (
+    <Card>
+      {view && <FileView file={view} onClose={() => setView(null)} />}
+      <CardHeader title="Notes" />
+      <ul className="divide-y px-[var(--card-pad)] pb-2">
+        {items.map((n) => (
+          <li key={n.id} className="py-3">
+            <p className="text-[16px] font-medium leading-snug">{n.title}</p>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{[n.uploaded_by, n.posted_on ? formatDate(n.posted_on) : ''].filter(Boolean).join(' · ')}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {n.file_id && <FileChip name={n.file_name || 'Open file'} onOpen={() => setView({ file_id: n.file_id!, name: n.file_name || n.title })} />}
+              {n.external_url && <a href={n.external_url} target="_blank" rel="noreferrer" className="inline-flex min-h-[44px] items-center rounded-xl border bg-card px-3 text-[14px] font-medium text-primary">Open link</a>}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
+const KIND: Record<string, string> = { homework: 'Homework', classwork: 'Classwork', assignment: 'Assignment', project: 'Project' }
+
+/* A file the teacher attached, opened in the in-app viewer. */
+function FileChip({ name, onOpen }: { name: string; onOpen: () => void }) {
+  return (
+    <button type="button" onClick={onOpen}
+      className="inline-flex min-h-[44px] max-w-full items-center gap-2 rounded-xl border bg-card px-3 text-left text-[14px] font-medium text-primary">
+      <Paperclip className="size-4 shrink-0" aria-hidden /><span className="min-w-0 break-words">{name}</span>
+    </button>
+  )
+}
+
+function HwList({ items }: { items: Hw[] }) {
+  const [view, setView] = useState<ViewableFile | null>(null)
+  return (
+    <>
+    {view && <FileView file={view} onClose={() => setView(null)} />}
     <ul className="divide-y px-[var(--card-pad)] pb-2">
       {items.map((h) => (
         <li key={`${h.id}:${h.student_id ?? ''}`} className="py-3">
@@ -284,10 +329,12 @@ function HwList({ items }: { items: Hw[] }) {
             </span>
           </div>
           {h.instructions && <p className="mt-1 line-clamp-3 text-[15px] text-muted-foreground">{h.instructions}</p>}
-          <p className="mt-1 text-[13px] text-muted-foreground">Set {formatDate(h.assigned_on)}{h.teacher ? ` · ${h.teacher}` : ''}</p>
+          {!!h.files?.length && <div className="mt-2 flex flex-wrap gap-2">{h.files.map((f) => <FileChip key={f.file_id} name={f.name} onOpen={() => setView({ file_id: f.file_id, name: f.name })} />)}</div>}
+          <p className="mt-1 text-[13px] text-muted-foreground">{KIND[h.kind] ?? 'Homework'} · Set {formatDate(h.assigned_on)}{h.teacher ? ` · ${h.teacher}` : ''}</p>
         </li>
       ))}
     </ul>
+    </>
   )
 }
 
