@@ -203,7 +203,6 @@ function Academics({ view }: { view: string }) {
           </CellGrid>}
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6">
             <div className="flex min-w-0 flex-col gap-4 md:gap-6">
-              {scored.length > 1 && <MarksTrend items={scored} />}
               <NotesList items={(materials.data?.items ?? []).filter((m) => m.subject === s.subject)} />
               <SubjectHomework items={mine} today={today} loading={homework.isLoading} error={homework.error} />
               {marks.length === 0 ? <Quiet>No marks published yet</Quiet> : (
@@ -229,30 +228,6 @@ function Academics({ view }: { view: string }) {
   }
 
   return null
-}
-
-/* ASSESSMENT TREND: each published exam's score as a share of its maximum,
-   in the order the school lists them. Plain bars with the real percentage. */
-function MarksTrend({ items }: { items: { exam: string; marks_obtained?: number; max_marks?: number }[] }) {
-  return (
-    <Card>
-      <CardHeader title="Assessment trend" />
-      <ol className="flex items-end gap-3 overflow-hidden px-[var(--card-pad)] pb-4">
-        {items.map((m, i) => {
-          const pct = Math.round(((m.marks_obtained ?? 0) / (m.max_marks || 1)) * 100)
-          return (
-            <li key={i} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-              <span className="text-[13px] font-semibold tabular-nums">{pct}%</span>
-              <span className="flex h-28 w-full max-w-[56px] items-end overflow-hidden rounded-lg bg-muted">
-                <span className="w-full rounded-lg bg-primary" style={{ height: `${Math.max(4, pct)}%` }} />
-              </span>
-              <span className="w-full truncate text-center text-[12px] text-muted-foreground" title={m.exam}>{m.exam}</span>
-            </li>
-          )
-        })}
-      </ol>
-    </Card>
-  )
 }
 
 /* A SUBJECT'S HOMEWORK BY DAY (owner, 2026-11-26): a date picker, today by
