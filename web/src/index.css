@@ -6184,3 +6184,21 @@ html[data-topbar] header[data-paint="topbar"].h-\[56px\] {
   height: calc(56px + var(--safe-top));
   padding-top: var(--safe-top);
 }
+
+/* GLASS TOP BAR ON PHONES (owner 2026-11-28, picked "B" over a white bar):
+   like WhatsApp, the page scrolls under the clock and the name bar and shows
+   through blurred, instead of a solid grey band. The bar leaves the flow and
+   the work area is padded by its height (--topbar-h, Shell TopbarFlag). */
+@media (max-width: 767px) {
+  html[data-topbar] header[data-paint="topbar"] {
+    position: absolute; top: 0; left: 0; right: 0;
+    background: hsl(var(--background) / 0.55) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+    box-shadow: 0 1px 0 hsl(var(--border) / 0.6);
+  }
+  html[data-topbar] main[data-app-scroll] {
+    padding-top: var(--topbar-h, 0px);
+    scroll-padding-top: var(--topbar-h, 0px);
+  }
+}

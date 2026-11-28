@@ -1611,5 +1611,17 @@ function useScopeLine() {
    body:has(): lib/root-flag.ts says why. */
 function TopbarFlag() {
   useRootFlag('data-topbar')
+  /* Glass top bar on phones (owner 2026-11-28, "B"): the page scrolls under
+     the bar, so the work area needs the bar's live height as top padding. */
+  useEffect(() => {
+    const h = document.querySelector<HTMLElement>('header[data-paint="topbar"]')
+    if (!h || typeof ResizeObserver === 'undefined') return
+    const root = document.documentElement
+    const set = () => root.style.setProperty('--topbar-h', h.offsetHeight + 'px')
+    set()
+    const ro = new ResizeObserver(set)
+    ro.observe(h)
+    return () => { ro.disconnect(); root.style.removeProperty('--topbar-h') }
+  }, [])
   return null
 }
