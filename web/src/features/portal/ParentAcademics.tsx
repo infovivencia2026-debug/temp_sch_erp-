@@ -12,8 +12,8 @@ import Homework from '@/features/workflow/Homework'
 import FileView, { type ViewableFile } from '@/components/FileView'
 import { Paperclip, CalendarClock, BarChart3 } from 'lucide-react'
 import { useChildren } from './use-children'
-import { useChildProfile, useParentYear } from './parent-child'
-import { ChildAvatar, SubjectCards } from './ParentChildCard'
+import { useChildProfile, useParentYear, fileSrc, initials } from './parent-child'
+import { SubjectCards } from './ParentChildCard'
 
 /* THE PARENT'S ACADEMICS (owner, 2026-11-26). One screen behind the menu's
    Homework, Subjects and ECA entries, picked by `?view=`:
@@ -172,10 +172,14 @@ function Academics({ view }: { view: string }) {
               second heading), so the card is its teacher. */}
           <Card className="relative -mt-2 overflow-hidden p-4 sm:p-5">
             <div className="flex min-w-0 items-center gap-4">
-              <ChildAvatar name={s.teacher ?? '?'} photo={s.teacher_photo} size="md" />
-              <div className="min-w-0">
-                <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Subject teacher</p>
-                <p className="truncate text-[17px] font-semibold leading-snug">{s.teacher ?? 'Not assigned yet'}</p>
+              {/* Bigger teacher photo (owner, 2026-11-28: "I can't see it"), passport shape like the child's. */}
+              {s.teacher_photo
+                ? <img src={fileSrc(s.teacher_photo)} alt="" style={{ borderRadius: 4, clipPath: 'none' }} className="h-[92px] w-[72px] shrink-0 rounded-[4px] bg-muted object-cover object-[50%_20%] shadow-sm ring-2 ring-white sm:h-[112px] sm:w-[88px]" />
+                : <span aria-hidden className="grid h-[92px] w-[72px] shrink-0 place-items-center rounded-xl bg-primary/10 text-[24px] font-extrabold text-primary sm:h-[112px] sm:w-[88px] sm:text-[28px]">{initials(s.teacher ?? '?')}</span>}
+              <div className="min-w-0 flex-1">
+                {/* Name only (up to two lines, normal case), then the class (owner, 2026-11-28). */}
+                <p className="line-clamp-2 break-words text-[18px] font-bold leading-snug">{s.teacher ? s.teacher.toLowerCase().replace(/(^|[\s.'-])\p{L}/gu, (c) => c.toUpperCase()) : 'Teacher not assigned yet'}</p>
+                {p?.class_name && <p className="mt-1 text-[14px] text-muted-foreground">{/^\d/.test(p.class_name.trim()) ? `Class ${p.class_name.trim()}` : p.class_name.trim()}{p.section_name ? ` · ${p.section_name}` : ''}</p>}
               </div>
             </div>
           </Card>

@@ -43,6 +43,10 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
     ['Roll no.', profile?.roll_no != null ? String(profile.roll_no) : ''],
     ['Joined', profile?.admission_date ? formatDate(profile.admission_date) : ''],
   ] as [string, string][]).filter(([, v]) => v)
+  /* Four boxes with the year (owner, 2026-11-28): with no roll no., the class and section fill the gap. */
+  /* Class first (owner, 2026-11-28); it is no longer repeated under the name. */
+  if (cls) facts.unshift(['Class', cls])
+  if (facts.length > 3) facts.splice(3)
   const tile = 'child-tile flex min-h-[58px] w-full min-w-0 flex-col justify-center bg-white/15 px-3 py-2 text-left'
   const nameLine = (
     <span className="flex min-w-0 items-center gap-1.5 lg:justify-center">
@@ -65,7 +69,6 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
               {nameLine}
             </PickerMenu>
           ) : nameLine}
-          {cls && <p className="mt-0.5 text-[14px] font-medium opacity-90 lg:mt-2 lg:inline-block lg:rounded-full lg:bg-white/20 lg:px-3 lg:py-1 lg:text-[13px] lg:font-semibold">{cls}</p>}
         </div>
       </div>
       <div className="relative mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] gap-2">
