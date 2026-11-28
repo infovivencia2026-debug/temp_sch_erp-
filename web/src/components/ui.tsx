@@ -2788,9 +2788,10 @@ export function Input({
           onClick={() => setCal((s) => !s)}
           aria-label="Open the calendar"
           aria-expanded={cal}
-          className="tap-inline absolute right-1.5 top-1/2 grid !h-7 !min-h-0 !w-7 !min-w-0 -translate-y-1/2 place-items-center rounded-md bg-muted/70 p-0 text-muted-foreground"
+          className="tap-inline absolute right-0 top-1/2 grid !h-[44px] !min-h-0 !w-[44px] !min-w-0 -translate-y-1/2 place-items-center bg-transparent p-0 text-muted-foreground"
         >
-          <ChevronDown className={cn('h-4 w-4 transition-transform', cal && 'rotate-180')} />
+          {/* Same 28px chip as before; the button around it is a 40px tap target. */}
+          <span className="grid size-7 place-items-center rounded-md bg-muted/70"><ChevronDown className={cn('h-4 w-4 transition-transform', cal && 'rotate-180')} /></span>
         </button>
         {cal && (
           <DatePopover
