@@ -351,8 +351,11 @@ export async function handlePublicWebsiteForms(env: Env, req: Request, path: str
        only show as 1 message"). A new response replaces the open card for
        that form with one counting them all: "3 new responses: Careers". */
     const holders = await t.db.prepare(`SELECT u.id FROM users u WHERE u.status = 'active' AND (
-        EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = u.id AND rp.permission_key = ?1)
-        OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.permission_key = ?1))`).bind(WRITE).all<{ id: string }>()
+        EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = u.id AND rp.permission_key IN (?1, ?2))
+        OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.permission_key IN (?1, ?2)))`)
+      /* The real permission keys: WRITE became the 'auth' placeholder on 21 Nov,
+         and nobody holds 'auth', so no form sent a notification after that. */
+      .bind('comms.website_forms.write', 'institution.settings.write').all<{ id: string }>()
     const one = `New response: ${f.title}`, many = ` new responses: ${f.title}`
     for (const h of holders.results) {
       const nid = crypto.randomUUID()
