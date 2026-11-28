@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, Inbox, ClipboardCheck, TrendingUp } from 'lucide-react'
+import { Inbox, ClipboardCheck, TrendingUp, BookOpenCheck, FolderKanban, NotebookText } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, EmptyState, ErrorState, Input, SkeletonTiles } from '@/components/ui'
-import { formatDate, cn, WEEKDAYS } from '@/lib/utils'
+import { formatDate, cn } from '@/lib/utils'
 
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 import Homework from '@/features/workflow/Homework'
 import { useChildren } from './use-children'
 import { useChildProfile, useParentYear } from './parent-child'
@@ -63,6 +62,11 @@ function Academics({ view }: { view: string }) {
     queryKey: ['timetable', 'section', sectionId],
     queryFn: () => api.call('GET /timetable/entries', { query: { section_id: sectionId } }),
     enabled: view === 'subject' && !!sectionId,
+  })
+  const lms = useQuery({
+    queryKey: ['portal-lms-home', sid],
+    queryFn: () => api.get<{ todo?: { assignments?: { class_subject_id?: string; subject?: string }[]; lessons?: { class_subject_id?: string; subject?: string }[] } }>(`/api/v1/portal/lms/home?student_id=${sid}`),
+    enabled: view === 'subject' && !!sid,
   })
   const results = useQuery({
     queryKey: ['portal-results', sid],
@@ -132,6 +136,11 @@ function Academics({ view }: { view: string }) {
       .map((e) => ({ day: e.weekday, p: periodOf.get(e.period_id), room: e.room }))
       .sort((a, b) => a.day - b.day || (a.p?.starts_at ?? '').localeCompare(b.p?.starts_at ?? ''))
     const todayDay = ((new Date().getDay() + 6) % 7) + 1
+    const nowHM = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
+    const todays = week.filter((w) => w.day === todayDay)
+    const ofSubject = (x: { class_subject_id?: string; subject?: string }) => x.class_subject_id ? x.class_subject_id === s.class_subject_id : x.subject === s.subject
+    const assignments = (lms.data?.todo?.assignments ?? []).filter(ofSubject).length
+    const notes = (lms.data?.todo?.lessons ?? []).filter(ofSubject).length
     return (
       <>
         {head}
@@ -153,12 +162,39 @@ function Academics({ view }: { view: string }) {
           </Card>
           {/* Empty sections are left out (owner, 2026-11-27: "empty boxes look
               ugly"); Homework always shows, as it carries the date picker. */}
-          <CellGrid cols={latest ? 3 : 2}>
-            <Stat label="Periods per week" value={s.periods_per_week || '-'} icon={CalendarDays} />
-            <Stat label="Homework set" value={homework.isLoading ? '…' : mine.length} icon={ClipboardCheck} />
-            {latest && <Stat label="Latest marks" value={`${latest.marks_obtained} / ${latest.max_marks}`} icon={TrendingUp} hint={latest.exam} />}
+          {/* Today's classes only (owner, 2026-11-28: no full week), each with
+              its time and whether it is done, on now or later. */}
+          <Card>
+            <CardHeader title="Today's classes" />
+            {todays.length === 0 ? <p className="px-[var(--card-pad)] pb-4 text-[15px] text-muted-foreground">No {s.subject} class today.</p> : (
+              <ul className="divide-y divide-dashed px-[var(--card-pad)] pb-2">
+                {todays.map((w, i) => {
+                  const st = w.p?.ends_at && w.p.ends_at <= nowHM ? 'Done' : w.p?.starts_at && w.p.starts_at <= nowHM ? 'Now' : 'Later'
+                  return (
+                    <li key={i} className={cn('flex items-stretch gap-3 py-2.5', st === 'Done' && 'opacity-70')}>
+                      <span className="w-[60px] shrink-0 text-center"><span className="block text-[16px] font-bold tabular-nums">{w.p?.starts_at ?? '-'}</span><span className="text-[12px] text-muted-foreground">to {w.p?.ends_at ?? '-'}</span></span>
+                      <span className={cn('min-w-0 flex-1 rounded-xl border-l-4 bg-muted/50 px-3 py-2', st === 'Now' ? 'border-primary bg-primary/10' : 'border-border')}>
+                        <span className="flex items-center justify-between gap-2"><span className="truncate text-[15px] font-semibold">{w.p?.name ?? 'Class'}</span>
+                          <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold', st === 'Now' ? 'bg-primary text-primary-foreground' : st === 'Done' ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>{st}</span></span>
+                        <span className="block truncate text-[13px] text-muted-foreground">{w.room ? `Room ${w.room}` : (s.teacher ?? '')}</span>
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+          <CellGrid cols={2}>
+            <Stat label="Assignments" value={lms.isLoading ? '…' : assignments} icon={ClipboardCheck} hint={assignments ? 'To do' : 'Nothing due'} />
+            <Stat label="Homework" value={homework.isLoading ? '…' : mine.length} icon={BookOpenCheck} hint={mine.length ? 'Set so far' : 'None yet'} />
+            <Stat label="Projects" value={0} icon={FolderKanban} hint="None yet" />
+            <Stat label="Notes" value={lms.isLoading ? '…' : notes} icon={NotebookText} hint={notes ? 'From the teacher' : 'None yet'} />
           </CellGrid>
-          <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6', week.length > 0 && 'lg:grid-cols-[minmax(0,1fr)_340px]')}>
+          {latest && <CellGrid cols={2}>
+            <Stat label="Latest marks" value={`${latest.marks_obtained} / ${latest.max_marks}`} icon={TrendingUp} hint={latest.exam} />
+            <Stat label="Average" value={`${Math.round(scored.reduce((a, m) => a + (m.marks_obtained ?? 0) / (m.max_marks || 1), 0) / scored.length * 100)}%`} icon={TrendingUp} hint={`${scored.length} exam${scored.length === 1 ? '' : 's'}`} />
+          </CellGrid>}
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6">
             <div className="flex min-w-0 flex-col gap-4 md:gap-6">
               {scored.length > 1 && <MarksTrend items={scored} />}
               <SubjectHomework items={mine} today={today} loading={homework.isLoading} error={homework.error} />
@@ -178,24 +214,6 @@ function Academics({ view }: { view: string }) {
               </Card>
               )}
             </div>
-            {week.length > 0 && (
-            <Card className="h-fit min-w-0">
-              <CardHeader title="This week" />
-              {
-                <ul className="divide-y px-[var(--card-pad)] pb-2">
-                  {week.map((w, i) => (
-                    <li key={i} className="flex min-h-[48px] items-center justify-between gap-3 py-2 text-[15px]">
-                      <span className={cn('flex shrink-0 items-center gap-2', w.day === todayDay && 'font-semibold')}>
-                        {DAY_NAMES[w.day - 1] ?? WEEKDAYS[w.day - 1]}
-                        {w.day === todayDay && <span className="rounded-full bg-primary px-2 py-0.5 text-[12px] font-semibold text-primary-foreground">Today</span>}
-                      </span>
-                      <span className="min-w-0 break-words text-right text-muted-foreground">{w.p?.name ?? 'Class'}{w.room ? `, room ${w.room}` : ''}</span>
-                    </li>
-                  ))}
-                </ul>
-              }
-            </Card>
-            )}
           </div>
         </PageBody>
       </>
