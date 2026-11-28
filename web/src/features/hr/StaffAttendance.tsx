@@ -10,6 +10,7 @@ import { StaffMonth } from './StaffMonth'
 import { useCan } from '@/lib/session'
 import { Download, Printer, Image as ImageIcon } from 'lucide-react'
 import { lateListJpeg } from './late-list-jpeg'
+import { staffRegisterXls } from './staff-register-xls'
 import { useSession } from '@/lib/session'
 import { printHtml } from '@/features/finance/receipt-print'
 import { staffRangeHtml, staffRegisterHtml } from './staff-register-print'
@@ -138,9 +139,10 @@ export default function StaffAttendance() {
     const staff = new Map<string, StaffRow>()
     const marks: Record<string, Record<string, string>> = {}
     const ins: Record<string, Record<string, string>> = {}
+    const outs: Record<string, Record<string, string>> = {}
     /* Keyed by code: a person with no login yet has no user_id. */
-    lists.forEach((l, i) => { marks[days[i]] = {}; ins[days[i]] = {}; for (const r of l.items) { if (!inGroup(r)) continue; staff.set(r.employee_code, r); if (r.status) marks[days[i]][r.employee_code] = r.status; if (r.check_in) ins[days[i]][r.employee_code] = r.check_in } })
-    return { staff: [...staff.values()].sort((a, b) => a.employee_code.localeCompare(b.employee_code)).map((r) => ({ ...r, user_id: r.employee_code })), marks, ins }
+    lists.forEach((l, i) => { marks[days[i]] = {}; ins[days[i]] = {}; outs[days[i]] = {}; for (const r of l.items) { if (!inGroup(r)) continue; staff.set(r.employee_code, r); if (r.status) marks[days[i]][r.employee_code] = r.status; if (r.check_in) ins[days[i]][r.employee_code] = r.check_in; if (r.check_out) outs[days[i]][r.employee_code] = r.check_out } })
+    return { staff: [...staff.values()].sort((a, b) => a.employee_code.localeCompare(b.employee_code)).map((r) => ({ ...r, user_id: r.employee_code })), marks, ins, outs }
   }
   /* EXPORT AS EXCEL (Yajur, 2026-11-26: "export should be there with dates,
      highlight the absentees and late comers", "all the staff with their
@@ -153,34 +155,9 @@ export default function StaffAttendance() {
     if (days.length > 366) { setRangeErr('Export at most one year at a time.'); return false }
     setRangeBusy(true)
     try {
-      const { staff, marks, ins } = await loadRange(days)
-      const SHORT: Record<string, string> = { present: 'P', absent: 'A', late: 'L', half_day: 'HD', leave: 'Lv', week_off: 'W', on_duty: 'OD', permission: 'Pr', wfh: 'H', holiday: 'Hol' }
-      const FILL: Record<string, string> = { absent: '#fecaca', late: '#fde68a', half_day: '#fef3c7', leave: '#e2e8f0', holiday: '#f1f5f9', week_off: '#f1f5f9' }
-      const INK: Record<string, string> = { absent: '#991b1b', late: '#92400e' }
-      const esc = (v: string) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
-      const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-      const head = (d: string) => { const t = new Date(d + 'T00:00:00Z'); return `${d.slice(8)} ${MON[t.getUTCMonth()]}<br>${WD[t.getUTCDay()]}` }
-      const fmt = (d: string) => `${d.slice(8)} ${MON[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`
-      const th = (v: string, w = '') => `<th style="background:#1e3a8a;color:#fff;border:1px solid #94a3b8;padding:4px 6px${w}">${v}</th>`
-      const td = (v: string, st = '') => `<td style="border:1px solid #cbd5e1;padding:3px 6px;mso-number-format:'\@';${st}">${esc(v)}</td>`
-      const body = staff.map((st) => {
-        const ms = days.map((d) => marks[d][st.employee_code] ?? '')
-        const n = (...k: string[]) => String(ms.filter((m) => k.includes(m)).length)
-        const cells = days.map((d, i) => {
-          const m = ms[i]; const v = m ? (SHORT[m] ?? m) : (ins[d][st.employee_code] ?? '')
-          return td(v, `text-align:center;${FILL[m] ? `background:${FILL[m]};` : ''}${INK[m] ? `color:${INK[m]};font-weight:bold;` : ''}`)
-        }).join('')
-        return `<tr>${td(st.employee_code)}${td(st.biometric_id ?? '')}${td(st.full_name, 'white-space:nowrap')}${td(st.department ?? '')}${cells}${td(n('present', 'permission', 'on_duty', 'wfh'), 'text-align:center')}${td(n('absent'), 'text-align:center;background:#fecaca;color:#991b1b;font-weight:bold')}${td(n('late'), 'text-align:center;background:#fde68a;color:#92400e;font-weight:bold')}${td(n('half_day'), 'text-align:center')}${td(n('leave'), 'text-align:center')}</tr>`
-      }).join('')
+      const { staff, marks, ins, outs } = await loadRange(days)
       const school = (session.institution?.display_name || session.institution?.name || 'School')
-      const span = days.length + 9
-      const html = `<html><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif">
-<table><tr><td colspan="${span}" style="font-size:16pt;font-weight:bold">${esc(school)}: Staff attendance register</td></tr>
-<tr><td colspan="${span}">${esc(groupLabel)} &middot; ${fmt(rangeFrom)} to ${fmt(rangeTo)} &middot; ${staff.length} staff</td></tr>
-<tr><td colspan="${span}"><span style="background:#fecaca;color:#991b1b;font-weight:bold">&nbsp;A = Absent&nbsp;</span> <span style="background:#fde68a;color:#92400e;font-weight:bold">&nbsp;L = Late&nbsp;</span> P = Present, HD = Half day, Lv = Leave, Pr = Permission, Hol = Holiday, W = Week off; a time = punched in, not marked</td></tr><tr></tr>
-<tr>${th('Code')}${th('Biometric ID')}${th('Name')}${th('Group')}${days.map((d) => th(head(d), ';text-align:center')).join('')}${th('Present')}${th('Absent')}${th('Late')}${th('Half day')}${th('Leave')}</tr>
-${body}</table></body></html>`
+      const html = staffRegisterXls({ school, groupLabel, from: rangeFrom, to: rangeTo, days, staff, marks, ins, outs })
       const url = URL.createObjectURL(new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel' }))
       const a = document.createElement('a'); a.href = url
       a.download = `staff-register-${(group ? groupLabel : 'all-staff').replace(/[^\w-]+/g, '-').toLowerCase()}-${rangeFrom}-to-${rangeTo}.xls`
