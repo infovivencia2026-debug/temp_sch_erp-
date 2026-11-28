@@ -506,7 +506,7 @@ export default function StaffRecord({ employeeID, onClose }: {
        cancelled an `overflow-y-auto` here and left Staff 360 unscrollable
        (Yajur phone, 2026-11-21). The outer layer keeps its height and strip; a
        full-height child does the scrolling. */
-    <div className="vv-screen-phone fixed inset-0 z-[90] bg-background">
+    <div className="screen-in vv-screen-phone fixed inset-0 z-[90] bg-background">
       <div className="h-full overflow-y-auto">{body}</div>
       {report && <CardViewer card={report} onClose={() => setReport(null)} />}
       {viewingPhoto && d?.photo_file_id && (

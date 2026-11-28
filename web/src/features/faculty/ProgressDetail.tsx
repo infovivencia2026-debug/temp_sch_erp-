@@ -123,7 +123,7 @@ export default function ProgressDetail({ row, onClose, fullClass, mySubjects }: 
   // overflow:visible on this outer one (phone background strip), which would
   // otherwise cancel the scroll (Yajur phone, 2026-11-21).
   return createPortal(
-    <div className="vv-screen-phone fixed inset-0 z-[90] bg-background">
+    <div className="screen-in vv-screen-phone fixed inset-0 z-[90] bg-background">
       <div className="mx-auto flex h-full max-w-[1240px] flex-col gap-5 overflow-y-auto px-4 py-5 sm:px-7">
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="secondary" size="sm" onClick={onClose}>

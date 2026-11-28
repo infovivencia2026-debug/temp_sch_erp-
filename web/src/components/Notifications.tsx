@@ -553,7 +553,7 @@ export default function Notifications() {
             'vv-screen-phone fixed inset-0 z-[100] flex justify-end',
             // The ground dims with the drawer rather than appearing under it.
             'transition-colors',
-            open ? 'bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
+            open ? 'scrim-bg-in bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
           )}
           onClick={dismiss}
           /* The drawer plays its own exit; without this the app-wide exit

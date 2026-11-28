@@ -3639,8 +3639,8 @@ export const SEG_BAR_FILL = 'flex w-full flex-wrap gap-1 rounded-md border bg-mu
 
 export function segClass(active: boolean): string {
   return active
-    ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:py-2.5'
-    : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:py-2.5'
+    ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm transition-[background-color,color,box-shadow] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:py-2.5'
+    : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground transition-[background-color,color,box-shadow] duration-200 ease-out hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:py-2.5'
 }
 
 /* THE ONE DIALOG.

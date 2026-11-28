@@ -130,7 +130,7 @@ export default function FileView({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-background"
+      className="screen-in fixed inset-0 z-[100] flex flex-col bg-background"
       /* Fixed elements escape the body's notch padding, so on the iPhone the
          header would sit under the clock and the bottom under the home
          indicator. Zero in a browser and on Android. */
