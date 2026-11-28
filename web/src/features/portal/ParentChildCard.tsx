@@ -56,7 +56,7 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
        or more); the academic year is its own tile with a drop-down, current
        year by default. Admission no., roll no. and joined date as tiles. */
     <div className="child-card relative isolate flex h-full flex-col overflow-hidden rounded-2xl p-4 text-primary-foreground shadow-md sm:p-5 lg:justify-center lg:p-7">
-      <span aria-hidden className="child-card__flow"><i /><i /><i /><i /></span>
+      <span aria-hidden className="child-card__flow" />
       <div className="relative flex min-w-0 items-center gap-4 lg:flex-col lg:gap-3 lg:text-center">
         <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
         <div className="min-w-0 flex-1">
