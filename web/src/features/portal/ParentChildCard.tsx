@@ -152,10 +152,11 @@ export function SubjectCards({ subjects, hrefFor, note, stats }: {
               <span className="truncate text-[12px] text-muted-foreground">{note?.(s) ?? s.teacher ?? ''}</span>
               {stats && (() => { const v = stats(s); return (
                 <span className="mt-auto grid gap-1.5 pt-1.5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-                  {([['Today\'s homework', v.homework], ['Notes', v.notes], ['Marks', v.marks]] as const).map(([k, n]) => (
+                  {([['Homework', 'today', v.homework], ['Notes', 'total', v.notes], ['Marks', 'latest', v.marks]] as const).map(([k, sub, n]) => (
                     <span key={k} className="min-w-0 rounded-lg bg-muted/60 px-1 py-1.5 text-center">
                       <span className="block text-[15px] font-bold tabular-nums">{n}</span>
-                      <span className="block text-[11px] leading-tight text-muted-foreground [overflow-wrap:normal] [word-break:normal]">{k === 'Today\'s homework' ? 'Homework today' : k}</span>
+                      <span className="block whitespace-nowrap text-[11px] font-semibold leading-tight text-foreground/80">{k}</span>
+                      <span className="block whitespace-nowrap text-[10px] leading-tight text-muted-foreground">{sub}</span>
                     </span>
                   ))}
                 </span>

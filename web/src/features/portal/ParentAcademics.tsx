@@ -53,7 +53,7 @@ function Academics({ view }: { view: string }) {
   const homework = useQuery({
     queryKey: ['homework', 'diary', false],
     queryFn: () => api.get<List<Hw>>('/api/v1/homework'),
-    enabled: view === 'subject',
+    enabled: view === 'subject' || view === 'subjects',
   })
   const sectionId = children.find((c) => c.student_id === sid)?.section_id ?? ''
   const periods = useQuery({
@@ -70,12 +70,12 @@ function Academics({ view }: { view: string }) {
   const materials = useQuery({
     queryKey: ['portal-resources', sid],
     queryFn: () => api.get<List<Note>>(`/api/v1/portal/learning/resources?student_id=${sid}`),
-    enabled: view === 'subject' && !!sid,
+    enabled: (view === 'subject' || view === 'subjects') && !!sid,
   })
   const results = useQuery({
     queryKey: ['portal-results', sid, year],
     queryFn: () => api.get<ResultView>(`/api/v1/portal/results?student_id=${sid}${year ? `&academic_year_id=${year}` : ''}`),
-    enabled: view === 'subject' && !!sid,
+    enabled: (view === 'subject' || view === 'subjects') && !!sid,
   })
 
   const keep = (extra: Record<string, string>) => {
@@ -99,7 +99,16 @@ function Academics({ view }: { view: string }) {
         <PageHead eyebrow="Home" onEyebrow={() => navigate(home)} title="All subjects" />
         <PageBody>
           <SubjectCards subjects={subjects} hrefFor={(s) => keep({ view: 'subject', cs: s.class_subject_id })}
-            note={(s) => s.teacher ? `${s.teacher}` : `${s.periods_per_week} periods a week`} />
+            note={(s) => s.teacher ? `${s.teacher}` : `${s.periods_per_week} periods a week`}
+            /* The same cards as the home page (owner, 2026-11-28). */
+            stats={(x) => {
+              const last = (results.data?.subjects ?? []).filter((m) => m.subject === x.subject && !m.is_absent && m.marks_obtained != null && m.max_marks).at(-1)
+              return {
+                homework: homework.isLoading ? '…' : hw.filter((h) => h.subject === x.subject && h.assigned_on.slice(0, 10) === today).length,
+                notes: materials.isLoading ? '…' : (materials.data?.items ?? []).filter((m) => m.subject === x.subject).length,
+                marks: last ? `${last.marks_obtained}/${last.max_marks}` : '–',
+              }
+            }} />
         </PageBody>
       </>
     )
