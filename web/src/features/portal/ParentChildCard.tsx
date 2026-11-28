@@ -113,7 +113,7 @@ export function SubjectCards({ subjects, hrefFor, note }: {
         const sub = note?.(s) ?? s.teacher ?? ''
         return (
           <li key={s.class_subject_id}>
-            <Link to={hrefFor(s)} className="flex min-h-[56px] select-none items-center gap-3 px-3 py-2 [-webkit-touch-callout:none] active:bg-primary/5">
+            <Link to={hrefFor(s)} className="flex min-h-[56px] select-none items-center gap-3 px-3 py-2 [-webkit-touch-callout:none]">
               <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', tint.chip)}>{(() => { const I = icons[i]; return <I className="h-4 w-4" strokeWidth={1.9} aria-hidden /> })()}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-bold leading-snug">{s.subject}</span>
