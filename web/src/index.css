@@ -6306,3 +6306,13 @@ html[data-topbar] header[data-paint="topbar"].h-\[56px\] {
 .screen-in { animation: screen-in-rise 220ms cubic-bezier(0.25, 0.8, 0.25, 1) both; }
 @keyframes screen-in-rise { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .screen-in { animation: none; } }
+
+/* Anchored pop-overs with no role of their own (the table's Columns chooser,
+   the role switcher, the report-card finder) appeared in one frame; the
+   menus and listboxes beside them already grew out of their button. Same
+   arrival for these (owner, 2026-11-28: "you check and fix"). */
+[data-anchored-panel]:not([role]) {
+  animation: motion-enter var(--motion-enter) var(--motion-ease) both;
+  transform-origin: top center;
+}
+@media (prefers-reduced-motion: reduce) { [data-anchored-panel]:not([role]) { animation: none; } }
