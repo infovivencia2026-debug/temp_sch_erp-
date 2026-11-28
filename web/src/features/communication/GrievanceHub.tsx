@@ -273,7 +273,7 @@ export default function GrievanceHub() {
             <Button variant={overdue ? 'primary' : 'secondary'} size="sm" onClick={() => setOverdue(!overdue)}>Past deadline</Button>
           </div>
           {list.isLoading ? (
-            <SkeletonTable columns={6} />
+            <Table loading head={['Concern', 'Category', 'Owner', 'Deadline', 'Stage', '']}>{null}</Table>
           ) : list.error ? (
             <ErrorState error={list.error} />
           ) : view === 'board' ? (
@@ -362,7 +362,7 @@ export default function GrievanceHub() {
             description="Trends and deadlines met"
           />
           {summary.isLoading ? (
-            <SkeletonTable columns={9} />
+            <Table loading head={[ 'Category', 'Total', 'Open', 'Missed deadline', 'Median to resolve', 'Avg first response', 'Usual owner', 'Avg rating', ]}>{null}</Table>
           ) : summary.error ? (
             <ErrorState error={summary.error} />
           ) : (

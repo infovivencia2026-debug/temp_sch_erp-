@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, X } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import {
-  Card, CardHeader, Button, Select, Input, Table, Td, Checkbox, Dialog, ConfirmButton, FormNotice, SkeletonTable, ErrorState,
+  Card, CardHeader, Button, Select, Input, Table, Td, Checkbox, Dialog, ConfirmButton, FormNotice, ErrorState,
 } from '@/components/ui'
 import { WEEKDAYS } from '@/lib/utils'
 
@@ -99,7 +99,7 @@ export default function ClassTimings() {
     onSuccess: (id) => { refresh(); setEditing(id) },
   })
 
-  if (list.isLoading) return <Card><SkeletonTable rows={4} /></Card>
+  if (list.isLoading) return <Card><Table loading loadingRows={4} head={['Class', 'Timings', '']}>{null}</Table></Card>
   if (list.error) return <Card><ErrorState error={list.error} /></Card>
 
   const data = list.data!

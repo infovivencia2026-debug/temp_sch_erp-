@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input, Field, FormGrid,
-  FormNotice, Select, SkeletonTable, ErrorState, EmptyState, ConfirmButton,
+  FormNotice, Select, ErrorState, EmptyState, ConfirmButton,
 } from '@/components/ui'
 import { WEEKDAYS, formatTime } from '@/lib/utils'
 
@@ -347,7 +347,7 @@ export default function WorkPatterns() {
           <CardHeader title="Hours the school keeps" />
           {!draft && <div className="px-5"><FormNotice error={note.error} ok={note.ok} /></div>}
           {q.isLoading ? (
-            <SkeletonTable rows={3} />
+            <Table loading loadingRows={3} head={['Name', 'Hours', 'Days', 'When a day is lost', 'On these hours', '']}>{null}</Table>
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : q.data!.items.length === 0 ? (

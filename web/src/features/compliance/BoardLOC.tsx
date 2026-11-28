@@ -5,7 +5,7 @@ import { AlertTriangle, Download, Lock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, SkeletonTable, SkeletonTiles,
+  Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, SkeletonTiles,
   ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
@@ -197,7 +197,7 @@ export default function BoardLOC() {
       />
       <PageBody width="wide">
         {list.isLoading ? (
-          <SkeletonTable columns={8} />
+          <Table loading head={['Title', 'Board', 'Stage', 'Candidates', 'Blockers', 'Status', 'Filed', '']}>{null}</Table>
         ) : list.error ? (
           <ErrorState error={list.error} />
         ) : (

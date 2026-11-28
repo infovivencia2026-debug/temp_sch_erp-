@@ -3,7 +3,7 @@ import { Wallet, AlertTriangle, Receipt, RefreshCcw } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, SkeletonTable, SkeletonTiles, ErrorState,
+  Table, Td, Badge, SkeletonTiles, ErrorState,
   RangePicker, rangeQuery, useRange, type RangeOption, type ActiveRange,
 } from '@/components/ui'
 import { formatPaise, formatDate } from '@/lib/utils'
@@ -87,7 +87,7 @@ export default function FinanceDashboard() {
         <Card>
           <CardHeader title="Overdue invoices" description="Past the due date and not settled" />
           {overdue.isLoading ? (
-            <SkeletonTable columns={8} />
+            <Table loading head={['Invoice', 'Student', 'Issued', 'Due', 'Amount', 'Paid', 'Balance', 'Status']}>{null}</Table>
           ) : overdue.error ? (
             <ErrorState error={overdue.error} />
           ) : (

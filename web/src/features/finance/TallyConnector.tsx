@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Input, Select, Checkbox, Field, FormGrid, Button, FormNotice,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
+  Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { useToast } from '@/components/Toast'
@@ -316,7 +316,7 @@ function LedgerMapping({ fy }: { fy: string }) {
     },
   )
 
-  if (accounts.isLoading && !accounts.data) return <SkeletonTable columns={6} label="Reading the chart of accounts…" />
+  if (accounts.isLoading && !accounts.data) return <Table loading head={[ 'Code', 'Account', { label: 'Vouchers', align: 'right' }, 'Tally ledger name', { label: 'Status', align: 'right' }, ]}>{null}</Table>
   if (accounts.error) return <ErrorState error={accounts.error} />
 
   const all = accounts.data?.items ?? []

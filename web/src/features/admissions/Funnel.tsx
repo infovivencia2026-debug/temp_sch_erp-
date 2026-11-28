@@ -7,7 +7,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
+  SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useOpenState } from '@/lib/motion'
 
@@ -437,7 +437,7 @@ function Sources() {
         description="Rates shown from 5 enquiries up."
       />
       {q.isLoading ? (
-        <SkeletonTable columns={7} label="Counting…" />
+        <Table loading head={[ { label: 'Source' }, { label: 'Enquiries' }, { label: 'Applied' }, { label: 'Offered' }, { label: 'Admitted' }, { label: 'Conversion' }, ]}>{null}</Table>
       ) : rows.length === 0 ? (
         <EmptyState title="No enquiries this year" body="Sources appear once enquiries are recorded." />
       ) : (
@@ -1305,7 +1305,7 @@ function Sessions() {
       <Card>
         <CardHeader title="Sessions" description="Has applications. Close it instead." />
         {list.isLoading ? (
-          <SkeletonTable />
+          <Table loading head={[{ label: 'Session' }, { label: 'Year' }, { label: 'Window' }, { label: 'Applications' }, { label: '' }]}>{null}</Table>
         ) : list.isError ? (
           <ErrorState error={list.error} />
         ) : rows.length === 0 ? (

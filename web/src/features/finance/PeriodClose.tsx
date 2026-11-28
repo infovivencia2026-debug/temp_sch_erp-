@@ -4,7 +4,7 @@ import { Lock, LockOpen, CalendarCheck } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  ConfirmButton, FormNotice, SkeletonTable, ErrorState, Select,
+  ConfirmButton, FormNotice, ErrorState, Select,
 } from '@/components/ui'
 
 /* Saying a month is finished.
@@ -68,7 +68,7 @@ export default function PeriodClose() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['period-closes'] }),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={4} label="Reading the months…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Month', 'State', 'Closed', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
 
   const data = q.data

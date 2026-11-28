@@ -6,7 +6,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
+  Loading, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { useEmployeeRoster } from '@/lib/rosters'
 
 /* What the government takes, and what the school owes.
@@ -400,7 +400,7 @@ function IncomeTax() {
         {!employeeId ? (
           <EmptyState title="Choose an employee" body="Their TDS working and Form 16 basis appear here." />
         ) : tax.isLoading ? (
-          <SkeletonTable columns={2} label="Computing…" />
+          <Table loading head={[{ label: 'Line' }, { label: 'Amount' }]}>{null}</Table>
         ) : t ? (
           <div className="p-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -706,7 +706,7 @@ function GratuityTab() {
       }>('/api/v1/payroll/gratuity'),
   })
 
-  if (g.isLoading && !g.data) return <SkeletonTable columns={7} label="Working out the exposure…" />
+  if (g.isLoading && !g.data) return <Table loading head={[ { label: 'Employee' }, { label: 'Joined' }, { label: 'Service' }, { label: 'Basic + DA' }, { label: 'Accrued' }, { label: 'Vested' }, ]}>{null}</Table>
   const d = g.data
 
   return (

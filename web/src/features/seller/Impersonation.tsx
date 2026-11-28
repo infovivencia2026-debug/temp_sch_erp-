@@ -3,8 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Input, Select, Field, FormGrid, FormNotice, SkeletonTable,
-  ErrorState,
+  Button, ConfirmButton, Input, Select, Field, FormGrid, FormNotice, ErrorState,
 } from '@/components/ui'
 import {
   usePlatformAction, type Grant, type GrantActivity,
@@ -53,7 +52,7 @@ export default function Impersonation() {
     enabled: !!inspecting,
   })
 
-  if (isLoading && !data) return <SkeletonTable columns={6} />
+  if (isLoading && !data) return <Table loading head={['School', 'Operator', 'Reason', 'Ends at', 'Changes', '']}>{null}</Table>
   if (error) return <ErrorState error={error} />
 
   const items = data?.items ?? []
@@ -167,7 +166,7 @@ export default function Impersonation() {
               description={activity.data?.covers}
             />
             {activity.isLoading ? (
-              <SkeletonTable columns={5} />
+              <Table loading head={['When', 'Who', 'Action', 'Area', 'From']}>{null}</Table>
             ) : activity.error ? (
               <ErrorState error={activity.error} />
             ) : (

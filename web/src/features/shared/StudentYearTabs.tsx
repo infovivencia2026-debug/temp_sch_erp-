@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { StudentFullDetail, StudentProfile } from '@shared/api'
-import { Card, CardHeader, Select, Table, Td, EmptyState, SkeletonTable } from '@/components/ui'
+import { Card, CardHeader, Select, Table, Td, EmptyState } from '@/components/ui'
 import { formatDate, formatPaise, cn } from '@/lib/utils'
 
 /* STUDENT 360, YEAR BY YEAR, IN THE OWNER'S LAYOUT.
@@ -88,7 +88,7 @@ export function AcademicsYear({ results, marks, loading, attendancePercent, figu
   const best = scored.filter((x) => x.p != null).sort((a, b) => b.p! - a.p!)[0]
   const weak = scored.filter((x) => x.p != null && x.p < 50).length
 
-  if (loading) return <Card><SkeletonTable columns={5} /></Card>
+  if (loading) return <Card><Table loading head={['Subject', 'Score', 'Marks', 'Status', 'Standing']}>{null}</Table></Card>
   return (
     <>
       {figures && <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

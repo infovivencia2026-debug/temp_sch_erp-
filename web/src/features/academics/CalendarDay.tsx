@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarClock } from 'lucide-react'
 import { api } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Input, Reload, SkeletonTable, ErrorState, EmptyState } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Input, Reload, ErrorState, EmptyState } from '@/components/ui'
 
 /* The day, rather than the year.
 
@@ -89,7 +89,7 @@ export default function CalendarDay() {
         }
       />
 
-      {day.isLoading && <SkeletonTable columns={5} label="Reading the day…" />}
+      {day.isLoading && <Table loading head={['Period', 'Class', 'Subject', 'Teacher', 'Lesson plan']}>{null}</Table>}
       {day.error && <ErrorState error={day.error} />}
 
       {d && (

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState,
+  ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import {
@@ -60,7 +60,7 @@ export default function LoanAssistance() {
     enabled: needle.length !== 1,
   })
 
-  if (apps.isLoading && !apps.data) return <SkeletonTable columns={8} label="Opening the tracker…" />
+  if (apps.isLoading && !apps.data) return <Table loading head={['Child', 'Lender', 'Opened', { label: 'Sought', align: 'right' }, 'Papers', 'Status', 'Sat there', '']}>{null}</Table>
   if (apps.error) return <ErrorState error={apps.error} />
 
   const rows = apps.data?.items ?? []
@@ -210,7 +210,7 @@ function ApplicationDetail({
     queryFn: () => api.get<LoanDetail>(`${concessionsBase}/loans/applications/${applicationId}`),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={5} label="Opening the application…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Document', 'Status', 'Provided', 'Where it is', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
   if (!d) return null

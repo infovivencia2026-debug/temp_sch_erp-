@@ -3,7 +3,7 @@ import { Fingerprint } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Reload,
-  SkeletonTiles, SkeletonTable, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* Every reader on the installation, on one page.
@@ -76,7 +76,7 @@ export default function BiometricFleet() {
           <CardHeader title="Fleet" />
           {d && <p className="border-b px-5 py-3 text-[13px] text-muted-foreground">{d.protocol}</p>}
           {q.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['School', 'Reader', 'Serial', 'State', 'Last seen', 'Punches today', 'Unclaimed']}>{null}</Table>
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : rows.length === 0 ? (

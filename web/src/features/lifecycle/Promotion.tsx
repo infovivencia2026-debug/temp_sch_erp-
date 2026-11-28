@@ -5,7 +5,7 @@ import { api, type List, type Section, type AcademicYear } from '@/lib/api'
 import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Button, ConfirmButton,
-  Badge, Select, SkeletonTable, ErrorState, FormNotice, EmptyState,
+  Badge, Select, ErrorState, FormNotice, EmptyState,
 } from '@/components/ui'
 
 /* Class and section promotion — the one job a school does once a year and
@@ -157,7 +157,7 @@ export default function Promotion() {
             </div>
           </Card>
         ) : roster.isLoading ? (
-          <SkeletonTable columns={4} />
+          <Table loading head={['Roll', 'Admission no.', 'Name', 'Next year', '']}>{null}</Table>
         ) : roster.error ? (
           <ErrorState error={roster.error} />
         ) : (

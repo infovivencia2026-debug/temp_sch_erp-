@@ -7,7 +7,6 @@ import {
   CardHeader,
   CellGrid,
   ErrorState,
-  SkeletonTable,
   PageBody,
   PageHead,
   Stat,
@@ -77,7 +76,7 @@ export default function Integrations() {
         {error ? (
           <ErrorState error={error} />
         ) : isLoading ? (
-          <SkeletonTable columns={6} label="Asking every connector" />
+          <Table loading head={[ 'Connector', 'Status', 'Last recorded activity', 'What it needs', 'Configure', ]}>{null}</Table>
         ) : (
           <>
             <CellGrid cols={4}>

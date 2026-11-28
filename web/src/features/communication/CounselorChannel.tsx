@@ -7,7 +7,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState,
+  ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, childOptions } from '../portal/use-children'
@@ -272,7 +272,7 @@ export default function CounselorChannel() {
         <Card>
           <CardHeader title="Conversations" />
           {threads.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Subject', 'Child', 'Urgency', 'People', 'Last message', 'Unread', '']}>{null}</Table>
           ) : threads.error ? (
             <ErrorState error={threads.error} />
           ) : (

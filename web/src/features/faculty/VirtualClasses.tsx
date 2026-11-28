@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Panel, Table, Td,
   Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState, EmptyState, UnavailableState,
+  ErrorState, EmptyState, UnavailableState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
@@ -38,7 +38,7 @@ export default function VirtualClasses() {
       api.get<List<MeetingProvider>>('/api/v1/teaching/virtual-classes/providers'),
   })
 
-  if (list.isLoading && !list.data) return <SkeletonTable columns={7} />
+  if (list.isLoading && !list.data) return <Table loading head={['Topic', 'Class', 'Subject', 'When', 'For', 'Status', '']}>{null}</Table>
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   const configured = providers.data?.items ?? []

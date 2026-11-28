@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, SkeletonTable, ErrorState, EmptyState,
+  Button, ErrorState, EmptyState,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useSession } from '@/lib/session'
@@ -136,7 +136,7 @@ export default function Transport() {
         <Card>
           <CardHeader title="Routes" description="Select a route to see its run" />
           {routes.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Route', 'Code', 'Bus', 'Distance', 'Stops', 'Riders', '']}>{null}</Table>
           ) : routes.error ? (
             <ErrorState error={routes.error} />
           ) : (
@@ -178,7 +178,7 @@ export default function Transport() {
               action={<Button variant="ghost" onClick={() => setOpenRoute(null)}>Close</Button>}
             />
             {stops.isLoading ? (
-              <SkeletonTable columns={6} />
+              <Table loading head={['#', 'Stop', 'Pickup', 'Drop', 'Fare', 'Boarding']}>{null}</Table>
             ) : !stops.data?.items.length ? (
               <div className="p-6">
                 <EmptyState title="No stops on this route" body="Add stops to allocate children to it." />
@@ -211,7 +211,7 @@ export default function Transport() {
             description="Insurance, fitness, permit and PUC, anything inside 45 days is flagged"
           />
           {vehicles.isLoading ? (
-            <SkeletonTable columns={5} />
+            <Table loading head={['Registration', 'Model', 'Seats', 'Documents', 'Status']}>{null}</Table>
           ) : vehicles.error ? (
             <ErrorState error={vehicles.error} />
           ) : (
@@ -357,7 +357,7 @@ function BusTrackers() {
       )}
 
       {trackers.isLoading ? (
-        <SkeletonTable columns={5} />
+        <Table loading head={['Bus', 'Phone', 'Last heard', 'State', '']}>{null}</Table>
       ) : trackers.error ? (
         <ErrorState error={trackers.error} />
       ) : (

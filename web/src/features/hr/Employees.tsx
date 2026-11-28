@@ -10,7 +10,7 @@ import { api, type List } from '@/lib/api'
 import { useEmployeeRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, SkeletonTable, ErrorState, FormNotice, tabClass, Badge, Select } from '@/components/ui'
+  Button, ErrorState, FormNotice, tabClass, Badge, Select } from '@/components/ui'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import CardViewer from '@/components/CardViewer'
 import IDCards from './IDCards'
@@ -499,7 +499,7 @@ export default function Employees() {
             }
           />
           {docs.isLoading ? (
-            <SkeletonTable columns={4} />
+            <Table loading head={['Employee', 'Document', 'Expires', 'Uploaded']}>{null}</Table>
           ) : docs.error ? (
             <ErrorState error={docs.error} />
           ) : (
@@ -608,7 +608,7 @@ export default function Employees() {
             </div>
           )}
           {staff.isLoading ? (
-            <SkeletonTable columns={8} />
+            <Table loading head={['Code', 'Name', 'Designation', 'Department', 'Contact', 'Joined', 'Status', '']}>{null}</Table>
           ) : staff.error ? (
             <ErrorState error={staff.error} />
           ) : (

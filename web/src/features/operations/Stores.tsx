@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Badge, Button, Input, Select, Switch, SkeletonTable, ErrorState, FormNotice,
+  Badge, Button, Input, Select, Switch, ErrorState, FormNotice,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -257,7 +257,7 @@ export default function Stores() {
             }
           />
           {stock.isLoading ? (
-            <SkeletonTable columns={6} />
+            <Table loading head={['Item', 'Code', 'Category', 'On hand', 'Reorder at', '']}>{null}</Table>
           ) : stock.error ? (
             <ErrorState error={stock.error} />
           ) : (

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField,
-  Select, FormNotice, Table, Td, Badge, Button, ConfirmButton, Input, SkeletonTable, ErrorState,
+  Select, FormNotice, Table, Td, Badge, Button, ConfirmButton, Input, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import ActivityMembers from './ActivityMembers'
@@ -166,7 +166,7 @@ export default function ActivitiesSetup() {
             asks each activity for its roll and writes one line per enrolled
             child, with the parent's number and whether the fee is paid, which
             is what the panel's own export carries for a single club. */}
-        {list.isLoading ? <SkeletonTable columns={6} /> : list.error ? <ErrorState error={list.error} /> : (
+        {list.isLoading ? <Table loading head={['Activity', 'Category', 'When', 'Fee', 'Enrolled', '']}>{null}</Table> : list.error ? <ErrorState error={list.error} /> : (
           <Card>
             <CardHeader
               title={running.length

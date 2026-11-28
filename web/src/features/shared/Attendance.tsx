@@ -284,7 +284,8 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
           Select a section and date.
         </p>
       ) : roster.isLoading || marks.isLoading ? (
-        <Loading />
+        /* The register's own head with rows on its pitch, not the word "Loading". */
+        <Table loading loadingRows={10} noExport head={phone ? ['Student'] : ['Admission no.', 'Student', 'Recorded', 'Mark']}>{null}</Table>
       ) : roster.error ? (
         <ErrorState error={roster.error} />
       ) : (

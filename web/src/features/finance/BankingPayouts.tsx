@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
+  Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import {
@@ -449,7 +449,7 @@ function AddBeneficiaries({ batchId, onDone }: { batchId: string; onDone: () => 
         }
       />
       {q.isLoading ? (
-        <SkeletonTable columns={6} />
+        <Table loading head={['', 'Beneficiary', 'Reference', 'Account', { label: 'Amount', align: 'right' }, 'Due']}>{null}</Table>
       ) : q.error ? (
         <ErrorState error={q.error} />
       ) : (

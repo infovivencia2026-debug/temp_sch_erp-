@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
+  Loading, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
 /* A warden's evening.
@@ -381,7 +381,7 @@ function Complaints() {
         }
       />
       {list.isLoading ? (
-        <SkeletonTable columns={7} label="Loading complaints…" />
+        <Table loading head={[ { label: 'Complaint' }, { label: 'Raised by' }, { label: 'Category' }, { label: 'Priority' }, { label: 'Waiting' }, { label: '' }, ]}>{null}</Table>
       ) : rows.length === 0 ? (
         <EmptyState title="Nothing open" body="Complaints raised by boarders appear here." />
       ) : (

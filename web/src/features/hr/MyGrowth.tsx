@@ -247,7 +247,7 @@ function MyAppraisalsPanel({
           description="Your final scores"
         />
         {query.isLoading ? (
-          <SkeletonTable columns={5} label="Reading your appraisals…" />
+          <Table loading head={['Cycle', 'Reviewer', 'Status', { label: 'Score', align: 'right' }, '']}>{null}</Table>
         ) : query.error ? (
           <ErrorState error={query.error} />
         ) : (
@@ -641,7 +641,7 @@ function MyTrainingPanel() {
         }
       />
       {q.isLoading ? (
-        <SkeletonTable columns={8} label="Reading your training record…" />
+        <Table loading head={[ 'Programme', 'Provider', 'Attended', { label: 'Hours', align: 'right' }, 'Counts', 'Status', 'Certificate', ]}>{null}</Table>
       ) : q.error ? (
         <ErrorState error={q.error} />
       ) : (
@@ -738,7 +738,7 @@ function MyDutiesPanel() {
         </CellGrid>
       </div>
       {q.isLoading ? (
-        <SkeletonTable columns={6} label="Reading your duty roster…" />
+        <Table loading head={['Date', 'Duty', 'From', 'To', 'Status', 'Note']}>{null}</Table>
       ) : q.error ? (
         <ErrorState error={q.error} />
       ) : (

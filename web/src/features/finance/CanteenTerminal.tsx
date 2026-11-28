@@ -5,7 +5,7 @@ import { api, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Select, Input, Field, FormGrid, FormNotice,
-  SkeletonTable, ErrorState,
+  ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import {
@@ -46,7 +46,7 @@ export default function CanteenTerminal() {
   const live = open.data?.items ?? []
   const active = live.find((s) => s.id === sessionId) ?? live[0] ?? null
 
-  if (terminals.isLoading || open.isLoading) return <SkeletonTable columns={5} label="Opening the counter…" />
+  if (terminals.isLoading || open.isLoading) return <Table loading head={['Counter', 'Opened by', 'Since', { label: 'Cash', align: 'right' }, '']}>{null}</Table>
   // Never an empty state for a failed query: a blank counter reads as "no
   // sales today", which is a different and much worse statement than "the
   // server did not answer".
@@ -572,7 +572,7 @@ export function VariancePanel({ kind = 'canteen' as const }: { kind?: 'canteen' 
       {report.error ? (
         <div className="p-5"><ErrorState error={report.error} /></div>
       ) : report.isLoading ? (
-        <div className="p-5"><SkeletonTable columns={8} label="Reading the cash-ups…" /></div>
+        <div className="p-5"><Table loading head={[ 'Counter', 'Held by', 'Closed', { label: 'Expected', align: 'right' }, { label: 'Counted', align: 'right' }, { label: 'Variance', align: 'right' }, 'Reason given', ]}>{null}</Table></div>
       ) : (
         <Table
           head={[

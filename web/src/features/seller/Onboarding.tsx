@@ -4,7 +4,7 @@ import { Check } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button, FormNotice, SkeletonTable, ErrorState,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button, FormNotice, ErrorState,
 } from '@/components/ui'
 
 /* SETUP: HOW FAR EACH SCHOOL HAS GOT, AND WHO HAS STOPPED.
@@ -35,7 +35,7 @@ export default function Onboarding() {
   })
   const [onlyStalled, setOnlyStalled] = useState(false)
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={6} label="Reading each school's progress…" />
+  if (q.isLoading && !q.data) return <Table loading head={['School', 'Progress', 'Last progress', 'Next step', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const data = q.data!
   const items = [...data.items]

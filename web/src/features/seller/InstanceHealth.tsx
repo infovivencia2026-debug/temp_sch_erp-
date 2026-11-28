@@ -3,7 +3,7 @@ import SchoolHealthBoard from './SchoolHealth'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  SkeletonTable, ErrorState, UnavailableState,
+  ErrorState, UnavailableState,
 } from '@/components/ui'
 import {
   usePlatform, queueWaiting, type HealthResponse, type QueueStat,
@@ -46,7 +46,7 @@ function ProvisioningLog() {
         }
       />
       {isLoading ? (
-        <SkeletonTable columns={6} label="Reading the log…" />
+        <Table loading head={['', 'What', 'School', 'Detail', 'By', 'When']}>{null}</Table>
       ) : (
         <Table
           head={['', 'What', 'School', 'Detail', 'By', 'When']}
@@ -86,7 +86,7 @@ function ProvisioningLog() {
 export default function InstanceHealth() {
   const { data, isLoading, error } = usePlatform<HealthResponse>('health', '/health')
 
-  if (isLoading && !data) return <SkeletonTable columns={8} />
+  if (isLoading && !data) return <Table loading head={[ 'School', 'Integrations', 'Messages failed (24h)', 'Payments failed (24h)', 'Open tickets', 'Register today', 'Sign-ins (24h)', ]}>{null}</Table>
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

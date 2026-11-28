@@ -95,7 +95,7 @@ function SchoolTab({ canEdit }: { canEdit: boolean }) {
           <Field label="School"><Select value={school} onChange={(v) => { setSchool(v); setDraft({}) }} placeholder="Choose a school" options={(schools.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))} /></Field>
           <Field label="Search settings"><Input value={q} onChange={setQ} placeholder="Quiet hours, password, colour" /></Field>
         </FormGrid>
-        {!school ? <EmptyState title="Choose a school" body="Its settings appear here, grouped as on the school's own screens." /> : data.error ? <ErrorState error={data.error} /> : !data.data ? <SkeletonTable columns={4} /> : (
+        {!school ? <EmptyState title="Choose a school" body="Its settings appear here, grouped as on the school's own screens." /> : data.error ? <ErrorState error={data.error} /> : !data.data ? <Table loading head={['Setting', 'Value', 'From', '']}>{null}</Table> : (
           <>
             {!needle && (
               <div className={TAB_BAR} role="tablist">
@@ -282,7 +282,7 @@ function RolesTab({ canEdit }: { canEdit: boolean }) {
     onSuccess: (r) => { setPush(r); setAsking(false) },
   })
   if (data.error) return <ErrorState error={data.error} />
-  if (!data.data) return <SkeletonTable columns={3} />
+  if (!data.data) return <Table loading head={['School', 'Result', 'Added', 'Removed', 'Replace their changes']}>{null}</Table>
   const needle = q.trim().toLowerCase()
   const list = data.data.permissions.filter((p) => !needle || (p.key + ' ' + p.description).toLowerCase().includes(needle))
   return (

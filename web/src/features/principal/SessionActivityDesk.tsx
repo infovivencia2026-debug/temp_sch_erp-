@@ -4,8 +4,7 @@ import { Download, Activity } from 'lucide-react'
 import { api, actingInstitution } from '@/lib/api'
 import { useCan } from '@/lib/session'
 import {
-  Card, CardHeader, Table, Td, Badge, Button, ConfirmButton, Input, Checkbox, Select, ErrorState, FormNotice, SkeletonTable,
-} from '@/components/ui'
+  Card, CardHeader, Table, Td, Badge, Button, ConfirmButton, Input, Checkbox, Select, ErrorState, FormNotice, } from '@/components/ui'
 import { formatDateTime } from '@/lib/utils'
 
 /* SESSION ACTIVITY, for the school's administrators.
@@ -214,7 +213,7 @@ function SessionList() {
         </span>
       </div>
       {csvErr && <div className="px-[var(--card-pad)] pb-2"><FormNotice error={new Error(csvErr)} /></div>}
-      {isLoading ? <SkeletonTable columns={7} /> : error ? <ErrorState error={error} /> : (
+      {isLoading ? <Table loading head={['Person', 'Signed in', 'Ended', 'Active', 'Screens', 'Device', 'Address', '']}>{null}</Table> : error ? <ErrorState error={error} /> : (
         <Table
           head={['Person', 'Signed in', 'Ended', 'Active', 'Screens', 'Device', 'Address', '']}
           empty={!rows.length}

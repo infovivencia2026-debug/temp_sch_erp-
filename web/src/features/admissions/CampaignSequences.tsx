@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, SkeletonTable, ErrorState, EmptyState,
+  Input, Select, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import {
@@ -192,7 +192,7 @@ export default function CampaignSequences() {
     onError: (e) => toast.error(errText(e)),
   })
 
-  if (campaigns.isLoading && !campaigns.data) return <SkeletonTable columns={5} />
+  if (campaigns.isLoading && !campaigns.data) return <Table loading head={['Sequence', 'Touches', 'Being nurtured', 'Stopped', 'Queued', 'Due now', '']}>{null}</Table>
   if (campaigns.error) return <ErrorState error={campaigns.error} />
 
   const rows = campaigns.data?.items ?? []

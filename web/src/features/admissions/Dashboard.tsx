@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, SkeletonTable, SkeletonTiles, ErrorState,
+  Table, Td, Badge, SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -54,7 +54,7 @@ export default function AdmissionsDashboard() {
         <Card>
           <CardHeader title="Follow-ups due" description={`${k.follow_ups_due} enquiries need contact today`} />
           {enquiries.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Student', 'Parent', 'Phone', 'Source', 'Assigned', 'Follow-up', 'Status']}>{null}</Table>
           ) : enquiries.error ? (
             <ErrorState error={enquiries.error} />
           ) : (

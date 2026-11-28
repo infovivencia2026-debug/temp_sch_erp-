@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Field, FormGrid, FormNotice, Input, Select,
-  SkeletonTable, ErrorState, EmptyState,
+  ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { useTeachingSubjects } from './teaching'
@@ -110,7 +110,7 @@ export default function LanguageAllocation() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not record'),
   })
 
-  if (subjects.isLoading && !subjects.data) return <SkeletonTable columns={5} />
+  if (subjects.isLoading && !subjects.data) return <Table loading head={['Class', 'Slot', 'Subject', 'Elected', 'Group size', '']}>{null}</Table>
   if (subjects.error) return <ErrorState error={subjects.error} />
 
   const alloc = allocation.data

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  Loading, SkeletonTable, ErrorState, EmptyState, tabClass } from '@/components/ui'
+  Loading, ErrorState, EmptyState, tabClass } from '@/components/ui'
 import { useStudentRoster } from '@/lib/rosters'
 import { useOpenState } from '@/lib/motion'
 
@@ -635,7 +635,7 @@ function MedicationRegister({ date }: { date: string }) {
         </div>
       )}
       {list.isLoading ? (
-        <SkeletonTable columns={6} label="Loading the register…" />
+        <Table loading head={['Time', 'Child', 'Medicine', 'On whose authority', 'Given by', '']}>{null}</Table>
       ) : rows.length === 0 ? (
         <EmptyState
           title={incidents ? 'No refusals or reactions' : 'Nothing given'}

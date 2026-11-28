@@ -3,8 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input, Field, FormGrid, FormNotice,
-  ErrorState, SkeletonTable,
-} from '@/components/ui'
+  ErrorState, } from '@/components/ui'
 import { TypedConfirm, bytes, stamp } from './BackupsShared'
 
 interface LifecycleView {
@@ -54,7 +53,7 @@ const STATE_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 
 export default function BackupsOffboarding() {
   const list = useQuery({ queryKey: ['seller', 'lifecycle'], queryFn: () => api.get<{ items: LifecycleView[] }>('/api/v1/seller/lifecycle') })
   const [selected, setSelected] = useState<string | null>(null)
-  if (list.isLoading && !list.data) return <SkeletonTable columns={4} />
+  if (list.isLoading && !list.data) return <Table loading head={['School', 'State', 'Read-only until', '']}>{null}</Table>
   if (list.error) return <ErrorState error={list.error} />
   const items = list.data?.items ?? []
   return (
@@ -100,7 +99,7 @@ function SchoolLifecycle({ id }: { id: string }) {
   })
   const exportNow = useMutation({ mutationFn: () => api.post(`/api/v1/seller/tenants/${id}/exports`), onSuccess: refresh })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={4} />
+  if (q.isLoading && !q.data) return <Table loading head={['Asked', 'By', 'Status', 'Tables', 'Rows', 'Files', 'Size', 'Expires', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
   const offExport = d.exports.find((e) => e.id === d.export_id)

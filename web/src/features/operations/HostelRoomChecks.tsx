@@ -6,7 +6,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useStudentRoster } from '@/lib/rosters'
@@ -442,7 +442,7 @@ function Lines({ checkId }: { checkId: string }) {
         description="One line per thing, one charge per line."
       />
       {q.isLoading ? (
-        <SkeletonTable columns={6} />
+        <Table loading head={['Item', 'Should be', 'Found', 'Condition', 'What is wrong', 'Charge']}>{null}</Table>
       ) : rows.length === 0 ? (
         <EmptyState title="Nothing on this sheet" />
       ) : (

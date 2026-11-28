@@ -1,3 +1,4 @@
+import { Skeleton } from '@/components/Skeleton'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
@@ -120,6 +121,12 @@ export default function HomeExact() {
   const shown = items.filter((i) => filter === 'all' || sev(i) === filter)
   const summary = att.data?.summary ?? []
   const k = kq.data
+  /* While the figures load, a bar where each number goes and the four hero
+     chips held open, so the board keeps its shape instead of filling with
+     dashes and then growing. */
+  const kWait = kq.isLoading && !k
+  const numBone = <Skeleton className="my-1 h-8 w-20" />
+  const metaBone = <Skeleton className="mt-1 h-3 w-24" />
   const trend = tq.data?.items ?? []
   const stats = sq.data
 
@@ -155,10 +162,15 @@ export default function HomeExact() {
               {k?.attendance_range_pct != null && <> Attendance is <b>{Math.round(k.attendance_range_pct)}%</b> this month</>}
               {canMoney && k && <> and <b>{rupees(k.collected_paise)}</b> has been banked.</>}
             </p>
+            {kWait && <Skeleton className="mt-1.5 h-3.5 w-52 max-w-full" />}
           </div>
+          {kWait && <Skeleton className="h-9 w-56 max-w-full" round="full" />}
           {k && <span className="hx-pill">School running · {k.students} students</span>}
         </div>
         <div className="hx-today">
+          {att.isLoading && !att.data && [0, 1, 2, 3].map((i) => (
+            <div className="hx-chip" key={i} aria-hidden><div className="k"><Skeleton className="h-3 w-16 opacity-60" /></div><div className="v"><Skeleton className="my-1 h-6 w-10 opacity-60" /></div><div className="s"><Skeleton className="h-2.5 w-12 opacity-60" /></div></div>
+          ))}
           {summary.slice(0, 4).map((s) => (
             <div className="hx-chip" key={s.label}><div className="k">{s.label}</div><div className="v">{s.value}</div><div className="s">{s.hint || 'today'}</div></div>
           ))}
@@ -173,27 +185,27 @@ export default function HomeExact() {
       <section className="hx-kpis">
         <div className="hx-kpi" onClick={() => openScreen('institution_admin.students.student_360', 'student_360')}>
           <div className="top"><span className="lbl">Students</span><span className="ic" style={{ background: 'var(--hx-ic-blue)', color: 'var(--hx-primary)' }}><Icon d={I.users} /></span></div>
-          <div className="num">{k?.students ?? '–'}</div>
-          <div className="meta">{k?.sections ?? 0} sections</div>
+          <div className="num">{kWait ? numBone : k?.students ?? '–'}</div>
+          <div className="meta">{kWait ? metaBone : <>{k?.sections ?? 0} sections</>}</div>
           <div className="bar"><span style={{ width: grown ? '81%' : 0 }} /></div>
         </div>
         <div className="hx-kpi" onClick={() => openScreen('hr.records.staff_records', 'staff_records')}>
           <div className="top"><span className="lbl">Staff</span><span className="ic" style={{ background: 'var(--hx-ic-cyan)', color: '#0891b2' }}><Icon d={I.staff} /></span></div>
-          <div className="num">{k?.staff ?? '–'}</div>
-          <div className="meta">{k?.staff_teaching ?? 0} teaching · {k?.staff_non_teaching ?? 0} non-teaching</div>
+          <div className="num">{kWait ? numBone : k?.staff ?? '–'}</div>
+          <div className="meta">{kWait ? metaBone : <>{k?.staff_teaching ?? 0} teaching · {k?.staff_non_teaching ?? 0} non-teaching</>}</div>
           <div className="bar"><span style={{ width: grown && k?.staff ? `${Math.round((k.staff_teaching / k.staff) * 100)}%` : 0 }} /></div>
         </div>
         <div className="hx-kpi" onClick={() => openScreen('institution_admin.academics.student_absentees', 'student_absentees')}>
           <div className="top"><span className="lbl">Attendance</span><span className="ic" style={{ background: 'var(--hx-ic-green)', color: 'var(--hx-green)' }}><Icon d={I.check} /></span></div>
-          <div className="num">{k?.attendance_range_pct != null ? `${Math.round(k.attendance_range_pct)}%` : '–'}</div>
-          <div className="meta">{k?.attendance_today_pct != null ? `Today ${Math.round(k.attendance_today_pct)}%` : 'Today not marked yet'}</div>
+          <div className="num">{kWait ? numBone : k?.attendance_range_pct != null ? `${Math.round(k.attendance_range_pct)}%` : '–'}</div>
+          <div className="meta">{kWait ? metaBone : <>{k?.attendance_today_pct != null ? `Today ${Math.round(k.attendance_today_pct)}%` : 'Today not marked yet'}</>}</div>
           <svg className="spark" viewBox="0 0 120 34" preserveAspectRatio="none"><path d={trend.slice(-9).map((t, i, a) => `${i ? 'L' : 'M'}${(i * 120) / Math.max(1, a.length - 1)} ${32 - (t.pct / 100) * 30}`).join(' ')} fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" /></svg>
         </div>
         {canMoney && (
           <div className="hx-kpi" onClick={() => openScreen('institution_admin.fees.fee_dashboard', 'fee_dashboard')}>
             <div className="top"><span className="lbl">Fees banked</span><span className="ic" style={{ background: 'var(--hx-ic-amber)', color: 'var(--hx-amber)' }}><Icon d={I.rupee} /></span></div>
-            <div className="num">{k ? rupees(k.collected_paise) : '–'}</div>
-            <div className="meta">{k && <><span style={{ color: 'var(--hx-red)', fontWeight: 700 }}>{rupees(k.outstanding_paise)}</span> still unpaid</>}</div>
+            <div className="num">{kWait ? numBone : k ? rupees(k.collected_paise) : '–'}</div>
+            <div className="meta">{kWait ? metaBone : <>{k && <><span style={{ color: 'var(--hx-red)', fontWeight: 700 }}>{rupees(k.outstanding_paise)}</span> still unpaid</>}</>}</div>
             <div className="bar"><span style={{ width: grown && k ? `${Math.min(100, Math.round((k.collected_paise / Math.max(1, k.collected_paise + k.outstanding_paise)) * 100))}%` : 0 }} /></div>
           </div>
         )}

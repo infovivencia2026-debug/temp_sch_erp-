@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, ConfirmButton,
-  Input, Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState, EmptyState,
+  Input, Select, Field, FormGrid, FormNotice, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, cn } from '@/lib/utils'
 import { useCan } from '@/lib/session'
@@ -85,7 +85,7 @@ export default function Exams() {
     onError: () => setDone(''),
   })
 
-  if (exams.isLoading && !exams.data) return <SkeletonTable columns={6} />
+  if (exams.isLoading && !exams.data) return <Table loading head={['Exam', 'Kind', 'Starts', 'Papers', 'Published', '']}>{null}</Table>
   if (exams.error) return <ErrorState error={exams.error} />
   const rows = exams.data?.items ?? []
   const empty = rows.filter((e) => e.papers === 0)

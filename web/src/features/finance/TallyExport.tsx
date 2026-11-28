@@ -4,7 +4,7 @@ import { Download, FileWarning, History, CheckCircle2, AlertTriangle } from 'luc
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Field, FormGrid, Button, ConfirmButton, Checkbox, FormNotice, Loading, SkeletonTable, SkeletonTiles, ErrorState,
+  Field, FormGrid, Button, ConfirmButton, Checkbox, FormNotice, Loading, SkeletonTiles, ErrorState,
   EmptyState, UnavailableState, Input
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
@@ -389,7 +389,7 @@ function Runs({
   mayExport: boolean
   onConfirm: (id: string) => void
 }) {
-  if (loading) return <SkeletonTable columns={8} label="Reading the export history…" />
+  if (loading) return <Table loading head={[ 'Period', 'Types', { label: 'Vouchers', align: 'right' }, { label: 'Value', align: 'right' }, 'Exported', 'Imported', '', ]}>{null}</Table>
   if (error) return <ErrorState error={error} />
 
   return (

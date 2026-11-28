@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, ConfirmButton,
   Input, Select, Checkbox, Field, FormGrid, FormNotice, Reload,
-  SkeletonTable, ErrorState, EmptyState,
+  ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* Merchant keys, per school and gateway.
@@ -156,7 +156,7 @@ export default function PaymentGateways() {
           )}
 
           {q.isLoading ? (
-            <SkeletonTable columns={6} />
+            <Table loading head={['School', 'Gateway', 'Mode', 'Key id', 'Secrets', 'On', '']}>{null}</Table>
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : rows.length === 0 ? (

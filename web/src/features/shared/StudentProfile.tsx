@@ -11,7 +11,7 @@ import { api, type List, type Student, type Klass, type Section } from '@/lib/ap
 import { usePagedList } from '@/lib/paged'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select, Textarea, FormNotice, Checkbox,
-  Table, Td, Badge, Button, Input, Loading, SkeletonTable, ErrorState, EmptyState, Dialog,
+  Table, Td, Badge, Button, Input, Loading, ErrorState, EmptyState, Dialog,
 } from '@/components/ui'
 import {
   RecordShell, Field, type RecordTab, type RecordAction,
@@ -715,7 +715,7 @@ export default function StudentProfile() {
               title="Pick a class, or search for a student"
               body="Pick a class, or type a name or admission no." />
           ) : results.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Student', 'Class / sec', 'Adm no.', 'Date of birth', 'Contact', 'Status', '']}>{null}</Table>
           ) : (
             <Card>
               {/* What the list is, said plainly: a roll read as complete when
@@ -1743,7 +1743,7 @@ export default function StudentProfile() {
             </div>
           )}
           {remarks.isLoading ? (
-            <SkeletonTable columns={6} />
+            <Table loading head={['Year', 'Class', 'Roll', 'From', 'To', 'Outcome', 'Note']}>{null}</Table>
           ) : remarkRows.length === 0 ? (
             <EmptyState
               title="Nothing written yet"

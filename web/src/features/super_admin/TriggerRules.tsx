@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Input, Select, Checkbox, Field, FormGrid, FormNotice,
-  SkeletonTable, ErrorState, Table, Td,
+  ErrorState, Table, Td,
 } from '@/components/ui'
 import {
   useTriggers, useSaveRule, useDeleteRule, useRunSweep, useTemplates,
@@ -41,7 +41,7 @@ export default function TriggerRules() {
 
   const [editing, setEditing] = useState<Partial<TriggerRule> | null>(null)
 
-  if (triggers.isLoading && !triggers.data) return <SkeletonTable columns={6} />
+  if (triggers.isLoading && !triggers.data) return <Table loading head={['Rule', 'When', 'Who hears', 'How', 'Last run', '']}>{null}</Table>
   if (triggers.error) return <ErrorState error={triggers.error} />
 
   const rules = triggers.data?.items ?? []

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, ConfirmButton, Select, SkeletonTable, ErrorState, FormNotice,
+  Button, ConfirmButton, Select, ErrorState, FormNotice,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -130,7 +130,7 @@ export default function Payments() {
             }
           />
           {q.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Receipt', 'Student', 'Amount', 'Mode', 'Paid on', 'Status', '']}>{null}</Table>
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (

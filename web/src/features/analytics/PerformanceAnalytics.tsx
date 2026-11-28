@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, SkeletonTable, ErrorState, PrintButton,
+  Table, Td, Badge, ErrorState, PrintButton,
 } from '@/components/ui'
 import { CsvButton, pct, goodPct, impossiblePct, RefusedPctNotice } from './shared'
 
@@ -107,7 +107,7 @@ export default function PerformanceAnalytics() {
             action={<CsvButton href={TREND} />}
           />
           {trend.isLoading ? (
-            <SkeletonTable columns={6} />
+            <Table loading head={['Exam', 'Date', 'Class', 'Students', 'Average', 'Pass rate']}>{null}</Table>
           ) : trend.error ? (
             <ErrorState error={trend.error} />
           ) : (
@@ -139,7 +139,7 @@ export default function PerformanceAnalytics() {
               action={<CsvButton href={SUBJECTS} />}
             />
             {subjects.isLoading ? (
-              <SkeletonTable columns={5} />
+              <Table loading head={['Subject', 'Papers', 'Average', 'Pass rate', 'Failing']}>{null}</Table>
             ) : subjects.error ? (
               <ErrorState error={subjects.error} />
             ) : (
@@ -169,7 +169,7 @@ export default function PerformanceAnalytics() {
               action={<CsvButton href={DISTRIBUTION} />}
             />
             {bands.isLoading ? (
-              <SkeletonTable columns={4} />
+              <Table loading head={['Band', 'Students', 'Entries', 'Share']}>{null}</Table>
             ) : bands.error ? (
               <ErrorState error={bands.error} />
             ) : (
@@ -197,7 +197,7 @@ export default function PerformanceAnalytics() {
             action={<CsvButton href={AT_RISK} />}
           />
           {atRisk.isLoading ? (
-            <SkeletonTable columns={8} />
+            <Table loading head={[ 'Admission No', 'Student', 'Class', 'Subjects', 'Failing', 'Average', 'Attendance', ]}>{null}</Table>
           ) : atRisk.error ? (
             <ErrorState error={atRisk.error} />
           ) : (

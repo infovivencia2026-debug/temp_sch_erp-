@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Button, Select, Input, SkeletonTable, ErrorState, EmptyState, FormNotice,
+  Table, Td, Button, Select, Input, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -175,7 +175,7 @@ export default function Corrections() {
               {mySections.error ? (
                 <ErrorState error={mySections.error} />
               ) : !sectionId ? null : register.isLoading ? (
-                <SkeletonTable columns={5} />
+                <Table wide loading head={['Student', 'Marked', 'Change to', 'Why', '']}>{null}</Table>
               ) : register.error ? (
                 <ErrorState error={register.error} />
               ) : (register.data?.items ?? []).length === 0 ? (
@@ -260,7 +260,7 @@ export default function Corrections() {
           />
           <FormNotice error={decide.error} ok={done} />
           {q.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Student', 'Date', 'Change', 'Reason', 'Raised by', 'Status', '']}>{null}</Table>
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (

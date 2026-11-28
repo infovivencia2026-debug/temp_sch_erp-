@@ -6,7 +6,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
+  Input, Select, Textarea, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { useEmployeeRoster } from '@/lib/rosters'
 
 /* What a school has to be able to produce when somebody asks.
@@ -249,7 +249,7 @@ function ServiceBookTab() {
         <CardHeader title={employeeId ? 'The book' : 'Every page on file'}
           description="Read forwards. A service record is a chronology, not a feed." />
         {book.isLoading ? (
-          <SkeletonTable columns={7} />
+          <Table wide loading head={['Date', 'Employee', 'Entry', 'Particulars', 'Order', 'Attested', '']}>{null}</Table>
         ) : rows.length === 0 ? (
           <EmptyState title="No pages yet"
             body="No pages yet." />

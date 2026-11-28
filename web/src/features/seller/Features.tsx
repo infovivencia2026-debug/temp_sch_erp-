@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
-  Card, CardHeader, Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select, SkeletonTable, ErrorState,
+  Card, CardHeader, Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select, ErrorState,
 } from '@/components/ui'
 
 /* Feature switches per school (seller/features.ts). The plan's modules give a
@@ -70,7 +70,7 @@ export function Features({ onClose }: { onClose: () => void }) {
         </FormGrid>
         {(set.isError || clear.isError) && <FormNotice error={set.error ?? clear.error} />}
       </div>
-      {school && (sf.isLoading ? <SkeletonTable columns={5} /> : sf.error ? <ErrorState error={sf.error} /> : sf.data && (
+      {school && (sf.isLoading ? <Table loading head={['Feature', 'Plan default', 'Override', 'Now', '']}>{null}</Table> : sf.error ? <ErrorState error={sf.error} /> : sf.data && (
         <div className="space-y-4 px-5 pb-5">
           <div className="text-[13px] text-muted-foreground">Plan: {sf.data.plan_name || sf.data.plan_code || 'none'}</div>
           {sf.data.modules.map((m) => {

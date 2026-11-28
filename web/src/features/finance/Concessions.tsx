@@ -6,7 +6,7 @@ import { refreshConcessions } from '@/lib/concession-refresh'
 import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, ConfirmButton, Select, Input, SkeletonTable, ErrorState, FormNotice,
+  Button, ConfirmButton, Select, Input, ErrorState, FormNotice,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -243,7 +243,7 @@ export default function Concessions() {
             }
           />
           {concessions.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Student', 'Fee head', 'Kind', 'Value', 'Reason', 'Document', 'Status', '']}>{null}</Table>
           ) : concessions.error ? (
             <ErrorState error={concessions.error} />
           ) : (
@@ -390,7 +390,7 @@ export default function Concessions() {
             </div>
           )}
           {refunds.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Student', 'Amount', 'Reason', 'Mode', 'Status', 'Processed', '']}>{null}</Table>
           ) : refunds.error ? (
             <ErrorState error={refunds.error} />
           ) : (

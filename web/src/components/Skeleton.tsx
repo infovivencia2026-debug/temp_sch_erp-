@@ -179,7 +179,9 @@ export function SkeletonRows({ rows = 6, cols = 4 }: { rows?: number; cols?: num
         <tr key={r} aria-hidden>
           {Array.from({ length: cols }, (_, c) => (
             <td key={c} className="px-5 py-3.5 max-[900px]:px-3">
-              <Bone className="h-3" style={{ width: COL_WIDTHS[c % COL_WIDTHS.length], maxWidth: 220 }} />
+              {/* Sized in the cell's own terms with a floor, so a narrow
+                  auto-width column shows a word-sized bar, not a dot. */}
+              <Bone className="h-3" style={{ width: `${[78, 64, 70, 56, 60, 50][(c + r) % 6]}%`, minWidth: 40, maxWidth: 220 }} />
             </td>
           ))}
         </tr>

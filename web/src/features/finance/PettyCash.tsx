@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState,
+  ErrorState,
 } from '@/components/ui'
 import {
   inr, rupees, toPaise, useAccounts, accountOptions, ledgerBase,
@@ -52,7 +52,7 @@ export default function PettyCash() {
     queryFn: () => api.get<PettyResponse>(`${ledgerBase}/petty-cash`),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={4} label="Opening the tin…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Voucher', 'Payee', 'For', { label: 'Amount', align: 'right' }]}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
 
   const rows = q.data?.items ?? []

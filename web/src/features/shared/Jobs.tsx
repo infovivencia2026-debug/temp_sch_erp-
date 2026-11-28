@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, type QueueStat, type JobStatus, type EnqueueResponse, type List, type Section } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Button, Select, SkeletonTable, ErrorState, PageBody } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Button, Select, ErrorState, PageBody } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { useTabVisible } from '@/lib/visible'
 
@@ -34,7 +34,7 @@ export default function Jobs() {
     },
   })
 
-  if (queues.isLoading && !queues.data) return <SkeletonTable columns={9} />
+  if (queues.isLoading && !queues.data) return <Table loading head={['Queue', 'Weight', 'Pending', 'Active', 'Scheduled', 'Retry', 'Archived', 'Processed', 'Failed']}>{null}</Table>
   if (queues.error) return <ErrorState error={queues.error} />
 
   const entries = Object.entries(queues.data?.queues ?? {})

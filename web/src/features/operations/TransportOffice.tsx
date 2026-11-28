@@ -11,7 +11,7 @@ import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
+  Loading, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSession } from '@/lib/session'
 import { useOpenState } from '@/lib/motion'
@@ -423,7 +423,7 @@ function BusRegister() {
           </div>
         )}
         {reg.isLoading ? (
-          <SkeletonTable columns={7} label="Loading the register…" />
+          <Table loading head={[ { label: 'Child' }, { label: 'Stop' }, { label: 'On' }, { label: 'Off' }, { label: 'Status' }, { label: '' }, ]}>{null}</Table>
         ) : rows.length === 0 ? (
           <EmptyState
             title="Nobody allocated to this route"
@@ -1910,7 +1910,7 @@ function Routes() {
       )}
 
       {list.isLoading ? (
-        <SkeletonTable columns={8} label="Loading the routes…" />
+        <Table loading head={[ { label: 'Route' }, { label: 'Bus' }, { label: 'Stops' }, { label: 'Riders' }, { label: 'Distance' }, { label: 'Status' }, { label: '' }, ]}>{null}</Table>
       ) : list.error ? (
         <ErrorState error={list.error} />
       ) : rows.length === 0 ? (
@@ -2194,7 +2194,7 @@ function Buses() {
         )}
 
         {list.isLoading ? (
-          <SkeletonTable columns={9} label="Loading the fleet…" />
+          <Table loading head={[ { label: 'Bus' }, { label: 'Bus code' }, { label: 'Driver' }, { label: 'Route' }, { label: 'Seats' }, { label: 'Papers lapse' }, { label: 'Status' }, { label: '' }, ]}>{null}</Table>
         ) : list.error ? (
           <ErrorState error={list.error} />
         ) : rows.length === 0 ? (

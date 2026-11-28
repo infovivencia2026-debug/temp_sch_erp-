@@ -6,7 +6,7 @@ import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Dialog, Field, FormGrid, FormNotice,
-  Input, Select, SkeletonTable, ErrorState, EmptyState,
+  Input, Select, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -132,7 +132,7 @@ export default function SupportTeam() {
   const recent = all.filter((a) => seen(a) === 'week').length
   const never = all.filter((a) => seen(a) === 'never').length
 
-  if (staff.isLoading && !staff.data) return <SkeletonTable columns={6} />
+  if (staff.isLoading && !staff.data) return <Table loading head={['Name', 'Role', 'Status', 'Signs in as', 'Last sign-in', '']}>{null}</Table>
   if (staff.error) return <ErrorState error={staff.error} />
 
   return (

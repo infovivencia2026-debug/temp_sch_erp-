@@ -4,7 +4,7 @@ import { SearchBox } from '@/components/rows'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, SkeletonTable, ErrorState, FormNotice, EmptyState, ExportButton, Select,
+  Button, ErrorState, FormNotice, EmptyState, ExportButton, Select,
 } from '@/components/ui'
 import { useStudentRoster } from '@/lib/rosters'
 import { StatusPill } from '@/components/NeedsAttention'
@@ -181,7 +181,7 @@ export default function Library() {
               }
             />
             {titles.isLoading ? (
-              <SkeletonTable columns={6} />
+              <Table loading head={['Title', 'Author', 'Category', 'Copies', 'On shelf', '']}>{null}</Table>
             ) : titles.error ? (
               <ErrorState error={titles.error} />
             ) : (
@@ -282,7 +282,7 @@ export default function Library() {
               }
             />
             {loans.isLoading ? (
-              <SkeletonTable columns={6} />
+              <Table loading head={['Title', 'Borrower', 'Issued', 'Due', 'Fine', '']}>{null}</Table>
             ) : loans.error ? (
               <ErrorState error={loans.error} />
             ) : (tab === 'overdue' ? overdue : open).length === 0 ? (

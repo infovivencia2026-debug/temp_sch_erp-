@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Reload,
-  SkeletonTiles, SkeletonTable, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* Dropout risk, as rules.
@@ -75,7 +75,7 @@ export default function DropoutRisk() {
           <CardHeader title="By school" />
           {d && <p className="border-b px-5 py-3 text-[13px] text-muted-foreground">{d.method}</p>}
           {q.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['School', { label: 'Students', align: 'right' }, { label: 'Attendance', align: 'right' }, { label: 'Fees', align: 'right' }, { label: 'Marks', align: 'right' }, { label: 'At risk', align: 'right' }, 'Register taken']}>{null}</Table>
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : rows.length === 0 ? (

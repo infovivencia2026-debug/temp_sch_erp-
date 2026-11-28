@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
   Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, SkeletonTable, ErrorState, EmptyState,
+  Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -84,7 +84,7 @@ export default function CertificateTemplates() {
     },
   })
 
-  if (list.isLoading && !list.data) return <SkeletonTable columns={8} label="Reading the certificate register…" />
+  if (list.isLoading && !list.data) return <Table loading head={['Code', 'Name', 'For', 'Signatory', 'Issued', 'Last issued', 'State', '']}>{null}</Table>
   if (list.error) return <ErrorState error={list.error} />
 
   const rows = list.data?.items ?? []

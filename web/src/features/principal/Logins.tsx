@@ -7,7 +7,7 @@ import {
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, ConfirmButton, Select, Input, Reload, SkeletonTable, ErrorState,
+  Table, Td, Badge, Button, ConfirmButton, Select, Input, Reload, ErrorState,
   Field, FormGrid, FormNotice, Dialog,
 } from '@/components/ui'
 import { OnlineNow, SignInAttempts, SessionRules, SignInStrip, AdminMFAOff } from './SecurityDesk'
@@ -418,7 +418,7 @@ export default function Logins() {
         <CellGrid cols={4}>
           <Stat
             label="Logins"
-            value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : users.length}
+            value={isLoading ? <Skeleton className="mt-1 h-9 w-16" /> : users.length}
             icon={ShieldCheck}
             hint={lens ? 'Show all of them again' : 'Everybody on this tab'}
             active={lens === ''}
@@ -426,20 +426,20 @@ export default function Logins() {
           />
           <Stat
             label="Not issued"
-            value={rollStaff.isLoading || rollStudents.isLoading || rollGuardians.isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : notIssuedTotal}
+            value={rollStaff.isLoading || rollStudents.isLoading || rollGuardians.isLoading ? <Skeleton className="mt-1 h-9 w-16" /> : notIssuedTotal}
             hint={notIssuedTotal === 0 ? 'Everybody on the roll has a login' : `Staff ${notIssued.staff} · Students ${notIssued.student} · Parents ${notIssued.guardian}, show them`}
             onClick={openNotIssued}
           />
           <Stat
             label="Signed in now"
-            value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : signedIn}
+            value={isLoading ? <Skeleton className="mt-1 h-9 w-16" /> : signedIn}
             hint="Active in the last 10 minutes"
             active={lens === 'live'}
             onClick={() => setTileLens(lens === 'live' ? '' : 'live')}
           />
           <Stat
             label="No linked record"
-            value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : orphans.length}
+            value={isLoading ? <Skeleton className="mt-1 h-9 w-16" /> : orphans.length}
             icon={ShieldAlert}
             hint="Active logins whose person is gone"
             active={lens === 'orphan'}
@@ -614,7 +614,10 @@ export default function Logins() {
             }
           />
           {isLoading ? (
-            <SkeletonTable columns={simple ? 6 : 9} />
+            /* The real table head with rows on the real pitch, not a stand-in. */
+            <Table loading loadingRows={8} head={simple
+                ? ['Name', 'Belongs to', 'Child & class', 'Last sign-in', 'Status', '']
+                : ['Name', 'Contact', 'Belongs to', 'Child & class', 'Roles', 'Devices', 'Last sign-in', 'Status', '']}>{null}</Table>
           ) : error ? (
             <ErrorState error={error} />
           ) : (
@@ -839,7 +842,7 @@ function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
       <SignInStrip userId={user.id} />
       <AdminMFAOff user={user} />
       {isLoading ? (
-        <SkeletonTable columns={6} />
+        <Table loading loadingRows={3} head={['Device', 'Address', 'Signed in', 'Last seen', 'Status', '']}>{null}</Table>
       ) : error ? (
         <ErrorState error={error} />
       ) : (

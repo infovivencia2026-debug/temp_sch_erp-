@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Select, Textarea, SkeletonTable, SkeletonTiles, ErrorState, FormNotice, EmptyState,
+  Button, Input, Select, Textarea, SkeletonTiles, ErrorState, FormNotice, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -164,7 +164,7 @@ function RequisitionsPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m
             <Button size="sm" onClick={() => setCreating(true)}>Raise a requisition</Button>
           ) : undefined}
         />
-        {list.isLoading ? <SkeletonTable columns={8} /> : list.error ? <ErrorState error={list.error} /> : (
+        {list.isLoading ? <Table loading head={['No.', 'Department', 'Raised', 'Needed by', 'Value', 'Approval band', 'Status', '']}>{null}</Table> : list.error ? <ErrorState error={list.error} /> : (
           <Table
             head={['No.', 'Department', 'Raised', 'Needed by', 'Value', 'Approval band', 'Status', '']}
             empty={!items.length}
@@ -232,7 +232,7 @@ function RequisitionDetail({ id, mayWrite, onDone }: {
     onSuccess: (_d, decision) => onDone(decision === 'approve' ? 'Approved.' : 'Rejected.'),
   })
 
-  if (detail.isLoading) return <Card><SkeletonTable columns={6} /></Card>
+  if (detail.isLoading) return <Card><Table loading head={['#', 'Item', 'Description', 'Qty', 'Rate', 'Line total']}>{null}</Table></Card>
   if (detail.error) return <Card><ErrorState error={detail.error} /></Card>
 
   const r = detail.data!.requisition
@@ -424,7 +424,7 @@ function OrdersPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m: stri
           title="Purchase orders"
           description="Partly received first"
         />
-        {list.isLoading ? <SkeletonTable columns={8} /> : list.error ? <ErrorState error={list.error} /> : (
+        {list.isLoading ? <Table loading head={['No.', 'Vendor', 'Ordered', 'Expected', 'Value', 'Received', 'Status', '']}>{null}</Table> : list.error ? <ErrorState error={list.error} /> : (
           <Table
             head={['No.', 'Vendor', 'Ordered', 'Expected', 'Value', 'Received', 'Status', '']}
             empty={!items.length}
@@ -511,7 +511,7 @@ function OrderDetail({ id, mayWrite, onDone }: {
     },
   })
 
-  if (detail.isLoading) return <Card><SkeletonTable columns={8} /></Card>
+  if (detail.isLoading) return <Card><Table loading head={['#', 'Description', 'Ordered', 'Received', 'Rejected', 'Outstanding', 'Rate', 'GST']}>{null}</Table></Card>
   if (detail.error) return <Card><ErrorState error={detail.error} /></Card>
 
   const o = detail.data!.order
@@ -702,7 +702,7 @@ function MatchingPanel({ mayPay, onDone }: { mayPay: boolean; onDone: (m: string
 
       <Card>
         <CardHeader title="Matched bills" description="Largest variance first." />
-        {list.isLoading ? <SkeletonTable columns={8} /> : list.error ? <ErrorState error={list.error} /> : (
+        {list.isLoading ? <Table loading head={['PO', 'Vendor', 'Bill', 'Ordered', 'Received', 'Invoiced', 'Variance', 'Status']}>{null}</Table> : list.error ? <ErrorState error={list.error} /> : (
           <Table
             head={['PO', 'Vendor', 'Bill', 'Ordered', 'Received', 'Invoiced', 'Variance', 'Status']}
             empty={!items.length}
@@ -854,7 +854,7 @@ function LadderPanel({ mayConfigure, onDone }: {
     }>(`${adminOpsBase}/purchasing/thresholds`),
   })
 
-  if (list.isLoading) return <Card><SkeletonTable columns={3} /></Card>
+  if (list.isLoading) return <Card><Table loading head={['Band', 'Up to', 'Approver must hold']}>{null}</Table></Card>
   if (list.error) return <Card><ErrorState error={list.error} /></Card>
 
   const d = list.data!

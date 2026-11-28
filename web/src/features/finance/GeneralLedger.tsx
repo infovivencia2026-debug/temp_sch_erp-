@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
+  ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import {
   inr, side, rupees, toPaise, fyOptions, currentFY, useAccounts, accountOptions,
   ledgerBase, type TrialBalance, type Statements, type Voucher, type VoucherLine,
@@ -235,7 +235,7 @@ function VoucherRegister({ fy }: { fy: string }) {
     enabled: !!open,
   })
 
-  if (vouchers.isLoading && !vouchers.data) return <SkeletonTable columns={7} label="Reading the register…" />
+  if (vouchers.isLoading && !vouchers.data) return <Table loading head={['Voucher', 'Date', 'Kind', 'Narration', 'Accounts', { label: 'Value', align: 'right' }, '']}>{null}</Table>
   const rows = vouchers.data?.items ?? []
 
   return (
@@ -293,7 +293,7 @@ function VoucherRegister({ fy }: { fy: string }) {
 }
 
 function TrialBalanceTab({ query }: { query: ReturnType<typeof useQuery<TrialBalance>> }) {
-  if (query.isLoading && !query.data) return <SkeletonTable columns={8} label="Adding up the books…" />
+  if (query.isLoading && !query.data) return <Table loading head={['Code', 'Account', { label: 'Opening Dr', align: 'right' }, { label: 'Opening Cr', align: 'right' }, { label: 'Debit', align: 'right' }, { label: 'Credit', align: 'right' }, { label: 'Closing Dr', align: 'right' }, { label: 'Closing Cr', align: 'right' }]}>{null}</Table>
   if (query.error) return <ErrorState error={query.error} />
   const t = query.data
   if (!t) return null
@@ -347,7 +347,7 @@ function StatementsTab({ fy }: { fy: string }) {
     queryKey: ['ledgers', 'statements', fy],
     queryFn: () => api.get<Statements>(`${ledgerBase}/statements?fy=${fy}`),
   })
-  if (q.isLoading && !q.data) return <SkeletonTable columns={4} label="Drawing up the statements…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Code', 'Head', 'Group', { label: 'Amount', align: 'right' }]}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const s = q.data
   if (!s) return null

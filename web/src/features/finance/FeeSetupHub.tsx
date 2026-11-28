@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Select, ErrorState, SkeletonTable, PrintButton, Button, TAB_BAR, tabClass, Field, Input, FormNotice } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Select, ErrorState, PrintButton, Button, TAB_BAR, tabClass, Field, Input, FormNotice } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useFeatureHref } from '@/features/bento/bento-kit'
@@ -51,7 +51,7 @@ export default function FeeSetupHub() {
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={tabClass(tab === k)} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
-      {setup.error ? <ErrorState error={setup.error} onRetry={() => setup.refetch()} /> : setup.isLoading ? <SkeletonTable columns={5} /> : (
+      {setup.error ? <ErrorState error={setup.error} onRetry={() => setup.refetch()} /> : setup.isLoading ? <Table loading head={['Class', 'Plan', 'Fee types', 'Amount', 'Instalments', 'Students billed', 'Status']}>{null}</Table> : (
         <>
           {tab === 'plans' && (
             <Table head={['Class', 'Plan', 'Fee types', 'Amount', 'Instalments', 'Students billed', 'Status']} empty={!plans.length} emptyLabel="No fee plans for this year.">

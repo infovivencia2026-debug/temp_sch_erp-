@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import { refreshConcessions } from '@/lib/concession-refresh'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select,
-  Input, Textarea, FormNotice, Table, Td, Badge, Button, SkeletonTable, ErrorState,
+  Input, Textarea, FormNotice, Table, Td, Badge, Button, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { ParentLoginCard, type ParentLogin } from './ParentLoginCard'
@@ -98,7 +98,7 @@ export default function FeeEnrolment() {
         description="Applicants who have been offered a place, and the money that settles before they join: what the class costs, the concession agreed at the desk, and the principal's decision on it."
       />
       <PageBody>
-        {queue.isLoading ? <SkeletonTable columns={6} /> : queue.error ? <ErrorState error={queue.error} /> : (
+        {queue.isLoading ? <Table loading head={['Applicant', 'Class', 'Parent', 'Fee', 'Concession', '']}>{null}</Table> : queue.error ? <ErrorState error={queue.error} /> : (
           <Card>
             <CardHeader
               title={rows.length === 1 ? '1 offer waiting' : `${rows.length} offers waiting`}

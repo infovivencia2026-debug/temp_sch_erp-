@@ -5,7 +5,7 @@ import { Download, Paperclip } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input, Select, SkeletonTable, ErrorState,
+  PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input, Select, ErrorState,
 } from '@/components/ui'
 import { formatDateTime } from '@/lib/utils'
 
@@ -150,7 +150,7 @@ export default function InteractionLog() {
             }
           />
           {isLoading ? (
-            <SkeletonTable columns={6} />
+            <Table loading head={['When', 'Kind', 'From', 'To', 'About', 'What']}>{null}</Table>
           ) : error ? (
             <ErrorState error={error} />
           ) : (

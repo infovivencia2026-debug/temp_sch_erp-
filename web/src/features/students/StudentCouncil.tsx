@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
   Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState, EmptyState,
+  ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useDebouncedValue } from '@/lib/debounce'
@@ -82,7 +82,7 @@ export default function StudentCouncil() {
       }>('/api/v1/academics/admin/council'),
   })
 
-  if (council.isLoading && !council.data) return <SkeletonTable columns={6} label="Reading this year’s council…" />
+  if (council.isLoading && !council.data) return <Table loading head={['Post', 'Portfolio', 'Seats', 'Filled', 'Vacancies', 'Elected?']}>{null}</Table>
   if (council.error) return <ErrorState error={council.error} />
 
   const positions = council.data?.positions ?? []

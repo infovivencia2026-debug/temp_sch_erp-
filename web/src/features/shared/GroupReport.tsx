@@ -75,7 +75,7 @@ export default function GroupReport() {
       />
       <PageBody>
         {dash.isLoading ? (
-          <SkeletonTable columns={5} />
+          <Table wide loading head={['School', 'Students', 'Staff', 'Attendance today', 'Collected this month', 'Outstanding', '']}>{null}</Table>
         ) : dash.error ? (
           <ErrorState error={dash.error} />
         ) : t && d ? (

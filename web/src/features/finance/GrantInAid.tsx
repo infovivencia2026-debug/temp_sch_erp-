@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Select, Input, Textarea, Field, FormGrid, FormNotice,
-  SkeletonTable, ErrorState,
+  ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import {
@@ -58,7 +58,7 @@ export default function GrantInAid() {
   const sanctions = useGrantSanctions(fy)
   const utilisation = useGrantUtilisation(fy)
 
-  if (heads.isLoading || sanctions.isLoading) return <SkeletonTable columns={9} label="Reading the sanctions…" />
+  if (heads.isLoading || sanctions.isLoading) return <Table loading head={[ 'Head', 'Sanction', { label: 'Sanctioned', align: 'right' }, { label: 'Received', align: 'right' }, { label: 'Utilised', align: 'right' }, { label: 'Left to spend', align: 'right' }, { label: 'Used', align: 'right' }, '', ]}>{null}</Table>
   if (heads.error) return <ErrorState error={heads.error} />
   if (sanctions.error) return <ErrorState error={sanctions.error} />
   // The totals band is the first thing read and would otherwise show four
@@ -201,7 +201,7 @@ function SanctionDetail({ id, disabled }: { id: string; disabled: boolean }) {
     },
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={5} label="Opening the sanction…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Received', { label: 'Amount', align: 'right' }, 'Mode', 'Reference', 'Voucher']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
   if (!d) return null
@@ -613,7 +613,7 @@ function CertificateDetail({ id, mayCertify }: { id: string; mayCertify: boolean
     onSuccess: () => qc.invalidateQueries({ queryKey: [collectionsKey] }),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={8} label="Opening the certificate…" />
+  if (q.isLoading && !q.data) return <Table loading head={[ 'Head', 'Sanction', { label: 'Carried in', align: 'right' }, { label: 'Sanctioned', align: 'right' }, { label: 'Received', align: 'right' }, { label: 'Utilised', align: 'right' }, { label: 'Unspent', align: 'right' }, ]}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
   if (!d) return null

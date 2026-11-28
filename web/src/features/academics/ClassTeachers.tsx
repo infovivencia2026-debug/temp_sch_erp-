@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
-  Card, CardHeader, Table, Td, Select, Button, SkeletonTable, ErrorState, FormNotice, Badge,
+  Card, CardHeader, Table, Td, Select, Button, ErrorState, FormNotice, Badge,
 } from '@/components/ui'
 
 /* Who owns each section.
@@ -73,7 +73,7 @@ export default function ClassTeachers() {
     },
   })
 
-  if (sections.isLoading && !sections.data) return <SkeletonTable columns={5} />
+  if (sections.isLoading && !sections.data) return <Table loading head={['Class', 'Section', 'Students', 'Class teacher', 'Also class teachers', '']}>{null}</Table>
   if (sections.error) return <ErrorState error={sections.error} />
 
   const rows = sections.data?.items ?? []

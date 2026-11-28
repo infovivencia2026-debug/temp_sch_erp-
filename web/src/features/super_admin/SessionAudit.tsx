@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import { useVisibleInterval } from '@/lib/visible'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, ConfirmButton, FormNotice, SkeletonTable, ErrorState,
+  Table, Td, Badge, Button, ConfirmButton, FormNotice, ErrorState,
 } from '@/components/ui'
 
 interface SessionRow {
@@ -106,7 +106,7 @@ export default function SessionAudit() {
             description="Refreshes every 30 seconds"
           />
           {isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['User', 'IP', 'Agent', 'Signed in', 'Last seen', 'State', '']}>{null}</Table>
           ) : error ? (
             <ErrorState error={error} />
           ) : (

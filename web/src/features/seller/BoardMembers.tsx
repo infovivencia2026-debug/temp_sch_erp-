@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Checkbox, SkeletonTable, ErrorState, EmptyState,
+  Input, Checkbox, ErrorState, EmptyState,
 } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
 
@@ -71,7 +71,7 @@ export default function BoardMembers() {
 
   const rows = members.data?.items ?? []
 
-  if (members.isLoading && !members.data) return <SkeletonTable columns={4} />
+  if (members.isLoading && !members.data) return <Table loading head={['Name', 'Signs in as', 'Status', 'Oversees']}>{null}</Table>
   if (members.error) return <ErrorState error={members.error} />
 
   return (

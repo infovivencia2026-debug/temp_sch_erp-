@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Select, PrintButton, SkeletonTable, ErrorState, EmptyState,
+  Select, PrintButton, ErrorState, EmptyState,
 } from '@/components/ui'
 import {
   inr, rupees, fyOptions, currentFY, ledgerBase,
@@ -43,7 +43,7 @@ export default function TaxAudit() {
     queryFn: () => api.get<AuditReport>(`${ledgerBase}/audit-report?fy=${fy}`),
   })
 
-  if (tax.isLoading || audit.isLoading) return <SkeletonTable columns={5} label="Running the checks…" />
+  if (tax.isLoading || audit.isLoading) return <Table loading head={['Check', 'Why it matters', { label: 'Result', align: 'right' }]}>{null}</Table>
   if (tax.error) return <ErrorState error={tax.error} />
   if (audit.error) return <ErrorState error={audit.error} />
 

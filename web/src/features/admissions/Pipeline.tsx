@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type AcademicYear } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, SkeletonTable, ErrorState, ExportButton,
+  Table, Td, Badge, Button, Select, ErrorState, ExportButton,
 } from '@/components/ui'
 import EnrolPanel from './EnrolPanel'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
@@ -218,7 +218,7 @@ export default function Pipeline() {
                 </span>
               }
             />
-            {merit.isLoading ? <SkeletonTable columns={9} /> : merit.error ? <ErrorState error={merit.error} /> : (
+            {merit.isLoading ? <Table loading head={['Rank', 'Application', 'Applicant', 'Class', 'Entrance', 'Interview', 'Merit', 'Status', '']}>{null}</Table> : merit.error ? <ErrorState error={merit.error} /> : (
               <Table head={['Rank', 'Application', 'Applicant', 'Class', 'Entrance', 'Interview', 'Merit', 'Status', '']}
                 empty={!shown.length}
                 emptyLabel={term

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
+  Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import {
@@ -96,7 +96,7 @@ export default function BankReconciliation() {
                 }
               />
               {periods.isLoading ? (
-                <SkeletonTable columns={7} />
+                <Table loading head={['Account', 'Period', { label: 'Opening', align: 'right' }, { label: 'Closing', align: 'right' }, 'Lines', 'Status', '']}>{null}</Table>
               ) : periods.error ? (
                 <ErrorState error={periods.error} />
               ) : (

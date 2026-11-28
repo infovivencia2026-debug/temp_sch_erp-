@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Select, EmptyState,
-  Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice, SEG_BAR_FILL, segClass,
+  Input, Table, Td, Loading, ErrorState, FormNotice, SEG_BAR_FILL, segClass,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import WeekGrid from '@/components/WeekGrid'
@@ -717,7 +717,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
     onSuccess: () => onPublished('Suggestion thrown away. The timetable in use is unchanged.'),
   })
 
-  if (draft.isLoading || preview.isLoading) return <SkeletonTable columns={6} label="Reading the draft…" />
+  if (draft.isLoading || preview.isLoading) return <Table loading head={['', 'Class', 'Subject', 'Required', 'Placed', 'What bound']}>{null}</Table>
   if (draft.error) return <ErrorState error={draft.error} />
   if (preview.error) return <ErrorState error={preview.error} />
 

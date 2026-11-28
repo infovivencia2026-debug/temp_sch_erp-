@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { formatDate, formatPaise } from '@/lib/utils'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button, FormNotice, SkeletonTable, ErrorState,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button, FormNotice, ErrorState,
 } from '@/components/ui'
 import { INV_TONE, type BillingInvoice } from './Billing'
 
@@ -26,7 +26,7 @@ const STATUS_WORD: Record<string, string> = { active: 'Active', trial: 'Trial', 
 
 export default function BillingSchool() {
   const q = useQuery({ queryKey: KEY, queryFn: () => api.get<Resp>('/api/v1/school-billing') })
-  if (q.isLoading && !q.data) return <SkeletonTable columns={6} label="Reading your invoices…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Number', 'Issued', 'Due', 'Total', 'Balance', 'Status', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
   const sub = d.subscription

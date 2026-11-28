@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Select, SkeletonTable, Loading, ErrorState, FormNotice, Field, FormGrid, Input, ExportButton,
+  Button, Select, Loading, ErrorState, FormNotice, Field, FormGrid, Input, ExportButton,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
@@ -670,7 +670,7 @@ export default function Leave() {
           />
           <FormNotice error={decide.error} ok={done} />
           {q.isLoading ? (
-            <SkeletonTable columns={8} />
+            <Table loading head={['Who', 'Type', 'From', 'To', 'Days', 'Reason', 'Status', '']}>{null}</Table>
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (

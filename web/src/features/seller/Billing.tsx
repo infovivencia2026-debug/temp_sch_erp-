@@ -6,7 +6,7 @@ import { rupeesToPaise, isBadAmount } from '@/lib/money'
 import { formatDate, formatPaise } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button, Input, Field, FormGrid,
-  FormNotice, SkeletonTable, ErrorState,
+  FormNotice, ErrorState,
 } from '@/components/ui'
 
 /* SUBSCRIPTION LEDGER: WHAT EACH SCHOOL OWES AND WHY.
@@ -56,7 +56,7 @@ export default function Billing() {
     onSuccess: refresh,
   })
 
-  if (schools.isLoading && !schools.data) return <SkeletonTable columns={7} label="Reading the ledger…" />
+  if (schools.isLoading && !schools.data) return <Table loading head={['School', 'Plan', 'Status', 'Renews', 'Outstanding', '']}>{null}</Table>
   if (schools.error) return <ErrorState error={schools.error} />
   const rows = schools.data?.items ?? []
   const inv = invoices.data?.items ?? []

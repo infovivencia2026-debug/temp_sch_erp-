@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button,
   ConfirmButton, Input, Select, Checkbox, Textarea, Field, FormGrid,
-  FormNotice, SkeletonTable, ErrorState,
+  FormNotice, ErrorState,
 } from '@/components/ui'
 import {
   usePlatform, usePlatformSave, usePlatformDelete, type NumberingResponse,
@@ -39,7 +39,7 @@ export default function Numbering() {
   const [tHtml, setTHtml] = useState('')
   const [tApproval, setTApproval] = useState(false)
 
-  if (isLoading && !data) return <SkeletonTable columns={6} />
+  if (isLoading && !data) return <Table loading head={['Document', 'Applies to', 'Next number will be', 'Counter', 'Resets yearly', '']}>{null}</Table>
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
+  Button, Input, Select, Field, FormGrid, FormNotice, ErrorState,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import BulkImport from '@/components/BulkImport'
@@ -332,7 +332,7 @@ export default function SalarySetup() {
     onError: (e: unknown) => setDone(e instanceof Error ? e.message : 'Could not remove, a salary may still use it'),
   })
 
-  if (comps.isLoading || structures.isLoading) return <SkeletonTable columns={3} />
+  if (comps.isLoading || structures.isLoading) return <Table loading head={['Code', 'Name', 'Type']}>{null}</Table>
   if (comps.error) return <ErrorState error={comps.error} />
   if (structures.error) return <ErrorState error={structures.error} />
 

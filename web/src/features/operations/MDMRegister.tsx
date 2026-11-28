@@ -206,7 +206,7 @@ export default function MDMRegister() {
         )}
 
         {days.isLoading ? (
-          <SkeletonTable columns={2} />
+          <Table loading head={['Date', 'What does not add up']}>{null}</Table>
         ) : days.error ? (
           /* A failed query is never drawn as an empty register. "Nothing
              recorded this month" and "we could not read the register" are

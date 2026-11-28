@@ -8,7 +8,7 @@ import { useOpenState } from '@/lib/motion'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice,
-  Input, Select, Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
+  Input, Select, Loading, SkeletonTiles, ErrorState, EmptyState,
   ConfirmButton, tabClass, TAB_BAR } from '@/components/ui'
 
 /* The rules a payslip already assumed.
@@ -554,7 +554,7 @@ function RegisterTab() {
         }
       />
       {reg.isLoading ? (
-        <SkeletonTable columns={6} label="Working out the month…" />
+        <Table loading head={['Employee', 'Absent', 'Half days', 'Unpaid leave', 'Past quota', 'Late marks', 'Days lost']}>{null}</Table>
       ) : rows.length === 0 ? (
         <EmptyState title="Nobody lost a day"
           body="No deductions." />

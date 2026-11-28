@@ -1,9 +1,10 @@
+import { Skeleton } from '@/components/Skeleton'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, SkeletonTable, ErrorState, Button, Select,
+  Table, Td, Badge, ErrorState, Button, Select,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { Printer } from 'lucide-react'
@@ -90,7 +91,29 @@ export default function FeeOverview() {
     ageing: ageing.data?.items ?? [], concessions: concessions.data?.items ?? [],
   }))
 
-  if (overview.isLoading && !overview.data) return <SkeletonTable columns={8} />
+  /* Loading: the real header, figure cells and by-class card, with
+     placeholders only where the amounts and rows go. */
+  if (overview.isLoading && !overview.data) {
+    const bone = <Skeleton className="h-7 w-28" />
+    return (
+      <>
+        <PageHead eyebrow="Fees" title="Fee overview"
+          actions={<div className="flex gap-2"><CsvButton href={OVERVIEW + yq} label="Export by class" /><Button variant="secondary" disabled><Printer className="h-4 w-4" /> Print</Button></div>} />
+        <PageBody>
+          <CellGrid cols={4}>
+            <Stat label="Demanded" value={bone} hint="Billed for this year" />
+            <Stat label="Collected against this year's bills" value={bone} />
+            <Stat label="Outstanding this year" value={bone} period="As of now" />
+            <Stat label="Concessions given" value={bone} hint="Discount applied to bills" />
+          </CellGrid>
+          <Card>
+            <CardHeader title="By class" description="Demanded against collected, for the class the child sat in that year." />
+            <Table loading loadingRows={8} head={[ 'Class', 'Students', { label: 'Demanded', align: 'right' }, { label: 'Collected', align: 'right' }, { label: 'Outstanding', align: 'right' }, { label: 'Concession', align: 'right' }, 'Collected', ]}>{null}</Table>
+          </Card>
+        </PageBody>
+      </>
+    )
+  }
   if (overview.error) return <ErrorState error={overview.error} />
   const d = overview.data
   if (!d) return null
@@ -197,7 +220,7 @@ export default function FeeOverview() {
               action={<CsvButton href={AGEING} />}
             />
             {ageing.isLoading ? (
-              <SkeletonTable columns={4} />
+              <Table loading head={['Bucket', 'Invoices', 'Students', { label: 'Amount', align: 'right' }]}>{null}</Table>
             ) : ageing.error ? (
               <ErrorState error={ageing.error} />
             ) : (
@@ -226,7 +249,7 @@ export default function FeeOverview() {
               action={<CsvButton href={CONCESSIONS} />}
             />
             {concessions.isLoading ? (
-              <SkeletonTable columns={6} />
+              <Table loading head={['Reason', 'Students', 'Awards', 'Pending', { label: 'Absolute', align: 'right' }, '% awards']}>{null}</Table>
             ) : concessions.error ? (
               <ErrorState error={concessions.error} />
             ) : (

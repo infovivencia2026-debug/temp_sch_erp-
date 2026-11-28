@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Upload } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  Card, CardHeader, Table, Td, Badge, Button, Select, Reload, SkeletonTable, ErrorState, EmptyState,
+  Card, CardHeader, Table, Td, Badge, Button, Select, Reload, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* The year plan, drawn as the timeline it is.
@@ -127,7 +127,7 @@ function PlanTimeline() {
           body="One subject, one class."
         />
       )}
-      {subject && plan.isLoading && <SkeletonTable columns={5} label="Pouring the year…" />}
+      {subject && plan.isLoading && <Table loading head={['#', 'Chapter', 'Periods', 'Runs', 'Status']}>{null}</Table>}
       {plan.error && <ErrorState error={plan.error} />}
 
       {d && (

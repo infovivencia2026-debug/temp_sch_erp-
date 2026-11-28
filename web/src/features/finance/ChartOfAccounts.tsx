@@ -5,7 +5,7 @@ import { Landmark, Wallet, ListTree, Settings2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Field, FormGrid, FormNotice, Input, Select, Loading, SkeletonTable, ErrorState,
+  Button, Field, FormGrid, FormNotice, Input, Select, Loading, ErrorState,
 } from '@/components/ui'
 import {
   inr, side, useAccounts, useLedgerSettings, accountOptions, ledgerBase,
@@ -37,7 +37,7 @@ export default function ChartOfAccounts() {
   const settings = useLedgerSettings()
   const [showAll, setShowAll] = useState(false)
 
-  if (accounts.isLoading && !accounts.data) return <SkeletonTable columns={6} label="Reading the chart of accounts…" />
+  if (accounts.isLoading && !accounts.data) return <Table loading head={['Code', 'Account', 'Type', { label: 'Balance', align: 'right' }, 'Postings', '']}>{null}</Table>
   if (accounts.error) return <ErrorState error={accounts.error} />
 
   const rows = accounts.data?.items ?? []

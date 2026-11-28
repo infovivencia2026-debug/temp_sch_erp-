@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  ConfirmButton, Select, Input, SkeletonTable, ErrorState, FormNotice,
+  ConfirmButton, Select, Input, ErrorState, FormNotice,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 
@@ -146,7 +146,7 @@ export default function DemandGeneration() {
         <Card>
           <CardHeader title="Fee structures" description="Defined in Fee structure setup" />
           {structures.isLoading ? (
-            <SkeletonTable columns={5} />
+            <Table loading head={['Structure', 'Class', 'Year', 'Heads', 'Total']}>{null}</Table>
           ) : structures.error ? (
             <ErrorState error={structures.error} />
           ) : (

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Select, SkeletonTable, ErrorState } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Select, ErrorState } from '@/components/ui'
 import { MonthField } from '@/components/DatePopover'
 
 interface Day { on_date: string; status?: string; check_in?: string; check_out?: string; hours?: string; source?: string }
@@ -46,7 +46,7 @@ export function StaffMonth({ people }: { people: { user_id: string; employee_cod
       />
       {!who ? (
         <p className="px-5 py-4 text-[14px] text-muted-foreground">Choose a person to see their month.</p>
-      ) : q.isLoading ? <SkeletonTable columns={6} /> : q.error ? <ErrorState error={q.error} /> : (
+      ) : q.isLoading ? <Table loading head={['Date', 'Day', 'Mark', 'In', 'Out', 'Hours']}>{null}</Table> : q.error ? <ErrorState error={q.error} /> : (
         <>
           <p className="px-5 pt-3 text-[13px] text-muted-foreground">
             Present {count('present') + count('wfh')} · Permission {count('permission')} · Late {count('late')} · Half day {count('half_day')} · Absent {count('absent')} · Leave {count('leave')}

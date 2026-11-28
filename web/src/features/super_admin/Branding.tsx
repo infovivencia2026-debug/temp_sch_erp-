@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input,
-  Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
+  Select, Field, FormGrid, FormNotice, ErrorState,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { usePlatform, usePlatformSave, type BrandingResponse, type BrandingProfile } from './platform-lib'
@@ -54,7 +54,7 @@ export default function Branding() {
   const [form, setForm] = useState<Partial<BrandingProfile>>(BLANK)
   const [touched, setTouched] = useState(false)
 
-  if (isLoading && !data) return <SkeletonTable columns={5} />
+  if (isLoading && !data) return <Table loading head={['Applies to', 'Display name', 'Tagline', 'Colours', 'Custom domain']}>{null}</Table>
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

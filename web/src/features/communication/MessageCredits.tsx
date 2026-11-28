@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { parseRupees } from '@/lib/money'
 import {
   Card, CardHeader, Button, ConfirmButton, Input, Field, FormGrid, FormNotice, Badge,
-  Table, Td, SkeletonTable, ErrorState, EmptyState,
+  Table, Td, ErrorState, EmptyState,
 } from '@/components/ui'
 import {
   useCreditEntries, useTopUpCredits, useStopMetering,
@@ -147,7 +147,7 @@ export function ChannelMeter({ credit }: { credit: CreditBalance }) {
       {open && (
         <div className="border-t">
           {entries.isLoading ? (
-            <SkeletonTable columns={4} label="Reading the history…" />
+            <Table loading head={['When', 'Change', 'Why', 'Who']}>{null}</Table>
           ) : entries.error ? (
             <ErrorState error={entries.error} />
           ) : (entries.data?.items ?? []).length === 0 ? (

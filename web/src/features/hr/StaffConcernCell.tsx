@@ -134,7 +134,7 @@ export function StaffConcernCell() {
           <Button variant={mine ? 'primary' : 'secondary'} size="sm" onClick={() => setMine(!mine)}>Assigned to me</Button>
           <Button variant={overdue ? 'primary' : 'secondary'} size="sm" onClick={() => setOverdue(!overdue)}>Past deadline</Button>
         </div>
-        {list.isLoading ? <SkeletonTable columns={6} /> : list.error ? <ErrorState error={list.error} /> : (
+        {list.isLoading ? <Table loading head={['Concern', 'From', 'Owner', 'Deadline', 'Stage', '']}>{null}</Table> : list.error ? <ErrorState error={list.error} /> : (
           <Table head={['Concern', 'From', 'Owner', 'Deadline', 'Stage', '']} empty={rows.length === 0} emptyLabel="Nothing here.">
             {rows.map((g) => (
               <tr key={g.id} className={selected === g.id ? 'bg-accent/40' : undefined}>

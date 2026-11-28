@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Select, Textarea,
-  SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { type PortfolioPiece } from './classroom'
@@ -137,7 +137,7 @@ export default function PortfolioBuilder() {
           </div>
         </Card>
 
-        {studentID && pieces.isLoading && <SkeletonTable columns={6} />}
+        {studentID && pieces.isLoading && <Table loading head={['Kind', 'Title', 'When', 'Verdict', 'On report', '']}>{null}</Table>}
         {pieces.error && <ErrorState error={pieces.error} />}
 
         {studentID && !pieces.isLoading && !pieces.error && (

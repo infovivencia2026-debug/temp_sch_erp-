@@ -4,7 +4,7 @@ import { UserPlus, CalendarCheck, CalendarDays, AlertTriangle } from 'lucide-rea
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, SkeletonTable, ErrorState,
+  Table, Td, Badge, ErrorState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 
@@ -43,7 +43,7 @@ export default function HRDashboard() {
     queryFn: () => api.call('GET /hr/dashboard'),
   })
 
-  if (kpis.isLoading && !kpis.data) return <SkeletonTable columns={4} />
+  if (kpis.isLoading && !kpis.data) return <Table loading head={['Name', 'Code', 'Why', 'Back']}>{null}</Table>
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
   const away = k.away_today ?? []

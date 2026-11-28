@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState, EmptyState,
+  ErrorState, EmptyState,
 } from '@/components/ui'
 import {
   inr, rupees, toPaise, fyOptions, currentFY, useAccounts, useLedgerSettings,
@@ -30,7 +30,7 @@ export default function Expenses() {
     queryFn: () => api.get<List<ExpenseHead>>(`${ledgerBase}/expenses?fy=${fy}`),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={9} label="Adding up the spending…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Code', 'Head', 'Group', 'Vouchers', { label: 'Bills', align: 'right' }, { label: 'Petty cash', align: 'right' }, { label: 'Other', align: 'right' }, { label: 'Total', align: 'right' }, { label: 'Share', align: 'right' }]}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
 
   const rows = q.data?.items ?? []

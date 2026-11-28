@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button, Input, Field,
-  FormGrid, FormNotice, ErrorState, SkeletonTable, TAB_BAR, tabClass,
+  FormGrid, FormNotice, ErrorState, TAB_BAR, tabClass,
 } from '@/components/ui'
 import InstanceHealth from './InstanceHealth'
 import BackupsOffboarding from './BackupsOffboarding'
@@ -92,7 +92,7 @@ function BackupsFleet() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['seller', 'backups'] }),
   })
 
-  if (fleet.isLoading && !fleet.data) return <SkeletonTable columns={6} />
+  if (fleet.isLoading && !fleet.data) return <Table loading head={['School', 'Last good backup', 'Size', 'Kept', 'Failed (7 days)', '']}>{null}</Table>
   if (fleet.error) return <ErrorState error={fleet.error} />
   const d = fleet.data!
   const stale = d.items.filter((r) => r.stale)

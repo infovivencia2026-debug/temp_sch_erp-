@@ -1,6 +1,6 @@
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  SkeletonTable, ErrorState,
+  ErrorState,
 } from '@/components/ui'
 import { usePlatform, type AdoptionResponse } from '../super_admin/platform-lib'
 
@@ -20,7 +20,7 @@ import { usePlatform, type AdoptionResponse } from '../super_admin/platform-lib'
 export default function Adoption() {
   const { data, isLoading, error } = usePlatform<AdoptionResponse>('adoption', '/adoption')
 
-  if (isLoading && !data) return <SkeletonTable columns={8} />
+  if (isLoading && !data) return <Table loading head={['School', 'Plan', 'Students', 'Accounts', 'Active (28d)', 'Sign-ins', 'Changes', 'Last sign-in']}>{null}</Table>
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

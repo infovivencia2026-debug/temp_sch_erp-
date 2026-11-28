@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import { MonthGrid, type CalendarEntry } from '../shared/MonthGrid'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  Field, FormGrid, FormNotice, Input, Select, Textarea, Reload, SkeletonTable, ErrorState, EmptyState,
+  Field, FormGrid, FormNotice, Input, Select, Textarea, Reload, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import CalendarDay from './CalendarDay'
@@ -110,7 +110,7 @@ export default function AcademicCalendar() {
     onSuccess: () => refreshCalendars(qc),
   })
 
-  if (cal.isLoading && !cal.data) return <SkeletonTable columns={6} label="Reading the year…" />
+  if (cal.isLoading && !cal.data) return <Table loading head={['Date', 'Entry', 'Kind', 'Applies to', 'Days', '']}>{null}</Table>
   if (cal.error) return <ErrorState error={cal.error} />
 
   const rows = cal.data?.items ?? []

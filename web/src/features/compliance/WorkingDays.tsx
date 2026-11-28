@@ -4,8 +4,7 @@ import { AlertTriangle } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Field, FormGrid, FormNotice, Input, SkeletonTable,
-  ErrorState,
+  Button, ConfirmButton, Field, FormGrid, FormNotice, Input, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
@@ -174,7 +173,7 @@ export default function WorkingDays() {
       />
       <PageBody width="wide">
         {compute.isLoading ? (
-          <SkeletonTable columns={9} label="Counting the calendar…" />
+          <Table loading head={[ 'Class', 'Stage', 'Working days', 'Required', 'Short by', 'Instructional hours', 'Required', 'Short by', ]}>{null}</Table>
         ) : compute.error ? (
           <ErrorState error={compute.error} />
         ) : r ? (

@@ -4,7 +4,7 @@ import { LineChart, TrendingDown, TrendingUp } from 'lucide-react'
 import { api, type List, type Klass } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Select,
-  SkeletonTable, ErrorState, EmptyState,
+  ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -79,7 +79,7 @@ export default function BaselineAnalysis() {
       ),
   })
 
-  if (analysis.isLoading && !analysis.data) return <SkeletonTable columns={7} label="Reading the marks register…" />
+  if (analysis.isLoading && !analysis.data) return <Table loading head={['Class', 'Baseline exam', 'Baseline', 'Latest exam', 'Latest', 'Movement', 'Assessments']}>{null}</Table>
   if (analysis.error) return <ErrorState error={analysis.error} />
 
   const d = analysis.data

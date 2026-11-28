@@ -4,8 +4,7 @@ import { Upload } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Field, FormGrid, FormNotice, Input, Select, Textarea, SkeletonTable,
-  ErrorState, EmptyState,
+  Button, Field, FormGrid, FormNotice, Input, Select, Textarea, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
@@ -279,7 +278,7 @@ export default function ChildInfoReconciliation() {
             }
           />
           {diffs.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Child', 'Admission no.', 'Difference', 'Field', 'Portal says', 'We say', 'Decision']}>{null}</Table>
           ) : diffs.error ? (
             <ErrorState error={diffs.error} />
           ) : !rows.length ? (

@@ -5,7 +5,7 @@ import { SearchBox } from '@/components/rows'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, SkeletonTable, ErrorState,
+  Button, ErrorState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useDebouncedValue } from '@/lib/debounce'
@@ -92,7 +92,7 @@ export default function Infirmary() {
             }
           />
           {q.isLoading ? (
-            <SkeletonTable columns={6} />
+            <Table loading head={['Student', 'Class', 'Blood group', 'Allergies', 'Chronic conditions', 'Doctor']}>{null}</Table>
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (

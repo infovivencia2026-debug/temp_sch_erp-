@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
 import {
-  Badge, Button, Card, CardHeader, Checkbox, FormNotice, Input, SkeletonTable, Select,
+  Badge, Button, Card, CardHeader, Checkbox, FormNotice, Input, Select,
   Table, Td,
 } from '@/components/ui'
 
@@ -267,7 +267,7 @@ export default function EnrolPanel({
       </div>
 
       {fees.isLoading ? (
-        <SkeletonTable columns={2} />
+        <Table loading head={['Fee head', { label: 'Amount', align: 'right' }]}>{null}</Table>
       ) : !f?.priced ? (
         <div className="border-b px-5 py-4 text-[14px] text-muted-foreground">
           No fee structure is priced for {f?.class_name ?? 'this class'}, so no invoice

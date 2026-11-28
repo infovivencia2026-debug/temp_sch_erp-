@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select,
-  SkeletonTable, ErrorState, EmptyState,
+  ErrorState, EmptyState,
 } from '@/components/ui'
 import {
   inr, rupees, toPaise, fyOptions, currentFY, useAccounts, accountOptions,
@@ -37,7 +37,7 @@ export default function Budgets() {
     queryFn: () => api.get<BudgetView>(`${ledgerBase}/budgets?fy=${fy}`),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={9} label="Reading the budget…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Code', 'Head', 'Department', { label: 'Allocated', align: 'right' }, { label: 'Revised', align: 'right' }, { label: 'Actual', align: 'right' }, { label: 'Variance', align: 'right' }, 'Used', 'State']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
 
   const b = q.data

@@ -3,7 +3,7 @@ import { Lock, LockOpen, ScrollText, TrendingUp } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  ConfirmButton, FormNotice, SkeletonTable, ErrorState,
+  ConfirmButton, FormNotice, ErrorState,
 } from '@/components/ui'
 import { inr, rupees, ledgerBase, type AccountingYear } from './ledger-lib'
 
@@ -30,7 +30,7 @@ export default function YearClosing() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ledgers'] }),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={9} label="Reading the years…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Year', 'Status', 'Vouchers', { label: 'Income', align: 'right' }, { label: 'Expenditure', align: 'right' }, { label: 'Surplus', align: 'right' }, 'Closed', 'Voucher', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
 
   const years = q.data?.items ?? []

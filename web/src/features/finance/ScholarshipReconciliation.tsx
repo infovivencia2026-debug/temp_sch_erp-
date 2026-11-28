@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  Textarea, SkeletonTable, ErrorState,
+  Textarea, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { SchemeEditor } from './GovernmentClaims'
@@ -90,7 +90,7 @@ export default function ScholarshipReconciliation() {
   })
   const schemes = useSchemes('student')
 
-  if (awards.isLoading && !awards.data) return <SkeletonTable columns={5} label="Opening the scholarship register…" />
+  if (awards.isLoading && !awards.data) return <Table loading head={['Child', 'Scheme', 'Application', { label: 'Sanctioned', align: 'right' }, 'Where it should land']}>{null}</Table>
   if (awards.error) return <ErrorState error={awards.error} />
 
   const rows = awards.data?.items ?? []
@@ -551,7 +551,7 @@ function ImportDetail({ importId, mayWrite }: { importId: string; mayWrite: bool
       }>(`${concessionsBase}/scholarships/imports/${importId}`),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={8} label="Opening the file…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Line', 'As the file gave it', 'Matched to', { label: 'Amount', align: 'right' }, 'Credited', 'Account', 'Needs a look', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
   if (!d) return null

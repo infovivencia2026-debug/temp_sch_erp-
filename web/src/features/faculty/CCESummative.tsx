@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, FormNotice, Input,
-  SkeletonTable, ErrorState, EmptyState,
+  ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
@@ -43,7 +43,7 @@ export default function CCESummative() {
     queryFn: () => api.get<List<SummativePaper>>('/api/v1/teaching/cce/summative'),
   })
 
-  if (list.isLoading && !list.data) return <SkeletonTable columns={8} />
+  if (list.isLoading && !list.data) return <Table loading head={['Exam', 'Class', 'Subject', 'Sat', 'Out of', 'Entered', 'Average', '']}>{null}</Table>
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   const done = rows.filter((p) => p.entered >= p.roll && p.roll > 0).length
@@ -175,7 +175,7 @@ function Entry({ paper }: { paper: SummativePaper }) {
         }
       />
       {roster.isLoading ? (
-        <SkeletonTable columns={5} />
+        <Table loading head={['Roll', 'Child', 'Mark', 'Absent', 'Grade']}>{null}</Table>
       ) : roster.error ? (
         <ErrorState error={roster.error} />
       ) : rows.length === 0 ? (

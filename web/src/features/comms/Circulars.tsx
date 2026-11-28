@@ -8,7 +8,7 @@ import { ChatThread } from '@/components/Chat'
 import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Checkbox, Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
+  Table, Td, Badge, Button, Checkbox, Input, Select, Textarea, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSMSGateway } from '../communication/sms-gateway-lib'
@@ -523,7 +523,7 @@ function Delivery({ id }: { id: string }) {
       }>(`/api/v1/communication/circulars/${id}/delivery`),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={4} />
+  if (q.isLoading && !q.data) return <Table loading head={['Name', 'Who they are', 'About', 'Acknowledged']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
 

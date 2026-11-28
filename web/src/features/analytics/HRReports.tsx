@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, SkeletonTable, ErrorState, Button,
+  Table, Td, Badge, Loading, ErrorState, Button,
   RangePicker, rangeQuery, useRange, type RangeOption, rangeLabel,
 } from '@/components/ui'
 import { CsvButton, pct, goodPct } from './shared'
@@ -171,7 +171,7 @@ export default function HRReports() {
               action={<CsvButton href={`${MOVEMENT}?${q}`} />}
             />
             {movement.isLoading ? (
-              <SkeletonTable columns={4} />
+              <Table loading head={['Month', 'Joiners', 'Leavers', 'Net']}>{null}</Table>
             ) : movement.error ? (
               <ErrorState error={movement.error} />
             ) : (
@@ -202,7 +202,7 @@ export default function HRReports() {
               action={<CsvButton href={WORKLOAD} />}
             />
             {workload.isLoading ? (
-              <SkeletonTable columns={3} />
+              <Table loading head={['Weekly load', 'Teachers', 'Share']}>{null}</Table>
             ) : workload.error ? (
               <ErrorState error={workload.error} />
             ) : (
@@ -271,7 +271,7 @@ export default function HRReports() {
             action={<CsvButton href={EXPIRIES} />}
           />
           {expiries.isLoading ? (
-            <SkeletonTable columns={7} />
+            <Table loading head={['Code', 'Name', 'Department', 'Renewal', 'Detail', 'Expires', 'Days left']}>{null}</Table>
           ) : expiries.error ? (
             <ErrorState error={expiries.error} />
           ) : (

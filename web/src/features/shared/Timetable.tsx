@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type TimetableEntry } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, SkeletonTable, ErrorState, TAB_BAR, tabClass, SEG_BAR, segClass, PageBody } from '@/components/ui'
+import { Skeleton, SkeletonWeek } from '@/components/Skeleton'
+import { Card, CardHeader, Table, Td, Badge, Button, Select, ErrorState, TAB_BAR, tabClass, SEG_BAR, segClass, PageBody } from '@/components/ui'
 import { Printer } from 'lucide-react'
 import { printDocument } from '@/lib/print'
 import { cn } from '@/lib/utils'
@@ -129,7 +130,9 @@ function Grid({ isStaff }: { isStaff: boolean }) {
   const picked = [...classes, ...sections].find((x) => x.id === sectionId)
   const title = view.mode === 'me' ? (session.user?.full_name ?? 'My timetable') : picked ? label(picked) : 'Class timetable'
 
-  if (periods.isLoading || entries.isLoading) return <Loading />
+  /* Loading keeps the toolbar and draws the week's grid (or the phone's
+     timeline) where it will be, instead of a bare "Loading". */
+  const gridLoading = periods.isLoading || entries.isLoading
   if (entries.error) return <ErrorState error={entries.error} />
 
   const list = entries.data?.items ?? []
@@ -212,7 +215,12 @@ function Grid({ isStaff }: { isStaff: boolean }) {
       )}
 
       {/* One component: the grid on a computer, the day timeline on a phone. */}
-      {phone ? (
+      {gridLoading ? (
+        <div className={phone ? 'px-1 pb-2' : 'p-4'}>
+          {!phone && <Skeleton className="mb-3 h-3 w-72 max-w-full" />}
+          <SkeletonWeek delay={0} />
+        </div>
+      ) : phone ? (
         <div className="px-1 pb-2">
           <WeekGrid id="staff-timetable" entries={gridCells} periods={rows} who={title}
             where={view.mode === 'me' ? 'Every period you teach, across all your classes' : 'The whole week for this class'}
@@ -239,7 +247,7 @@ function Workload() {
     queryKey: ['teachers'],
     queryFn: () => api.call('GET /timetable/teachers'),
   })
-  if (isLoading && !data) return <SkeletonTable columns={4} />
+  if (isLoading && !data) return <Table loading head={['Code', 'Teacher', 'Weekly periods', 'Load']}>{null}</Table>
   if (error) return <ErrorState error={error} />
   const rows = data?.items ?? []
   return (

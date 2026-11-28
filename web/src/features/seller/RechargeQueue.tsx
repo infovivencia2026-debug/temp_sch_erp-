@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { parseRupees } from '@/lib/money'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input,
-  FormNotice, SkeletonTable, ErrorState, EmptyState,
+  FormNotice, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useSellerRecharges, useDecideRecharge, type Recharge } from '@/features/super_admin/messaging-lib'
 import { formatDate } from '@/lib/utils'
@@ -29,7 +29,7 @@ import { formatDate } from '@/lib/utils'
    only ever hold a second, drifting copy of it. */
 export default function RechargeQueue() {
   const q = useSellerRecharges()
-  if (q.isLoading && !q.data) return <SkeletonTable columns={6} label="Reading the recharge queue…" />
+  if (q.isLoading && !q.data) return <Table loading head={['School', 'Channel', 'Asked', 'When', 'By', 'Decision']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
 
   const items = q.data?.items ?? []

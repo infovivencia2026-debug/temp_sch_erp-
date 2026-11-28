@@ -381,7 +381,7 @@ export default function Enquiries() {
             />
             <FormNotice error={update.error} ok={note} />
             {q.isLoading ? (
-              <SkeletonTable columns={7} />
+              <Table wide loading head={['Student', 'Phone', 'Class', 'Source', 'Follow-up', 'Status', '']}>{null}</Table>
             ) : q.error ? (
               <ErrorState error={q.error} />
             ) : (

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Field, FormGrid, FormNotice, Select,
-  SkeletonTable, SkeletonTiles, ErrorState, EmptyState, Panel,
+  SkeletonTiles, ErrorState, EmptyState, Panel,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { type GradableTest, type GradingKey, type ItemAnalysisRow } from './classroom'
@@ -167,7 +167,7 @@ export default function ExamGrading() {
           </div>
         </Card>
 
-        {testID && key.isLoading && <SkeletonTable columns={5} />}
+        {testID && key.isLoading && <Table loading head={['#', 'Question', 'Answer', 'Marks', 'Negative']}>{null}</Table>}
         {key.error && <ErrorState error={key.error} />}
 
         {key.data && (

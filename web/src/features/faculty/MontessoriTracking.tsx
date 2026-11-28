@@ -87,7 +87,7 @@ export default function MontessoriTracking() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not record'),
   })
 
-  if (sections.isLoading && !sections.data) return <SkeletonTable columns={7} />
+  if (sections.isLoading && !sections.data) return <Table loading head={['Adm no', 'Child', 'Presented', 'Practising', 'Mastered', 'Last seen', '']}>{null}</Table>
   if (sections.error) return <ErrorState error={sections.error} />
 
   const positions = (child.data?.items ?? []).filter((p) => !area || p.area === area)

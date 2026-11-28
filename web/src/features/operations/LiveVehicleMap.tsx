@@ -5,7 +5,7 @@ import { BatteryWarning, BusFront, MapPin, RadioTower, TriangleAlert } from 'luc
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Select, SkeletonTable, ErrorState, EmptyState, Button, Textarea,
+  Table, Td, Badge, Select, ErrorState, EmptyState, Button, Textarea,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { FleetMap } from '@/components/FleetMap'
@@ -265,7 +265,7 @@ export default function LiveVehicleMap() {
         {live.isError ? (
           <ErrorState error={live.error} />
         ) : live.isLoading ? (
-          <SkeletonTable columns={4} />
+          <Table loading head={[ 'Vehicle', 'Route', 'Driver', { label: 'Speed', align: 'right' }, 'Last fix', { label: 'Battery', align: 'right' }, 'Phone', 'Message', ]}>{null}</Table>
         ) : (
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
             <Card>

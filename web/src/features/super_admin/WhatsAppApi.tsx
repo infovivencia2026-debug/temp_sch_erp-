@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Input, Select, Checkbox, Field, FormGrid, FormNotice,
-  SkeletonTable, SkeletonTiles, ErrorState, Table, Td,
+  SkeletonTiles, ErrorState, Table, Td,
 } from '@/components/ui'
 import {
   useWhatsAppSettings, useSaveWhatsApp, useForgetWhatsApp, useTestWhatsApp,
@@ -462,7 +462,7 @@ function TemplateMapping() {
   const submit = useSubmitWhatsAppTemplates()
   const [code, setCode] = useState('')
 
-  if (templates.isLoading && !templates.data) return <SkeletonTable columns={5} />
+  if (templates.isLoading && !templates.data) return <Table loading head={['Template', 'Approved as', 'Language', 'Parameters', 'State']}>{null}</Table>
   if (templates.error) return <ErrorState error={templates.error} />
 
   const items = templates.data?.items ?? []
@@ -620,7 +620,7 @@ function MappingForm({ template }: { template: WhatsAppTemplate }) {
 function DispatchLog() {
   const log = useWhatsAppLog()
 
-  if (log.isLoading && !log.data) return <SkeletonTable columns={5} />
+  if (log.isLoading && !log.data) return <Table loading head={['Queued', 'To', 'Template', 'Status', 'Why']}>{null}</Table>
   if (log.error) return <ErrorState error={log.error} />
 
   const items = log.data?.items ?? []

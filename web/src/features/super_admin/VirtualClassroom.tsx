@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Input, Select, Checkbox, Field, FormGrid, Button, ConfirmButton, FormNotice,
-  SkeletonTable, ErrorState,
+  ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { useToast } from '@/components/Toast'
@@ -45,7 +45,7 @@ export default function VirtualClassroom() {
   const requests = useMeetingRequests()
   const [editing, setEditing] = useState<MeetingAccount | null>(null)
 
-  if (conn.isLoading && !conn.data) return <SkeletonTable columns={2} label="Reading the meeting accounts…" />
+  if (conn.isLoading && !conn.data) return <Table loading head={['Route', 'Creates a meeting']}>{null}</Table>
   // A failed query is never rendered as "nothing configured": that would tell a
   // platform operator a school has no provider when the truth is we could not
   // ask.

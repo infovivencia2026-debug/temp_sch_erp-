@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Select, SkeletonTable, ErrorState,
+  Table, Td, Badge, Select, ErrorState,
 } from '@/components/ui'
 
 interface ShortageRow {
@@ -83,7 +83,7 @@ export default function AttendanceMonitoring() {
         <Card>
           <CardHeader title="Shortage list" description="Students at risk of exam ineligibility" />
           {isLoading ? (
-            <SkeletonTable columns={6} />
+            <Table loading head={['Admission no.', 'Student', 'Class', 'Present', 'Total', 'Attendance']}>{null}</Table>
           ) : error ? (
             <ErrorState error={error} />
           ) : (

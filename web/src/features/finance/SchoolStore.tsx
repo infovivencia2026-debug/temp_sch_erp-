@@ -5,7 +5,7 @@ import { Package, Shirt, TriangleAlert } from 'lucide-react'
 import { api, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Select, Input, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
+  Button, Select, Input, Field, FormGrid, FormNotice, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { VariancePanel } from './CanteenTerminal'
@@ -52,7 +52,7 @@ export default function SchoolStore() {
 
   const [openSale, setOpenSale] = useState<string | null>(null)
 
-  if (products.isLoading || open.isLoading) return <SkeletonTable columns={7} label="Opening the store…" />
+  if (products.isLoading || open.isLoading) return <Table loading head={[ 'Receipt', 'What', 'Who', 'Paid', { label: 'Total', align: 'right' }, '', ]}>{null}</Table>
   if (products.error) return <ErrorState error={products.error} />
   if (open.error) return <ErrorState error={open.error} />
 
@@ -494,7 +494,7 @@ function ReturnPanel({
     },
   })
 
-  if (sale.isLoading && !sale.data) return <SkeletonTable columns={6} label="Reading the receipt…" />
+  if (sale.isLoading && !sale.data) return <Table loading head={[ 'Item', { label: 'Sold', align: 'right' }, { label: 'Already back', align: 'right' }, { label: 'Each', align: 'right' }, { label: 'Returning', align: 'right' }, ]}>{null}</Table>
   if (sale.error) return <ErrorState error={sale.error} />
   const d = sale.data
   if (!d) return null

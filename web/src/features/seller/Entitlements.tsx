@@ -3,7 +3,7 @@ import { Controls } from './Controls'
 import { Features } from './Features'
 import {
   TAB_BAR, tabClass, PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, FormNotice, SkeletonTable, ErrorState,
+  Button, FormNotice, ErrorState,
 } from '@/components/ui'
 import {
   usePlatform, usePlatformSave, rupees, type EntitlementResponse,
@@ -51,7 +51,7 @@ function Matrix({ tabs }: { tabs: React.ReactNode }) {
   const { data, isLoading, error } = usePlatform<EntitlementResponse>('entitlements', '/entitlements')
   const set = usePlatformSave('entitlements', '/entitlements')
 
-  if (isLoading && !data) return <SkeletonTable columns={5} />
+  if (isLoading && !data) return <Table loading head={['Code', 'Plan', 'Price', 'Schools', 'Modules included']}>{null}</Table>
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

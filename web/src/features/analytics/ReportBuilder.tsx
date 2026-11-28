@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice,
-  Input, Select, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
+  Input, Select, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { CsvButton } from './shared'
@@ -474,7 +474,7 @@ function RunPanel({ report, onClose }: { report: Definition; onClose: () => void
         />
         {run.isLoading ? (
           <div className="p-5">
-            <SkeletonTable columns={5} label="Running…" />
+            <Table loading head={['When', 'By', { label: 'Rows', align: 'right' }, 'Boundary', 'Exported']}>{null}</Table>
           </div>
         ) : run.error ? (
           <div className="p-5">

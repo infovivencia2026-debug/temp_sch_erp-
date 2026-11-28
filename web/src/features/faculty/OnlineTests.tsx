@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState, EmptyState,
+  ErrorState, EmptyState,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
@@ -38,7 +38,7 @@ export default function OnlineTests() {
   const { q: term, setQ: setTerm, shown } = useSearch(rows,
     (t) => [t.title, t.subject, t.class_name, t.section, t.status])
 
-  if (list.isLoading && !list.data) return <SkeletonTable columns={8} />
+  if (list.isLoading && !list.data) return <Table loading head={['Title', 'Class', 'Subject', 'Opens', 'Questions', 'Marks', 'Status', '']}>{null}</Table>
   if (list.error) return <ErrorState error={list.error} />
 
   return (
@@ -287,7 +287,7 @@ function Builder({ testID }: { testID: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not publish'),
   })
 
-  if (test.isLoading && !test.data) return <SkeletonTable columns={6} />
+  if (test.isLoading && !test.data) return <Table loading head={['#', 'Question', 'Answer', 'Kind', 'Difficulty', 'Marks']}>{null}</Table>
   if (test.error) return <ErrorState error={test.error} />
   const detail = test.data!
   const onPaper = detail.paper.map((p) => p.question_id)

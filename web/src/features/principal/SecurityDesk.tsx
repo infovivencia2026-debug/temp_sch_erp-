@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Laptop, LogOut, ShieldAlert } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  Card, CardHeader, Table, Td, Badge, Button, ConfirmButton, Input, SkeletonTable, ErrorState, FormNotice,
+  Card, CardHeader, Table, Td, Badge, Button, ConfirmButton, Input, ErrorState, FormNotice,
 } from '@/components/ui'
 import { formatDateTime } from '@/lib/utils'
 
@@ -91,7 +91,7 @@ export function OnlineNow() {
         }
       />
       {isLoading ? (
-        <SkeletonTable columns={6} />
+        <Table loading head={['Who', 'Device', 'Address', 'Signed in', 'Last active', '']}>{null}</Table>
       ) : error ? (
         <ErrorState error={error} />
       ) : (
@@ -211,7 +211,7 @@ export function SignInAttempts({ user }: { user?: { id: string; full_name: strin
         }
       />
       {isLoading ? (
-        <SkeletonTable columns={5} />
+        <Table loading head={['When', 'Who', 'What happened', 'Device', 'Address']}>{null}</Table>
       ) : error ? (
         <ErrorState error={error} />
       ) : (
@@ -280,7 +280,7 @@ export function SessionRules() {
         description="How long a sign-in lasts for each role, how long it may sit idle, and how many devices may hold one at once. Signing in on one more device than allowed signs the oldest out. The strictest rule among a person's roles applies. Money actions always ask for the password again after fifteen minutes, whatever the rule."
       />
       {isLoading ? (
-        <SkeletonTable columns={5} />
+        <Table loading head={['Role', 'Lasts (hours)', 'Idle limit (minutes)', 'Devices', '']}>{null}</Table>
       ) : error ? (
         <ErrorState error={error} />
       ) : (

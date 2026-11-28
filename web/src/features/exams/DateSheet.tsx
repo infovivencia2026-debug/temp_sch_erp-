@@ -2,7 +2,7 @@ import { TimePicker } from '@/components/PickerMenu'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Button, Card, CardHeader, ErrorState, FormNotice, Input, PrintButton, Select, SkeletonTable, Table, Td } from '@/components/ui'
+import { Button, Card, CardHeader, ErrorState, FormNotice, Input, PrintButton, Select, Table, Td } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
 /* THE DATE SHEET (owner, 2026-10-08): when each paper is written.
@@ -70,7 +70,7 @@ export default function DateSheet({ examId, onClose }: { examId: string; onClose
     onSuccess: (r) => { setNote(`Published. ${r.told} parent and student logins were told; the hall tickets now show every date and time.`); qc.invalidateQueries({ queryKey: ['date-sheet', examId] }) },
   })
 
-  if (q.isLoading) return <SkeletonTable columns={5} />
+  if (q.isLoading) return <Table loading head={['Subject', 'Date', 'Starts', 'Minutes', 'Ends', 'Marks']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
 
   return (

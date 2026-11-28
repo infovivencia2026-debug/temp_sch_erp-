@@ -5,7 +5,7 @@ import { api, type List, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState,
+  ErrorState,
 } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
 import { useCan } from '@/lib/session'
@@ -372,7 +372,7 @@ export default function AchievementsShowcase() {
             }
           />
           {list.isLoading ? (
-            <SkeletonTable columns={8} />
+            <Table loading head={['Awarded', 'Child', 'Achievement', 'Level', 'Pictures', 'Confirmation', 'Portal', '']}>{null}</Table>
           ) : list.error ? (
             <ErrorState error={list.error} />
           ) : (

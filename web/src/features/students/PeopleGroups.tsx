@@ -5,7 +5,7 @@ import { Plus, Trash2, Users, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Input, Select, Table, Td,
-  Badge, EmptyState, ErrorState, SkeletonTable, FormNotice, FormGrid, Field,
+  Badge, EmptyState, ErrorState, FormNotice, FormGrid, Field,
 } from '@/components/ui'
 import { useOpenState } from '@/lib/motion'
 import { useEmployeeRoster, useStudentRoster } from '@/lib/rosters'
@@ -342,7 +342,7 @@ export default function PeopleGroups() {
 
         <Card>
           {groups.isLoading ? (
-            <SkeletonTable columns={5} />
+            <Table loading head={[ { label: 'Group' }, { label: 'How it is filled' }, { label: 'Added by hand' }, { label: '' }, ]}>{null}</Table>
           ) : groups.error ? (
             <ErrorState error={groups.error} />
           ) : rows.length === 0 ? (
@@ -435,7 +435,7 @@ export default function PeopleGroups() {
             />
             <FormNotice error={addMember.error ?? removeMember.error} />
             {members.isLoading ? (
-              <SkeletonTable columns={4} />
+              <Table loading head={[{ label: 'Name' }, { label: 'Code' }, { label: '' }, { label: 'How' }, { label: '' }]}>{null}</Table>
             ) : members.error ? (
               <ErrorState error={members.error} />
             ) : (members.data?.items.length ?? 0) === 0 ? (

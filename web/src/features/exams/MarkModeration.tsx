@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button,
-  Input, Textarea, Field, FormGrid, FormNotice, SkeletonTable, ErrorState, EmptyState,
+  Input, Textarea, Field, FormGrid, FormNotice, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 import { formatDate } from '@/lib/utils'
@@ -78,7 +78,7 @@ export default function MarkModeration() {
     },
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={7} />
+  if (q.isLoading && !q.data) return <Table loading head={['Paper', 'Marked', 'Average', 'Range', 'Below pass', 'Moderation', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
 

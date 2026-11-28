@@ -4,7 +4,7 @@ import { Pencil } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section, type Klass, type Subject, type AcademicYear } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, Table, Td, Badge, Button, Input, Reload, SkeletonTable, ErrorState, FormNotice, ConfirmButton, tabClass } from '@/components/ui'
+  PageHead, PageBody, Card, Table, Td, Badge, Button, Input, Reload, ErrorState, FormNotice, ConfirmButton, tabClass } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 import { ImportButton } from '@/components/DataPortActions'
 import { formatDate, cn } from '@/lib/utils'
@@ -102,7 +102,7 @@ function Sections() {
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
   })
   const [editing, setEditing] = useState<string | null>(null)
-  if (q.isLoading && !q.data) return <SkeletonTable columns={7} />
+  if (q.isLoading && !q.data) return <Table loading head={['Section', 'Class teacher', 'Room', 'Enrolled', 'Capacity', 'Utilisation', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
   return (
@@ -156,7 +156,7 @@ function Classes() {
     queryFn: () => api.get<List<Klass>>('/api/v1/academics/classes'),
   })
   const [editing, setEditing] = useState<string | null>(null)
-  if (q.isLoading && !q.data) return <SkeletonTable columns={4} />
+  if (q.isLoading && !q.data) return <Table loading head={['Class', 'Level', 'Stream', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
   return (
@@ -198,7 +198,7 @@ function Subjects() {
     queryFn: () => api.get<List<Subject>>('/api/v1/academics/subjects'),
   })
   const [editing, setEditing] = useState<string | null>(null)
-  if (q.isLoading && !q.data) return <SkeletonTable columns={4} />
+  if (q.isLoading && !q.data) return <Table loading head={['Code', 'Subject', 'Type', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
   return (
@@ -257,7 +257,7 @@ function Years() {
     mutationFn: (id: string) => api.patch(`/api/v1/setup/academic-years/${id}`, { is_current: true }),
     onSuccess: refresh,
   })
-  if (q.isLoading && !q.data) return <SkeletonTable columns={5} />
+  if (q.isLoading && !q.data) return <Table loading head={['Year', 'Starts', 'Ends', '', '']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
   return (

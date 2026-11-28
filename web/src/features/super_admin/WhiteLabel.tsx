@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Select, Textarea, Field, FormGrid, FormNotice, SkeletonTable,
-  ErrorState, UnavailableState,
+  Button, Input, Select, Textarea, Field, FormGrid, FormNotice, ErrorState, UnavailableState,
 } from '@/components/ui'
 import {
   usePlatform, usePlatformSave, usePlatformAction,
@@ -34,7 +33,7 @@ export default function WhiteLabel() {
   const [form, setForm] = useState<Partial<BrandingProfile>>(BLANK)
   const [touched, setTouched] = useState(false)
 
-  if (isLoading && !data) return <SkeletonTable columns={6} />
+  if (isLoading && !data) return <Table loading head={['Applies to', 'Domain', 'Status', 'Login headline', 'Sender name', '']}>{null}</Table>
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

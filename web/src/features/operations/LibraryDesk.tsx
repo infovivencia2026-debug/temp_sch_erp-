@@ -6,7 +6,7 @@ import { useRouteFeature } from '@/lib/catalog'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, PrintButton, tabClass, TAB_BAR } from '@/components/ui'
+  Loading, SkeletonTiles, ErrorState, EmptyState, PrintButton, tabClass, TAB_BAR } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useStudentRoster } from '@/lib/rosters'
 
@@ -436,7 +436,7 @@ function StockAudit({ audits }: { audits: Audit[] }) {
       <Card>
         <CardHeader title="Not found yet" description="Not scanned yet" />
         {missing.isLoading ? (
-          <SkeletonTable columns={3} label="Counting…" />
+          <Table loading head={[{ label: 'Accession' }, { label: 'Book' }, { label: 'Rack' }]}>{null}</Table>
         ) : (missing.data?.items ?? []).length === 0 ? (
           <EmptyState title="Everything accounted for" body="Every book the register expects has been seen." />
         ) : (

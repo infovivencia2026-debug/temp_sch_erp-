@@ -5,7 +5,7 @@ import { CalendarRange, Download, Gauge, TriangleAlert, UserCheck } from 'lucide
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Table, Td,
-  Select, SkeletonTable, ErrorState, EmptyState,
+  Select, ErrorState, EmptyState,
 } from '@/components/ui'
 import WeekGrid from '@/components/WeekGrid'
 
@@ -98,7 +98,7 @@ export default function DepartmentTimetable() {
     queryFn: () => api.call('GET /timetable/periods', { query: { all: '1' } }),
   })
 
-  if (q.isLoading && !q.data) return <SkeletonTable columns={6} label="Reading the department's week…" />
+  if (q.isLoading && !q.data) return <Table loading head={['Class', 'Subject', 'Teacher', 'Wanted', 'Scheduled', 'Short by']}>{null}</Table>
   if (q.error) return <ErrorState error={q.error} />
 
   const d = q.data!

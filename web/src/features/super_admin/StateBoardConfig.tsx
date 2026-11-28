@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button,
   ConfirmButton, Input, Select, Checkbox, Field, FormGrid, FormNotice,
-  SkeletonTable, ErrorState,
+  ErrorState,
 } from '@/components/ui'
 import {
   usePlatform, usePlatformSave, usePlatformDelete, type BoardConfigResponse,
@@ -34,7 +34,7 @@ export default function StateBoardConfig() {
   const [medium, setMedium] = useState('')
   const [isDefault, setIsDefault] = useState(false)
 
-  if (isLoading && !data) return <SkeletonTable columns={8} />
+  if (isLoading && !data) return <Table loading head={['Stage', 'Board', 'Pass', 'Internal', 'Attendance', 'Pattern', 'Grading scale', '']}>{null}</Table>
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

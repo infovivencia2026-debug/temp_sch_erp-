@@ -7,7 +7,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, Loading, SkeletonTable, SkeletonTiles, ErrorState, UnavailableState,
+  Input, Select, Textarea, Loading, SkeletonTiles, ErrorState, UnavailableState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 
@@ -731,7 +731,7 @@ function Providers({ librarian }: { librarian: boolean }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['digital-library'] }),
   })
 
-  if (providers.isLoading && !providers.data) return <SkeletonTable columns={6} label="Loading subscriptions…" />
+  if (providers.isLoading && !providers.data) return <Table loading head={['Provider', 'Kind', 'Base URL', { label: 'Titles', align: 'right' }, 'Status', '']}>{null}</Table>
   if (providers.error) return <ErrorState error={providers.error} />
   const items = providers.data?.items ?? []
 

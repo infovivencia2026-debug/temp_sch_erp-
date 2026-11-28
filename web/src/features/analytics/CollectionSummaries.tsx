@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, SkeletonTable, SkeletonTiles, ErrorState, Button, Select,
+  Table, Td, SkeletonTiles, ErrorState, Button, Select,
   RangePicker, rangeQuery, useRange, type RangeOption, rangeLabel,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
@@ -123,7 +123,7 @@ export default function CollectionSummaries() {
         <Card>
           <CardHeader title="Day book" description="Write-offs shown separately." />
           {daily.isLoading ? (
-            <SkeletonTable columns={9} />
+            <Table loading head={[ 'Period', { label: 'Receipts', align: 'right' }, { label: 'Cash', align: 'right' }, { label: 'Cheque/DD', align: 'right' }, { label: 'Online', align: 'right' }, { label: 'Card', align: 'right' }, { label: 'Write-offs', align: 'right' }, { label: 'Collected', align: 'right' }, ]}>{null}</Table>
           ) : daily.error ? (
             <ErrorState error={daily.error} />
           ) : (
@@ -169,7 +169,7 @@ export default function CollectionSummaries() {
               action={<CsvButton href={`${BASE}/by-head?${q}`} />}
             />
             {heads.isLoading ? (
-              <SkeletonTable columns={2} />
+              <Table loading head={['Fee head', { label: 'Collected', align: 'right' }]}>{null}</Table>
             ) : heads.error ? (
               <ErrorState error={heads.error} />
             ) : (
@@ -194,7 +194,7 @@ export default function CollectionSummaries() {
               action={<CsvButton href={`${BASE}/by-collector?${q}`} />}
             />
             {collectors.isLoading ? (
-              <SkeletonTable columns={6} />
+              <Table loading head={[ 'Collected by', { label: 'Receipts', align: 'right' }, { label: 'Cash', align: 'right' }, { label: 'Total', align: 'right' }, 'Receipt range', ]}>{null}</Table>
             ) : collectors.error ? (
               <ErrorState error={collectors.error} />
             ) : (

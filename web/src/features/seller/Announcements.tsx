@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   Card, CardHeader, Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, Checkbox, SkeletonTable, ErrorState,
+  Input, Select, Textarea, Checkbox, ErrorState,
 } from '@/components/ui'
 
 /* Targeted announcements (seller/announcements.ts): all schools, a group, a
@@ -123,7 +123,7 @@ export function Announcements() {
           </div>
         </div>
       )}
-      {q.isLoading ? <SkeletonTable columns={6} /> : q.error ? <ErrorState error={q.error} /> : (
+      {q.isLoading ? <Table loading head={['', 'Announcement', 'To', 'Window', 'Read', '']}>{null}</Table> : q.error ? <ErrorState error={q.error} /> : (
         <Table head={['', 'Announcement', 'To', 'Window', 'Read', '']} empty={(q.data?.items ?? []).length === 0}
           emptyLabel="No announcement yet.">
           {(q.data?.items ?? []).map((a) => (

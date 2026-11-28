@@ -4,7 +4,7 @@ import { CheckCircle2, Gauge, ShieldAlert, TriangleAlert } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Select, Textarea, SkeletonTable, ErrorState, FormNotice,
+  Button, Select, Textarea, ErrorState, FormNotice,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -236,7 +236,7 @@ export default function SafetyAlerts() {
         {list.isError ? (
           <ErrorState error={list.error} />
         ) : list.isLoading ? (
-          <SkeletonTable columns={7} />
+          <Table loading head={[ 'Bus', 'Driver', 'What happened', 'When', { label: 'Peak against limit', align: 'right' }, 'Review', ]}>{null}</Table>
         ) : (
           <Card>
             <CardHeader

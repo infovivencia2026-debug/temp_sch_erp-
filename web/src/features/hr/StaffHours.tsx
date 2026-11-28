@@ -174,7 +174,7 @@ export default function StaffHours() {
             title="Against each person's own hours"
             description="Open a row to see the month day by day, with the punches behind it." />
           {q.isLoading ? (
-            <SkeletonTable rows={6} />
+            <Table loading loadingRows={6} head={['Name', 'Hours', 'Expected', 'Worked', 'Half', 'Away', 'Not marked', 'Late', 'Left early', 'Days lost', 'Deduction']}>{null}</Table>
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : rows.length === 0 ? (

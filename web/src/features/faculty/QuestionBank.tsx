@@ -6,7 +6,7 @@ import { api, actingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, ErrorState, EmptyState, Loading,
+  ErrorState, EmptyState, Loading,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
@@ -79,7 +79,7 @@ export default function QuestionBank({ embedded = false }: { embedded?: boolean 
   const { q: term, setQ: setTerm, shown } = useSearch(rows,
     (x) => [x.stem, x.chapter, x.subject, x.class_name, x.kind, x.difficulty])
 
-  if (list.isLoading && !list.data) return <SkeletonTable columns={9} />
+  if (list.isLoading && !list.data) return <Table loading head={['Class', 'Subject', 'Total', 'Objective', 'Easy', 'Medium', 'Hard', 'Above recall', 'Chapters']}>{null}</Table>
   if (list.error) return <ErrorState error={list.error} />
   const banks = summary.data?.items ?? []
   const total = banks.reduce((n, b) => n + b.total, 0)
