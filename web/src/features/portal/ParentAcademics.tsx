@@ -63,9 +63,10 @@ function Academics({ view }: { view: string }) {
     queryFn: () => api.call('GET /timetable/entries', { query: { section_id: sectionId } }),
     enabled: view === 'subject' && !!sectionId,
   })
-  const lms = useQuery({
-    queryKey: ['portal-lms-home', sid],
-    queryFn: () => api.get<{ todo?: { assignments?: { class_subject_id?: string; subject?: string }[]; lessons?: { class_subject_id?: string; subject?: string }[] } }>(`/api/v1/portal/lms/home?student_id=${sid}`),
+  /* Notes are the teacher's study material for the subject (Classwork › Materials). */
+  const materials = useQuery({
+    queryKey: ['portal-resources', sid],
+    queryFn: () => api.get<List<{ id: string; subject?: string; kind?: string }>>(`/api/v1/portal/learning/resources?student_id=${sid}`),
     enabled: view === 'subject' && !!sid,
   })
   const results = useQuery({
@@ -138,9 +139,12 @@ function Academics({ view }: { view: string }) {
     const todayDay = ((new Date().getDay() + 6) % 7) + 1
     const nowHM = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
     const todays = week.filter((w) => w.day === todayDay)
-    const ofSubject = (x: { class_subject_id?: string; subject?: string }) => x.class_subject_id ? x.class_subject_id === s.class_subject_id : x.subject === s.subject
-    const assignments = (lms.data?.todo?.assignments ?? []).filter(ofSubject).length
-    const notes = (lms.data?.todo?.lessons ?? []).filter(ofSubject).length
+    /* What staff set on the Homework screen, by its type, and their notes. */
+    const ofKind = (...k: string[]) => mine.filter((h) => k.includes(h.kind || 'homework')).length
+    const homeworkN = ofKind('homework', 'classwork')
+    const assignments = ofKind('assignment')
+    const projects = ofKind('project')
+    const notes = (materials.data?.items ?? []).filter((m) => m.subject === s.subject).length
     return (
       <>
         {head}
@@ -185,10 +189,10 @@ function Academics({ view }: { view: string }) {
             )}
           </Card>
           <CellGrid cols={2}>
-            <Stat label="Assignments" value={lms.isLoading ? '…' : assignments} icon={ClipboardCheck} hint={assignments ? 'To do' : 'Nothing due'} />
-            <Stat label="Homework" value={homework.isLoading ? '…' : mine.length} icon={BookOpenCheck} hint={mine.length ? 'Set so far' : 'None yet'} />
-            <Stat label="Projects" value={0} icon={FolderKanban} hint="None yet" />
-            <Stat label="Notes" value={lms.isLoading ? '…' : notes} icon={NotebookText} hint={notes ? 'From the teacher' : 'None yet'} />
+            <Stat label="Assignments" value={homework.isLoading ? '…' : assignments} icon={ClipboardCheck} hint={assignments ? 'Set so far' : 'None yet'} />
+            <Stat label="Homework" value={homework.isLoading ? '…' : homeworkN} icon={BookOpenCheck} hint={homeworkN ? 'Set so far' : 'None yet'} />
+            <Stat label="Projects" value={homework.isLoading ? '…' : projects} icon={FolderKanban} hint={projects ? 'Set so far' : 'None yet'} />
+            <Stat label="Notes" value={materials.isLoading ? '…' : notes} icon={NotebookText} hint={notes ? 'From the teacher' : 'None yet'} />
           </CellGrid>
           {latest && <CellGrid cols={2}>
             <Stat label="Latest marks" value={`${latest.marks_obtained} / ${latest.max_marks}`} icon={TrendingUp} hint={latest.exam} />
