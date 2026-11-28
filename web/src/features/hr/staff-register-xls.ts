@@ -38,8 +38,8 @@ export function staffRegisterXls(p: RegInput): string {
       if (isLate) late++
       const sc = code === 'A' ? 'background:#fecaca;color:#991b1b;font-weight:bold;' : code === 'L' ? 'background:#e2e8f0;font-weight:bold;' : ''
       return td(code, `text-align:center;${sc}`)
-        + td(tin, `text-align:center;${isLate ? 'background:#fde68a;color:#92400e;font-weight:bold;' : ''}`)
-        + td(tout, 'text-align:center')
+        + td(tin, `text-align:center;white-space:nowrap;${isLate ? 'background:#fde68a;color:#92400e;font-weight:bold;' : ''}`)
+        + td(tout, 'text-align:center;white-space:nowrap')
     }).join('')
     const tot = one ? '' : td(String(P), 'text-align:center') + td(String(A), 'text-align:center;background:#fecaca;color:#991b1b;font-weight:bold') + td(String(L), 'text-align:center') + td(String(late), 'text-align:center;background:#fde68a;color:#92400e;font-weight:bold')
     return `<tr>${td(s.employee_code)}${td(s.biometric_id ?? '')}${td(s.full_name, 'white-space:nowrap')}${td(s.department ?? '')}${cells}${tot}</tr>`
@@ -52,6 +52,6 @@ export function staffRegisterXls(p: RegInput): string {
 <tr><td colspan="${span}">${esc(p.groupLabel)} &middot; ${range} &middot; ${p.staff.length} staff</td></tr>
 <tr><td colspan="${span}">P = Present, <span style="background:#fecaca;color:#991b1b;font-weight:bold">&nbsp;A = Absent&nbsp;</span>, L = Leave; <span style="background:#fde68a;color:#92400e;font-weight:bold">&nbsp;amber time = came late&nbsp;</span></td></tr><tr></tr>
 <tr>${['Code', 'Biometric ID', 'Name', 'Group'].map((t) => th(t, '', 'rowspan="2"')).join('')}${p.days.map((d) => th(head(d), '', 'colspan="3"')).join('')}${totHead}</tr>
-<tr>${p.days.map(() => th('Status', 'width:44px') + th('In', 'width:44px') + th('Out', 'width:44px')).join('')}</tr>
+<tr>${p.days.map(() => th('Status', 'width:64px;white-space:nowrap', 'width="64"') + th('In', 'width:64px;white-space:nowrap', 'width="64"') + th('Out', 'width:64px;white-space:nowrap', 'width="64"')).join('')}</tr>
 ${body}</table></body></html>`
 }
