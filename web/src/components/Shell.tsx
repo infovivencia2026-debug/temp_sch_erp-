@@ -1,3 +1,4 @@
+import { lastTap } from '@/lib/launch-morph'
 import { useAiFeature } from '@/components/ai/useAiStatus'
 import { AssistantHeaderButton } from './assistant/AssistantHeaderButton'
 import { Anchored } from './AnchoredPanel'
@@ -290,10 +291,9 @@ export function Shell({
   /* Where the last press landed, for the iOS-style launch: Settings grows out
      of the button that opened it (owner, 2026-10-08). See bento-theme.css. */
   useEffect(() => {
-    const root = document.documentElement
     const at = (e: PointerEvent) => {
-      root.style.setProperty('--tap-x', e.clientX + 'px')
-      root.style.setProperty('--tap-y', e.clientY + 'px')
+      lastTap.x = e.clientX + 'px'
+      lastTap.y = e.clientY + 'px'
     }
     document.addEventListener('pointerdown', at, true)
     return () => document.removeEventListener('pointerdown', at, true)
@@ -781,7 +781,10 @@ export function Shell({
              the white page with nothing marking where one ended. */
           'border-r max-md:transition-transform',
           'md:max-lg:w-[62px] lg:w-[286px]',
-          navOpen ? 'flex max-md:translate-x-0' : 'hidden md:flex max-md:-translate-x-full',
+          /* Closed on a phone it stays laid out, off screen and invisible,
+             instead of display:none: opening then costs a slide, not a fresh
+             layout of the whole menu (204ms on a slow phone, 2026-11-27). */
+          navOpen ? 'flex max-md:translate-x-0' : 'flex max-md:invisible max-md:-translate-x-full',
           /* The tablet drawer: the in-flow 58px rail lifts into the same 288px
              overlay the phone uses, so the full panel (workspace header, role
              switcher, feature list) comes with it. Driven off the boolean
@@ -808,7 +811,7 @@ export function Shell({
         style={
           drawerOpen
             ? {
-                paddingTop: 'env(safe-area-inset-top, 0px)',
+                paddingTop: 'var(--safe-top)',
                 paddingBottom: 'env(safe-area-inset-bottom, 0px)',
               }
             : undefined

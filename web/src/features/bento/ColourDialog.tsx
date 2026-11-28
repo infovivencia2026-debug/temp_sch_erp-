@@ -454,7 +454,7 @@ export function ColourPanel({
             onClick={() => setPicking(false)}
             className="fixed left-1/2 top-3 z-[80] -translate-x-1/2 cursor-pointer rounded-full
                        border bg-card px-4 py-2 text-[12.5px] shadow-[var(--lift-float)]"
-            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+            style={{ top: 'calc(var(--safe-top) + 0.75rem)' }}
           >
             <Crosshair className="mr-1.5 inline size-3.5 align-[-2px]" aria-hidden="true" />
             {t('bento.colour.picking_hint')}

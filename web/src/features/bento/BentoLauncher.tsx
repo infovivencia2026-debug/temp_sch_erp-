@@ -908,7 +908,7 @@ export function BentoLauncher({
           /* Fixed to the viewport, so the body's padding for the notch does
              not reach this panel; in the iPhone app its header sat under the
              clock. Zero in a browser and on Android. */
-          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingTop: 'var(--safe-top)',
         } as CSSProperties
       }
       onClick={() => {

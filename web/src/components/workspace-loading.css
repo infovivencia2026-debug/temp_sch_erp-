@@ -23,7 +23,7 @@
     radial-gradient(50rem 35rem at 95% 0%, rgb(14 165 233 / 0.06), transparent 55%),
     var(--ws-bg);
   color: rgb(var(--ws-ink));
-  padding: env(safe-area-inset-top, 0px) 24px env(safe-area-inset-bottom, 0px);
+  padding: var(--safe-top) 24px env(safe-area-inset-bottom, 0px);
 }
 .ws-opening[data-dark] { --ws-bg: #08080a; --ws-ink: 255, 255, 255; }
 .ws-opening[data-leaving] {

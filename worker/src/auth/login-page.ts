@@ -260,7 +260,7 @@ const SLIDES_CSS = `
   .auth-split.has-slides:not(.p2) .auth-brand{position:fixed;inset:0;z-index:1;animation:authPage .28s ease-out}
   .auth-split.has-slides:not(.p2) .card{display:none}
   .auth-split.has-slides .auth-brand-content{position:relative;display:flex;flex-direction:column;justify-content:flex-start;height:100%;
-    padding:calc(env(safe-area-inset-top, 0px) + 38px) 20px calc(env(safe-area-inset-bottom, 0px) + 220px)}
+    padding:calc(max(env(safe-area-inset-top, 0px), var(--app-sat, 0px)) + 38px) 20px calc(env(safe-area-inset-bottom, 0px) + 220px)}
   .auth-split.has-slides .auth-brand-mark{align-self:flex-start;margin:0 0 14px;font-size:32px}
   .auth-split.has-slides .auth-logo{align-self:flex-start;margin-bottom:14px}
   /* Just the logo, no white tile behind it (owner, 2026-11-04). */
@@ -268,7 +268,7 @@ const SLIDES_CSS = `
   .auth-split.has-slides .auth-brand-eyebrow{margin:0 0 10px}
   .auth-split.has-slides .auth-brand-title{font-size:40px;line-height:1.08;letter-spacing:-0.02em;margin:0;max-width:12ch}
   .auth-split.has-slides .auth-brand-sub{display:none}
-  .auth-split.has-slides .auth-bars{position:absolute;top:calc(env(safe-area-inset-top, 0px) + 6px);left:20px;right:64px;margin:0;gap:4px}
+  .auth-split.has-slides .auth-bars{position:absolute;top:calc(max(env(safe-area-inset-top, 0px), var(--app-sat, 0px)) + 6px);left:20px;right:64px;margin:0;gap:4px}
   .auth-split.has-slides .auth-bars button{flex:1 1 0;width:auto;height:28px}
   /* Page one's Parent / Student / Staff: the form's own toggle (.who), on a
      glass track so it reads over the photo, segments taller for a thumb. */
@@ -294,7 +294,7 @@ const SLIDES_CSS = `
   .auth-as{display:none;align-self:flex-start;align-items:center;gap:6px;width:auto!important;margin:0 0 6px;padding:4px 12px 4px 8px;border-radius:999px;
     background:color-mix(in srgb, var(--brand, var(--accent)) 12%, transparent);color:var(--fg);font-size:14px;font-weight:600}
   .auth-as svg{flex:none;width:18px;height:18px}
-  .auth-split.has-slides.p2 .auth-back{display:flex;align-items:center;justify-content:center;position:absolute;z-index:2;top:calc(env(safe-area-inset-top, 0px) + 16px);left:16px;
+  .auth-split.has-slides.p2 .auth-back{display:flex;align-items:center;justify-content:center;position:absolute;z-index:2;top:calc(max(env(safe-area-inset-top, 0px), var(--app-sat, 0px)) + 16px);left:16px;
     width:44px;height:44px;margin:0;padding:0;border:1px solid rgba(255,255,255,0.3);border-radius:50%;background:rgba(0,0,0,0.3);color:#fff}
   .auth-split.has-slides.p2 .auth-back svg{width:20px;height:20px}
   .auth-split.has-slides.p2 .card{position:relative;z-index:1;flex:none;width:100%;margin:-24px 0 0;max-width:none;padding:0 16px;border:0;border-radius:0;background:transparent;
@@ -538,7 +538,7 @@ body.auth .card h1 b{display:block;margin-top:2px;line-height:1;font-size:min(3e
 @media (max-width:639px) and (max-height:700px){
   body.auth .auth-split.has-slides.p2 .auth-brand{height:20vh;height:20dvh}
   body.auth .auth-split.has-slides.p2 .card{margin-top:-12px}
-  body.auth .auth-split:not(.has-slides){padding-top:calc(env(safe-area-inset-top, 0px) + 48px);padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 8px)}
+  body.auth .auth-split:not(.has-slides){padding-top:calc(max(env(safe-area-inset-top, 0px), var(--app-sat, 0px)) + 48px);padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 8px)}
   body.auth .auth-split:not(.has-slides) .card{padding-top:12px;padding-bottom:12px}
   body.auth .auth-split .card h1{margin-bottom:2px}
   body.auth .auth-split .card .lede{margin-bottom:6px}

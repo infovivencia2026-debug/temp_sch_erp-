@@ -29,7 +29,7 @@ export function initialsOf(name: string): string {
 export function avatarColour(name: string): string {
   let h = 0
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360
-  return `hsl(${h} 45% 34%)`
+  return `hsl(${h} 45% 32%)`
 }
 
 /* THE FACE, WHERE THE SCHOOL HOLDS ONE.
@@ -142,7 +142,7 @@ export function ChatScreen({
       // layout viewport for the keyboard and may scroll the page, so an
       // inset-0 or bottom:--kb surface left the composer mid-screen with the
       // contact list showing between it and the keys (owner, 2026-10-26).
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      style={{ paddingTop: 'var(--safe-top)' }}
     >
       <div className="flex shrink-0 items-center gap-1.5 border-b bg-[#f0f2f5] px-1.5 py-1.5 text-[#111b21] sm:px-3">
         <GlassIconButton label="Back" size="sm" onClick={back}>

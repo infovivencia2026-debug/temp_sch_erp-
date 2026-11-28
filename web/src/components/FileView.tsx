@@ -135,7 +135,7 @@ export default function FileView({
          header would sit under the clock and the bottom under the home
          indicator. Zero in a browser and on Android. */
       style={{
-        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingTop: 'var(--safe-top)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
       role="dialog"

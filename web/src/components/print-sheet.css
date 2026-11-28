@@ -14,7 +14,7 @@
   overflow: auto;
   background: #5d6270;
   padding: 0 0 40px;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--safe-top);
   -webkit-overflow-scrolling: touch;
 }
 html[data-printing] { overflow: hidden; }

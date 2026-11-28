@@ -70,7 +70,7 @@ html:not([data-layout='bento']) .bento-menu {
      inside the sheet rather than growing past the top of the screen. The
      top inset is counted for the same reason the bottom one is. */
   .bento-menu {
-    max-height: calc(100dvh - 120px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 120px - var(--safe-top) - env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
