@@ -1620,7 +1620,7 @@ function TopbarFlag() {
     const set = () => root.style.setProperty('--topbar-h', h.offsetHeight + 'px')
     set()
     const ro = new ResizeObserver(set)
-    ro.observe(h)
+    ro.observe(h, { box: 'border-box' })
     return () => { ro.disconnect(); root.style.removeProperty('--topbar-h') }
   }, [])
   return null
