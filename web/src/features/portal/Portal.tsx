@@ -765,13 +765,31 @@ export default function Portal() {
      the Announcements / Homework toggle, and the child's subjects. The month
      calendar lives on the Attendance screen. */
   const subjects = profile.data?.subjects ?? []
+  /* Nothing to read today (owner, 2026-11-28): no empty box, and Subjects
+     takes its place (beside the child card on a wide screen). */
+  const showMessages = circulars.isLoading || schoolNotes.isLoading || homework.isLoading || !!circulars.error
+    || (circulars.data?.items.length ?? 0) > 0 || (schoolNotes.data?.items ?? []).some((n) => noteType(n)) || todayHomework.length > 0
+  const subjectsBlock = subjects.length > 0 ? (
+        <section aria-label="Subjects" className="space-y-3">
+          <h2 className="text-[18px] font-bold">Subjects</h2>
+          <SubjectCards subjects={subjects} hrefFor={(x) => academicsHref(`view=subject&cs=${x.class_subject_id}`)}
+            stats={(x) => {
+              const last = (results.data?.subjects ?? []).filter((m) => m.subject === x.subject && !m.is_absent && m.marks_obtained != null && m.max_marks).at(-1)
+              return {
+                homework: homework.isLoading ? '…' : todayHomework.filter((h) => h.subject === x.subject).length,
+                notes: materials.isLoading ? '…' : (materials.data?.items ?? []).filter((m) => m.subject === x.subject).length,
+                marks: last ? `${last.marks_obtained}/${last.max_marks}` : '–',
+              }
+            }} />
+        </section>
+  ) : null
   return (
     <PageBody top width="full">
       {/* Two columns on a wide screen, as the month calendar sat beside the
           messages: Fee + Today over the messages on the left, the child card
           the full height on the right. On a phone the child comes first. */}
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-      <div className="min-w-0 lg:order-2 lg:[&>*]:h-full">
+      <div className={cn('min-w-0 lg:order-2', showMessages ? 'lg:[&>*]:h-full' : 'lg:sticky lg:top-4 lg:self-start')}>
         <ParentChildCard profile={profile.data} kids={kids} activeId={activeId}
           onChild={chooseChild} year={year} onYear={setYear} loading={profile.isLoading}
           stats={(() => {
@@ -799,6 +817,7 @@ export default function Portal() {
           />
         </CellGrid></div>
       )}
+      {showMessages ? (
       <SchoolMessages
         query={circulars}
         notes={schoolNotes.data?.items ?? []}
@@ -807,23 +826,11 @@ export default function Portal() {
         homework={{ items: todayHomework, loading: homework.isLoading }}
         onHomework={() => navigate(academicsHref(''))}
       />
+      ) : subjectsBlock}
       </div>
       </div>
       {activeId && <WeeklyNoteCard studentId={activeId} />}
-      {subjects.length > 0 && (
-        <section aria-label="Subjects" className="space-y-3">
-          <h2 className="text-[18px] font-bold">Subjects</h2>
-          <SubjectCards subjects={subjects} hrefFor={(x) => academicsHref(`view=subject&cs=${x.class_subject_id}`)}
-            stats={(x) => {
-              const last = (results.data?.subjects ?? []).filter((m) => m.subject === x.subject && !m.is_absent && m.marks_obtained != null && m.max_marks).at(-1)
-              return {
-                homework: homework.isLoading ? '…' : todayHomework.filter((h) => h.subject === x.subject).length,
-                notes: materials.isLoading ? '…' : (materials.data?.items ?? []).filter((m) => m.subject === x.subject).length,
-                marks: last ? `${last.marks_obtained}/${last.max_marks}` : '–',
-              }
-            }} />
-        </section>
-      )}
+      {showMessages && subjectsBlock}
       <JoinActivities studentId={activeId ?? undefined} />
     </PageBody>
   )

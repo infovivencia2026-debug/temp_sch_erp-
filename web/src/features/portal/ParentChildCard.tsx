@@ -123,6 +123,8 @@ export function SubjectCards({ subjects, hrefFor, note, stats }: {
 }) {
   if (!subjects.length) return <p className="text-[15px] text-muted-foreground">No subjects set for this class yet.</p>
   const icons = subjectIcons(subjects.map((s) => s.subject))
+  /* Teacher names arrive in capitals; Title Case reads as the quieter line under the subject. */
+  const soft = (t: string) => t.toLowerCase().replace(/(^|[\s.'-])\p{L}/gu, (c) => c.toUpperCase())
   return (
     <>
     {/* PHONE (owner, 2026-11-27, option B): one box, a row per subject. */}
@@ -132,11 +134,11 @@ export function SubjectCards({ subjects, hrefFor, note, stats }: {
         const sub = note?.(s) ?? s.teacher ?? ''
         return (
           <li key={s.class_subject_id}>
-            <Link to={hrefFor(s)} className="flex min-h-[56px] select-none items-center gap-3 px-3 py-2 [-webkit-touch-callout:none]">
-              <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', tint.chip)}>{(() => { const I = icons[i]; return <I className="h-4 w-4" strokeWidth={1.9} aria-hidden /> })()}</span>
+            <Link to={hrefFor(s)} className="flex min-h-[64px] select-none items-center gap-4 px-4 py-3 [-webkit-touch-callout:none]">
+              <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl', tint.chip)}>{(() => { const I = icons[i]; return <I className="h-5 w-5" strokeWidth={1.9} aria-hidden /> })()}</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-bold leading-snug">{s.subject}</span>
-                {sub && <span className="block truncate text-[13px] text-muted-foreground">{sub}</span>}
+                <span className="block truncate text-[16px] font-bold leading-tight text-foreground">{s.subject}</span>
+                {sub && <span className="mt-1 block truncate text-[13px] font-normal leading-tight text-muted-foreground">{soft(sub)}</span>}
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
             </Link>
@@ -151,12 +153,16 @@ export function SubjectCards({ subjects, hrefFor, note, stats }: {
         return (
           <li key={s.class_subject_id} className="min-w-0">
             <Link to={hrefFor(s)}
-              className={cn('relative flex h-full min-h-[92px] flex-col gap-1.5 overflow-hidden rounded-xl border bg-card p-2.5 sm:p-3 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_12px_28px_-10px_hsl(var(--foreground)/0.3)] motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
-              <span className={cn('grid size-8 place-items-center rounded-lg', tint.chip)}>{(() => { const I = icons[i]; return <I className="h-4 w-4" strokeWidth={1.9} aria-hidden /> })()}</span>
-              <span className="line-clamp-2 break-words text-[14px] font-bold leading-snug sm:text-[15px]">{s.subject}</span>
-              <span className="truncate text-[12px] text-muted-foreground">{note?.(s) ?? s.teacher ?? ''}</span>
+              className={cn('relative flex h-full min-h-[92px] flex-col gap-3 overflow-hidden rounded-xl border bg-card p-3 sm:p-4 shadow-sm transition-[transform,border-color,box-shadow] duration-150 hover:-translate-y-1 hover:shadow-[0_12px_28px_-10px_hsl(var(--foreground)/0.3)] motion-reduce:transition-none motion-reduce:hover:translate-y-0', tint.border)}>
+              <span className="flex min-w-0 items-center gap-3">
+                <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl', tint.chip)}>{(() => { const I = icons[i]; return <I className="h-5 w-5" strokeWidth={1.9} aria-hidden /> })()}</span>
+                <span className="min-w-0">
+                  <span className="line-clamp-2 break-words text-[16px] font-bold leading-tight text-foreground">{s.subject}</span>
+                  <span className="mt-1 block truncate text-[13px] font-normal leading-tight text-muted-foreground">{soft(note?.(s) ?? s.teacher ?? '')}</span>
+                </span>
+              </span>
               {stats && (() => { const v = stats(s); return (
-                <span className="mt-auto grid gap-1.5 pt-1.5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+                <span className="mt-auto grid gap-1.5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
                   {([['Homework', 'today', v.homework], ['Notes', 'total', v.notes], ['Marks', 'latest', v.marks]] as const).map(([k, sub, n]) => (
                     <span key={k} className="min-w-0 rounded-lg bg-muted/60 px-1 py-1.5 text-center">
                       <span className="block text-[15px] font-bold tabular-nums">{n}</span>
