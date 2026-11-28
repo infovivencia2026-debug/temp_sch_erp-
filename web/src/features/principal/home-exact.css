@@ -162,4 +162,4 @@
 /* The drifting hero colours re-blur three 500px blobs every frame. While the
    menu slides over them they hold still, so the slide gets the phone to itself
    (owner, 2026-11-28: menu "opens suddenly"). They carry on when it closes. */
-:root[data-nav-open] .hx-blob{animation-play-state:paused}
+:root[data-nav-open] .hx-blob,:root[data-busy] .hx-blob{animation-play-state:paused}

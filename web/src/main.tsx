@@ -398,6 +398,19 @@ if ('serviceWorker' in navigator) {
    See installMotionGuard in lib/motion.ts. */
 installMotionGuard()
 
+/* For a moment after every tap or click the page is "busy": decoration that
+   repaints every frame (the drifting hero colours) holds still so the menu,
+   sheet or tab that tap opened gets the frames. On a slowed phone the drift
+   halved the frame rate (72 vs 122 frames in 2s). It carries on 0.8s later. */
+{
+  let busy = 0
+  addEventListener('pointerdown', () => {
+    document.documentElement.setAttribute('data-busy', '')
+    clearTimeout(busy)
+    busy = window.setTimeout(() => document.documentElement.removeAttribute('data-busy'), 800)
+  }, { capture: true, passive: true })
+}
+
 /* The motion audit, in development only: window.__motionAudit() reports every
    animation that was cancelled, cut off by an unmount, jumped or replayed.
    The dynamic import keeps it out of the production bundle. */
