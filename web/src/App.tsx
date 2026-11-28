@@ -19,7 +19,14 @@ const WebsiteForm = lazy(() => import('@/features/public/WebsiteForm'))
 const AccountPage = lazy(() => import('@/features/shared/Profile'))
 /* Lazy like every feature screen: Settings pulls the whole settings window
    module behind it, which nobody needs until they open Settings. */
-const SettingsPage = lazy(() => import('@/features/bento/SettingsPage'))
+const loadSettings = () => import('@/features/bento/SettingsPage')
+const SettingsPage = lazy(loadSettings)
+/* Fetched once the app is idle, so the first tap on Settings shows the
+   screen at once instead of waiting on the download (owner, 2026-11-28). */
+if (typeof window !== 'undefined') {
+  const idle = (window as Window & { requestIdleCallback?: (f: () => void) => void }).requestIdleCallback
+  window.addEventListener('load', () => (idle ? idle(() => void loadSettings()) : setTimeout(() => void loadSettings(), 2000)), { once: true })
+}
 // A school group's combined report (Seller → School groups); the server decides who may read it.
 const SectionIndex = lazy(() => import('@/features/shared/SectionIndex'))
 const GroupReport = lazy(() => import('@/features/shared/GroupReport'))

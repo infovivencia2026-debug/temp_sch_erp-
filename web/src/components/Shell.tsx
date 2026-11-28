@@ -3,7 +3,7 @@ import { useAiFeature } from '@/components/ai/useAiStatus'
 import { AssistantHeaderButton } from './assistant/AssistantHeaderButton'
 import { Anchored } from './AnchoredPanel'
 import { GlassIconButton } from '@/components/ui'
-import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Check, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Rows3,
@@ -362,6 +362,36 @@ export function Shell({
      the same two numbers. */
   const viewport = useViewport()
   const asideRef = useRef<HTMLElement>(null)
+  /* The menu starts moving from the tap itself (owner, 2026-11-28: "opens
+     suddenly"). On a slow phone the staff shell took ~100ms to re-render
+     before the first frame moved, then the slide lost frames to that render.
+     Now the tap sets the end position straight on the aside, the browser
+     starts the (compositor) slide on the next frame, and React catches up a
+     frame later, by which time the slide no longer needs the main thread. */
+  const navTimer = useRef(0)
+  const navFrame = useRef(0)
+  const setNav = (open: boolean) => {
+    const el = asideRef.current
+    window.clearTimeout(navTimer.current)
+    cancelAnimationFrame(navFrame.current)
+    document.documentElement.toggleAttribute('data-nav-open', open)
+    if (open === navOpen) {
+      if (el) { el.style.transform = ''; el.style.visibility = '' }
+      return
+    }
+    if (el && window.matchMedia('(max-width: 767.98px)').matches) {
+      el.style.visibility = open ? 'visible' : ''
+      el.style.transform = open ? 'translate(0px, 0px)' : 'translate(-100%, 0px)'
+      navFrame.current = requestAnimationFrame(() => { navTimer.current = window.setTimeout(() => setNavOpen(open), 0) })
+      return
+    }
+    setNavOpen(open)
+  }
+  useLayoutEffect(() => {
+    const el = asideRef.current
+    if (el) { el.style.transform = ''; el.style.visibility = '' }
+    document.documentElement.toggleAttribute('data-nav-open', navOpen)
+  }, [navOpen])
 
   /* THE SCHOOL'S NAME IN THE BROWSER TAB, AND ITS ICON.
 
@@ -584,7 +614,7 @@ export function Shell({
   const { layout } = useLayout()
   /* Switching Focus | Work from the phone menu closes the menu; its backdrop
      stayed over the tile view and greyed the whole screen (owner, 2026-10-24). */
-  useEffect(() => { setNavOpen(false) }, [layout])
+  useEffect(() => { setNav(false) }, [layout])
   /* Work pages arrive softly (owner, 2026-10-09: "opening hard"): a short
      fade, no movement, so nothing appears to jump. */
   useEffect(() => {
@@ -661,7 +691,7 @@ export function Shell({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setNavOpen(false)
+        setNav(false)
         return
       }
       if (e.key !== 'Tab') return
@@ -690,14 +720,14 @@ export function Shell({
 
   /* Navigating closes it.
 
-     The three inline `setNavOpen(false)` calls on the nav links stay where
+     The three inline `setNav(false)` calls on the nav links stay where
      they are and are not redundant with this: tapping the screen you are
      already on does not change the pathname, so only the handler closes that
      one. This catches everything that moves the router WITHOUT a tap on a
      link — the command palette, a redirect, the back button — which used to
      leave the drawer standing open over the screen it had just opened. */
   useEffect(() => {
-    setNavOpen(false)
+    setNav(false)
   }, [location.pathname])
 
   /* The staff bar's menu button sits at the top right (Yajur, 2026-10-21). */
@@ -708,7 +738,7 @@ export function Shell({
       aria-expanded={navOpen}
       aria-controls="shell-nav"
       className="order-last ml-auto grid h-10 w-10 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
-      onClick={() => setNavOpen(true)}
+      onClick={() => setNav(true)}
     >
       <Menu className="h-6 w-6 md:h-5 md:w-5" />
     </button>
@@ -891,7 +921,7 @@ export function Shell({
 
                      Desktop and phone are untouched: there the panel is beside
                      it and changing the panel is the entire job. */
-                  if (viewport === 'tablet') setNavOpen(true)
+                  if (viewport === 'tablet') setNav(true)
                 }}
                 aria-label={ws.name}
                 aria-current={on ? 'true' : undefined}
@@ -1111,7 +1141,7 @@ export function Shell({
                     role="menuitem"
                     onClick={() => {
                       setSwitcherOpen(false)
-                      setNavOpen(false)
+                      setNav(false)
                       navigate(`/${r.key}`)
                     }}
                     data-active={r.key === role?.key ? '' : undefined}
@@ -1143,7 +1173,7 @@ export function Shell({
           {/* Glass, like iOS (owner, 2026-10-26). The wrapper holds the
               position so the button's own transform is free for the press. */}
           <div className={cn('absolute lg:hidden', staffNav ? 'right-4 top-1/2 -translate-y-1/2' : 'right-4 top-4')}>
-            <GlassIconButton label="Close menu" size="sm" onClick={() => setNavOpen(false)}>
+            <GlassIconButton label="Close menu" size="sm" onClick={() => setNav(false)}>
               <X className="h-[18px] w-[18px]" />
             </GlassIconButton>
           </div>
@@ -1164,7 +1194,7 @@ export function Shell({
               roleKey={role.key}
               workspaces={railWorkspaces}
               items={(sec) => visibleFeatures(sec, showPlanned, showAdvanced, permSet)}
-              onNavigate={() => setNavOpen(false)}
+              onNavigate={() => setNav(false)}
               label={shortLabel}
             />
           )}
@@ -1187,7 +1217,7 @@ export function Shell({
                 <NavLink
                   key={ws.slug}
                   to={featurePath(role.key, sectionPath(ws.sections[0]), onlyItem.slug)}
-                  onClick={() => setNavOpen(false)}
+                  onClick={() => setNav(false)}
                   data-row
                   className={({ isActive }) => cn(navItem(isActive, 0, !onlyItem.live), 'nav-tap')}
                 >
@@ -1209,7 +1239,7 @@ export function Shell({
                     const first = items[0]
                     return (
                       <NavLink key={section.slug} to={featurePath(role!.key, sectionPath(section), first.slug)}
-                        onClick={() => setNavOpen(false)} data-row className={({ isActive }) => cn(navItem(isActive, 0, !first.live), 'nav-tap')}>
+                        onClick={() => setNav(false)} data-row className={({ isActive }) => cn(navItem(isActive, 0, !first.live), 'nav-tap')}>
                         <span className="truncate">{shortLabel('Home')}</span>
                       </NavLink>
                     )
@@ -1255,7 +1285,7 @@ export function Shell({
                         <NavLink
                           key={f.key}
                           to={featurePath(role!.key, sectionPath(section), f.slug)}
-                          onClick={() => setNavOpen(false)}
+                          onClick={() => setNav(false)}
                           title={f.summary}
                           data-row
                           className={({ isActive }) => navItem(isActive && viewMatches(f.slug, location.search), 0, !f.live)}
@@ -1281,13 +1311,13 @@ export function Shell({
         {staffNav && <NavScrollButton dir={1} />}
         {/* Focus | Work, beside the rail's cog at the foot of the sidebar. */}
         {staffNav ? (
-          <StaffPanelFoot employeeCode={signIns.data?.employee_code} onNavigate={() => setNavOpen(false)} />
+          <StaffPanelFoot employeeCode={signIns.data?.employee_code} onNavigate={() => setNav(false)} />
         ) : (
           <>
             {/* Below md the rail and its cog are off screen, so Settings is the
                 last row of the menu (owner, 2026-10-24). */}
             <div className="shrink-0 border-t px-3 py-2 md:hidden">
-              <NavLink to="/settings" onClick={() => setNavOpen(false)} data-row className={({ isActive }) => navItem(isActive, 0, true)}>
+              <NavLink to="/settings" onClick={() => setNav(false)} data-row className={({ isActive }) => navItem(isActive, 0, true)}>
                 <Settings2 aria-hidden className="h-6 w-6 shrink-0" />
                 <span className="truncate">Settings</span>
               </NavLink>
@@ -1306,7 +1336,7 @@ export function Shell({
       {navOpen && !chromeless && (
         <div
           className="nav-scrim fixed inset-0 z-40 bg-black/40 lg:hidden"
-          onClick={() => setNavOpen(false)}
+          onClick={() => setNav(false)}
           aria-hidden
         />
       )}
@@ -1361,7 +1391,7 @@ export function Shell({
             aria-expanded={navOpen}
             aria-controls="shell-nav"
             className="grid h-9 w-9 shrink-0 place-items-center rounded-sm transition-colors duration-100 hover:bg-surface-hover lg:hidden"
-            onClick={() => setNavOpen(true)}
+            onClick={() => setNav(true)}
           >
             <Menu className="h-6 w-6 md:h-5 md:w-5" />
           </button>

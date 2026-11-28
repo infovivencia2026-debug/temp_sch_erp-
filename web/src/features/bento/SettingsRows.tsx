@@ -463,8 +463,8 @@ export function SwitchRow({
       >
         <span
           className={cn(
-            'absolute top-[3px] size-[16px] rounded-full transition-[left]',
-            on ? 'left-[19px] bg-[var(--sel-ground)]' : 'left-[3px] bg-[var(--bento-ink)]',
+            'absolute top-[3px] size-[16px] rounded-full left-[3px] transition-[transform,background-color] duration-200 ease-out motion-reduce:transition-none',
+            on ? 'translate-x-[16px] bg-[var(--sel-ground)]' : 'translate-x-0 bg-[var(--bento-ink)]',
           )}
         />
       </span>
@@ -539,8 +539,8 @@ export function SwitchSelectRow<T extends string>({
       >
         <span
           className={cn(
-            'absolute top-[3px] size-[16px] rounded-full transition-[left]',
-            on ? 'left-[19px] bg-[var(--sel-ground)]' : 'left-[3px] bg-[var(--bento-ink)]',
+            'absolute top-[3px] size-[16px] rounded-full left-[3px] transition-[transform,background-color] duration-200 ease-out motion-reduce:transition-none',
+            on ? 'translate-x-[16px] bg-[var(--sel-ground)]' : 'translate-x-0 bg-[var(--bento-ink)]',
           )}
         />
       </button>

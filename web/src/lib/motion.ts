@@ -583,13 +583,24 @@ export function installMotionGuard() {
 
   // Every finite animation that is running, and when it began.
   const playing = new Map<Element, Played>()
+  // Read in one batch after the frame, not inside each animationstart: there
+  // getAnimations() forced a fresh style pass per starting animation, ~45ms
+  // on a slow phone when a screen like Settings starts a dozen at once.
+  const started: [HTMLElement, string][] = []
+  const readStarted = () => {
+    for (const [el, name] of started.splice(0)) {
+      if (!el.isConnected) continue
+      const a = el.getAnimations().find((x) => (x as CSSAnimation).animationName === name)
+      const t = a?.effect?.getComputedTiming()
+      if (!a || !t || t.iterations === Infinity) continue
+      playing.set(el, { a, t0: performance.now() - Math.max(0, Number(a.currentTime) || 0) })
+    }
+  }
   document.addEventListener('animationstart', (e) => {
     const el = e.target as Element
     if (!(el instanceof HTMLElement) || el.closest('[data-ghost]')) return
-    const a = el.getAnimations().find((x) => (x as CSSAnimation).animationName === e.animationName)
-    const t = a?.effect?.getComputedTiming()
-    if (!a || !t || t.iterations === Infinity) return
-    playing.set(el, { a, t0: performance.now() - Math.max(0, Number(a.currentTime) || 0) })
+    if (!started.length) setTimeout(readStarted, 0)
+    started.push([el, e.animationName])
   }, true)
   const forget = (e: Event) => {
     const p = playing.get(e.target as Element)
@@ -628,6 +639,7 @@ export function installMotionGuard() {
     }
   }
   const cutShort = (el: Element, now: number): { p: Played; at: number } | null => {
+    if (started.length) readStarted()
     const p = playing.get(el)
     if (!p) return null
     const t = p.a.effect?.getComputedTiming()
@@ -638,6 +650,7 @@ export function installMotionGuard() {
 
   // -- 1. [data-closing] flipped on a surface that was still moving
   const retarget = (host: HTMLElement, now: number) => {
+    if (started.length) readStarted()
     const hit: { el: HTMLElement; p: Played; at: number }[] = []
     for (const el of playing.keys()) {
       if (!(el instanceof HTMLElement) || !host.contains(el)) continue

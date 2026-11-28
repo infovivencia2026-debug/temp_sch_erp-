@@ -4951,11 +4951,11 @@ html[data-assistant-open] .bento-dots { display: none !important; }
      stuck): a 220ms rise and fade instead of the 440ms zoom from the icon,
      which scaled the whole screen as one layer on a slow phone. */
   .settings-screen.settings-launch {
-    /* A short delay lets the screen finish mounting first, so the whole rise
-       is seen instead of starting half-way through (owner, 2026-11-28:
-       Settings "looks stuck"). It starts half-visible so the tap is answered
-       at once. */
-    animation: settings-in 280ms cubic-bezier(0.25, 0.8, 0.25, 1) 60ms both;
+    /* It starts half-visible so the tap is answered at once (owner,
+       2026-11-28: Settings "looks stuck"). No start delay any more: the
+       screen now mounts without the per-animation style passes, so the first
+       frames after it appears are already smooth. */
+    animation: settings-in 280ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
     will-change: transform, opacity;
     backface-visibility: hidden;
   }

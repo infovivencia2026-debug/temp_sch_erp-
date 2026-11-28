@@ -2254,7 +2254,7 @@ export function Switch({
         aria-hidden="true"
         className={cn('sys-switch relative h-6 w-10 rounded-full border transition-colors duration-150', on ? 'bg-primary' : 'border-border bg-muted')}
       >
-        <span className={cn('absolute top-[3px] size-4 rounded-full bg-card shadow-sm transition-[left] duration-150', on ? 'left-[19px]' : 'left-[3px]')} />
+        <span className={cn('absolute top-[3px] size-4 rounded-full bg-card shadow-sm left-[3px] transition-transform duration-200 ease-out motion-reduce:transition-none', on ? 'translate-x-[16px]' : 'translate-x-0')} />
       </span>
     </button>
   )
