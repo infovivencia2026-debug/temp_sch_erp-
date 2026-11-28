@@ -678,6 +678,18 @@ export default function Portal() {
     queryFn: () => api.get<List<TodayHomework>>('/api/v1/homework'),
     enabled: !isAttendance,
   })
+  /* For the subject cards on a wide screen: each subject's notes and latest marks
+     (same keys as the Subject page, so the two share what they fetched). */
+  const materials = useQuery({
+    queryKey: ['portal-resources', activeId],
+    queryFn: () => api.get<List<{ id: string; subject?: string }>>(`/api/v1/portal/learning/resources?student_id=${activeId}`),
+    enabled: !isAttendance && !!activeId,
+  })
+  const results = useQuery({
+    queryKey: ['portal-results', activeId, year],
+    queryFn: () => api.get<{ subjects: { exam: string; subject: string; marks_obtained?: number; max_marks?: number; is_absent: boolean }[] }>(`/api/v1/portal/results?student_id=${activeId}${year ? `&academic_year_id=${year}` : ''}`),
+    enabled: !isAttendance && !!activeId,
+  })
 
   if (children.isLoading && !children.data) return <ScreenSkeleton />
   if (children.error && !children.data) return <ScreenError error={children.error} />
@@ -761,7 +773,13 @@ export default function Portal() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="min-w-0 lg:order-2 lg:[&>*]:h-full">
         <ParentChildCard profile={profile.data} kids={kids} activeId={activeId}
-          onChild={chooseChild} year={year} onYear={setYear} loading={profile.isLoading} />
+          onChild={chooseChild} year={year} onYear={setYear} loading={profile.isLoading}
+          stats={(() => {
+            const ym = todayIso.slice(0, 7)
+            const month = days.filter((d) => d.date.startsWith(ym) && (d.status === 'present' || d.status === 'absent' || d.status === 'late'))
+            const att = month.length ? `${Math.round(month.filter((d) => d.status !== 'absent').length / month.length * 100)}%` : '–'
+            return [['Attendance', att], ['Subjects', subjects.length], ['Homework today', todayHomework.length]]
+          })()} />
       </div>
       <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:order-1">
       {summary.error && !summary.data ? <ErrorState error={summary.error} /> : (
@@ -795,7 +813,15 @@ export default function Portal() {
       {subjects.length > 0 && (
         <section aria-label="Subjects" className="space-y-3">
           <h2 className="text-[18px] font-bold">Subjects</h2>
-          <SubjectCards subjects={subjects} hrefFor={(x) => academicsHref(`view=subject&cs=${x.class_subject_id}`)} />
+          <SubjectCards subjects={subjects} hrefFor={(x) => academicsHref(`view=subject&cs=${x.class_subject_id}`)}
+            stats={(x) => {
+              const last = (results.data?.subjects ?? []).filter((m) => m.subject === x.subject && !m.is_absent && m.marks_obtained != null && m.max_marks).at(-1)
+              return {
+                homework: homework.isLoading ? '…' : todayHomework.filter((h) => h.subject === x.subject).length,
+                notes: materials.isLoading ? '…' : (materials.data?.items ?? []).filter((m) => m.subject === x.subject).length,
+                marks: last ? `${last.marks_obtained}/${last.max_marks}` : '–',
+              }
+            }} />
         </section>
       )}
       <JoinActivities studentId={activeId ?? undefined} />

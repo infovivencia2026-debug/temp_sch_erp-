@@ -18,7 +18,7 @@ export function ChildAvatar({ name, photo, size = 'lg' }: { name: string; photo?
   )
 }
 
-export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear, loading }: {
+export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear, loading, stats }: {
   profile?: ChildProfile
   kids: { student_id: string; full_name: string }[]
   activeId: string | null
@@ -26,6 +26,8 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
   year: string
   onYear: (id: string) => void
   loading?: boolean
+  /** Wide screens (owner, 2026-11-28, design A): quick figures under the facts. */
+  stats?: [string, string | number][]
 }) {
   const kid = kids.find((k) => k.student_id === activeId)
   const name = profile?.full_name ?? kid?.full_name ?? ''
@@ -40,7 +42,7 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
   ] as [string, string][]).filter(([, v]) => v)
   const tile = 'flex min-h-[56px] min-w-0 flex-col justify-center rounded-xl bg-white/15 px-3 py-2 text-left'
   const nameLine = (
-    <span className="flex min-w-0 items-center gap-1.5">
+    <span className="flex min-w-0 items-center gap-1.5 lg:justify-center">
       <span className="min-w-0 break-words text-[22px] font-extrabold leading-tight tracking-[-0.02em] lg:text-[24px]">{name || (loading ? '…' : '')}</span>
       {kids.length > 1 && <ChevronDown className="size-5 shrink-0 opacity-90" aria-hidden />}
     </span>
@@ -52,7 +54,7 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
        year by default. Admission no., roll no. and joined date as tiles. */
     <div className="relative flex h-full flex-col overflow-hidden rounded-2xl p-4 text-primary-foreground shadow-md sm:p-5 lg:justify-center lg:p-7" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.78))' }}>
       <span aria-hidden className="pointer-events-none absolute -right-8 -top-8 size-36 rounded-full bg-white/10" />
-      <div className="relative flex min-w-0 items-center gap-4">
+      <div className="relative flex min-w-0 items-center gap-4 lg:flex-col lg:gap-3 lg:text-center">
         <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
         <div className="min-w-0 flex-1">
           {kids.length > 1 ? (
@@ -61,7 +63,7 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
               {nameLine}
             </PickerMenu>
           ) : nameLine}
-          {cls && <p className="mt-0.5 text-[14px] font-medium opacity-90">Class {cls}</p>}
+          {cls && <p className="mt-0.5 text-[14px] font-medium opacity-90 lg:mt-2 lg:inline-block lg:rounded-full lg:bg-white/20 lg:px-3 lg:py-1 lg:text-[13px] lg:font-semibold">Class {cls}</p>}
         </div>
       </div>
       <div className="relative mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] gap-2">
@@ -84,23 +86,35 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
           <div className={tile}><span className="text-[12px] opacity-85">Academic year</span><span className="truncate text-[14px] font-bold">{yearName}</span></div>
         ) : null}
       </div>
+      {stats && stats.length > 0 && (
+        <div className="relative mt-auto hidden gap-2 pt-5 lg:grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+          {stats.map(([k, v]) => (
+            <div key={k} className="bg-card px-2 py-2.5 text-center text-foreground" style={{ borderRadius: 14 }}>
+              <span className="block text-[20px] font-extrabold tabular-nums text-primary">{v}</span>
+              <span className="block text-[11px] text-muted-foreground">{k}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 /* The child's photo, or their initials when the school has none. */
 function ChildPhoto({ name, photo }: { name: string; photo?: string }) {
-  const box = 'size-16 shrink-0 rounded-full border-[3px] border-white/50 lg:size-20'
+  const box = 'size-16 shrink-0 rounded-full border-[3px] border-white/50 lg:size-28 lg:border-[5px]'
   return photo
     ? <img src={fileSrc(photo)} alt="" style={{ clipPath: 'circle(50%)' }} className={cn(box, 'aspect-square bg-muted object-cover')} />
-    : <span aria-hidden className={cn(box, 'grid place-items-center bg-white text-[22px] font-extrabold text-primary lg:text-[28px]')}>{initials(name)}</span>
+    : <span aria-hidden className={cn(box, 'grid place-items-center bg-white text-[22px] font-extrabold text-primary lg:text-[38px]')}>{initials(name)}</span>
 }
 
 /* The child's subjects as cards, each opening its Subject page. */
-export function SubjectCards({ subjects, hrefFor, note }: {
+export function SubjectCards({ subjects, hrefFor, note, stats }: {
   subjects: ChildSubject[]
   hrefFor: (s: ChildSubject) => string
   note?: (s: ChildSubject) => string | undefined
+  /** Wide screens (owner, 2026-11-28, design A): today's homework, notes and latest marks on each card. */
+  stats?: (s: ChildSubject) => { homework: number | string; notes: number | string; marks: string }
 }) {
   if (!subjects.length) return <p className="text-[15px] text-muted-foreground">No subjects set for this class yet.</p>
   const icons = subjectIcons(subjects.map((s) => s.subject))
@@ -125,7 +139,7 @@ export function SubjectCards({ subjects, hrefFor, note }: {
         )
       })}
     </ul>
-    <ul className="hidden gap-3 sm:grid sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <ul className={cn('hidden gap-3 sm:grid', stats ? 'sm:grid-cols-[repeat(auto-fill,minmax(17rem,1fr))]' : 'sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6')}>
       {subjects.map((s, i) => {
         /* Each subject its own tint so the row reads at a glance (owner, 2026-11-27: "subjects look pale"). */
         const tint = SUBJECT_TINTS[i % SUBJECT_TINTS.length]
@@ -136,6 +150,16 @@ export function SubjectCards({ subjects, hrefFor, note }: {
               <span className={cn('grid size-8 place-items-center rounded-lg', tint.chip)}>{(() => { const I = icons[i]; return <I className="h-4 w-4" strokeWidth={1.9} aria-hidden /> })()}</span>
               <span className="line-clamp-2 break-words text-[14px] font-bold leading-snug sm:text-[15px]">{s.subject}</span>
               <span className="truncate text-[12px] text-muted-foreground">{note?.(s) ?? s.teacher ?? ''}</span>
+              {stats && (() => { const v = stats(s); return (
+                <span className="mt-auto grid gap-1.5 pt-1.5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+                  {([['Today\'s homework', v.homework], ['Notes', v.notes], ['Marks', v.marks]] as const).map(([k, n]) => (
+                    <span key={k} className="min-w-0 rounded-lg bg-muted/60 px-1 py-1.5 text-center">
+                      <span className="block text-[15px] font-bold tabular-nums">{n}</span>
+                      <span className="block text-[11px] leading-tight text-muted-foreground [overflow-wrap:normal] [word-break:normal]">{k === 'Today\'s homework' ? 'Homework today' : k}</span>
+                    </span>
+                  ))}
+                </span>
+              ) })()}
             </Link>
           </li>
         )

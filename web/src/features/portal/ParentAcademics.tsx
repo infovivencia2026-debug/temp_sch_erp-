@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Inbox, ClipboardCheck, TrendingUp, BookOpenCheck, FolderKanban, NotebookText } from 'lucide-react'
+import { Inbox } from 'lucide-react'
 import { api, type List } from '@/lib/api'
-import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, EmptyState, ErrorState, Input, SkeletonTiles } from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, EmptyState, ErrorState, Input, SkeletonTiles } from '@/components/ui'
 import { formatDate, cn } from '@/lib/utils'
 
 import Homework from '@/features/workflow/Homework'
 import FileView, { type ViewableFile } from '@/components/FileView'
-import { Paperclip } from 'lucide-react'
+import { Paperclip, CalendarClock, BarChart3 } from 'lucide-react'
 import { useChildren } from './use-children'
 import { useChildProfile, useParentYear } from './parent-child'
 import { ChildAvatar, SubjectCards } from './ParentChildCard'
@@ -133,7 +133,6 @@ function Academics({ view }: { view: string }) {
     const mine = hw.filter((h) => h.subject === s.subject).sort((a, b) => b.assigned_on.localeCompare(a.assigned_on))
     const marks = (results.data?.subjects ?? []).filter((m) => m.subject === s.subject)
     const scored = marks.filter((m) => !m.is_absent && m.marks_obtained != null && !!m.max_marks)
-    const latest = scored.at(-1)
     const periodOf = new Map((periods.data?.items ?? []).map((x) => [x.id, x]))
     const week = (entries.data?.items ?? [])
       .filter((e) => (e.subject_name || e.subject_code) === s.subject)
@@ -142,6 +141,8 @@ function Academics({ view }: { view: string }) {
     const todayDay = ((new Date().getDay() + 6) % 7) + 1
     const nowHM = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
     const todays = week.filter((w) => w.day === todayDay)
+    /* The next class after today, wrapping round the week. */
+    const next = week.find((w) => w.day > todayDay) ?? week[0]
     /* What staff set on the Homework screen, by its type, and their notes. */
     const ofKind = (...k: string[]) => mine.filter((h) => k.includes(h.kind || 'homework')).length
     const homeworkN = ofKind('homework', 'classwork')
@@ -167,61 +168,45 @@ function Academics({ view }: { view: string }) {
               </div>
             </div>
           </Card>
-          {/* Empty sections are left out (owner, 2026-11-27: "empty boxes look
-              ugly"); Homework always shows, as it carries the date picker. */}
-          {/* Today's classes only (owner, 2026-11-28: no full week), each with
-              its time and whether it is done, on now or later. */}
-          <Card>
-            <CardHeader title="Today's classes" />
-            {todays.length === 0 ? <p className="px-[var(--card-pad)] pb-4 text-[15px] text-muted-foreground">No {s.subject} class today.</p> : (
-              <ul className="divide-y divide-dashed px-[var(--card-pad)] pb-2">
+          {/* TODAY (owner, 2026-11-28 preview): one line when there is no class
+              (with the next one), else a row per class with Done / Now / Later. */}
+          <Card className="p-4">
+            <h2 className="mb-3 text-[16px] font-bold">Today</h2>
+            {todays.length === 0 ? (
+              <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><CalendarClock className="size-5" aria-hidden /></span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-semibold">No {s.subject} class today</span>
+                  {next && <span className="block text-[13px] text-muted-foreground">Next: {DAY[next.day - 1]}, {next.p?.name ?? 'class'}{next.p?.starts_at ? ` · ${next.p.starts_at}` : ''}</span>}
+                </span>
+              </div>
+            ) : (
+              <ul className="space-y-2">
                 {todays.map((w, i) => {
                   const st = w.p?.ends_at && w.p.ends_at <= nowHM ? 'Done' : w.p?.starts_at && w.p.starts_at <= nowHM ? 'Now' : 'Later'
                   return (
-                    <li key={i} className={cn('flex items-stretch gap-3 py-2.5', st === 'Done' && 'opacity-70')}>
-                      <span className="w-[60px] shrink-0 text-center"><span className="block text-[16px] font-bold tabular-nums">{w.p?.starts_at ?? '-'}</span><span className="text-[12px] text-muted-foreground">to {w.p?.ends_at ?? '-'}</span></span>
-                      <span className={cn('min-w-0 flex-1 rounded-xl border-l-4 bg-muted/50 px-3 py-2', st === 'Now' ? 'border-primary bg-primary/10' : 'border-border')}>
-                        <span className="flex items-center justify-between gap-2"><span className="truncate text-[15px] font-semibold">{w.p?.name ?? 'Class'}</span>
-                          <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold', st === 'Now' ? 'bg-primary text-primary-foreground' : st === 'Done' ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>{st}</span></span>
-                        <span className="block truncate text-[13px] text-muted-foreground">{w.room ? `Room ${w.room}` : (s.teacher ?? '')}</span>
-                      </span>
+                    <li key={i} className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-muted/50 px-3 py-2.5', st === 'Now' && 'bg-primary/10 ring-1 ring-primary')}>
+                      <span className="text-[15px] font-bold tabular-nums">{w.p?.starts_at ?? '-'}–{w.p?.ends_at ?? '-'}</span>
+                      <span className="min-w-0 flex-1 text-[14px] text-muted-foreground">{[w.p?.name, w.room ? `Room ${w.room}` : ''].filter(Boolean).join(' · ')}</span>
+                      <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold', st === 'Now' ? 'bg-primary text-primary-foreground' : st === 'Done' ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>{st}</span>
                     </li>
                   )
                 })}
               </ul>
             )}
           </Card>
-          <CellGrid cols={2}>
-            <Stat label="Assignments" value={homework.isLoading ? '…' : assignments} icon={ClipboardCheck} hint={assignments ? 'Set so far' : 'None yet'} />
-            <Stat label="Homework" value={homework.isLoading ? '…' : homeworkN} icon={BookOpenCheck} hint={homeworkN ? 'Set so far' : 'None yet'} />
-            <Stat label="Projects" value={homework.isLoading ? '…' : projects} icon={FolderKanban} hint={projects ? 'Set so far' : 'None yet'} />
-            <Stat label="Notes" value={materials.isLoading ? '…' : notes} icon={NotebookText} hint={notes ? 'From the teacher' : 'None yet'} />
-          </CellGrid>
-          {latest && <CellGrid cols={2}>
-            <Stat label="Latest marks" value={`${latest.marks_obtained} / ${latest.max_marks}`} icon={TrendingUp} hint={latest.exam} />
-            <Stat label="Average" value={`${Math.round(scored.reduce((a, m) => a + (m.marks_obtained ?? 0) / (m.max_marks || 1), 0) / scored.length * 100)}%`} icon={TrendingUp} hint={`${scored.length} exam${scored.length === 1 ? '' : 's'}`} />
-          </CellGrid>}
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6">
-            <div className="flex min-w-0 flex-col gap-4 md:gap-6">
-              <NotesList items={(materials.data?.items ?? []).filter((m) => m.subject === s.subject)} />
-              <SubjectHomework items={mine} today={today} loading={homework.isLoading} error={homework.error} />
-              {marks.length === 0 ? <Quiet>No marks published yet</Quiet> : (
-              <Card>
-                <CardHeader title="Academic performance" />
-                {
-                  <ul className="divide-y px-[var(--card-pad)] pb-2">
-                    {marks.map((m, i) => (
-                      <li key={i} className="flex min-h-[48px] items-center justify-between gap-3 py-2 text-[15px]">
-                        <span className="min-w-0 truncate">{m.exam}</span>
-                        <span className="shrink-0 font-semibold tabular-nums">{m.is_absent ? 'Absent' : `${m.marks_obtained ?? '-'} / ${m.max_marks ?? '-'}${m.grade ? ` · ${m.grade}` : ''}`}</span>
-                      </li>
-                    ))}
-                  </ul>
-                }
-              </Card>
-              )}
-            </div>
-          </div>
+          {/* The four kinds of work as one compact row. */}
+          <ul className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 5.25rem), 1fr))' }}>
+            {([['Assignments', assignments, homework.isLoading], ['Homework', homeworkN, homework.isLoading], ['Projects', projects, homework.isLoading], ['Notes', notes, materials.isLoading]] as const).map(([k, v, busy]) => (
+              <li key={k} className="rounded-2xl border bg-card px-1.5 py-3 text-center">
+                <span className="block text-[22px] font-extrabold tabular-nums">{busy ? '…' : v}</span>
+                <span className="block whitespace-nowrap text-[11px] font-semibold text-muted-foreground">{k}</span>
+              </li>
+            ))}
+          </ul>
+          <MarksCard marks={marks} scored={scored} />
+          <NotesList items={(materials.data?.items ?? []).filter((m) => m.subject === s.subject)} />
+          <SubjectHomework items={mine} today={today} loading={homework.isLoading} error={homework.error} />
         </PageBody>
       </>
     )
@@ -276,6 +261,62 @@ function NotesList({ items }: { items: Note[] }) {
   )
 }
 
+const DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+type Mark = { exam: string; marks_obtained?: number | null; max_marks?: number | null; grade?: string | null; is_absent?: boolean }
+const pctOf = (m: Mark) => Math.round(((m.marks_obtained ?? 0) / (m.max_marks || 1)) * 100)
+
+/* MARKS (owner, 2026-11-28 preview): the average as a ring, the latest result
+   and the change from the test before, then each test with its bar and grade. */
+function MarksCard({ marks, scored }: { marks: Mark[]; scored: Mark[] }) {
+  if (!marks.length) {
+    return (
+      <Card className="p-4">
+        <h2 className="mb-3 text-[16px] font-bold">Marks</h2>
+        <p className="flex items-center gap-3 rounded-xl bg-muted/50 p-3 text-[14px] text-muted-foreground">
+          <BarChart3 className="size-5 shrink-0 text-primary" aria-hidden />Marks show here once the school publishes them.
+        </p>
+      </Card>
+    )
+  }
+  const avg = scored.length ? Math.round(scored.reduce((a, m) => a + pctOf(m), 0) / scored.length) : null
+  const latest = scored.at(-1)
+  const prev = scored.at(-2)
+  const change = latest && prev ? pctOf(latest) - pctOf(prev) : null
+  return (
+    <Card className="p-4">
+      <h2 className="mb-3 text-[16px] font-bold">Marks</h2>
+      {avg != null && latest && (
+        <div className="mb-3 flex items-center gap-4">
+          <span className="grid size-[74px] shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(hsl(var(--primary)) ${avg}%, hsl(var(--muted)) 0)` }}>
+            <span className="grid size-[58px] place-items-center rounded-full bg-card text-[17px] font-extrabold tabular-nums">{avg}%</span>
+          </span>
+          <span className="min-w-0 text-[14px]">
+            <span className="block text-[15px] font-semibold">Average of {scored.length} test{scored.length === 1 ? '' : 's'}</span>
+            <span className="block text-muted-foreground">Latest: <b className="text-foreground">{latest.marks_obtained} / {latest.max_marks}</b> in {latest.exam}</span>
+            {change != null && change !== 0 && prev && (
+              <span className={cn('block font-semibold', change > 0 ? 'text-success' : 'text-destructive')}>{change > 0 ? '↑' : '↓'} {Math.abs(change)}% {change > 0 ? 'better' : 'lower'} than {prev.exam}</span>
+            )}
+          </span>
+        </div>
+      )}
+      <ul>
+        {marks.map((m, i) => (
+          <li key={i} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 border-t py-2.5">
+            <span className="min-w-0 break-words text-[14px] font-semibold">{m.exam}{m.grade && <span className="ml-1.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">{m.grade}</span>}</span>
+            <span className="text-[14px] font-extrabold tabular-nums">{m.is_absent ? 'Absent' : `${m.marks_obtained ?? '-'} / ${m.max_marks ?? '-'}`}</span>
+            {!m.is_absent && m.max_marks ? (
+              <span className="col-span-2 h-2 overflow-hidden rounded-full bg-muted">
+                <span className={cn('block h-full rounded-full', pctOf(m) >= 75 ? 'bg-success' : pctOf(m) >= 50 ? 'bg-warning' : 'bg-destructive')} style={{ width: `${pctOf(m)}%` }} />
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
 const KIND: Record<string, string> = { homework: 'Homework', classwork: 'Classwork', assignment: 'Assignment', project: 'Project' }
 
 /* A file the teacher attached, opened in the in-app viewer. */
@@ -313,11 +354,3 @@ function HwList({ items }: { items: Hw[] }) {
   )
 }
 
-/* A section with nothing in it: one soft line, no box. */
-function Quiet({ children }: { children: string }) {
-  return (
-    <p className="flex items-center gap-2 px-1 text-[14px] text-muted-foreground">
-      <Inbox className="h-4 w-4 shrink-0" aria-hidden />{children}
-    </p>
-  )
-}
