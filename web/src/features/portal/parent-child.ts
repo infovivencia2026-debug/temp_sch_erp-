@@ -47,6 +47,7 @@ export interface ChildActivity { id: string; name: string; category?: string | n
 export interface ChildProfile {
   student_id: string; full_name: string; admission_no: string
   admission_date?: string; photo_file_id?: string
+  date_of_birth?: string; blood_group?: string; apaar_id?: string; has_transport?: boolean
   years: { academic_year_id: string; academic_year: string; is_current: boolean }[]
   academic_year_id?: string; academic_year?: string
   class_name?: string; section_name?: string; roll_no?: number

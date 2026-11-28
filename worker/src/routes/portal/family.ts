@@ -858,9 +858,13 @@ async function getPortalAdmission(c: Ctx): Promise<Response> {
    the latest enrolment. */
 async function getChildProfile(c: Ctx): Promise<Response> {
   const sid = await whichChild(c, c.url.searchParams.get('student_id'))
-  const st = await c.db.prepare(`SELECT st.id, ${fullName('st')} AS full_name, st.admission_no, st.admission_date, st.photo_file_id
+  const st = await c.db.prepare(`SELECT st.id, ${fullName('st')} AS full_name, st.admission_no, st.admission_date, st.photo_file_id,
+           st.date_of_birth, st.blood_group, st.apaar_id,
+           EXISTS (SELECT 1 FROM transport_allocations ta WHERE ta.student_id = st.id
+             AND ta.valid_from <= date('now') AND (ta.valid_to IS NULL OR ta.valid_to >= date('now'))) AS has_transport
       FROM students st WHERE st.id = ?`).bind(sid)
-    .first<{ id: string; full_name: string; admission_no: string; admission_date: string | null; photo_file_id: string | null }>()
+    .first<{ id: string; full_name: string; admission_no: string; admission_date: string | null; photo_file_id: string | null
+      date_of_birth: string | null; blood_group: string | null; apaar_id: string | null; has_transport: number }>()
   if (!st) throw notFound()
   const years = (await c.db.prepare(`
     SELECT ay.id AS academic_year_id, ay.name AS academic_year, ay.is_current, en.class_id, en.section_id,
@@ -913,6 +917,10 @@ async function getChildProfile(c: Ctx): Promise<Response> {
     .all<{ id: string; name: string; category: string | null; schedule: string | null; venue: string | null }>()
   const o: Record<string, unknown> = { student_id: st.id, full_name: st.full_name, admission_no: st.admission_no }
   put(o, 'admission_date', st.admission_date); put(o, 'photo_file_id', st.photo_file_id)
+  /* The parent profile's child card (owner, 2026-11-28). Transport is only a
+     yes/no: an allocation in force today. */
+  put(o, 'date_of_birth', st.date_of_birth); put(o, 'blood_group', st.blood_group); put(o, 'apaar_id', st.apaar_id)
+  o.has_transport = bool(st.has_transport)
   o.years = uniq.map((y) => ({ academic_year_id: y.academic_year_id, academic_year: y.academic_year, is_current: bool(y.is_current) }))
   if (pick) {
     o.academic_year_id = pick.academic_year_id; o.academic_year = pick.academic_year

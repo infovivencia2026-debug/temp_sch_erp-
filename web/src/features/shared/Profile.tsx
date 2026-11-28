@@ -10,6 +10,7 @@ import { useSession } from '@/lib/session'
 import { MyGrowthPanels } from '@/features/hr/MyGrowth'
 import { PhotoViewer } from '@/components/PhotoViewer'
 import { TwoFactorCard, MyDevicesCard, MySessionActivityCard } from './SecurityCards'
+import { ParentChildCard, Fold } from './ParentProfile'
 
 
 /* A SECTION, AS THE DESIGN DRAWS ONE.
@@ -106,10 +107,11 @@ export default function ProfileView() {
      keys, so the page draws once with all of them: the day code arriving late
      slid in above the password card, and the device list grew from one line
      to many, and both pushed everything under them down. */
+  const parentOnlyEarly = (session.user?.roles ?? []).length > 0 && (session.user?.roles ?? []).every((r) => r === 'parent')
   const extras = [
     useQuery({ queryKey: ['my-day-code'], queryFn: () => api.get<unknown>('/api/v1/me/day-code'), retry: false }),
-    useQuery({ queryKey: ['own-sessions'], queryFn: () => api.get<unknown>('/api/v1/profile/sessions'), retry: false }),
-    useQuery({ queryKey: ['own-session-activity'], queryFn: () => api.get<unknown>('/api/v1/profile/session-activity'), retry: false }),
+    useQuery({ queryKey: ['own-sessions'], queryFn: () => api.get<unknown>('/api/v1/profile/sessions'), retry: false, enabled: !parentOnlyEarly }),
+    useQuery({ queryKey: ['own-session-activity'], queryFn: () => api.get<unknown>('/api/v1/profile/session-activity'), retry: false, enabled: !parentOnlyEarly }),
   ]
 
   const [current, setCurrent] = useState('')
@@ -186,8 +188,66 @@ export default function ProfileView() {
      true forever after, including for one that settled by failing. A
      card whose own list is refused says so itself; it does not get to
      hold the whole screen at a skeleton. */
-  if ((isLoading && !data) || extras.some((q) => !q.isFetched)) return <Loading />
+  if ((isLoading && !data) || extras.some((q) => !q.isFetched && q.fetchStatus !== 'idle')) return <Loading />
   if (error) return <ErrorState error={error} />
+
+  const roles = session.user?.roles ?? []
+  /* A parent and nobody else gets the child card page (owner, 2026-11-28). A
+     teacher who is also a parent keeps the staff page. */
+  const parentOnly = roles.includes('parent') && roles.every((r) => r === 'parent')
+  const passwordForm = (
+    <form
+      className="max-w-xl space-y-4 p-5"
+      onSubmit={(e) => { e.preventDefault(); change.mutate() }}
+    >
+      <PasswordField label="Current password" value={current} onChange={setCurrent} />
+      <PasswordField label="New password" value={next} onChange={setNext} />
+      <PasswordMeter value={next} />
+      <PasswordField
+        label="Confirm new password"
+        value={confirm}
+        onChange={setConfirm}
+        hint={confirm && confirm !== next ? 'These two do not match.' : undefined}
+      />
+      {change.isError && (
+        <p className="text-xs text-destructive">
+          {change.error instanceof Error ? change.error.message : 'Could not change password'}
+        </p>
+      )}
+      {change.isSuccess && (
+        <p className="text-xs text-success">Password changed. Other sessions signed out.</p>
+      )}
+      <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+        <span data-help-anchor="change-password"><Button
+          type="submit"
+          disabled={change.isPending || next.length < 12 || !current || confirm !== next}
+        >
+          {change.isPending ? 'Saving…' : 'Change password'}
+        </Button></span>
+        <span className="text-[12px] text-muted-foreground">
+          Everywhere else you are signed in will be signed out.
+        </span>
+      </div>
+    </form>
+  )
+  if (parentOnly) {
+    return (
+      <PageBody top width="form">
+        <ParentChildCard parentName={data?.full_name} />
+        {session.user?.day_code ? null : (
+          <Fold icon={<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-warning/10 text-warning"><KeyRound className="h-4 w-4" /></span>}
+            title="Login password" hint="Changing it signs out every other browser">
+            {passwordForm}
+          </Fold>
+        )}
+        <Fold icon={<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-success/10 text-success"><ShieldCheck className="h-4 w-4" /></span>}
+          title="Two-factor sign-in" hint="A code from an app after your password"
+          badge={data?.mfa_enabled ? <Badge tone="success">On</Badge> : <Badge tone="neutral">Off</Badge>}>
+          <TwoFactorCard bare enabled={!!data?.mfa_enabled} dayCode={!!session.user?.day_code} />
+        </Fold>
+      </PageBody>
+    )
+  }
 
   return (
     /* THE ACCOUNT SCREEN, AS THE DESIGN DRAWS IT.
@@ -372,39 +432,7 @@ export default function ProfileView() {
           title="Login password"
           hint="Changing it signs out every other browser"
         >
-          <form
-            className="max-w-xl space-y-4 p-5"
-            onSubmit={(e) => { e.preventDefault(); change.mutate() }}
-          >
-            <PasswordField label="Current password" value={current} onChange={setCurrent} />
-            <PasswordField label="New password" value={next} onChange={setNext} />
-            <PasswordMeter value={next} />
-            <PasswordField
-              label="Confirm new password"
-              value={confirm}
-              onChange={setConfirm}
-              hint={confirm && confirm !== next ? 'These two do not match.' : undefined}
-            />
-            {change.isError && (
-              <p className="text-xs text-destructive">
-                {change.error instanceof Error ? change.error.message : 'Could not change password'}
-              </p>
-            )}
-            {change.isSuccess && (
-              <p className="text-xs text-success">Password changed. Other sessions signed out.</p>
-            )}
-            <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
-              <span data-help-anchor="change-password"><Button
-                type="submit"
-                disabled={change.isPending || next.length < 12 || !current || confirm !== next}
-              >
-                {change.isPending ? 'Saving…' : 'Change password'}
-              </Button></span>
-              <span className="text-[12px] text-muted-foreground">
-                Everywhere else you are signed in will be signed out.
-              </span>
-            </div>
-          </form>
+          {passwordForm}
         </Section>
       )}
 

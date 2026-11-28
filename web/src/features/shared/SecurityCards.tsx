@@ -7,7 +7,9 @@ import { formatDateTime } from '@/lib/utils'
 /* The person's own security, on their profile: a second factor, and the
    devices they are signed in on. */
 
-export function TwoFactorCard({ enabled, dayCode }: { enabled: boolean; dayCode: boolean }) {
+/* `bare` drops the card and its header, for the parent profile where the
+   section sits inside a closed fold that carries its own heading. */
+export function TwoFactorCard({ enabled, dayCode, bare }: { enabled: boolean; dayCode: boolean; bare?: boolean }) {
   const qc = useQueryClient()
   const [setup, setSetup] = useState<{ secret: string; uri: string; image: string } | null>(null)
   const [code, setCode] = useState('')
@@ -53,13 +55,14 @@ export function TwoFactorCard({ enabled, dayCode }: { enabled: boolean; dayCode:
     )
   }
 
+  const Shell = bare ? 'div' : Card
   return (
-    <Card>
-      <CardHeader
+    <Shell>
+      {!bare && <CardHeader
         title="Two-factor sign-in"
         description="A code from an authenticator app after your password."
         action={enabled ? <Badge tone="success">On</Badge> : <Badge tone="neutral">Off</Badge>}
-      />
+      />}
       <div className="space-y-3 p-4">
         {msg && <p className="text-[13.5px] text-success">{msg}</p>}
         {!enabled && !setup && (
@@ -131,7 +134,7 @@ export function TwoFactorCard({ enabled, dayCode }: { enabled: boolean; dayCode:
           </form>
         )}
       </div>
-    </Card>
+    </Shell>
   )
 }
 
