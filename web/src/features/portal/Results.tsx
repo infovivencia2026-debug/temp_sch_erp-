@@ -10,6 +10,7 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useParentYear } from './parent-child'
 import CardViewer from '@/components/CardViewer'
 
 /* Results, as a family sees them.
@@ -73,10 +74,12 @@ export default function PortalResults() {
   const [examPick, setExamPick] = useState('')
   const [card, setCard] = useState<{ html: string; css?: string; name?: string } | null>(null)
   const child = picked || kids[0]?.student_id || ''
+  /* The year picked in the home child card (owner, 2026-11-28). */
+  const [year] = useParentYear()
 
   const results = useQuery({
-    queryKey: ['portal-results', child],
-    queryFn: () => api.get<ResultView>(`/api/v1/portal/results?student_id=${child}`),
+    queryKey: ['portal-results', child, year],
+    queryFn: () => api.get<ResultView>(`/api/v1/portal/results?student_id=${child}${year ? `&academic_year_id=${year}` : ''}`),
     enabled: !!child,
   })
   const { data, isLoading, error } = results

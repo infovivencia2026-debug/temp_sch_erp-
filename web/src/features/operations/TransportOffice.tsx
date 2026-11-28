@@ -390,7 +390,7 @@ function BusRegister() {
           title="Today's run"
           description="Every allotted child is listed, scanned or not."
           action={
-            <div className="flex gap-2">
+            <div className="flex w-full flex-wrap gap-2 [&>*]:min-w-[9rem] [&>*]:flex-1">
               <Select
                 value={leg}
                 onChange={setLeg}

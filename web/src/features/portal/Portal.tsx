@@ -488,7 +488,7 @@ function SchoolMessages({ query, notes, onOpen, onGo, homework, onHomework }: {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['circulars'] }),
   })
   return (
-    <Card className="flex min-h-[360px] flex-col lg:h-full lg:min-h-[460px]">
+    <Card className="flex min-h-[440px] flex-col lg:h-full lg:min-h-[480px]">
       {/* The toggle is the card's heading (owner, 2026-11-26): no title, and
           nothing about the child in this card. Taller on wide screens so more
           messages show; the child card beside it stretches to match. */}
@@ -647,12 +647,15 @@ export default function Portal() {
     enabled: !!activeId,
   })
 
+  /* The child card and Academics (owner, 2026-11-26), for the year picked in
+     the card; the attendance calendar follows it too (2026-11-28). */
+  const [year, setYear] = useParentYear()
   const attendance = useQuery({
-    queryKey: ['portal-attendance', activeId],
+    queryKey: ['portal-attendance', activeId, year],
     // The child must be named explicitly: the endpoint defaults to the first
     // linked student, so omitting it made the switcher change nothing.
     queryFn: () =>
-      api.get<List<AttendanceDay>>(`/api/v1/portal/attendance?student_id=${activeId}`),
+      api.get<List<AttendanceDay>>(`/api/v1/portal/attendance?student_id=${activeId}${year ? `&academic_year_id=${year}` : ''}`),
     enabled: !!activeId,
   })
 
@@ -669,8 +672,6 @@ export default function Portal() {
     queryFn: () => api.get<{ items: FamilyNote[] }>(`/api/v1/portal/notifications${selected ? `?student_id=${selected}` : ''}`),
   })
 
-  /* The child card and Academics (owner, 2026-11-26), for the year picked in the card. */
-  const [year, setYear] = useParentYear()
   const profile = useChildProfile(activeId, year)
   const homework = useQuery({
     queryKey: ['homework', 'diary', false],
@@ -792,8 +793,8 @@ export default function Portal() {
       </div>
       {activeId && <WeeklyNoteCard studentId={activeId} />}
       {subjects.length > 0 && (
-        <section aria-label="Academics" className="space-y-3">
-          <h2 className="text-[18px] font-bold">Academics</h2>
+        <section aria-label="Subjects" className="space-y-3">
+          <h2 className="text-[18px] font-bold">Subjects</h2>
           <SubjectCards subjects={subjects} hrefFor={(x) => academicsHref(`view=subject&cs=${x.class_subject_id}`)} />
         </section>
       )}

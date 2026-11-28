@@ -283,6 +283,7 @@ class MainActivity : Activity() {
         allowCutout()
         goEdgeToEdge()
         setContentView(root)
+        goFullScreen()
         /* SHELL-FEEL: the frame takes the colour the page last reported, and
            follows every later report. See SystemBars for the whole story. */
         SystemBars.apply(this, root, web, pageColor())
@@ -371,6 +372,35 @@ class MainActivity : Activity() {
 
     /* The status-bar height, in CSS pixels, handed to the page on every inset
        change and after every page load. */
+    /* LIKE WHATSAPP (owner 2026-11-28, WhatsApp screenshot): the clock stays,
+       but on a see-through bar; the page draws under it and scrolls beneath
+       it, its own top bar padded by --app-sat. No grey band. */
+    private fun goFullScreen() {
+        if (Build.VERSION.SDK_INT >= 28) window.attributes = window.attributes.apply {
+            layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES }
+        @Suppress("DEPRECATION")
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= 29) window.isStatusBarContrastEnforced = false
+        val night = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.insetsController?.let {
+                it.show(android.view.WindowInsets.Type.statusBars())
+                it.setSystemBarsAppearance(if (night) 0 else android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                (if (!night && Build.VERSION.SDK_INT >= 23) View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR else 0)
+        }
+        pushSafeTop()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) goFullScreen()
+    }
+
     private fun pushSafeTop() {
         if (!::web.isInitialized) return
         val px = barTop / resources.displayMetrics.density

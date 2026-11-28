@@ -247,6 +247,22 @@ async function getPortalSummary(c: Ctx): Promise<Response> {
 
 type PeriodRow = { period: string; starts_at: string | null; ends_at: string | null; is_break: number | null; subject: string; teacher: string | null; room: string | null }
 
+/* The academic year a parent screen is about (owner, 2026-11-28): the
+   `academic_year_id` the home card's picker chose. Absent means no year
+   filter (the screens' old view). A year the child was never enrolled in is
+   refused with 404, so one child's link cannot read another year's rows. */
+export async function childYear(c: Ctx, studentId: string): Promise<{ id: string; starts_on: string; ends_on: string } | null> {
+  const raw = (c.url.searchParams.get('academic_year_id') ?? '').trim().toLowerCase()
+  if (raw === '') return null
+  if (!isUUID(raw)) throw badRequest('academic_year_id must be a uuid')
+  const y = await c.db.prepare(`SELECT ay.id, substr(ay.starts_on, 1, 10) AS starts_on, substr(ay.ends_on, 1, 10) AS ends_on
+      FROM academic_years ay
+     WHERE ay.id = ? AND EXISTS (SELECT 1 FROM enrollments en WHERE en.student_id = ? AND en.academic_year_id = ay.id)`)
+    .bind(raw, studentId).first<{ id: string; starts_on: string; ends_on: string }>()
+  if (!y) throw notFound()
+  return y
+}
+
 // ---------------------------------------------------------------------------
 // GET /portal/attendance (listPortalAttendance)
 
@@ -259,14 +275,17 @@ async function listPortalAttendance(c: Ctx): Promise<Response> {
     if (!isUUID(q) || !ownsStudent(scope, q.toLowerCase())) throw notFound()
     target = q.toLowerCase()
   }
+  const yr = await childYear(c, target)
   const today = todayIST()
+  const end = yr ? (yr.ends_on < today ? yr.ends_on : today) : today
+  const start = yr ? yr.starts_on : null
   const holSel = (col: string) => `(SELECT h.${col} FROM holidays h
        WHERE h.applies_to IN ('all','students') AND h.kind <> 'working_day'
          AND days.d BETWEEN h.on_date AND COALESCE(h.to_date, h.on_date)
        ORDER BY h.on_date LIMIT 1)`
   const rows = await c.db.prepare(`
     WITH RECURSIVE days(d) AS (
-      SELECT date(?1, '-366 days')
+      SELECT COALESCE(?3, date(?1, '-366 days'))
       UNION ALL SELECT date(d, '+1 day') FROM days WHERE d < ?1
     ), cal AS (
       SELECT days.d, ${holSel('name')} AS hname, ${holSel('kind')} AS hkind FROM days
@@ -277,7 +296,7 @@ async function listPortalAttendance(c: Ctx): Promise<Response> {
       FROM cal
       LEFT JOIN student_attendance sa ON sa.student_id = ?2 AND sa.on_date = cal.d
      WHERE sa.status IS NOT NULL OR cal.hname IS NOT NULL
-     ORDER BY cal.d DESC`).bind(today, target)
+     ORDER BY cal.d DESC`).bind(end, target, start)
     .all<{ date: string; status: string; label: string; kind: string }>()
   return ok({
     items: rows.results.map((r) => {
@@ -386,14 +405,15 @@ async function getFamilyFees(c: Ctx): Promise<Response> {
   const st = await c.db.prepare(`SELECT ${fullName('students')} AS name, admission_no FROM students WHERE id = ?`)
     .bind(student).first<{ name: string; admission_no: string }>()
   if (!st) throw new HttpError(500, 'internal')
+  const yr = await childYear(c, student)
   const today = todayIST()
   const inv = await c.db.prepare(`
     SELECT id, invoice_no, instalment_no, substr(issued_on, 1, 10) AS issued_on, substr(due_on, 1, 10) AS due_on,
            COALESCE(net_paise, 0) AS net_paise, paid_paise, fine_paise, status,
            CASE WHEN due_on IS NULL THEN 0 ELSE MAX(0, CAST(julianday(?) - julianday(substr(due_on, 1, 10)) AS INTEGER)) END AS days_overdue
       FROM invoices
-     WHERE student_id = ? AND status <> 'cancelled'
-     ORDER BY due_on IS NULL, due_on, invoice_no`).bind(today, student).all<Record<string, unknown>>()
+     WHERE student_id = ? AND status <> 'cancelled' AND (?3 IS NULL OR academic_year_id = ?3)
+     ORDER BY due_on IS NULL, due_on, invoice_no`).bind(today, student, yr?.id ?? null).all<Record<string, unknown>>()
 
   let due = 0
   const ids: string[] = []
@@ -431,15 +451,18 @@ async function getFamilyFees(c: Ctx): Promise<Response> {
 
   const pays = await c.db.prepare(`
     SELECT receipt_no, substr(paid_on, 1, 10) AS paid_on, amount_paise, mode, reference_no, status
-      FROM payments WHERE student_id = ? AND status = 'success'
-     ORDER BY paid_on DESC, receipt_no DESC LIMIT 50`).bind(student).all<Record<string, unknown>>()
+      FROM payments WHERE student_id = ?1 AND status = 'success'
+       AND (?2 IS NULL OR substr(paid_on, 1, 10) BETWEEN ?2 AND ?3)
+     ORDER BY paid_on DESC, receipt_no DESC LIMIT 50`).bind(student, yr?.starts_on ?? null, yr?.ends_on ?? null).all<Record<string, unknown>>()
   const receipts = pays.results.map((p) => {
     const o: Record<string, unknown> = { receipt_no: p.receipt_no ?? '', paid_on: p.paid_on, amount_paise: Number(p.amount_paise), mode: p.mode }
     put(o, 'reference_no', p.reference_no)
     o.status = p.status
     return o
   })
-  return ok({ student_id: student, student_name: st.name, admission_no: st.admission_no, outstanding_paise: due, invoices, receipts })
+  const out: Record<string, unknown> = { student_id: student, student_name: st.name, admission_no: st.admission_no, outstanding_paise: due, invoices, receipts }
+  if (yr) out.academic_year_id = yr.id
+  return ok(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -447,6 +470,7 @@ async function getFamilyFees(c: Ctx): Promise<Response> {
 
 async function getFamilyResults(c: Ctx): Promise<Response> {
   const student = await whichChild(c, c.url.searchParams.get('student_id'))
+  const yid = (await childYear(c, student))?.id ?? null
   const cr = await c.db.prepare(`
     SELECT rc.id, COALESCE(ex.name, t.name, ay.name, 'Result') AS exam, t.name AS term,
            rc.total_marks, rc.max_marks, rc.percentage, rc.grade, rc.gpa,
@@ -455,8 +479,8 @@ async function getFamilyResults(c: Ctx): Promise<Response> {
       LEFT JOIN exams ex ON ex.id = rc.exam_id
       LEFT JOIN terms t ON t.id = rc.term_id
       LEFT JOIN academic_years ay ON ay.id = rc.academic_year_id
-     WHERE rc.student_id = ? AND rc.is_published = 1
-     ORDER BY rc.published_at DESC NULLS LAST`).bind(student).all<Record<string, unknown>>()
+     WHERE rc.student_id = ?1 AND rc.is_published = 1 AND (?2 IS NULL OR rc.academic_year_id = ?2)
+     ORDER BY rc.published_at DESC NULLS LAST`).bind(student, yid).all<Record<string, unknown>>()
   const cards = cr.results.map((r) => {
     const o: Record<string, unknown> = { id: r.id, exam: r.exam }
     put(o, 'term', r.term)
@@ -483,10 +507,10 @@ async function getFamilyResults(c: Ctx): Promise<Response> {
       JOIN exams ex ON ex.id = es.exam_id
       JOIN class_subjects cs ON cs.id = es.class_subject_id
       JOIN subjects sub ON sub.id = cs.subject_id
-     WHERE m.student_id = ?
+     WHERE m.student_id = ?1 AND (?2 IS NULL OR ex.academic_year_id = ?2)
        AND (ex.is_published = 1
             OR EXISTS (SELECT 1 FROM report_cards rc WHERE rc.student_id = m.student_id AND rc.exam_id = ex.id AND rc.is_published = 1))
-     ORDER BY ex.starts_on IS NULL, ex.starts_on, sub.name`).bind(student).all<Record<string, unknown>>()
+     ORDER BY ex.starts_on IS NULL, ex.starts_on, sub.name`).bind(student, yid).all<Record<string, unknown>>()
   const subjects = mr.results.map((r) => {
     const o: Record<string, unknown> = { exam: r.exam, subject: r.subject }
     put(o, 'marks_obtained', numOrNull(r.obtained)); put(o, 'max_marks', numOrNull(r.max)); put(o, 'grade', r.grade)

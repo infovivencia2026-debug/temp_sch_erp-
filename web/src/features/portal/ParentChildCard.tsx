@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Atom, BookOpen, BookText, Calculator, CalendarRange, ChevronDown, ChevronRight, Dna, Dumbbell, Feather, FlaskConical, Globe, Languages, Leaf, Monitor, Music, Palette, PenLine, ScrollText, Shapes, TestTube, Users, type LucideIcon } from 'lucide-react'
-import { Card } from '@/components/ui'
+import { Atom, BookOpen, BookText, Calculator, ChevronDown, ChevronRight, Dna, Dumbbell, Feather, FlaskConical, Globe, Languages, Leaf, Monitor, Music, Palette, PenLine, ScrollText, Shapes, TestTube, type LucideIcon } from 'lucide-react'
 import { PickerMenu } from '@/components/PickerMenu'
 import { formatDate, cn } from '@/lib/utils'
 import { fileSrc, initials, type ChildProfile, type ChildSubject } from './parent-child'
@@ -38,59 +37,63 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
     ['Admission no.', profile?.admission_no ?? ''],
     ['Roll no.', profile?.roll_no != null ? String(profile.roll_no) : ''],
     ['Joined', profile?.admission_date ? formatDate(profile.admission_date) : ''],
-    ['Academic year', yearName],
   ] as [string, string][]).filter(([, v]) => v)
-  const pill = 'inline-flex min-h-[48px] max-w-full items-center gap-1.5 rounded-full border bg-card px-4 text-[14px] font-semibold text-foreground shadow-sm hover:border-primary/40'
+  const tile = 'flex min-h-[56px] min-w-0 flex-col justify-center rounded-xl bg-white/15 px-3 py-2 text-left'
+  const nameLine = (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className="min-w-0 break-words text-[22px] font-extrabold leading-tight tracking-[-0.02em] lg:text-[24px]">{name || (loading ? '…' : '')}</span>
+      {kids.length > 1 && <ChevronDown className="size-5 shrink-0 opacity-90" aria-hidden />}
+    </span>
+  )
   return (
-    /* THE CHILD (owner, 2026-11-27: "can be better"). A soft band of the
-       school's colour, the round photo centred over its edge, the name, the
-       class as a chip, then the facts as labelled rows so the card fills its
-       height with things a parent reads. On a phone the photo sits beside the
-       name and the rows follow underneath. */
-    <Card className="relative flex h-full flex-col overflow-hidden">
-      <span aria-hidden className="absolute inset-x-0 top-0 h-[72px] bg-gradient-to-br from-primary/25 via-primary/10 to-transparent lg:h-1/2 lg:bg-gradient-to-b" />
-      <div className="relative flex flex-col lg:my-auto">
-      <div className="relative flex items-center gap-4 p-4 pb-3 lg:flex-col lg:gap-3 lg:px-6 lg:pt-10 lg:text-center">
+    /* THE CHILD (owner, 2026-11-28, from the approved preview): a card in the
+       school's colour. Tap the child's name to switch child (families of two
+       or more); the academic year is its own tile with a drop-down, current
+       year by default. Admission no., roll no. and joined date as tiles. */
+    <div className="relative flex h-full flex-col overflow-hidden rounded-2xl p-4 text-primary-foreground shadow-md sm:p-5 lg:justify-center lg:p-7" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.78))' }}>
+      <span aria-hidden className="pointer-events-none absolute -right-8 -top-8 size-36 rounded-full bg-white/10" />
+      <div className="relative flex min-w-0 items-center gap-4">
         <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
-        <div className="min-w-0 flex-1 lg:flex-none">
-          <p className="break-words text-[22px] font-extrabold leading-tight tracking-[-0.02em] lg:text-[26px]">{name || (loading ? '…' : '')}</p>
-          {cls && <span className="mt-1.5 inline-flex max-w-full rounded-full bg-primary/10 px-3 py-1 text-[14px] font-semibold text-primary"><span className="truncate">Class {cls}</span></span>}
+        <div className="min-w-0 flex-1">
+          {kids.length > 1 ? (
+            <PickerMenu value={activeId ?? ''} ariaLabel="Switch child" align="start" onChange={onChild}
+              options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}>
+              {nameLine}
+            </PickerMenu>
+          ) : nameLine}
+          {cls && <p className="mt-0.5 text-[14px] font-medium opacity-90">Class {cls}</p>}
         </div>
       </div>
-      {facts.length > 0 && <dl className="relative mx-4 divide-y rounded-xl border bg-muted/40 text-[15px] lg:mx-6">
+      <div className="relative mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] gap-2">
         {facts.map(([k, v]) => (
-          <div key={k} className="flex min-h-[44px] items-center justify-between gap-3 px-3.5 py-2">
-            <dt className="shrink-0 text-muted-foreground">{k}</dt>
-            <dd className="min-w-0 truncate text-right font-semibold">{v}</dd>
+          <div key={k} className={tile}>
+            <span className="text-[12px] opacity-85">{k}</span>
+            <span className="break-words text-[14px] font-bold">{v}</span>
           </div>
         ))}
-      </dl>}
-      <div className="relative flex flex-wrap gap-2 p-4 lg:justify-center lg:px-6 lg:pb-6">
-        {years.length > 0 && (
-          <PickerMenu value={yearValue} ariaLabel="Academic year" align="start"
+        {years.length > 0 ? (
+          <PickerMenu value={yearValue} ariaLabel="Academic year" align="end"
             onChange={(id) => onYear(years.find((y) => y.academic_year_id === id)?.is_current ? '' : id)}
             options={years.map((y) => ({ value: y.academic_year_id, label: y.academic_year }))}>
-            <span className={pill}><CalendarRange className="h-4 w-4 text-primary" aria-hidden />{yearName}<ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden /></span>
+            <span className={cn(tile, 'w-full')}>
+              <span className="text-[12px] opacity-85">Academic year</span>
+              <span className="flex items-center gap-1 text-[14px] font-bold"><span className="break-words">{yearName}</span><ChevronDown className="size-4 shrink-0" aria-hidden /></span>
+            </span>
           </PickerMenu>
-        )}
-        {kids.length > 1 && (
-          <PickerMenu value={activeId ?? ''} ariaLabel="Switch child" align="end" onChange={onChild}
-            options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}>
-            <span className={pill}><Users className="h-4 w-4 text-primary" aria-hidden />Switch child<ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden /></span>
-          </PickerMenu>
-        )}
+        ) : yearName ? (
+          <div className={tile}><span className="text-[12px] opacity-85">Academic year</span><span className="truncate text-[14px] font-bold">{yearName}</span></div>
+        ) : null}
       </div>
-      </div>
-    </Card>
+    </div>
   )
 }
 
 /* The child's photo, or their initials when the school has none. */
 function ChildPhoto({ name, photo }: { name: string; photo?: string }) {
-  const box = 'size-20 shrink-0 rounded-full border-4 border-card shadow-[0_8px_20px_-6px_hsl(var(--primary)/0.45)] lg:size-32'
+  const box = 'size-16 shrink-0 rounded-full border-[3px] border-white/50 lg:size-20'
   return photo
     ? <img src={fileSrc(photo)} alt="" style={{ clipPath: 'circle(50%)' }} className={cn(box, 'aspect-square bg-muted object-cover')} />
-    : <span aria-hidden className={cn(box, 'grid place-items-center bg-gradient-to-br from-primary to-primary/70 text-[28px] font-extrabold text-primary-foreground lg:text-[44px]')}>{initials(name)}</span>
+    : <span aria-hidden className={cn(box, 'grid place-items-center bg-white text-[22px] font-extrabold text-primary lg:text-[28px]')}>{initials(name)}</span>
 }
 
 /* The child's subjects as cards, each opening its Subject page. */
@@ -110,7 +113,7 @@ export function SubjectCards({ subjects, hrefFor, note }: {
         const sub = note?.(s) ?? s.teacher ?? ''
         return (
           <li key={s.class_subject_id}>
-            <Link to={hrefFor(s)} className="flex min-h-[56px] items-center gap-3 px-3 py-2 active:bg-muted/60">
+            <Link to={hrefFor(s)} className="flex min-h-[56px] select-none items-center gap-3 px-3 py-2 [-webkit-touch-callout:none]">
               <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', tint.chip)}>{(() => { const I = icons[i]; return <I className="h-4 w-4" strokeWidth={1.9} aria-hidden /> })()}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-bold leading-snug">{s.subject}</span>
