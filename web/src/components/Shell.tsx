@@ -779,7 +779,10 @@ export function Shell({
           /* The line between the sidebar and the page, at every width. It was
              drawn only below lg, so on a desktop the white sidebar ran into
              the white page with nothing marking where one ended. */
-          'border-r max-md:transition-transform',
+          /* Visibility rides the same transition so a closing menu slides all the
+             way out before it is hidden; it used to vanish on the first frame
+             (owner, 2026-11-28: side menu "opens suddenly ... looks stuck"). */
+          'border-r max-md:transition-[transform,visibility]',
           'md:max-lg:w-[62px] lg:w-[286px]',
           /* Closed on a phone it stays laid out, off screen and invisible,
              instead of display:none: opening then costs a slide, not a fresh
@@ -1302,7 +1305,7 @@ export function Shell({
           sidebar sits in the page and has nothing to dim. */}
       {navOpen && !chromeless && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="nav-scrim fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setNavOpen(false)}
           aria-hidden
         />

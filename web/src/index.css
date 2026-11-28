@@ -3095,6 +3095,17 @@ body[data-scroll-lock] {
     transition-duration: var(--dur-phone) !important;
   }
 
+  /* THE SIDE MENU GLIDES (owner, 2026-11-28: "opens suddenly and fast").
+     --ease-phone covers two thirds of the distance in its first frames, which
+     on a full-width menu reads as a jump. A softer ease-out over a little
+     longer is a visible slide in and a slide out. */
+  #shell-nav {
+    transition-timing-function: cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    transition-duration: 360ms !important;
+  }
+  .nav-scrim { animation: nav-scrim-in 360ms cubic-bezier(0.25, 0.8, 0.25, 1) both; }
+  @keyframes nav-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+
   /* A screen arriving. Small travel, no fade to black, no bounce: the point
      is that the new screen was already on its way in before it was asked
      for. 8px is under a finger's width and reads as arrival rather than as
