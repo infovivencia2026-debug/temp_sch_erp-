@@ -6232,3 +6232,25 @@ html[data-topbar] header[data-paint="topbar"].h-\[56px\] {
   nav .nav-pill__arrow { width: 20px; height: 20px; }
   nav .nav-pill__sub a { font-size: 16px; }
 }
+
+/* THE CHILD CARD (owner, 2026-11-28): the school colour as a subtle fluid,
+   three soft glows drifting slowly; still under reduced motion. Tiles are
+   equal, 14px corners, in the app's normal type (no spaced figures). */
+.child-card { background: hsl(var(--primary)); }
+.child-card__flow {
+  position: absolute; inset: -40%; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(40% 45% at 20% 30%, hsl(var(--primary) / .55), transparent 70%),
+    radial-gradient(45% 40% at 80% 70%, hsl(var(--foreground) / .22), transparent 70%),
+    radial-gradient(35% 35% at 60% 20%, hsl(0 0% 100% / .14), transparent 70%);
+  animation: child-flow 16s ease-in-out infinite alternate;
+}
+@keyframes child-flow {
+  0% { transform: translate(0, 0) rotate(0); }
+  50% { transform: translate(6%, -4%) rotate(8deg); }
+  100% { transform: translate(-5%, 5%) rotate(-6deg); }
+}
+@media (prefers-reduced-motion: reduce) { .child-card__flow { animation: none; } }
+html[data-reduce-motion] .child-card__flow { animation: none; }
+.child-card .child-tile { border-radius: 14px !important; letter-spacing: 0; font-variant-numeric: normal; font-feature-settings: normal; }
+.child-card .child-tile * { letter-spacing: 0; font-feature-settings: normal; }

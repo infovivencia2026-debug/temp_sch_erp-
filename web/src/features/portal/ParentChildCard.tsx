@@ -31,7 +31,10 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
 }) {
   const kid = kids.find((k) => k.student_id === activeId)
   const name = profile?.full_name ?? kid?.full_name ?? ''
-  const cls = profile?.class_name ? `${profile.class_name}${profile.section_name ? ` - ${profile.section_name}` : ''}` : null
+  /* "Class 4 · A", "Grade 2 · HITHA": the class's own name (adding "Class" only
+     to a bare number, so it never reads "Class Class 4"), then the section. */
+  const clsName = profile?.class_name ? (/^\d/.test(profile.class_name.trim()) ? `Class ${profile.class_name.trim()}` : profile.class_name.trim()) : ''
+  const cls = clsName ? `${clsName}${profile?.section_name ? ` · ${profile.section_name}` : ''}` : null
   const years = profile?.years ?? []
   const yearValue = year && years.some((y) => y.academic_year_id === year) ? year : (profile?.academic_year_id ?? '')
   const yearName = years.find((y) => y.academic_year_id === yearValue)?.academic_year ?? profile?.academic_year ?? ''
@@ -40,7 +43,7 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
     ['Roll no.', profile?.roll_no != null ? String(profile.roll_no) : ''],
     ['Joined', profile?.admission_date ? formatDate(profile.admission_date) : ''],
   ] as [string, string][]).filter(([, v]) => v)
-  const tile = 'flex min-h-[56px] min-w-0 flex-col justify-center rounded-xl bg-white/15 px-3 py-2 text-left'
+  const tile = 'child-tile flex min-h-[58px] w-full min-w-0 flex-col justify-center bg-white/15 px-3 py-2 text-left'
   const nameLine = (
     <span className="flex min-w-0 items-center gap-1.5 lg:justify-center">
       <span className="min-w-0 break-words text-[22px] font-extrabold leading-tight tracking-[-0.02em] lg:text-[24px]">{name || (loading ? '…' : '')}</span>
@@ -52,8 +55,8 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
        school's colour. Tap the child's name to switch child (families of two
        or more); the academic year is its own tile with a drop-down, current
        year by default. Admission no., roll no. and joined date as tiles. */
-    <div className="relative flex h-full flex-col overflow-hidden rounded-2xl p-4 text-primary-foreground shadow-md sm:p-5 lg:justify-center lg:p-7" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.78))' }}>
-      <span aria-hidden className="pointer-events-none absolute -right-8 -top-8 size-36 rounded-full bg-white/10" />
+    <div className="child-card relative isolate flex h-full flex-col overflow-hidden rounded-2xl p-4 text-primary-foreground shadow-md sm:p-5 lg:justify-center lg:p-7">
+      <span aria-hidden className="child-card__flow" />
       <div className="relative flex min-w-0 items-center gap-4 lg:flex-col lg:gap-3 lg:text-center">
         <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
         <div className="min-w-0 flex-1">
@@ -63,27 +66,29 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
               {nameLine}
             </PickerMenu>
           ) : nameLine}
-          {cls && <p className="mt-0.5 text-[14px] font-medium opacity-90 lg:mt-2 lg:inline-block lg:rounded-full lg:bg-white/20 lg:px-3 lg:py-1 lg:text-[13px] lg:font-semibold">Class {cls}</p>}
+          {cls && <p className="mt-0.5 text-[14px] font-medium opacity-90 lg:mt-2 lg:inline-block lg:rounded-full lg:bg-white/20 lg:px-3 lg:py-1 lg:text-[13px] lg:font-semibold">{cls}</p>}
         </div>
       </div>
       <div className="relative mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] gap-2">
         {facts.map(([k, v]) => (
           <div key={k} className={tile}>
-            <span className="text-[12px] opacity-85">{k}</span>
-            <span className="break-words text-[14px] font-bold">{v}</span>
+            <span className="text-[12px] font-medium opacity-80">{k}</span>
+            <span className="break-words text-[16px] font-bold">{v}</span>
           </div>
         ))}
         {years.length > 0 ? (
+          <div className="flex min-w-0 [&>.picker]:flex [&>.picker]:w-full [&>.picker>button]:w-full">
           <PickerMenu value={yearValue} ariaLabel="Academic year" align="end"
             onChange={(id) => onYear(years.find((y) => y.academic_year_id === id)?.is_current ? '' : id)}
             options={years.map((y) => ({ value: y.academic_year_id, label: y.academic_year }))}>
             <span className={cn(tile, 'w-full')}>
-              <span className="text-[12px] opacity-85">Academic year</span>
-              <span className="flex items-center gap-1 text-[14px] font-bold"><span className="break-words">{yearName}</span><ChevronDown className="size-4 shrink-0" aria-hidden /></span>
+              <span className="text-[12px] font-medium opacity-80">Academic year</span>
+              <span className="flex items-center justify-between gap-1 text-[16px] font-bold"><span className="break-words">{yearName}</span><ChevronDown className="size-4 shrink-0" aria-hidden /></span>
             </span>
           </PickerMenu>
+          </div>
         ) : yearName ? (
-          <div className={tile}><span className="text-[12px] opacity-85">Academic year</span><span className="truncate text-[14px] font-bold">{yearName}</span></div>
+          <div className={tile}><span className="text-[12px] font-medium opacity-80">Academic year</span><span className="truncate text-[16px] font-bold">{yearName}</span></div>
         ) : null}
       </div>
       {stats && stats.length > 0 && (
