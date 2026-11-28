@@ -8,7 +8,8 @@ import {
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { useParentYear } from './parent-child'
-import { Freshness, ScreenSkeleton } from './screen-state'
+import { Freshness } from './screen-state'
+import { Skeleton } from '@/components/Skeleton'
 import { formatDate, formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useSession } from '@/lib/session'
@@ -144,7 +145,49 @@ export default function PortalFees() {
      linked to nobody — to a spinner that never resolved, because the fee query
      stays disabled while there is no child and a disabled query never stops
      being pending. Three separate answers, in the order the page learns them. */
-  if (children.isLoading && !children.data) return <ScreenSkeleton />
+  /* Loading: the real header, the three figure cells and the instalments
+     card, with placeholders where the amounts and instalments go. */
+  if ((children.isLoading && !children.data) || (isLoading && !data)) {
+    const bone = <Skeleton className="h-6 w-24" />
+    return (
+      <>
+        <PageHead eyebrow={t('portal.fees.eyebrow')} title={t('portal.fees.title')} actions={<Button variant="secondary" disabled>{t('portal.fees.action_print')}</Button>} />
+        <PageBody>
+          {/* Most families owe something when they open this, so the UPI card
+              is held open where the school has one. */}
+          {upiVpa && (
+            <Card>
+              <CardHeader title={t('portal.fees.upi_title')} />
+              <div aria-hidden className="flex flex-col items-center gap-3 p-5">
+                <Skeleton className="size-[236px] max-w-full" round="card" />
+                <Skeleton className="h-6 w-28" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </Card>
+          )}
+          <CellGrid cols={3}>
+            <Stat label={t('portal.fees.stat_outstanding')} value={bone} icon={IndianRupee} />
+            <Stat label={t('portal.fees.stat_overdue')} value={bone} icon={AlertTriangle} />
+            <Stat label={t('portal.fees.stat_paid')} value={bone} icon={Receipt} />
+          </CellGrid>
+          <Card>
+            <CardHeader title={t('portal.fees.instalments_title')} description={t('portal.fees.instalments_description')} />
+            <ul aria-hidden className="space-y-3 p-4">
+              {[0, 1, 2].map((i) => (
+                <li key={i} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border bg-card p-4">
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                  <Skeleton className="h-10 w-28" />
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </PageBody>
+      </>
+    )
+  }
   if (children.error && !children.data) return <ScreenError error={children.error} />
   if (!kids.length)
     return (
@@ -158,7 +201,6 @@ export default function PortalFees() {
         </PageBody>
       </>
     )
-  if (isLoading && !data) return <ScreenSkeleton />
   if (error && !data) return <ScreenError error={error} />
   if (!data)
     return (

@@ -42,27 +42,37 @@ export function ChildCardSkeleton() {
   )
 }
 
-/** Subjects: one boxed list of rows on a phone, a grid of cards wider. */
+/** Subjects: one boxed list of rows on a phone, a grid of cards wider (with
+    the three homework / notes / marks boxes when the real cards carry them). */
 export function SubjectCardsSkeleton({ n = 6, wide = true }: { n?: number; wide?: boolean }) {
   return (
     <div aria-hidden>
       <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm sm:hidden">
         {Array.from({ length: n }, (_, i) => (
-          <li key={i} className="flex min-h-[56px] items-center gap-3 px-3 py-2">
-            <Skeleton className="size-9 shrink-0" />
-            <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <Skeleton className="h-3.5" style={{ width: `${48 - (i % 3) * 8}%` }} />
-              <Skeleton className="h-2.5" style={{ width: `${34 - (i % 2) * 8}%` }} />
+          <li key={i} className="flex min-h-[64px] items-center gap-4 px-4 py-3">
+            <Skeleton className="size-10 shrink-0 !rounded-xl" />
+            <span className="flex min-w-0 flex-1 flex-col gap-2">
+              <Skeleton className="h-4" style={{ width: `${48 - (i % 3) * 8}%` }} />
+              <Skeleton className="h-3" style={{ width: `${34 - (i % 2) * 8}%` }} />
             </span>
           </li>
         ))}
       </ul>
       <ul className={wide ? 'hidden gap-3 sm:grid sm:grid-cols-[repeat(auto-fill,minmax(17rem,1fr))]' : 'hidden gap-3 sm:grid sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'}>
         {Array.from({ length: n }, (_, i) => (
-          <li key={i} className="flex min-h-[92px] flex-col gap-1.5 rounded-xl border bg-card p-2.5 shadow-sm sm:p-3">
-            <Skeleton className="size-8" />
-            <Skeleton className="h-3.5" style={{ width: `${60 - (i % 3) * 10}%` }} />
-            <Skeleton className="h-2.5 w-1/3" />
+          <li key={i} className="flex min-h-[92px] flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm sm:p-4">
+            <span className="flex items-center gap-3">
+              <Skeleton className="size-10 shrink-0 !rounded-xl" />
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <Skeleton className="h-4" style={{ width: `${70 - (i % 3) * 12}%` }} />
+                <Skeleton className="h-3 w-1/2" />
+              </span>
+            </span>
+            {wide && (
+              <span className="grid grid-cols-3 gap-1.5">
+                {[0, 1, 2].map((k) => <Skeleton key={k} className="h-[60px] !rounded-lg opacity-70" />)}
+              </span>
+            )}
           </li>
         ))}
       </ul>

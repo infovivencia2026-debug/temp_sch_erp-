@@ -3,7 +3,8 @@ import { api } from '@/lib/api'
 import { PageHead, PageBody, Select, ErrorState, EmptyState, Card } from '@/components/ui'
 import WeekGrid from '@/components/WeekGrid'
 import { usePhone } from '@/lib/viewport'
-import { Freshness, ScreenSkeleton } from './screen-state'
+import { Freshness } from './screen-state'
+import { SkeletonWeek } from '@/components/Skeleton'
 import { useChildren, childOptions, readyFor } from './use-children'
 import { ChooseChild } from '@/features/portal/ChooseChild'
 import { useT } from '@/lib/i18n'
@@ -74,7 +75,7 @@ export default function ChildTimetable() {
       <Freshness query={entries} />
       <PageBody>
         {kidsQuery.isLoading ? (
-          <ScreenSkeleton rows={6} label={t('portal.child_timetable.loading_children')} />
+          <Card className={phone ? undefined : 'p-4'}><SkeletonWeek delay={0} label={t('portal.child_timetable.loading_children')} /></Card>
         ) : kidsQuery.error ? (
           <ErrorState error={kidsQuery.error} />
         ) : kids.length === 0 ? (
@@ -90,7 +91,7 @@ export default function ChildTimetable() {
             body={t('portal.child_timetable.no_section_body')}
           />
         ) : periods.isLoading || entries.isLoading ? (
-          <ScreenSkeleton rows={6} label={t('portal.child_timetable.loading_week')} />
+          <Card className={phone ? undefined : 'p-4'}><SkeletonWeek delay={0} label={t('portal.child_timetable.loading_week')} /></Card>
         ) : entries.error ? (
           <ErrorState error={entries.error} />
         ) : (

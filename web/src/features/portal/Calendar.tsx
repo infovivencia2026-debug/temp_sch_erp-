@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { PageHead, PageBody, Card, Select, Field, EmptyState } from '@/components/ui'
 import { ScreenError } from './screen-error'
-import { Freshness, ScreenSkeleton } from './screen-state'
+import { Freshness } from './screen-state'
+import { Skeleton } from '@/components/Skeleton'
 import { cn } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -187,7 +188,41 @@ export default function Calendar() {
       : (today.slice(0, 7) === monthStart.slice(0, 7) ? today : monthStart)))
   }, [cursor, today])
 
-  if (query.isLoading && !query.data) return <ScreenSkeleton label={t('portal.calendar.loading')} />
+  /* Loading: the real header and the month frame (weekday row, 6 x 7 day
+     cells at their real heights) with placeholders for the month name. */
+  if (query.isLoading && !query.data) {
+    return (
+      <>
+        <PageHead eyebrow={t('portal.calendar.eyebrow')} title={t('portal.calendar.title')} />
+        <PageBody>
+          <div aria-hidden className="flex flex-wrap items-center justify-between gap-3">
+            <Skeleton className="h-7 w-44" />
+            <div className="flex items-center gap-1.5">
+              <Skeleton className="h-[48px] w-[48px] sm:h-9 sm:w-9" round="full" />
+              <Skeleton className="h-[48px] w-[106px] sm:h-9 sm:w-24" round="full" />
+              <Skeleton className="h-[48px] w-[48px] sm:h-9 sm:w-9" round="full" />
+            </div>
+          </div>
+          <div aria-hidden className="flex flex-wrap gap-2 pb-1 max-sm:pt-2.5">
+            {[64, 96, 118, 84].map((w) => <Skeleton key={w} className="h-[44px] sm:h-8" round="full" style={{ width: w }} />)}
+          </div>
+          <Card className="overflow-hidden p-0">
+            <div aria-hidden className="grid grid-cols-7 border-b bg-surface-sunken/60 text-center text-[11px] font-bold uppercase tracking-[0.05em] text-muted-foreground">
+              {WEEK.map((d) => <div key={d} className="py-2.5">{d}</div>)}
+            </div>
+            <div aria-hidden className="grid grid-cols-7">
+              {Array.from({ length: 42 }, (_, i) => (
+                <div key={i} className="flex min-h-[52px] flex-col items-center gap-1 border-b border-r p-1 md:min-h-[104px] md:items-stretch md:p-2 [&:nth-child(7n)]:border-r-0">
+                  <Skeleton className="h-[22px] w-[22px]" round="full" />
+                </div>
+              ))}
+            </div>
+          </Card>
+          <p role="status" className="sr-only">{t('portal.calendar.loading')}</p>
+        </PageBody>
+      </>
+    )
+  }
   if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const all = [...(query.data?.items ?? [])].sort((a, b) => a.date.localeCompare(b.date))

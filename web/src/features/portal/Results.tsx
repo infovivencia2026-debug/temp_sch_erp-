@@ -7,7 +7,8 @@ import {
   Select, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
-import { Freshness, ScreenSkeleton } from './screen-state'
+import { Skeleton } from '@/components/Skeleton'
+import { Freshness } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useParentYear } from './parent-child'
@@ -88,7 +89,28 @@ export default function PortalResults() {
      `!child` held the spinner forever because the results query never starts
      without a child, and a query that never starts never stops being pending.
      A parent is owed the reason. */
-  if (children.isLoading && !children.data) return <ScreenSkeleton />
+  /* Loading: the real header, figure cells and report-card table frame, with
+     placeholders only where the numbers and rows go, so nothing moves. */
+  if ((children.isLoading && !children.data) || (isLoading && !data)) {
+    const bone = <Skeleton className="h-6 w-20" />
+    return (
+      <>
+        <PageHead eyebrow={t('portal.results.eyebrow')} title={t('portal.results.title')} />
+        <PageBody>
+          <CellGrid cols={4}>
+            <Stat label={t('portal.results.stat_latest')} value={bone} icon={GraduationCap} />
+            <Stat label={t('portal.results.stat_grade')} value={bone} icon={Award} />
+            <Stat label={t('portal.results.stat_rank')} value={bone} />
+            <Stat label={t('portal.results.stat_attendance')} value={bone} hint={t('portal.results.stat_attendance_hint')} />
+          </CellGrid>
+          <Card>
+            <CardHeader title={t('portal.results.cards_title')} description={t('portal.results.cards_description')} />
+            <Table loading loadingRows={3} head={[t('portal.results.col_term'), t('portal.results.col_total'), t('portal.results.col_percentage'), t('portal.results.col_grade'), t('portal.results.col_rank'), t('portal.results.col_published'), '']}>{null}</Table>
+          </Card>
+        </PageBody>
+      </>
+    )
+  }
   if (children.error && !children.data) return <ScreenError error={children.error} />
   if (!kids.length)
     return (
@@ -102,7 +124,6 @@ export default function PortalResults() {
         </PageBody>
       </>
     )
-  if (isLoading && !data) return <ScreenSkeleton />
   if (error && !data) return <ScreenError error={error} />
   if (!data)
     return (

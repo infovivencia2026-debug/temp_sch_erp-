@@ -4304,6 +4304,10 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
 [aria-hidden] > .skeleton:nth-child(5), [aria-hidden] > * > .skeleton:nth-child(5) { animation-delay: 160ms, 0s; }
 [aria-hidden] > .skeleton:nth-child(n+6), [aria-hidden] > * > .skeleton:nth-child(n+6) { animation-delay: 200ms, 0s; }
 .dark .skeleton { background-color: hsl(var(--foreground) / 0.08); }
+/* A table placeholder drawn inside a card already has the card's frame; a
+   second border and radius inside it read as a box in a box, and moved the
+   rows 1px in from where the real table's rows land. */
+.card .skel-table { border: 0; border-radius: 0; background: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none !important; background-image: none; }
 }

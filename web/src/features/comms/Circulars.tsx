@@ -1,3 +1,4 @@
+import { Skeleton } from '@/components/Skeleton'
 import { useState } from 'react'
 import { shrinkImage } from '@/lib/shrink-image'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -191,7 +192,7 @@ export default function Circulars() {
              SCHOOL has about a notice — shown to somebody who cannot act on
              any of them, and standing in front of the one thing they came
              for, which is what it says. */
-          <FamilyNotices rows={rows} onAck={(id) => ack.mutate(id)} acking={ack.isPending} />
+          <FamilyNotices loading={list.isLoading && !list.data} rows={rows} onAck={(id) => ack.mutate(id)} acking={ack.isPending} />
         ) : (
         <>
         <CellGrid cols={3}>
@@ -453,7 +454,7 @@ export default function Circulars() {
 
         <Card>
           <CardHeader title="Published" description="Most recent first" />
-          {list.isLoading ? <SkeletonTable columns={7} /> : list.error ? <ErrorState error={list.error} /> : (
+          {list.isLoading ? <Table wide loading loadingRows={5} head={['Title', 'Kind', 'Audience', 'Sections', 'Acknowledged', 'Published', '']}>{null}</Table> : list.error ? <ErrorState error={list.error} /> : (
             /* Seven columns: without `wide` they were divided equally and
                crushed, and scrolling sideways carried the title out of view —
                leaving a column of identical "Who got it" buttons with nothing
@@ -571,7 +572,8 @@ function Delivery({ id }: { id: string }) {
    ones that ask. Everything else on that table is somebody else's work shown
    to somebody who cannot act on it.
 */
-function FamilyNotices({ rows, onAck, acking }: {
+function FamilyNotices({ rows, onAck, acking, loading }: {
+  loading?: boolean
   rows: Circular[]
   onAck: (id: string) => void
   acking: boolean
@@ -606,7 +608,24 @@ function FamilyNotices({ rows, onAck, acking }: {
             : 'Everything the school has published, newest first.'
         }
       />
-      {rows.length === 0 ? (
+      {loading ? (
+        /* The list's own rows while it loads (it said "Nothing yet" first). */
+        <ul aria-hidden className="divide-y">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <li key={i} className="flex items-center gap-3 px-4 py-3">
+              <Skeleton className="size-11 shrink-0" round="full" />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-3.5" style={{ width: `${60 - (i % 3) * 12}%` }} />
+                  <span className="flex-1" />
+                  <Skeleton className="h-2.5 w-12" />
+                </div>
+                <Skeleton className="h-2.5 w-4/5" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : rows.length === 0 ? (
         <EmptyState title="Nothing yet" body="Notices from the school will appear here." />
       ) : (
         <ul className="divide-y">

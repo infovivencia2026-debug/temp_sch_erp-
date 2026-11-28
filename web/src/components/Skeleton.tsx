@@ -209,7 +209,7 @@ export function SkeletonTable({
 }) {
   const n = cols ?? columns ?? 4
   return (
-    <Shape delay={delay} label={label} className="overflow-hidden rounded-[var(--radius-card)] border bg-card">
+    <Shape delay={delay} label={label} className="skel-table overflow-hidden rounded-[var(--radius-card)] border bg-card">
       <div className="flex h-[41px] items-center gap-4 border-b px-4">
         {Array.from({ length: n }, (_, c) => (
           <Bone key={c} className="h-2.5" style={{ width: COL_WIDTHS[c % COL_WIDTHS.length] }} />
@@ -390,6 +390,60 @@ export function SkeletonShell({ label = 'Opening…' }: { label?: string }) {
             <Bone key={i} className="h-7 w-7" round="card" />
           ))}
         </div>
+      </div>
+    </Shape>
+  )
+}
+
+/**
+ * A timetable that has not arrived, in the shape WeekGrid draws: on a phone
+ * the day strip and a timeline of period cards (times down the left); wider,
+ * the period column and six day columns at the real cell height.
+ */
+export function SkeletonWeek({ periods = 8, days = 6, delay, label }: { periods?: number; days?: number; delay?: number; label?: string }) {
+  return (
+    <Shape delay={delay} label={label}>
+      <div className="sm:hidden">
+        <div className="flex flex-wrap gap-1.5 border-b px-4 pb-2.5 pt-3">
+          {Array.from({ length: days }, (_, i) => <Bone key={i} className="h-9 w-12" round="full" />)}
+        </div>
+        <div className="flex flex-col gap-3 pb-6 pl-3 pr-4 pt-4">
+          {Array.from({ length: periods }, (_, i) => (
+            <div key={i} className="flex items-start">
+              <div className="flex w-14 shrink-0 flex-col items-end gap-1 pr-2 pt-2.5">
+                <Bone className="h-3 w-9" />
+                <Bone className="h-2.5 w-7" />
+              </div>
+              <div className="ml-4 flex min-h-[60px] flex-1 flex-col gap-2 rounded-xl border bg-card p-3">
+                <Bone className="h-2.5 w-16" />
+                <Bone className="h-3.5" style={{ width: `${56 - (i % 3) * 10}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="hidden overflow-hidden rounded-lg border sm:block">
+        <div className="grid border-b bg-muted/50" style={{ gridTemplateColumns: `7rem repeat(${days}, minmax(0, 1fr))` }}>
+          {Array.from({ length: days + 1 }, (_, i) => (
+            <div key={i} className={cn('px-3 py-3', i > 0 && 'border-l')}><Bone className="h-2.5 w-12" /></div>
+          ))}
+        </div>
+        {Array.from({ length: periods }, (_, r) => (
+          <div key={r} className="grid border-b last:border-b-0" style={{ gridTemplateColumns: `7rem repeat(${days}, minmax(0, 1fr))` }}>
+            <div className="flex flex-col gap-1.5 px-3 py-2.5">
+              <Bone className="h-3 w-14" />
+              <Bone className="h-2.5 w-16" />
+            </div>
+            {Array.from({ length: days }, (_, c) => (
+              <div key={c} className="border-l p-1.5">
+                <div className="flex min-h-[5.25rem] flex-col gap-2 rounded-xl border bg-card p-2.5">
+                  <Bone className="h-3" style={{ width: `${50 + ((r + c) % 4) * 10}%` }} />
+                  <Bone className="h-2.5 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </Shape>
   )
