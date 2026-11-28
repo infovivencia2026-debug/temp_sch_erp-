@@ -60,9 +60,11 @@ export function ParentChildCard({ profile, kids, activeId, onChild, year, onYear
        or more); the academic year is its own tile with a drop-down, current
        year by default. Admission no., roll no. and joined date as tiles. */
     <div className="child-card relative isolate flex h-full flex-col overflow-hidden rounded-2xl p-4 text-primary-foreground shadow-md sm:p-5 lg:justify-center lg:p-7">
-      <div className="relative flex min-w-0 items-center gap-4 lg:flex-col lg:gap-3 lg:text-center">
+      {/* Wraps the name under the photo only when large phone text leaves it
+          no room beside it (320px at text size 2 split "Student" mid-word). */}
+      <div className="relative flex min-w-0 flex-wrap items-center gap-4 lg:flex-col lg:flex-nowrap lg:gap-3 lg:text-center">
         <ChildPhoto name={name || '?'} photo={profile?.photo_file_id} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[min(100%,11rem)] flex-1">
           {kids.length > 1 ? (
             <PickerMenu value={activeId ?? ''} ariaLabel="Switch child" align="start" onChange={onChild}
               options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}>
