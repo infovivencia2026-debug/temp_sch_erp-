@@ -1186,6 +1186,7 @@ export function Table({
   unpaged,
   loading,
   loadingRows = 6,
+  loadingRowHeight,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -1212,6 +1213,8 @@ export function Table({
      rows (`isFetching` with data) must keep those rows on screen. */
   loading?: boolean
   loadingRows?: number
+  /** The real rows' height when they hold buttons, so placeholder rows match. */
+  loadingRowHeight?: number
   /* EXPORT SOMETHING OTHER THAN WHAT IS DRAWN.
 
      By default Export writes the rows on screen, which is right when the row
@@ -1561,7 +1564,7 @@ export function Table({
         </thead>
         <tbody>
           {loading ? (
-            <SkeletonRows rows={loadingRows} cols={head.length} />
+            <SkeletonRows rows={loadingRows} cols={head.length} height={loadingRowHeight} />
           ) : empty ? (
             <tr>
               <td colSpan={head.length} className="px-[var(--card-pad)] py-12 text-center text-[14px] text-muted-foreground">

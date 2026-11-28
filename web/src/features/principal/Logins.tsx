@@ -375,15 +375,17 @@ export default function Logins() {
               : k ? everyone.filter((u) => u.record === k).length
               : everyone.length
             const on = tabUi === k
-            return (
-              <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => pickTab(k)}
+            return (<Fragment key={k || 'all'}>
+              {/* 'No record' only exists once the accounts are counted; its room is held before Sessions. */}
+              {k === 'sessions' && isLoading && <span aria-hidden className="skeleton min-h-10 w-28 shrink-0 rounded-full max-sm:min-h-12" />}
+              <button type="button" role="tab" aria-selected={on} onClick={() => pickTab(k)}
                 className={cn(/* One row that scrolls on a phone: wrapped, the pills squeezed
                    their labels into each other. */
                   'min-h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-[13.5px] font-medium transition-colors',
                   on ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
-                {label}{!isLoading && n !== null && <span className="ml-1.5 tabular-nums text-muted-foreground">{n}</span>}
+                {label}{!isLoading && n !== null && <span className="ml-1.5 tabular-nums text-muted-foreground">{n}</span>}{isLoading && n !== null && <span aria-hidden className="skeleton ml-1.5 inline-block h-3 w-7 rounded align-middle" />}
               </button>
-            )
+            </Fragment>)
           })}
         </div>
           {(record === '' || record === 'staff') && (
@@ -418,7 +420,7 @@ export default function Logins() {
         <CellGrid cols={4}>
           <Stat
             label="Logins"
-            value={isLoading ? <Skeleton className="mt-1 h-9 w-16" /> : users.length}
+            value={isLoading ? <Skeleton className="mt-1 h-9 w-12" /> : users.length}
             icon={ShieldCheck}
             hint={lens ? 'Show all of them again' : 'Everybody on this tab'}
             active={lens === ''}
@@ -426,20 +428,20 @@ export default function Logins() {
           />
           <Stat
             label="Not issued"
-            value={rollStaff.isLoading || rollStudents.isLoading || rollGuardians.isLoading ? <Skeleton className="mt-1 h-9 w-16" /> : notIssuedTotal}
-            hint={notIssuedTotal === 0 ? 'Everybody on the roll has a login' : `Staff ${notIssued.staff} · Students ${notIssued.student} · Parents ${notIssued.guardian}, show them`}
+            value={rollStaff.isLoading || rollStudents.isLoading || rollGuardians.isLoading ? <Skeleton className="mt-1 h-9 w-12" /> : notIssuedTotal}
+            hint={rollStaff.isLoading || rollStudents.isLoading || rollGuardians.isLoading ? 'Staff · Students · Parents' : notIssuedTotal === 0 ? 'Everybody on the roll has a login' : `Staff ${notIssued.staff} · Students ${notIssued.student} · Parents ${notIssued.guardian}, show them`}
             onClick={openNotIssued}
           />
           <Stat
             label="Signed in now"
-            value={isLoading ? <Skeleton className="mt-1 h-9 w-16" /> : signedIn}
+            value={isLoading ? <Skeleton className="mt-1 h-9 w-12" /> : signedIn}
             hint="Active in the last 10 minutes"
             active={lens === 'live'}
             onClick={() => setTileLens(lens === 'live' ? '' : 'live')}
           />
           <Stat
             label="No linked record"
-            value={isLoading ? <Skeleton className="mt-1 h-9 w-16" /> : orphans.length}
+            value={isLoading ? <Skeleton className="mt-1 h-9 w-12" /> : orphans.length}
             icon={ShieldAlert}
             hint="Active logins whose person is gone"
             active={lens === 'orphan'}
@@ -615,7 +617,7 @@ export default function Logins() {
           />
           {isLoading ? (
             /* The real table head with rows on the real pitch, not a stand-in. */
-            <Table loading loadingRows={8} head={simple
+            <Table loading loadingRows={8} loadingRowHeight={65} head={simple
                 ? ['Name', 'Belongs to', 'Child & class', 'Last sign-in', 'Status', '']
                 : ['Name', 'Contact', 'Belongs to', 'Child & class', 'Roles', 'Devices', 'Last sign-in', 'Status', '']}>{null}</Table>
           ) : error ? (

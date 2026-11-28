@@ -125,8 +125,8 @@ export default function HomeExact() {
      chips held open, so the board keeps its shape instead of filling with
      dashes and then growing. */
   const kWait = kq.isLoading && !k
-  const numBone = <Skeleton className="my-1 h-8 w-20" />
-  const metaBone = <Skeleton className="mt-1 h-3 w-24" />
+  const numBone = <Skeleton className="my-1 h-8 w-12" />
+  const metaBone = <Skeleton className="mt-1 h-3 w-16" />
   const trend = tq.data?.items ?? []
   const stats = sq.data
 

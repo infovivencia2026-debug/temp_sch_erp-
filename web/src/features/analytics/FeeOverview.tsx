@@ -94,21 +94,23 @@ export default function FeeOverview() {
   /* Loading: the real header, figure cells and by-class card, with
      placeholders only where the amounts and rows go. */
   if (overview.isLoading && !overview.data) {
-    const bone = <Skeleton className="h-7 w-28" />
+    const bone = <Skeleton className="my-0.5 h-9 w-44 max-w-full" />
     return (
       <>
         <PageHead eyebrow="Fees" title="Fee overview"
           actions={<div className="flex gap-2"><CsvButton href={OVERVIEW + yq} label="Export by class" /><Button variant="secondary" disabled><Printer className="h-4 w-4" /> Print</Button></div>} />
         <PageBody>
+          {/* A blank hint or period (" ") holds that line's height without
+              inventing its words; they depend on the figures. */}
           <CellGrid cols={4}>
-            <Stat label="Demanded" value={bone} hint="Billed for this year" />
-            <Stat label="Collected against this year's bills" value={bone} />
-            <Stat label="Outstanding this year" value={bone} period="As of now" />
-            <Stat label="Concessions given" value={bone} hint="Discount applied to bills" />
+            <Stat label="Demanded" value={bone} hint="Billed for this year" period={'\u00a0'} />
+            <Stat label="Collected against this year's bills" value={bone} hint={'\u00a0'} period={'\u00a0'} />
+            <Stat label="Outstanding this year" value={bone} hint={'\u00a0'} period="As of now" />
+            <Stat label="Concessions given" value={bone} hint="Discount applied to bills" period={'\u00a0'} />
           </CellGrid>
           <Card>
             <CardHeader title="By class" description="Demanded against collected, for the class the child sat in that year." />
-            <Table loading loadingRows={8} head={[ 'Class', 'Students', { label: 'Demanded', align: 'right' }, { label: 'Collected', align: 'right' }, { label: 'Outstanding', align: 'right' }, { label: 'Concession', align: 'right' }, 'Collected', ]}>{null}</Table>
+            <Table loading loadingRows={8} loadingRowHeight={60} head={[ 'Class', 'Students', { label: 'Demanded', align: 'right' }, { label: 'Collected', align: 'right' }, { label: 'Outstanding', align: 'right' }, { label: 'Concession', align: 'right' }, 'Collected', ]}>{null}</Table>
           </Card>
         </PageBody>
       </>

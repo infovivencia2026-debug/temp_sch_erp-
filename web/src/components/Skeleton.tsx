@@ -172,11 +172,11 @@ const COL_WIDTHS = ['34%', '20%', '18%', '14%', '16%', '12%']
 /** Rows of a table that has not arrived, on the pitch the real `Td` uses.
     Bare rows, no frame: `Table` uses this inside its own tbody so the real
     header stays put while the rows fill in. */
-export function SkeletonRows({ rows = 6, cols = 4 }: { rows?: number; cols?: number }) {
+export function SkeletonRows({ rows = 6, cols = 4, height }: { rows?: number; cols?: number; height?: number }) {
   return (
     <>
       {Array.from({ length: rows }, (_, r) => (
-        <tr key={r} aria-hidden>
+        <tr key={r} aria-hidden style={height ? { height } : undefined}>
           {Array.from({ length: cols }, (_, c) => (
             <td key={c} className="px-5 py-3.5 max-[900px]:px-3">
               {/* Sized in the cell's own terms with a floor, so a narrow

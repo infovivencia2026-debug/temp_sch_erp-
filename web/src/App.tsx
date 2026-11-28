@@ -415,7 +415,12 @@ function FeatureRoute() {
        * 220ms first, which means a chunk already in the browser cache (the
        * second visit to any screen, and every visit for anyone who has been
        * in the product for a minute) shows no loading state whatsoever. */}
-      <Suspense fallback={routeSkeleton(feature.key, homeLanding)}>
+      <Suspense fallback={homeLanding && feature.key !== 'parent.home.dashboard' && feature.key !== 'institution_admin.home.dashboard' && !feature.key.startsWith('student.')
+        /* A staff home's top half is this same panel, which is already loaded:
+           draw it (its own placeholder while it asks) instead of a generic
+           board, so only the role's overview below waits for its code. */
+        ? <PageBody width={timetableHome ? 'full' : undefined}><NeedsAttention name={session.user?.full_name.split(" ")[0]} attentionFirst={timetableHome || feature.key === 'student.home.my_day'} noAttention={timetableHome} /></PageBody>
+        : routeSkeleton(feature.key, homeLanding)}>
         {/* The administrator's home, exactly as the owner drew it (2026-11-09). */}
         {homeLanding && feature.key === 'institution_admin.home.dashboard' && (
           <PageBody><HomeExact /></PageBody>

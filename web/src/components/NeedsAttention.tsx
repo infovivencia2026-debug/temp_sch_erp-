@@ -175,16 +175,49 @@ export default function NeedsAttention({ name, afterToday, attentionFirst = fals
      blank ground for a second or more and then everything arrived at once,
      pushing the overview down as the greeting landed above it. */
   if (q.isLoading) {
+    /* The loaded page's own frames -- the Today banner with its figure cards,
+       the attention list beside Quick actions -- with bars where the words
+       and numbers go (owner, 2026-11-28: placeholders shaped like the home). */
+    const tile = (i: number) => (
+      <div key={i} className="flex items-start justify-between gap-3 rounded-xl border bg-card p-4 shadow-[var(--elev-1)]">
+        <div className="flex min-w-0 flex-col gap-2.5"><div className="skeleton h-3 w-20 rounded" /><div className="skeleton h-7 w-12 rounded-md" /></div>
+        <div className="skeleton size-10 shrink-0 rounded-xl" />
+      </div>
+    )
+    const attn = (
+      <section className="pt-3">
+        <div className="mb-3 flex h-6 items-center"><div className="skeleton h-4 w-48 rounded" /></div>
+        <div className="flex flex-col gap-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-[var(--elev-1)]">
+              <div className="skeleton size-10 shrink-0 rounded-full" />
+              <div className="skeleton h-3.5 flex-1 rounded" style={{ maxWidth: `${60 - i * 10}%` }} />
+              <div className="skeleton h-9 w-24 shrink-0 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </section>
+    )
     return (
       <div className="flex flex-col gap-6" aria-busy="true">
-        <div className="flex h-[34px] items-center"><div className="skeleton h-6 w-72 max-w-full rounded-md" /></div>
-        {catalog.roles.length > 1 && <RoleNote roleName={role?.name} />}
-        <section>
-          <p className="eyebrow mb-2.5">Today</p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-[102px] rounded-xl" />)}
-          </div>
-        </section>
+        {attentionFirst ? attn : (<>
+          {!staffBar && <div className="pt-[var(--page-top)]"><div className="flex h-[34px] items-center"><div className="skeleton h-6 w-72 max-w-full rounded-md" /></div></div>}
+          {catalog.roles.length > 1 && <RoleNote roleName={role?.name} />}
+          <section className="home-hero">
+            <h2 className="home-hero-title">Today</h2>
+            <div className="home-hero-lead"><div className="skeleton my-1 h-3.5 w-44 rounded" /></div>
+            <div className="tint-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">{[0, 1, 2, 3, 4].map(tile)}</div>
+          </section>
+          {afterToday && (
+            <div className="home-act grid items-start gap-5 xl:grid-cols-[1.4fr_1fr]">
+              <div className="min-w-0">{attn}</div>
+              <section className="rounded-2xl border bg-card p-5 shadow-[var(--elev-1)] xl:mt-3">
+                <h2 className="text-[16px] font-bold tracking-[-0.01em]">Quick actions</h2>
+                <div className="mt-4 grid grid-cols-2 gap-2.5">{[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-[46px] rounded-xl" />)}</div>
+              </section>
+            </div>
+          )}
+        </>)}
         <Suspense fallback={<Loading shape="cards" rows={3} />}>{afterToday && <section className="home-overview"><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}</Suspense>
       </div>
     )
