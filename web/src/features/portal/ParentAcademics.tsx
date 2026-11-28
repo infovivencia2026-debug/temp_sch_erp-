@@ -170,7 +170,7 @@ function Academics({ view }: { view: string }) {
               mastery and resources are left out: nothing records them. */}
           {/* The subject's name is the breadcrumb above (owner, 2026-11-27: no
               second heading), so the card is its teacher. */}
-          <Card className="relative -mt-4 overflow-hidden p-4 sm:p-5">
+          <Card className="relative -mt-2 overflow-hidden p-4 sm:p-5">
             <div className="flex min-w-0 items-center gap-4">
               <ChildAvatar name={s.teacher ?? '?'} photo={s.teacher_photo} size="md" />
               <div className="min-w-0">

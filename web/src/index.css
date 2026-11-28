@@ -6320,3 +6320,22 @@ html[data-topbar] header[data-paint="topbar"].h-\[56px\] {
   transform-origin: top center;
 }
 @media (prefers-reduced-motion: reduce) { [data-anchored-panel]:not([role]) { animation: none; } }
+
+/* NO CARD TOUCHES AN EDGE (owner, 2026-11-28: "i dont want ANY CARDS ON ANY
+   SCREEN TO TOUCH MARGINS").
+
+   A page body that does not sit directly under its own visible head -- under
+   a bundle's tab strip, under a head portaled into the top bar, or with no
+   head at all -- gets one fixed gap above its first card: 16px on a phone,
+   20px from 640 up. Under a visible head the head's own --page-head-gap
+   already does that job, so the two never stack. */
+[data-page-body] { padding-top: var(--first-card-gap, 16px); }
+[data-page-head] + [data-page-body] { padding-top: 0; }
+@media (min-width: 640px) { :root { --first-card-gap: 20px; } }
+/* A loading skeleton drawn before any page frame exists (a lazy screen's
+   fallback) is held off the bar and the sidebar the same way. */
+[data-skel]:not([data-page-enter] *):not(.card *):not([role=dialog] *) {
+  margin: var(--first-card-gap, 16px) var(--page-gutter);
+}
+/* Focus pads its own work area (BentoOutlet), so it adds nothing there. */
+html[data-layout='bento'] { --first-card-gap: 0px; }

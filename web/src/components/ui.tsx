@@ -277,6 +277,7 @@ export function PageBody({
   return (
     <div
       data-page-enter=""
+      data-page-body=""
       className={cn(
         'space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10',
         top && 'pt-[var(--page-gutter)]',

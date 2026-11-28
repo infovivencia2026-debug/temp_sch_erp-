@@ -90,7 +90,7 @@ function Shape({
   return (
     <>
       <Says label={label} />
-      <div className={className} aria-hidden>
+      <div className={className} data-skel="" aria-hidden>
         {children}
       </div>
     </>
