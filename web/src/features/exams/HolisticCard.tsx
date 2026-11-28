@@ -217,22 +217,22 @@ export default function HolisticCard() {
             label="Attendance"
             value={d.attendance_percent != null ? `${d.attendance_percent}%` : '-'}
           />
-          {d.reporting.numeric_grades ? (
-            <>
-              <Stat
-                label="Overall"
-                value={d.percentage != null ? `${d.percentage.toFixed(1)}%` : '-'}
-                hint={d.reporting.scale}
-              />
-              <Stat label={d.cgpa != null ? 'CGPA' : 'Grade'}
-                value={d.cgpa != null ? d.cgpa.toFixed(1) : (d.grade ?? '-')} />
-            </>
-          ) : (
-            <>
-              <Stat label="Marks" value="Not at this stage" hint="Descriptive reporting only" />
-              <Stat label="Rank" value="Not at this stage" hint="No ranking below Class 6" />
-            </>
+          {/* Two separate children, not a fragment: CellGrid counts its
+              children to size the row, and a fragment counted as one tile
+              squeezed Marks and Rank into a single cell off the phone's edge. */}
+          {d.reporting.numeric_grades && (
+            <Stat
+              label="Overall"
+              value={d.percentage != null ? `${d.percentage.toFixed(1)}%` : '-'}
+              hint={d.reporting.scale}
+            />
           )}
+          {d.reporting.numeric_grades && (
+            <Stat label={d.cgpa != null ? 'CGPA' : 'Grade'}
+              value={d.cgpa != null ? d.cgpa.toFixed(1) : (d.grade ?? '-')} />
+          )}
+          {!d.reporting.numeric_grades && <Stat label="Marks" value="Not at this stage" hint="Descriptive reporting only" />}
+          {!d.reporting.numeric_grades && <Stat label="Rank" value="Not at this stage" hint="No ranking below Class 6" />}
         </CellGrid>
 
         {!d.ready && (
