@@ -528,6 +528,9 @@ body.auth .card h1 b{display:block;margin-top:2px;line-height:1;font-size:min(3e
 @media (min-width:640px){
   body.auth .auth-split{min-height:min(95vh, calc(100dvh - 3rem));max-height:calc(100dvh - 3rem)}
 }
+/* Owner, 2026-11-28: on a phone without photo slides the form sits on glass over the school colour, so the
+   brand-coloured "Sign in to X OS" vanished into it. White there, like the labels. */
+@media (max-width:639.98px){body.auth .auth-split:not(.has-slides) .card h1{color:#fff}}
 @media (max-width:639px){
   body.auth .auth-split{height:100vh;height:100dvh;min-height:0;max-height:100dvh}
   body.auth .auth-split .card{max-height:100%}
